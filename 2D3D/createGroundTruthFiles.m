@@ -16,7 +16,7 @@ images = dir([folder '/' '*.png']);
         textFile = fopen([folder '/' imageName '_' objectName '.groundtruth'],'w');
         objectRegion = [5,5,size(im,2)-5,size(im,1)-5];
         
-        fprintf(textFile,'%f %f %f %f\n',objectRegion);
+        fprintf(textFile,'%f %f %f %f %s\n',objectRegion,objectName);
         
         fclose(textFile);
  end;
