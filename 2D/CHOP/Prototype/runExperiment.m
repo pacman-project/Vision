@@ -15,17 +15,38 @@
 function [] = runExperiment( datasetName )
 
     % Initial parameters
-    numberOfFilters = 6;
-    property = 'co-occurence';
-
+    options.numberOfFilters = 6; % Number of Gabor filters at level 1
+    options.property = 'co-occurence'; % Geometric property to be examined
+                                       % 'co-occurence' or
+    options.maxLevels = 100;    % The maximum level count               
+    options.maxLabelLength = 100; % The maximum label name length allowed.
+    options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
+                                  % The last three are not really parameters, 
+                                  % put here to avoid hard-coding.
+    options.subdue.instanceIndicator = '  Instance ';
+    options.subdue.labelIndicator = 'Label: ';
+                                % The instance/label indicators are put
+                                % here for compliance with subdue output,
+                                % need to be changed if subdue output
+                                % format is changed.
+    options.subdue.minSize = 2; % Minimum number of nodes in a composition 
+    options.subdue.maxSize = 4; % Maximum number of nodes in a composition
+    options.subdue.nsubs = 100; % Maximum number of nodes allowed in a level
+    options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
+    options.subdue.beam = 10;   % Beam length in SUBDUE
+    options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
+    options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
+    
     % Learn dataset path relative to this m file
     currentFileName = mfilename('fullpath');
     [currentFilePath, ~, ~] = fileparts(currentFileName);
     datasetFolder = [currentFilePath '/datasets/' datasetName '/'];
     addpath([currentFilePath '/utilities']);
+    addpath([currentFilePath '/graphTools']);
     
-    % Specify name of the graph file
+    % Specify name of the graph files
     graphFileName = [currentFilePath '/graphs/' datasetName '.g'];
+    resultFileName = [currentFilePath '/output/' datasetName '.txt'];
     fp = fopen(graphFileName, 'w');
 
     % Get all images under the dataset
@@ -33,14 +54,29 @@ function [] = runExperiment( datasetName )
     
     % Extract graphs of each image and add to the final graph
  %   for fileItr = 1:size(fileNames,1) 
+    nodeCounter = 0;
+    edgeCounter = 0;
+    allNodes = cell(options.maxNumberOfFeatures,2);
+    allEdges = zeros(options.maxNumberOfFeatures,2);
+ 
     for fileItr = 1:20
         img = imread(fileNames{fileItr});
-        nodes = getNodes(img, numberOfFilters, currentFilePath);
-        edges = getEdges(nodes, property);
+        nodes = getNodes(img, options.numberOfFilters, currentFilePath);
+        edges = getEdges(nodes, options.property);
+        
+        % Keep nodes and edges 
+        allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), :) = nodes;
+        allEdges((edgeCounter + 1):(edgeCounter + size(edges,1)), :) = edges + edgeCounter;
     
         % Print the graph to the file.
-        printGraphToFile(fp, nodes, edges);
+        printGraphToFile(fp, cell2mat(nodes(:,1)), edges, true);
+        nodeCounter = nodeCounter + size(nodes,1);
+        edgeCounter = edgeCounter + size(edges,1);
     end
+    
+    % Learn the vocabulary in an unsupervised manner from the input graphs.
+    [vocabulary] = learnVocabulary(allNodes, allEdges, graphFileName, ...
+                                    resultFileName, options);
     
     fclose(fp);
 end
