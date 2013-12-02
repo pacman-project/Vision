@@ -9,25 +9,30 @@
 %>        index x y;
 %>          ...
 %>        index x y]
-%>              
+%> @param options Program options.
+%> @param currentLevel The level for which graph is extracted. Needed since
+%> the local neighborhood is affected by level.
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 20.11.2013
-function [ edges ] = getEdges( nodes, property )
+function [ edges ] = getEdges( nodes, options, currentLevel)
     %% Parameters
     edges = [];
-    neighborhood = 5;
+    scale = (1/options.scaling)^currentLevel;
+    neighborhood = options.edgeRadius * scale;
     
     nodeCount = size(nodes,1);
     
     for nodeItr = 1:nodeCount
-        if strcmp(property, 'co-occurence')
+        if strcmp(options.property, 'co-occurence')
             neighbors = getNeighbors(nodeItr, nodes, neighborhood); 
         end
-        currEdges = [ones(size(neighbors,1),1)*nodeItr, neighbors];
-        edges = [edges; currEdges];
+        if numel(neighbors)>0
+            currEdges = [ones(size(neighbors,1),1)*nodeItr, neighbors, ones(size(neighbors,1),1)];
+            edges = [edges; currEdges];
+        end
     end
     
 end
