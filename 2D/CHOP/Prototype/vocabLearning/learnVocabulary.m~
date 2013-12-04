@@ -34,7 +34,6 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
     vocabLevel(options.numberOfFilters) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', []);
     % Allocate space for current graph level.
     graphLevel(size(allNodes,1)) = struct('labelId', [], 'imageId', [], 'position', [], 'children', [], 'parents', [], 'adjInfo', []);
-    graphLevel.imageIds = mat2cell(imageIds);
     
     % Fill the first layer information
     for subItr = 1:options.numberOfFilters
@@ -43,6 +42,7 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
     for instanceItr = 1:size(allNodes,1)
        graphLevel(instanceItr).labelId = allNodes{instanceItr,1};
        graphLevel(instanceItr).position = fix(allNodes{instanceItr,2});
+       graphLevel(instanceItr).imageId = imageIds(instanceItr);
        edges = ismember(allEdges(:,1:2), instanceItr);
        
        % get non-zero rows of edges
@@ -54,13 +54,21 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
     
-    
     for levelItr = 2:options.maxLevels
         %% Run SUBDUE on the graph for the first time to go from level 1 to level 2.
         runSUBDUE(graphFileName, resultFileName, options, currentFolder);
         
         %% Parse the result file to extract nodes and their relations
         [vocabLevel, graphLevel] = parseResultFile(resultFileName, options);
+        
+        % If no new subs have been found
+        if isempty(vocabLevel)
+           break; 
+        end
+        
+        %% Analyze compositions in terms of nodes' spatial distribution
+        % Here, we create new substructures based on the spatial
+        % distribution of samples.
         
         %% Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
@@ -74,13 +82,17 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
            newNodes(nodeItr,:) = {currentLevel(nodeItr).labelId, currentLevel(nodeItr).position};
         end
         
-        imageInfo = cell2mat(currentLevel.imageId)
+        imageIds = [currentLevel(:).imageId];
+        imageCount = max(imageIds);
         
-        newEdges = getEdges(newNodes, options, levelItr);
-        
-        %% Print the new graph to the file.
         fp = fopen(graphFileName, 'w');
-        printGraphToFile(fp, newNodes, newEdges, 1);
+        for fileItr = 1:imageCount
+            nodes = newNodes(imageIds==fileItr,:);
+            edges = getEdges(nodes, options, levelItr);
+
+            % Print the graph to the file.
+            printGraphToFile(fp, nodes(:,1), edges, true);
+        end
         fclose(fp);
         
         %% Clear data structures

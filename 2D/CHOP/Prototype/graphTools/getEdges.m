@@ -17,6 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 20.11.2013
+%> Ver 1.1 on 02.12.2013 'bin' property (edge type) added.
 function [ edges ] = getEdges( nodes, options, currentLevel)
     %% Parameters
     edges = [];

@@ -61,6 +61,15 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
         %% Parse the result file to extract nodes and their relations
         [vocabLevel, graphLevel] = parseResultFile(resultFileName, options);
         
+        % If no new subs have been found, finish processing.
+        if isempty(vocabLevel)
+           break; 
+        end
+        
+        %% Analyze compositions in terms of nodes' spatial distribution
+        % Here, we create new substructures based on the spatial
+        % distribution of samples.
+        
         %% Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);

@@ -31,6 +31,11 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
     numberOfNewLabels = numel(labelIdx);
     labelIds = cell(numberOfNewLabels,1);
     
+    if numberOfNewLabels == 0
+       vocabLevel = []; 
+       graphLevel = [];
+    end
+    
     % Allocate space for current vocabulary level.
     vocabLevel(numberOfNewLabels) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', []);
     % Allocate space for current graph level.
@@ -110,12 +115,11 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
             newLineIdx = strfind(instanceString, sprintf('\n'));
             nodeIdx = strfind(instanceString, options.subdue.nodeIndicator);
             
-            % Determine current instance no and 
+            % Determine current instance number and assign its label.
             currentInstance = instanceItr + currentInstanceOffset;
             graphLevel(currentInstance).labelId = labelItr;
             
             %% Read node/edge information.
-            
             % Read nodes
             childrenList = zeros(1, numel(nodeIdx));
             for nodeItr = 1:numel(nodeIdx)
