@@ -1,0 +1,26 @@
+Mythological creatures 2D database v 1.0
+http://tosca.cs.technion.ac.il/book/resources_data.html
+(c) Michael Bronstein, 2006-2009
+
+DESCRIPTION:
+
+Two-dimensional articulated shapes (silhouettes) for partial similarity experiments. The 
+data set contains 15 shapes: 5 humans, 5 horses and 5 centaurs. Each shape differs by an 
+articulation and additional parts. The shapes are represented as binary images in .bmp 
+format.
+
+
+LICENSE: 
+
+This data set is distributed as part of the TOSCA (Toolbox for Surface Comparison and 
+Analysis) project and may be used for academic purposes. Any publication using the database
+should mention references [1-2] below. 
+
+
+REFERENCES:
+
+[1] A. M. Bronstein, M. M. Bronstein, R. Kimmel, Numerical geometry of non-rigid shapes,
+Springer, 2008.
+
+[2] A. M. Bronstein, M. M. Bronstein, A. M. Bruckstein, R. Kimmel, Analysis of two-
+dimensional non-rigid shapes, Intl. J. Computer Vision (IJCV),  Vol. 78/1, pp. 67-88, June 2008.
