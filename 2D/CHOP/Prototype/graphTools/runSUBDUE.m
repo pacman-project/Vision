@@ -28,7 +28,7 @@ function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder)
        subdueOptions = [subdueOptions '-overlap '];
     end
 
-    subdueOptions = [subdueOptions ' -nsubs ' num2str(options.subdue.nsubs) ...
+    subdueOptions = [subdueOptions '-nsubs ' num2str(options.subdue.nsubs) ...
                         ' -minsize ' num2str(options.subdue.minSize) ...
                         ' -maxsize ' num2str(options.subdue.maxSize) ...
                         ' -beam ' num2str(options.subdue.beam) ...
@@ -36,7 +36,13 @@ function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder)
                         ' -out ' resultFileName ' ' graphFileName];
 
     % Form the command and run subdue with specified options
-    command = [currentFolder '/subdue' subdueOptions];
+    if ismac
+        command = [currentFolder '/miners/subdueMac' subdueOptions];
+    elseif isunix
+        command = [currentFolder '/miners/subdueUnix' subdueOptions];
+    elseif ispc
+        command = [currentFolder '/miners/subdueWin' subdueOptions];
+    end
     system(command);
 end
 

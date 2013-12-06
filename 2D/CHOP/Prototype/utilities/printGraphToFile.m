@@ -29,7 +29,12 @@ function [ ] = printGraphToFile( fp, nodes, edges, isNumericNode )
     
     % Print edges
     for edgeItr = 1:size(edges,1)
-        fprintf(fp, ['u ' num2str(edges(edgeItr,1)) ' ' num2str(edges(edgeItr,2)) ' ' num2str(edges(edgeItr,3)) '\n']); 
+        if edges(edgeItr,4) == 1
+            edgeId = 'd';
+        else
+            edgeId = 'u';
+        end
+        fprintf(fp, [edgeId ' ' num2str(edges(edgeItr,1)) ' ' num2str(edges(edgeItr,2)) ' ' num2str(edges(edgeItr,3)) '\n']); 
     end
 end
 

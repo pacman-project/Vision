@@ -17,7 +17,6 @@
 %>
 %> Updates
 %> Ver 1.0 on 20.11.2013
-%> Ver 1.1 on 02.12.2013 'bin' property (edge type) added.
 function [ edges ] = getEdges( nodes, options, currentLevel)
     %% Parameters
     edges = [];
@@ -26,24 +25,31 @@ function [ edges ] = getEdges( nodes, options, currentLevel)
     
     nodeCount = size(nodes,1);
     
+    %% Go over the node list and get the edges.
     for nodeItr = 1:nodeCount
-        if strcmp(options.property, 'co-occurence')
-            neighbors = getNeighbors(nodeItr, nodes, neighborhood); 
-        end
-        if numel(neighbors)>0
-            currEdges = [ones(size(neighbors,1),1)*nodeItr, neighbors, ones(size(neighbors,1),1)];
+        adjacentNodes = getadjacentNodes(nodeItr, nodes, neighborhood); 
+        if numel(adjacentNodes)>0
+            currEdges = [ones(size(adjacentNodes,1),1)*nodeItr, adjacentNodes, ones(size(adjacentNodes,1),1), zeros(size(adjacentNodes,1),1)];
             edges = [edges; currEdges];
         end
     end
     
 end
 
-%% Helper function to get neighbors of a node.
-function [ neighbors ] = getNeighbors(nodeItr, nodes, neighborhood)
+%% Helper function to get adjacentNodes of a node.
+function [ adjacentNodes ] = getadjacentNodes(nodeItr, nodes, neighborhood)
     centerArr = [ones(size(nodes,1), 1) * nodes{nodeItr,2}(1), ...
         ones(size(nodes,1), 1) * nodes{nodeItr,2}(2)];
     
     distances = sqrt(sum((centerArr - cell2mat(nodes(:,2))).^2, 2));
-    neighbors = find(distances <= neighborhood);
-    neighbors = neighbors(neighbors > nodeItr);
+    adjacentNodes = find(distances <= neighborhood);
+    adjacentNodes = adjacentNodes(adjacentNodes > nodeItr);
 end
+
+%% Helper function to estimate relative positioning of two nodes.
+function [vector] = getPositionVector(node1, node2, nodes, neighborhood)
+    point1 = nodes{node1,2};
+    point2 = nodes{node2,2};
+    vector = (point2 - point1) / neighborhood;
+end
+

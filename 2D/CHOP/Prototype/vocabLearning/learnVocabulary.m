@@ -6,13 +6,13 @@
 %> phase is hierarchic, and continues until a the graph is compressed into
 %> a single node.
 %>
-%> @param allNodes The nodes of the level-1 input graph.
+%> @param allNodes The nodes of the level-1 input graph. Each node consists
+%> of a label id, position and image id.
 %> @param allEdges The edges of the level-1 input graph.
 %> @param graphFileName The input graph's path.
 %> @param resultFileName The file which will contain Subdue's output at
 %> each level.
 %> @param options Program options
-%> @param imageIds The image ids of each node.
 %> @param currentFolder The path to the workspace folder
 %>
 %> @retval vocabulary The hierarchic vocabulary learnt from the data.
@@ -24,10 +24,12 @@
 %> Ver 1.1 on 02.12.2013 Completed unlimited number of graph generation.
 function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ...
                                                             resultFileName,...
-                                                            options, imageIds, currentFolder)
+                                                            options, currentFolder)
     % Allocate space for vocabulary and hierarchical graph structure
     vocabulary = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
+    
+    imageIds = cell2mat(allNodes(:,3));
     
     %% Create first vocabulary and graph layers with existing node/edge info
     % Allocate space for current vocabulary level.
@@ -65,11 +67,6 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
         if isempty(vocabLevel)
            break; 
         end
-        
-        %% Analyze compositions in terms of nodes' spatial distribution
-        % Here, we create new substructures based on the spatial
-        % distribution of samples.
-        
         %% Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);
@@ -77,18 +74,18 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
         %% Create new graph to be fed to for knowledge discovery in the next level.
         currentLevel = mainGraph{levelItr};
         numberOfNodes = numel(currentLevel);
-        newNodes = cell(numel(currentLevel), 2);
+        newNodes = cell(numel(currentLevel), 3);
         for nodeItr = 1:numberOfNodes
-           newNodes(nodeItr,:) = {currentLevel(nodeItr).labelId, currentLevel(nodeItr).position};
+           newNodes(nodeItr,:) = {currentLevel(nodeItr).labelId, currentLevel(nodeItr).position, currentLevel(nodeItr).imageId};
         end
         
-        imageIds = [currentLevel(:).imageId];
+        imageIds = [currentLevel(:).imageId]';
         imageCount = max(imageIds);
         
         fp = fopen(graphFileName, 'w');
         for fileItr = 1:imageCount
             nodes = newNodes(imageIds==fileItr,:);
-            edges = getEdges(nodes, options, levelItr);
+            [~, edges] = extractEdges(nodes, options, levelItr);
 
             % Print the graph to the file.
             printGraphToFile(fp, nodes(:,1), edges, true);

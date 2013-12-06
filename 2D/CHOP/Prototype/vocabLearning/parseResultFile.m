@@ -34,6 +34,7 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
     if numberOfNewLabels == 0
        vocabLevel = []; 
        graphLevel = [];
+       return;
     end
     
     % Allocate space for current vocabulary level.

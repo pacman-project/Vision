@@ -6,28 +6,44 @@
 %> edges. Then, we compress samples of each category with SUBDUE to get 
 %>
 %> @param datasetName Name of the dataset to work on. 
+%> @param imageExtension The extension of the files to work on. Examples
+%> include '.jpg', '.png', '_crop.png'...
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 18.11.2013
+%> Ver 1.1 on 05.12.2013 Various parameter additions, 'mode' changes
 
-function [] = runExperiment( datasetName )
-
-    % Initial parameters
+function [] = runExperiment( datasetName, imageExtension )
+    %% Step 0: Set program parameters and global variables.
+    options.debug = 1;           % If debug = 1, additional output will be 
+                                 % generated to aid debugging process.
     options.numberOfFilters = 6; % Number of Gabor filters at level 1
-    options.property = 'co-occurence'; % Geometric property to be examined
+    options.gaborFilterThr = 0.6; % Response threshold for Gabor filter 
+                                 % convolution.
+    options.gaborAreaMinResponse = 0.1; % The threshold to define the 'area' 
+                                        % of a filter. Lower-valued responses 
+                                        % are inhibited in each response's 
+                                        % filter area.
+    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
+                                        % that the size also depends on the 
+                                        % filter parameters, so consider them 
+                                        % all when you change this!
+    options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence' or
-    options.scaling = 0.95;            % Each successive layer is downsampled 
+    options.scaling = 1;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
-    options.edgeRadius = 5;            % The edge radius for two subs to be 
+    options.maximumModes = 5;          % Maximum number of modes allowed for 
+                                       % a node pair.
+    options.edgeRadius = options.gaborFilterSize+5; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
-    options.maxLevels = 3;    % The maximum level count               
+    options.maxLevels = 10;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
                                   % The last three are not really parameters, 
@@ -45,19 +61,26 @@ function [] = runExperiment( datasetName )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 4; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 20; % Maximum number of nodes allowed in a level
+    options.subdue.maxSize = 5; % Maximum number of nodes in a composition
+    options.subdue.nsubs = 50;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 4;   % Beam length in SUBDUE
+    options.subdue.beam = 100;    % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
+                                % Right now, there is a bug with SUBDUE
+                                % code, so a value of 0 already allows
+                                % overlap and works better. Not advised to
+                                % change it at the moment.
     
     % Learn dataset path relative to this m file
     currentFileName = mfilename('fullpath');
     [currentPath, ~, ~] = fileparts(currentFileName);
+    % Set current folder
+    options.currentFolder = currentPath;
     datasetFolder = [currentPath '/datasets/' datasetName '/'];
     addpath([currentPath '/utilities']);
     addpath([currentPath '/graphTools']);
+    addpath([currentPath '/vocabLearning']);
     
     % Specify name of the graph files
     graphFileName = [currentPath '/graphs/' datasetName '.g'];
@@ -65,39 +88,52 @@ function [] = runExperiment( datasetName )
     fp = fopen(graphFileName, 'w');
 
     % Get all images under the dataset
-    fileNames = fuf([datasetFolder '*_crop.png'], 1, 'detail');
+    fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
     
-    %% Extract graphs of each image as first level of the hierarchy
+    %% Step 1: Extract nodes of each image for the first level of the hierarchy.
     nodeCounter = 0;
     edgeCounter = 0;
-    allNodes = cell(options.maxNumberOfFeatures,2);
-    allEdges = zeros(options.maxNumberOfFeatures,3);
-    imageIds = [];
+    allNodes = cell(options.maxNumberOfFeatures,3);
     
 %   for fileItr = 1:size(fileNames,1) 
-    for fileItr = 1:20
+    for fileItr = 1:10
         img = imread(fileNames{fileItr});
-        nodes = getNodes(img, options.numberOfFilters, currentPath);
-        imageIds = [imageIds, ones(1, size(nodes,1))*fileItr];
-        edges = getEdges(nodes, options, 1);
-        
-        % Keep nodes and edges 
-        allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), :) = nodes;
-        allEdges((edgeCounter + 1):(edgeCounter + size(edges,1)), 1:2) = edges(:,1:2) + edgeCounter;
-        allEdges((edgeCounter + 1):(edgeCounter + size(edges,1)), 3) = edges(:,3);
-    
-        % Print the graph to the file.
-        printGraphToFile(fp, nodes(:,1), edges, true);
+        nodes = getNodes(img, options.numberOfFilters, options.gaborFilterThr, ... 
+            options.gaborAreaMinResponse, options.gaborFilterSize, currentPath);
+        % Keep nodes in the array.
+        allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 1:2) = nodes;
+        % Assign image ids.
+        imageIds = ones(size(nodes,1), 1)*fileItr;
+        allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 3) = ...
+                                        mat2cell(imageIds, ones(size(imageIds)));
+        % Increment node counter.
         nodeCounter = nodeCounter + size(nodes,1);
-        edgeCounter = edgeCounter + size(edges,1);
     end
     allNodes = allNodes(1:nodeCounter,:);
-    allEdges = allEdges(1:edgeCounter,:);
+    
+    %% Step 2: Get edges depending on the property to be embedded in the graph.
+    [~, edges] = extractEdges(allNodes, options, 1);
+    
+    %% Step 3: Print the graphs to the input file.
+    imageIds = cell2mat(allNodes(:,3));
+    numberOfImages = max(imageIds);
+    nodeOffset = 0;
+    for imageItr = 1:numberOfImages
+        %% Get only nodes and edges belonging to this image and print them.
+        imageNodeIdx = find(imageIds==imageItr);
+        firstNodesOfEdges = edges(:,1);
+        imageEdgeIdx = ismember(firstNodesOfEdges, imageNodeIdx);
+        imageNodes = allNodes(imageIds==imageItr,:);
+        imageEdges = edges(imageEdgeIdx, :);
+        imageEdges(:,1:2) = imageEdges(:,1:2) - nodeOffset;
+        printGraphToFile(fp, imageNodes(:,1), imageEdges, true);
+        nodeOffset = nodeOffset + size(imageNodes,1);
+    end
     fclose(fp);
     
-    %% Learn the vocabulary in an unsupervised manner from the input graphs.
-    [vocabulary] = learnVocabulary(allNodes, allEdges, graphFileName, ...
-                                    resultFileName, options, imageIds, currentPath);
+    %% Step 4: Learn the vocabulary in an unsupervised manner from the input graphs.
+    [vocabulary] = learnVocabulary(allNodes, edges, graphFileName, ...
+                                    resultFileName, options, currentPath);
     save([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary');
 end
 

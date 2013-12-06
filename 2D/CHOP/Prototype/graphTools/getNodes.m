@@ -96,7 +96,7 @@ function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinRes
    %% Inhibit weak responses
    peaks = find(responseImgs);
    [xInd, yInd, ~] = ind2sub(size(responseImgs), peaks);
-   halfSize = gaborFilterSize/2;
+   halfSize = floor(gaborFilterSize/2);
    
    for peakItr = 1:size(peaks,1)
       % If this peak has not yet been eliminated, go check nearby peaks
@@ -105,9 +105,11 @@ function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinRes
               yInd >= (yInd(peakItr) - halfSize) & yInd <= (yInd(peakItr) + halfSize);
           
           maxPeak = max(responseImgs(peaks(nearbyPeakIdx)));
-          if responseImgs(peaks(peakItr)) >= maxPeak
+          if responseImgs(peaks(peakItr)) > (maxPeak-0.0001)
              nearbyPeakIdx(peakItr) = 0;
              responseImgs(peaks(nearbyPeakIdx)) = 0; 
+          else
+             responseImgs(peaks(peakItr)) = 0;
           end
       end
    end
