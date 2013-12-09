@@ -40,7 +40,7 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
     % Allocate space for current vocabulary level.
     vocabLevel(numberOfNewLabels) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', []);
     % Allocate space for current graph level.
-    graphLevel(numberOfNewNodes) = struct('labelId', [], 'imageId', [], 'position', [], 'children', [], 'parents', [], 'adjInfo', []);
+    graphLevel(numberOfNewNodes) = struct('labelId', [], 'imageId', [], 'position', [], 'children', [], 'parents', [], 'adjInfo', [], 'childrenAdjInfo', []);
     
     % Try to read all labels within the frames specified with
     % options.subdue.maxLabelLength.
@@ -79,6 +79,8 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
         vocabLevel(labelItr).label = subLabel;
         defnNodeIdx = strfind(defnString, options.subdue.nodeIndicator);
         defnEdgeIdx = strfind(defnString, options.subdue.edgeIndicator);
+        defnDirEdgeIdx = strfind(defnString, options.subdue.directedEdgeIndicator);
+        defnEdgeIdx = [defnEdgeIdx, defnDirEdgeIdx];
         
         %% Read node/edge information.
         childrenList = zeros(1, numel(defnNodeIdx));
@@ -98,12 +100,20 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
         % Assign nodes to sub information
         vocabLevel(labelItr).children = childrenList;
         
-        defnEdges = zeros(numel(defnEdgeIdx),3);
+        defnEdges = zeros(numel(defnEdgeIdx),4);
         for edgeItr = 1:numel(defnEdgeIdx)
            lineEnd = find(newLineIdx > defnEdgeIdx(edgeItr), 1, 'first');
            edgeString = defnString(defnEdgeIdx(edgeItr):newLineIdx(lineEnd));
-           [vars] = textscan(edgeString, '%*s %d %d %d');
-           defnEdges(edgeItr,:) = cell2mat(vars);
+           [vars] = textscan(edgeString, '%s %d %d %d');
+           defnEdges(edgeItr,1:3) = cell2mat(vars(2:end));
+           
+           % Also save directedness information of the edge.               
+           edgeChar = vars{1};
+           if ~isempty(strfind(options.subdue.edgeIndicator, edgeChar{1}))
+             defnEdges(edgeItr,4) = 0;
+           else 
+             defnEdges(edgeItr,4) = 1;
+           end
         end
         vocabLevel(labelItr).adjInfo = defnEdges;
         
@@ -120,8 +130,7 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
             currentInstance = instanceItr + currentInstanceOffset;
             graphLevel(currentInstance).labelId = labelItr;
             
-            %% Read node/edge information.
-            % Read nodes
+            %% Read instance nodes.
             childrenList = zeros(1, numel(nodeIdx));
             for nodeItr = 1:numel(nodeIdx)
                lineEnd = find(newLineIdx > nodeIdx(nodeItr), 1, 'first');
@@ -130,8 +139,28 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
                childrenList(nodeItr) = nodeId{1};
             end
             
+            %% Read instance edges.
+            edgeIdx = [strfind(instanceString, options.subdue.edgeIndicator), ...
+                strfind(instanceString, options.subdue.directedEdgeIndicator)];
+            instanceEdges = zeros(numel(edgeIdx),4);
+            for edgeItr = 1:numel(edgeIdx)
+               lineEnd = find(newLineIdx > edgeIdx(edgeItr), 1, 'first');
+               edgeString = instanceString(edgeIdx(edgeItr):newLineIdx(lineEnd));
+               [vars] = textscan(edgeString, '%s %d %d %d');
+               instanceEdges(edgeItr,1:3) = cell2mat(vars(2:end));
+
+               % Also save directedness information of the edge.
+               edgeChar = vars{1};
+               if ~isempty(strfind(options.subdue.edgeIndicator, edgeChar{1}))
+                 instanceEdges(edgeItr,4) = 0;
+               else 
+                 instanceEdges(edgeItr,4) = 1;
+               end
+            end
+            
             % Assign nodes to sub information
             graphLevel(currentInstance).children = childrenList;
+            graphLevel(currentInstance).childrenAdjInfo = instanceEdges;
         end
         
         currentInstanceOffset = currentInstanceOffset + (numel(subInstanceIdx) - 1);

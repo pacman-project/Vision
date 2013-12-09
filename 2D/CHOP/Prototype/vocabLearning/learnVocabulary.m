@@ -6,14 +6,16 @@
 %> phase is hierarchic, and continues until a the graph is compressed into
 %> a single node.
 %>
-%> @param allNodes The nodes of the level-1 input graph. Each node consists
+%> @param allNodes The nodes of the level 1 input graph. Each node consists
 %> of a label id, position and image id.
-%> @param allEdges The edges of the level-1 input graph.
+%> @param allEdges The edges of the level 1 input graph.
+%> @param firstModes The pairwise modes in the leve1 input graph.
 %> @param graphFileName The input graph's path.
 %> @param resultFileName The file which will contain Subdue's output at
 %> each level.
 %> @param options Program options
-%> @param currentFolder The path to the workspace folder
+%> @param fileList input image name list.
+%> @param datasetName The name of the dataset.
 %>
 %> @retval vocabulary The hierarchic vocabulary learnt from the data.
 %> 
@@ -22,15 +24,14 @@
 %> Updates
 %> Ver 1.0 on 26.11.2013
 %> Ver 1.1 on 02.12.2013 Completed unlimited number of graph generation.
-function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ...
+function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges, firstModes, graphFileName, ...
                                                             resultFileName,...
-                                                            options, currentFolder)
-    % Allocate space for vocabulary and hierarchical graph structure
+                                                            options, fileList, datasetName)
+    %% Allocate space for vocabulary and hierarchical graph structure
     vocabulary = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
-    
     imageIds = cell2mat(allNodes(:,3));
-    
+    modes = cell(options.maxLevels,1);
     %% Create first vocabulary and graph layers with existing node/edge info
     % Allocate space for current vocabulary level.
     vocabLevel(options.numberOfFilters) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', []);
@@ -53,18 +54,34 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
             graphLevel(instanceItr).adjInfo = selfEdges;
        end
     end
+    
+    %% Prepare intermediate data structures for sequential processing.
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
+    modes(1) = {firstModes};
+    [pathToGraphFile, fileName, ext] = fileparts(graphFileName);
+    [pathToResultFile, rFileName, resultExt] = fileparts(resultFileName);
+    currentLevel = vocabulary{1};
+    previousModes = [];
     
     for levelItr = 2:options.maxLevels
+        %% Write each level's appearances to the output folder.
+        if options.debug
+           visualizeLevel( currentLevel, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+%           visualizeImages( levelItr-1, options, datasetName );
+        end
+        
         %% Run SUBDUE on the graph for the first time to go from level 1 to level 2.
-        runSUBDUE(graphFileName, resultFileName, options, currentFolder);
+        runSUBDUE(graphFileName, resultFileName, options, options.currentFolder);
         
         %% Parse the result file to extract nodes and their relations
         [vocabLevel, graphLevel] = parseResultFile(resultFileName, options);
         
         % If no new subs have been found, finish processing.
         if isempty(vocabLevel)
+           vocabulary = vocabulary(1:(levelItr-1),:);
+           mainGraph = mainGraph(1:(levelItr-1),:);
+           modes = modes(1:(levelItr-1),:);
            break; 
         end
         %% Create the parent relationships between current level and previous level.
@@ -82,68 +99,51 @@ function [ vocabulary ] = learnVocabulary( allNodes, allEdges, graphFileName, ..
         imageIds = [currentLevel(:).imageId]';
         imageCount = max(imageIds);
         
+        %% Extract the edges to form the new graph.
+        [currModes, edges] = extractEdges(newNodes, options, levelItr, datasetName);
+        
+        % Set variables for next level discovery process.
+        graphFileName = [pathToGraphFile '/' fileName '_' num2str(levelItr) ext];
+        resultFileName = [pathToResultFile '/' rFileName '_' num2str(levelItr) resultExt];
         fp = fopen(graphFileName, 'w');
+        nodeOffset = 0;
+        
+        %% Assign prolonging data structures
+        currentLevel = vocabulary{levelItr};
+        previousModes = modes{levelItr-1};
+        
+        %% If no new edges found, kill program.
+        if isempty(edges)
+           vocabulary = vocabulary(1:(levelItr-1),:);
+           mainGraph = mainGraph(1:(levelItr-1),:);
+           modes = modes(1:(levelItr-1),:);
+           % Print new level's words before exiting from loop
+           if options.debug
+               visualizeLevel( currentLevel, levelItr, previousModes, options.currentFolder, options, datasetName);
+           end
+           break; 
+        end
+        
+        %% Print the graphs to the file for new level discovery.
         for fileItr = 1:imageCount
             nodes = newNodes(imageIds==fileItr,:);
-            [~, edges] = extractEdges(nodes, options, levelItr);
-
+            imageNodeIdx = find(imageIds==fileItr);
+            imageEdgeIdx = ismember(edges(:,1), imageNodeIdx);
+            imageEdges = edges(imageEdgeIdx,:);
+            imageEdges(:,1:2) = imageEdges(:,1:2) - nodeOffset;
             % Print the graph to the file.
-            printGraphToFile(fp, nodes(:,1), edges, true);
+            printGraphToFile(fp, nodes(:,1), imageEdges, true);
+            nodeOffset = nodeOffset + size(nodes,1);
         end
         fclose(fp);
+        
+        % Add current level's modes to the main 'modes' array.
+        modes(levelItr) = {currModes};
         
         %% Clear data structures
         clear vocabLevel;
         clear graphLevel;
+ %       clear modes;
     end
-    
-    vocabulary = vocabulary(1:levelItr);
-end
-
-%> Name: mergeIntoGraph
-%>
-%> Description: Given the hierarchical graph and newly formed level, this
-%> function embeds new level into the hierarchy by forming parent links
-%> between current level and the previous level. If the graph structure has
-%> position information, the positions of the children are averaged to find
-%> out the position of their super-structure.
-%>
-%> @param graph Hierarchical graph structure.
-%> @param level New level.
-%> @param levelItr Level iterator.
-%> @param position Position calculations are processed if 1.
-%>
-%> @retval graph Newly formed hierarchical graph structure.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 02.12.2013
-function [graph] = mergeIntoGraph(graph, level, levelItr, position)
-    %% Go over children list of each instance in current level
-    previousLevel = graph{levelItr-1};
-    for newInstItr = 1:numel(level)
-        children = level(newInstItr).children;
-        for childItr = 1:numel(children)
-           if ~ismember(newInstItr, previousLevel(children(childItr)).parents)
-                previousLevel(children(childItr)).parents = ...
-                    [previousLevel(children(childItr)).parents, newInstItr];
-           end
-        end
-        
-        % If necessary, process the position calculation/imageId copying work too.
-        if position
-            newPosition = [0,0];
-            for childItr = 1:numel(children)
-               newPosition = newPosition + previousLevel(children(childItr)).position;
-            end
-            newPosition = fix(newPosition / numel(children));
-            level(newInstItr).position = newPosition;
-            level(newInstItr).imageId = previousLevel(children(1)).imageId;
-        end
-    end
-    
-    %% Assign new levels and move on.
-    graph(levelItr-1) = {previousLevel};
-    graph(levelItr) = {level};
+    vocabulary = vocabulary(1:(levelItr-1),:);
 end

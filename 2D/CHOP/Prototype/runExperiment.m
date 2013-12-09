@@ -22,7 +22,7 @@ function [] = runExperiment( datasetName, imageExtension )
     options.numberOfFilters = 6; % Number of Gabor filters at level 1
     options.gaborFilterThr = 0.6; % Response threshold for Gabor filter 
                                  % convolution.
-    options.gaborAreaMinResponse = 0.1; % The threshold to define the 'area' 
+    options.gaborAreaMinResponse = 0.1; % The threshold to define the minimum response 
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area.
@@ -32,15 +32,16 @@ function [] = runExperiment( datasetName, imageExtension )
                                         % all when you change this!
     options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence' or
-    options.scaling = 1;            % Each successive layer is downsampled 
+    options.scaling = 0.6;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
-    options.maximumModes = 5;          % Maximum number of modes allowed for 
+    options.maxImageDim = options.gaborFilterSize*12;
+    options.maximumModes = 6;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize+5; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 10;    % The maximum level count               
@@ -52,6 +53,7 @@ function [] = runExperiment( datasetName, imageExtension )
     options.subdue.labelIndicator = sprintf('Label: ');
     options.subdue.nodeIndicator = sprintf('\nv ');
     options.subdue.edgeIndicator = sprintf('\nu ');
+    options.subdue.directedEdgeIndicator = sprintf('\nd ');
     options.subdue.endLineIndicator = sprintf('\n');
     options.subdue.subPrefix = 'SUB_';
                                 % The indicators are put
@@ -61,10 +63,10 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 5; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 50;  % Maximum number of nodes allowed in a level
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition
+    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 100;    % Beam length in SUBDUE
+    options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
                                 % Right now, there is a bug with SUBDUE
@@ -84,25 +86,38 @@ function [] = runExperiment( datasetName, imageExtension )
     
     % Specify name of the graph files
     graphFileName = [currentPath '/graphs/' datasetName '.g'];
-    resultFileName = [currentPath '/output/' datasetName '.txt'];
+    outputFolder = [currentPath '/output/' datasetName '/'];
+    processedInputFolder = [currentPath '/output/' datasetName '/original'];
+    resultFileName = [outputFolder datasetName '.txt'];
     fp = fopen(graphFileName, 'w');
+    
+    if ~exist(processedInputFolder,'dir')
+       mkdir(processedInputFolder); 
+    end
 
     % Get all images under the dataset
     fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
     
     %% Step 1: Extract nodes of each image for the first level of the hierarchy.
     nodeCounter = 0;
-    edgeCounter = 0;
     allNodes = cell(options.maxNumberOfFeatures,3);
     
-%   for fileItr = 1:size(fileNames,1) 
-    for fileItr = 1:10
+   for fileItr = 1:size(fileNames,1) 
+%    for fileItr = 1:10
+        %% First, downsample the image if it is too big.
         img = imread(fileNames{fileItr});
+        [~, fileName, ~] = fileparts(fileNames{fileItr});
+        if max(size(img)) > options.maxImageDim
+           img = imresize(img, options.maxImageDim/max(size(img))); 
+        end
+        imwrite(img, [processedInputFolder, fileName '.png']);
+        
+        %% Form the first level nodes.
         nodes = getNodes(img, options.numberOfFilters, options.gaborFilterThr, ... 
             options.gaborAreaMinResponse, options.gaborFilterSize, currentPath);
         % Keep nodes in the array.
         allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 1:2) = nodes;
-        % Assign image ids.
+        % Assign nodes their image ids.
         imageIds = ones(size(nodes,1), 1)*fileItr;
         allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 3) = ...
                                         mat2cell(imageIds, ones(size(imageIds)));
@@ -112,7 +127,7 @@ function [] = runExperiment( datasetName, imageExtension )
     allNodes = allNodes(1:nodeCounter,:);
     
     %% Step 2: Get edges depending on the property to be embedded in the graph.
-    [~, edges] = extractEdges(allNodes, options, 1);
+    [modes, edges] = extractEdges(allNodes, options, 1, datasetName);
     
     %% Step 3: Print the graphs to the input file.
     imageIds = cell2mat(allNodes(:,3));
@@ -132,8 +147,8 @@ function [] = runExperiment( datasetName, imageExtension )
     fclose(fp);
     
     %% Step 4: Learn the vocabulary in an unsupervised manner from the input graphs.
-    [vocabulary] = learnVocabulary(allNodes, edges, graphFileName, ...
-                                    resultFileName, options, currentPath);
-    save([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary');
+    [vocabulary, mainGraph, modes] = learnVocabulary(allNodes, edges, modes, graphFileName, ...
+                                    resultFileName, options, fileNames, datasetName);
+    save([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes');
 end
 
