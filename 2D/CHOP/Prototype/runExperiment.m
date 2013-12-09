@@ -19,7 +19,9 @@ function [] = runExperiment( datasetName, imageExtension )
     %% Step 0: Set program parameters and global variables.
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
-    options.numberOfFilters = 6; % Number of Gabor filters at level 1
+    options.numberOfFilters = 6; % Number of Gabor filters at level 1.
+    options.numberOfTrainingImages = 5; % Number of training images to be 
+                                 % used in unsupervised vocabulary learning.
     options.gaborFilterThr = 0.6; % Response threshold for Gabor filter 
                                  % convolution.
     options.gaborAreaMinResponse = 0.1; % The threshold to define the minimum response 
@@ -38,7 +40,7 @@ function [] = runExperiment( datasetName, imageExtension )
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
-    options.maxImageDim = options.gaborFilterSize*12;
+    options.maxImageDim = options.gaborFilterSize*20;
     options.maximumModes = 6;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = options.gaborFilterSize; % The edge radius for two subs to be 
@@ -64,9 +66,9 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 50;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 100;   % Beam length in SUBDUE
+    options.subdue.beam = 50;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
                                 % Right now, there is a bug with SUBDUE
@@ -77,40 +79,42 @@ function [] = runExperiment( datasetName, imageExtension )
     % Learn dataset path relative to this m file
     currentFileName = mfilename('fullpath');
     [currentPath, ~, ~] = fileparts(currentFileName);
-    % Set current folder
+    % Set folder variables.
     options.currentFolder = currentPath;
     datasetFolder = [currentPath '/datasets/' datasetName '/'];
+    options.processedFolder = [currentPath '/output/' datasetName '/original'];
+    options.outputFolder = [currentPath '/output/' datasetName];
+    
+    % Add relevant folders to path.
     addpath([currentPath '/utilities']);
     addpath([currentPath '/graphTools']);
     addpath([currentPath '/vocabLearning']);
     
     % Specify name of the graph files
     graphFileName = [currentPath '/graphs/' datasetName '.g'];
-    outputFolder = [currentPath '/output/' datasetName '/'];
-    processedInputFolder = [currentPath '/output/' datasetName '/original'];
-    resultFileName = [outputFolder datasetName '.txt'];
+    resultFileName = [options.outputFolder '/' datasetName '.txt'];
     fp = fopen(graphFileName, 'w');
     
-    if ~exist(processedInputFolder,'dir')
-       mkdir(processedInputFolder); 
+    if ~exist(options.processedFolder,'dir')
+       mkdir(options.processedFolder); 
     end
 
     % Get all images under the dataset
     fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
+    trainingFileNames = fileNames(1:options.numberOfTrainingImages,:);
     
     %% Step 1: Extract nodes of each image for the first level of the hierarchy.
     nodeCounter = 0;
     allNodes = cell(options.maxNumberOfFeatures,3);
     
-   for fileItr = 1:size(fileNames,1) 
-%    for fileItr = 1:10
+   for fileItr = 1:size(trainingFileNames,1) 
         %% First, downsample the image if it is too big.
-        img = imread(fileNames{fileItr});
-        [~, fileName, ~] = fileparts(fileNames{fileItr});
+        img = imread(trainingFileNames{fileItr});
+        [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
         if max(size(img)) > options.maxImageDim
            img = imresize(img, options.maxImageDim/max(size(img))); 
         end
-        imwrite(img, [processedInputFolder, fileName '.png']);
+        imwrite(img, [options.processedFolder '/' fileName '.png']);
         
         %% Form the first level nodes.
         nodes = getNodes(img, options.numberOfFilters, options.gaborFilterThr, ... 
@@ -148,7 +152,7 @@ function [] = runExperiment( datasetName, imageExtension )
     
     %% Step 4: Learn the vocabulary in an unsupervised manner from the input graphs.
     [vocabulary, mainGraph, modes] = learnVocabulary(allNodes, edges, modes, graphFileName, ...
-                                    resultFileName, options, fileNames, datasetName);
+                                    resultFileName, options, trainingFileNames, datasetName);
     save([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes');
 end
 

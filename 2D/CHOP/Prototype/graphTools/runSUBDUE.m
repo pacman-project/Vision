@@ -43,6 +43,7 @@ function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder)
     elseif ispc
         command = [currentFolder '/miners/subdueWin' subdueOptions];
     end
+    command
     system(command);
 end
 

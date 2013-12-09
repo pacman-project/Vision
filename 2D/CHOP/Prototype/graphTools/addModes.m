@@ -19,20 +19,20 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.12.2013
-function [modes, edges] = addModes(nodes, options, currentLevel)
+function [modes, edges] = addModes(nodes, options, currentLevel, datasetName)
     % Prevent empty cluster warnings in kmeans.
-    w = warning('off', 'stats:kmeans:EmptyCluster');
+    w = warning('off', 'all');
     
     % Calculate edge radius.
     scale = (1/options.scaling)^currentLevel;
-    neighborhood = options.edgeRadius * scale;
+    neighborhood = fix(options.edgeRadius * scale);
     
     %% For each node pair, get the 2-D distribution of samples.
     % Right now, we only work with 2-dimensional spatial relations.
-    numberOfNodes = size(nodes,1);
     nodeIds = cell2mat(nodes(:,1));
     nodeCoords = cell2mat(nodes(:,2));
     imageIds = cell2mat(nodes(:,3));
+    numberOfNodes = max(nodeIds);
     
     modes = [];
     edges = [];
@@ -94,13 +94,22 @@ function [modes, edges] = addModes(nodes, options, currentLevel)
            % Normalize vectors using max distance
  %          samples = samples / neighborhood;
            
+           % Eliminate some samples so that we only take roughly half of
+           % them into account (only when investigating same node type
+           % pair).
+           if node1 ==  node2
+               validEdgeIdx = samples(:,1) + samples(:,2) >= 0;
+               samples = samples(validEdgeIdx, :);
+               allPairwiseEdges = allPairwiseEdges(validEdgeIdx, :);
+           end
+ 
            %% Cluster samples to detect the nodes. 
            % This step can be replaced with a better, different approach.
            if isempty(samples)
                continue;
            elseif size(samples,1) < options.maximumModes
-               % If not enough samples, combine all into single cluster.
-               classes = ones(size(samples,1),1);
+               % If not enough samples, consider each as a single cluster.
+               classes = (1:size(samples,1))';
            else
                % Enough samples, process data.
                classes = mec(samples, 'c', options.maximumModes, 'kmeans_i', 5);
@@ -128,13 +137,10 @@ function [modes, edges] = addModes(nodes, options, currentLevel)
                samplesToWrite = floor(samples + neighborhood + 1);
                samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
                distributionImg(samplesInd) = classes;
-               if ~exist([options.currentFolder '/debug'], 'dir')
-                   mkdir([options.currentFolder '/debug']);
+               if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/'], 'dir')
+                   mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/']);
                end
-               if ~exist([options.currentFolder '/debug/level' num2str(currentLevel)], 'dir')
-                   mkdir([options.currentFolder '/debug/level' num2str(currentLevel)]);
-               end
-      %         imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), [options.currentFolder '/debug/level' currentLevel '/' num2str(node1) '_' num2str(node2) '.png']);
+               imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), [options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/' num2str(node1) '_' num2str(node2) '.png']);
            end
        end
     end

@@ -65,12 +65,6 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
     previousModes = [];
     
     for levelItr = 2:options.maxLevels
-        %% Write each level's appearances to the output folder.
-        if options.debug
-           visualizeLevel( currentLevel, levelItr-1, previousModes, options.currentFolder, options, datasetName);
-%           visualizeImages( levelItr-1, options, datasetName );
-        end
-        
         %% Run SUBDUE on the graph for the first time to go from level 1 to level 2.
         runSUBDUE(graphFileName, resultFileName, options, options.currentFolder);
         
@@ -87,6 +81,13 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         %% Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);
+        
+        %% Write previous level's appearances to the output folder.
+        if options.debug
+           visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+           visualizeImages( fileList, numel(vocabulary{levelItr-1}), mainGraph{levelItr-1}, levelItr-1, options, datasetName, 'train' );
+        end
+        
         
         %% Create new graph to be fed to for knowledge discovery in the next level.
         currentLevel = mainGraph{levelItr};
@@ -119,7 +120,11 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
            modes = modes(1:(levelItr-1),:);
            % Print new level's words before exiting from loop
            if options.debug
+               vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
+               mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);
                visualizeLevel( currentLevel, levelItr, previousModes, options.currentFolder, options, datasetName);
+               % TODO Fix image id missing problem in the last iteration!.
+               visualizeImages( fileList, numel(vocabLevel), graphLevel, levelItr, options, datasetName, 'train' );
            end
            break; 
         end
@@ -131,6 +136,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
             imageEdgeIdx = ismember(edges(:,1), imageNodeIdx);
             imageEdges = edges(imageEdgeIdx,:);
             imageEdges(:,1:2) = imageEdges(:,1:2) - nodeOffset;
+            
             % Print the graph to the file.
             printGraphToFile(fp, nodes(:,1), imageEdges, true);
             nodeOffset = nodeOffset + size(nodes,1);
@@ -141,8 +147,8 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         modes(levelItr) = {currModes};
         
         %% Clear data structures
-        clear vocabLevel;
-        clear graphLevel;
+ %       clear vocabLevel;
+ %       clear graphLevel;
  %       clear modes;
     end
     vocabulary = vocabulary(1:(levelItr-1),:);

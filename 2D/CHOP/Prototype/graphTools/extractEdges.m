@@ -17,14 +17,14 @@
 %>
 %> Updates
 %> Ver 1.0 on 06.12.2013
-function [modes, edges] = extractEdges(nodes, options, currentLevel)
+function [modes, edges] = extractEdges(nodes, options, currentLevel, datasetName)
     modes = [];
     if strcmp(options.property, 'mode')
         % If needed, process nodes to determine 'mode's, i.e. pair-wise relations.
-        [modes, edges] = addModes(nodes, options, currentLevel);
+        [modes, edges] = addModes(nodes, options, currentLevel, datasetName);
     else
         % Form simple edges (co-occurence based)
-        edges = getEdges(nodes, options, currentLevel);
+        edges = getEdges(nodes, options, currentLevel, datasetName);
     end
 end
 
