@@ -31,7 +31,9 @@
 
 function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinResponse, gaborFilterSize, currentFolder)
     %% Get grayscaled image and get the edges/
-    img = rgb2gray(img);
+    if size(img,3)>1
+        img = rgb2gray(img(:,:,1:3));
+    end
     doubleImg = img;
     
     edgeImg = double(edge(doubleImg(:,:), 'canny'));

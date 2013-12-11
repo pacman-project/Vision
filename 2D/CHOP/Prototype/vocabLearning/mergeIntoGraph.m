@@ -30,7 +30,7 @@ function [graph] = mergeIntoGraph(graph, level, levelItr, position)
             end
             newPosition = fix(newPosition / numel(children));
             level(newInstItr).position = newPosition;
-            level(newInstItr).imageId = previousLevel(children(1)).imageId;
+    %        level(newInstItr).imageId = previousLevel(children(1)).imageId;
         end
     end
     
@@ -44,12 +44,18 @@ function [graph] = mergeIntoGraph(graph, level, levelItr, position)
     %% Assign the nodes in the previuos layer their parents in this level.
     for newInstItr = 1:numel(level)
         children = level(newInstItr).children;
+ %       leafNodes = [];
         for childItr = 1:numel(children)
            if ~ismember(newInstItr, previousLevel(children(childItr)).parents)
                 previousLevel(children(childItr)).parents = ...
                     [previousLevel(children(childItr)).parents, newInstItr];
            end
+           % Carry leaf nodes from previous layer in the main graph.
+           if position
+  %             leafNodes = [leafNodes, previousLevel(children(childItr)).leafNodes];
+           end
         end 
+%        level(newInstItr).leafNodes = leafNodes;
     end
     
     %% Assign new levels and move on.

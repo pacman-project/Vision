@@ -71,27 +71,32 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         %% Parse the result file to extract nodes and their relations
         [vocabLevel, graphLevel] = parseResultFile(resultFileName, options);
         
-        % If no new subs have been found, finish processing.
-        if isempty(vocabLevel)
-           vocabulary = vocabulary(1:(levelItr-1),:);
-           mainGraph = mainGraph(1:(levelItr-1),:);
-           modes = modes(1:(levelItr-1),:);
-           break; 
-        end
-        
-        % Assign positions, image ids and leaf nodes.
+        % Assign image ids and leaf nodes.
         previousLevel = mainGraph{levelItr-1};
         for newNodeItr = 1:numel(graphLevel)
             leafNodes = [];
             position = [0,0];
             graphLevel(newNodeItr).imageId = previousLevel(graphLevel(newNodeItr).children(1)).imageId;
             for childItr = 1:numel(graphLevel(newNodeItr).children)
-               position = position + previousLevel(graphLevel(newNodeItr).children(childItr)).position;
+               position = position + previousLevel(children(childItr)).position;
                leafNodes = [leafNodes, previousLevel(graphLevel(newNodeItr).children(childItr)).leafNodes]; 
             end
-            graphLevel(newNodeItr).position = position;
             graphLevel(newNodeItr).leafNodes = leafNodes;
         end
+        
+        for newInstItr = 1:numel(level)
+        children = level(newInstItr).children;
+        % If necessary, process the position calculation/imageId copying work too.
+        if position
+            newPosition = [0,0];
+            for childItr = 1:numel(children)
+               newPosition = newPosition + previousLevel(children(childItr)).position;
+            end
+            newPosition = fix(newPosition / numel(children));
+            level(newInstItr).position = newPosition;
+    %        level(newInstItr).imageId = previousLevel(children(1)).imageId;
+        end
+    end
         
         %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
         % The rules here are explained in the paper. Basically, each node
@@ -100,6 +105,13 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         % discarded. *Natural selection*
         [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr);
         
+        % If no new subs have been found, finish processing.
+        if isempty(vocabLevel)
+           vocabulary = vocabulary(1:(levelItr-1),:);
+           mainGraph = mainGraph(1:(levelItr-1),:);
+           modes = modes(1:(levelItr-1),:);
+           break; 
+        end
         %% Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);
@@ -107,7 +119,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         %% Write previous level's appearances to the output folder.
         if options.debug
            visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
-           visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
+           visualizeImages( fileList, numel(vocabulary{levelItr-1}), mainGraph, levelItr-1, options, datasetName, 'train' );
         end
         
         
@@ -120,7 +132,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         end
         
         %% Extract the edges to form the new graph.
-        [currModes, edges] = extractEdges(newNodes, options, levelItr, datasetName);
+        [currModes, edges] = extractEdges(newNodes, options, (levelItr-1), datasetName);
         
         % Learn image ids and number of total images.
         imageIds = [currentLevel(:).imageId]';

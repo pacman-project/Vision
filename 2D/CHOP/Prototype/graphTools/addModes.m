@@ -24,7 +24,7 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName)
     w = warning('off', 'all');
     
     % Calculate edge radius.
-    scale = (1/options.scaling)^currentLevel;
+    scale = (1/options.scaling)^(currentLevel-1);
     neighborhood = fix(options.edgeRadius * scale);
     
     %% For each node pair, get the 2-D distribution of samples.
@@ -68,8 +68,12 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName)
                        ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,2)];
                
                    distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
-                   adjacentNodes = find(distances <= neighborhood);
-                   adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
+                   adjacentNodes = find(distances <= neighborhood);                   
+                   % Need to remove the node itself if checking neighbors with same
+                   % label id.
+                   if node1 == node2
+                        adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
+                   end
                    relativeVector = secondNodeCoordsInImage - centerArr;
                    relativeVector = relativeVector(adjacentNodes,:);
                    samples = [samples; relativeVector];
@@ -97,7 +101,7 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName)
            % Eliminate some samples so that we only take roughly half of
            % them into account (only when investigating same node type
            % pair).
-           if node1 ==  node2
+           if node1 == node2 && ~isempty(samples)
                validEdgeIdx = samples(:,1) + samples(:,2) >= 0;
                samples = samples(validEdgeIdx, :);
                allPairwiseEdges = allPairwiseEdges(validEdgeIdx, :);

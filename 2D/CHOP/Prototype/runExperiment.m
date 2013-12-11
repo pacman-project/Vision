@@ -20,28 +20,34 @@ function [] = runExperiment( datasetName, imageExtension )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     options.numberOfFilters = 6; % Number of Gabor filters at level 1.
-    options.numberOfTrainingImages = 5; % Number of training images to be 
+    options.numberOfTrainingImages = 15; % Number of training images to be 
                                  % used in unsupervised vocabulary learning.
+    options.numberOfTestImages = 5; % Number of training images to be 
+                                 % used in unsupervised vocabulary learning.                             
     options.gaborFilterThr = 0.6; % Response threshold for Gabor filter 
                                  % convolution.
     options.gaborAreaMinResponse = 0.1; % The threshold to define the minimum response 
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area.
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+                                        % inhibition process. At least this 
+                                        % percent of a neighbor node's leaf 
+                                        % nodes should be new.
     options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
     options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence' or
-    options.scaling = 0.6;            % Each successive layer is downsampled 
+    options.scaling = 0.75;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
     options.maxImageDim = options.gaborFilterSize*20;
-    options.maximumModes = 6;          % Maximum number of modes allowed for 
+    options.maximumModes = 8;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = options.gaborFilterSize; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
@@ -51,6 +57,11 @@ function [] = runExperiment( datasetName, imageExtension )
     options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
                                   % The last three are not really parameters, 
                                   % put here to avoid hard-coding.
+    options.localInhibitionOverlapThr = 0.5; % The maximum allowed threshold 
+                                  % of seed node and adjacent node at each 
+                                  % layer. Only this portion of their sub-parts 
+                                  % can overlap, otherwise second one is 
+                                  % discarded.
     options.subdue.instanceIndicator = sprintf('\n  Instance ');
     options.subdue.labelIndicator = sprintf('Label: ');
     options.subdue.nodeIndicator = sprintf('\nv ');
@@ -65,8 +76,8 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 50;  % Maximum number of nodes allowed in a level
+    options.subdue.maxSize = 5; % Maximum number of nodes in a composition
+    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 50;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
@@ -154,5 +165,11 @@ function [] = runExperiment( datasetName, imageExtension )
     [vocabulary, mainGraph, modes] = learnVocabulary(allNodes, edges, modes, graphFileName, ...
                                     resultFileName, options, trainingFileNames, datasetName);
     save([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes');
+    
+    %% Step 5: For each test image, run inference code. 
+    % Test images are obtained from the rest of images in dataset.
+    testFileNames = fileNames((options.numberOfTrainingImages+1):(options.numberOfTrainingImages+options.numberOfTestImages),:);
+%    preparePreDefinedFiles(vocabulary);
+    
 end
 
