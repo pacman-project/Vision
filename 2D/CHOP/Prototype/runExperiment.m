@@ -168,7 +168,7 @@ function [] = runExperiment( datasetName, imageExtension )
     
     %% Step 5: For each test image, run inference code. 
     % Test images are obtained from the rest of images in dataset.
-    testFileNames = fileNames((options.numberOfTrainingImages+1):(options.numberOfTrainingImages+options.numberOfTestImages),:);
+%    testFileNames = fileNames((options.numberOfTrainingImages+1):(options.numberOfTrainingImages+options.numberOfTestImages),:);
 %    preparePreDefinedFiles(vocabulary);
     
 end
