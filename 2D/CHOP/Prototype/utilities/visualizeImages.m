@@ -39,9 +39,11 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
         [~, fileName, ~] = fileparts(fileList{fileItr});
         img = imread([processedDir '/' fileName '.png']);
         reconstructedMask = zeros(size(img,1), size(img,2), 'uint8');
+        labeledReconstructedMask = zeros(size(img,1), size(img,2));
         
         %% Go over each leaf in the graph and write its mask to the reconstructed image.
         nodes = graphLevel(:,[graphLevel.imageId] == fileItr);
+        
         for nodeItr = 1:numel(nodes)
             leafNodes = nodes(nodeItr).leafNodes;
             for leafNodeItr = 1:numel(leafNodes)
@@ -73,7 +75,22 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
                 if 1>(position(2)-minY);
                     minY = position(2) - 1;
                 end
-
+                 reconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY)) = ... 
+                     max(reconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY)), ...
+                     nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
+                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))));
+                 
+                 % First, write the node label to the labeled mask.
+                 reconstructedPatch = labeledReconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY));
+                 reconstructedPatch(nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
+                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))) > 10) = nodeItr;
+                 labeledReconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY)) = reconstructedPatch;
+                 
+                 % Write the response to the response mask.
                  reconstructedMask((position(1)-minX):(position(1)+maxX), ...
                      (position(2)-minY):(position(2)+maxY)) = ...
                      max(reconstructedMask((position(1)-minX):(position(1)+maxX), ...
@@ -88,7 +105,11 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
         end
         
         %% Write the reconstructed mask to the output.
-        imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
+        rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');
+        rgbImg(:,:,1) = uint8(double(rgbImg(:,:,1)) .* (double(reconstructedMask)/255));
+        rgbImg(:,:,2) = uint8(double(rgbImg(:,:,2)) .* (double(reconstructedMask)/255));
+        rgbImg(:,:,3) = uint8(double(rgbImg(:,:,3)) .* (double(reconstructedMask)/255));
+        imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
     end
 end
 

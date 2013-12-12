@@ -59,6 +59,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
     %% Prepare intermediate data structures for sequential processing.
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
+    firstLevel = mainGraph{1};
     modes(1) = {firstModes};
     [pathToGraphFile, fileName, ext] = fileparts(graphFileName);
     [pathToResultFile, rFileName, resultExt] = fileparts(resultFileName);
@@ -86,11 +87,14 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
             position = [0,0];
             graphLevel(newNodeItr).imageId = previousLevel(graphLevel(newNodeItr).children(1)).imageId;
             for childItr = 1:numel(graphLevel(newNodeItr).children)
-               position = position + previousLevel(graphLevel(newNodeItr).children(childItr)).position;
                leafNodes = [leafNodes, previousLevel(graphLevel(newNodeItr).children(childItr)).leafNodes]; 
             end
-            graphLevel(newNodeItr).position = position;
+            leafNodes = unique(leafNodes);
+            for leafNodeItr = 1:numel(leafNodes)
+               position = position + firstLevel(leafNodes(leafNodeItr)).position;
+            end
             graphLevel(newNodeItr).leafNodes = leafNodes;
+            graphLevel(newNodeItr).position = round(position/numel(leafNodes));
         end
         
         %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
@@ -99,6 +103,13 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
         [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr);
+        [remainingComps, ~, newLabelIds] = unique([graphLevel.labelId], 'stable');
+        
+        %% Eliminate unused compositions from vocabulary.
+        vocabLevel = vocabLevel(1, remainingComps);
+        for newAssgnItr = 1:numel(graphLevel)
+            graphLevel(newAssgnItr).labelId = newLabelIds(newAssgnItr);
+        end
         
         %% Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
@@ -109,7 +120,6 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
            visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
            visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
         end
-        
         
         %% Create new graph to be fed to for knowledge discovery in the next level.
         currentLevel = mainGraph{levelItr};
@@ -143,11 +153,31 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
            modes = modes(1:(levelItr-1),:);
            % Print new level's words before exiting from loop
            if options.debug
+               
+                % Assign positions, image ids and leaf nodes.
+                previousLevel = mainGraph{levelItr-1};
+                for newNodeItr = 1:numel(graphLevel)
+                    leafNodes = [];
+                    position = [0,0];
+                    graphLevel(newNodeItr).imageId = previousLevel(graphLevel(newNodeItr).children(1)).imageId;
+                    for childItr = 1:numel(graphLevel(newNodeItr).children)
+                       leafNodes = [leafNodes, previousLevel(graphLevel(newNodeItr).children(childItr)).leafNodes]; 
+                    end
+                    leafNodes = unique(leafNodes);
+                    for leafNodeItr = 1:numel(leafNodes)
+                       position = position + firstLevel(leafNodes(leafNodeItr)).position;
+                    end
+                    graphLevel(newNodeItr).leafNodes = leafNodes;
+                    graphLevel(newNodeItr).position = round(position/numel(leafNodes));
+               end
+               
+               
                vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
                mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);
+               
                visualizeLevel( currentLevel, levelItr, previousModes, options.currentFolder, options, datasetName);
                % TODO Fix image id missing problem in the last iteration!.
-               visualizeImages( fileList, numel(vocabLevel), mainGraph, levelItr, options, datasetName, 'train' );
+               visualizeImages( fileList, mainGraph, levelItr, options, datasetName, 'train' );
            end
            break; 
         end

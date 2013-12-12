@@ -112,8 +112,11 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName)
            if isempty(samples)
                continue;
            elseif size(samples,1) < options.maximumModes
-               % If not enough samples, consider each as a single cluster.
-               classes = (1:size(samples,1))';
+               if size(samples,1) > 1
+                    classes = mec(samples, 'c', size(samples,1), 'kmeans_i', 5);
+               else
+                    classes = 1;
+               end
            else
                % Enough samples, process data.
                classes = mec(samples, 'c', options.maximumModes, 'kmeans_i', 5);

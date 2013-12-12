@@ -30,11 +30,11 @@ function [] = runExperiment( datasetName, imageExtension )
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area.
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.75;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 11;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -47,9 +47,9 @@ function [] = runExperiment( datasetName, imageExtension )
                                        % stays the same while images are 
                                        % downsampled.
     options.maxImageDim = options.gaborFilterSize*20;
-    options.maximumModes = 8;          % Maximum number of modes allowed for 
+    options.maximumModes = 6;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*1.5; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 10;    % The maximum level count               
@@ -76,10 +76,10 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 5; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
+    options.subdue.maxSize = 4; % Maximum number of nodes in a composition
+    options.subdue.nsubs = 400;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 50;   % Beam length in SUBDUE
+    options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
                                 % Right now, there is a bug with SUBDUE

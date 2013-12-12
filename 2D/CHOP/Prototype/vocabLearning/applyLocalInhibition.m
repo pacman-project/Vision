@@ -34,11 +34,16 @@ function [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr)
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
     for nodeItr = 1:numberOfNodes
       %% If nobody has erased this node before, it has a right to be in the final graph.
+      if discardedNodes(nodeItr) == 0
+          continue;
+      end
       selfLeafNodes = graphLevel(nodeItr).leafNodes;
         
       %% TODO: Optimize this part to avoid redundant calculation.
       % Get each neighboring node.
       imageNodes = imageIds == imageIds(nodeItr);
+      imageNodeIdx = find(imageNodes);
+      selfNode = find(imageNodeIdx==nodeItr, 1, 'first');
       thisNodeCoords = nodeCoords(nodeItr,:);
       imageNodeCoords = nodeCoords(imageNodes,:);
       imageNodeCount = size(imageNodeCoords,1);
@@ -47,16 +52,17 @@ function [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr)
       distances = sqrt(sum((centerArr - imageNodeCoords).^2, 2));
       adjacentNodes = find(distances <= neighborhood); 
       
-      % Remove self node pair.
-      adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
+      % Remove self node pair and those with smaller indices.
+      
+      adjacentNodes = adjacentNodes(adjacentNodes > selfNode);
       for adjNodeItr = 1:numel(adjacentNodes)
-          adjLeafNodes = graphLevel(adjacentNodes(adjNodeItr)).leafNodes;
+          adjLeafNodes = graphLevel(imageNodeIdx(adjacentNodes(adjNodeItr))).leafNodes;
           numberOfAdjLeafNodes = numel(adjLeafNodes);
           intersectingLeafNodes = intersect(selfLeafNodes, adjLeafNodes);
           
           %% Check for novelty here. If new nodes are introduced, everything is good. Else, remove the adjacent node.
           if ((numberOfAdjLeafNodes-numel(intersectingLeafNodes))/numberOfAdjLeafNodes) < options.noveltyThr
-              discardedNodes(nodeItr) = 0;
+              discardedNodes(imageNodeIdx(adjacentNodes(adjNodeItr))) = 0;
           end
       end
     end

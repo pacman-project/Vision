@@ -5,8 +5,6 @@
 %> estimated positions.
 %>
 %> @param fileList Image list to work on.
-%> @param vocabCompCount The number of words in current vocabulary
-%> level.
 %> @param mainGraph The main graph which includes specific graph of the
 %> each image at each level. Each level is assumed to be ordered by image id.
 %> @param levelItr The level index.
@@ -19,7 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, vocabCompCount, mainGraph, levelItr, options, datasetName, type )
+function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetName, type )
     outputDir = [options.outputFolder '/reconstruction/' type];
     if ~exist(outputDir, 'dir')
        mkdir(outputDir); 
@@ -30,9 +28,9 @@ function [ ] = visualizeImages( fileList, vocabCompCount, mainGraph, levelItr, o
     graphLevel = mainGraph{levelItr};
     
     %% Read level 1 into separate masks.
-    vocabMasks = cell(vocabCompCount,1);
+    vocabMasks = cell(options.numberOfFilters,1);
     vocabMaskDir = [options.currentFolder '/debug/' datasetName '/level1/reconstruction'];
-    for fileItr = 1:vocabCompCount
+    for fileItr = 1:options.numberOfFilters
         vocabMasks{fileItr} = imread([vocabMaskDir '/' num2str(fileItr) '.png']);
     end
     
@@ -41,14 +39,22 @@ function [ ] = visualizeImages( fileList, vocabCompCount, mainGraph, levelItr, o
         [~, fileName, ~] = fileparts(fileList{fileItr});
         img = imread([processedDir '/' fileName '.png']);
         reconstructedMask = zeros(size(img,1), size(img,2), 'uint8');
+        labeledReconstructedMask = zeros(size(img,1), size(img,2));
         
         %% Go over each leaf in the graph and write its mask to the reconstructed image.
         nodes = graphLevel(:,[graphLevel.imageId] == fileItr);
+        
         for nodeItr = 1:numel(nodes)
             leafNodes = nodes(nodeItr).leafNodes;
             for leafNodeItr = 1:numel(leafNodes)
                 % Read the mask here, and crop it if necessary.
-                nodeMask = vocabMasks{firstLevel(leafNodeItr).labelId};
+                nodeMask = vocabMasks{firstLevel(leafNodes(leafNodeItr)).labelId};
+                position = firstLevel(leafNodes(leafNodeItr)).position;
+                
+                % If the part has already been added, move on.
+                if reconstructedMask(position(1), position(2))>0
+                   continue; 
+                end
 
                 halfSize = (size(nodeMask)-1)/2;
                 minX = halfSize(1);
@@ -57,27 +63,42 @@ function [ ] = visualizeImages( fileList, vocabCompCount, mainGraph, levelItr, o
                 maxY = halfSize(2);
                 imageSize = size(reconstructedMask);
 
-                if imageSize(1)<firstLevel(leafNodeItr).position(1)+maxX;
-                    maxX = imageSize(1) - firstLevel(leafNodeItr).position(1);
+                if imageSize(1)<position(1)+maxX;
+                    maxX = imageSize(1) - position(1);
                 end
-                if 1>(firstLevel(leafNodeItr).position(1)-minX);
-                    minX = firstLevel(leafNodeItr).position(1) - 1;
+                if 1>(position(1)-minX);
+                    minX = position(1) - 1;
                 end
-                if imageSize(2)<(firstLevel(leafNodeItr).position(2)+maxY);
-                    maxY = imageSize(2) - firstLevel(leafNodeItr).position(2);
+                if imageSize(2)<(position(2)+maxY);
+                    maxY = imageSize(2) - position(2);
                 end
-                if 1>(firstLevel(leafNodeItr).position(2)-minY);
-                    minY = firstLevel(leafNodeItr).position(2) - 1;
+                if 1>(position(2)-minY);
+                    minY = position(2) - 1;
                 end
-
-                 reconstructedMask((nodes(nodeItr).position(1)-minX):(nodes(nodeItr).position(1)+maxX), ...
-                     (nodes(nodeItr).position(2)-minY):(nodes(nodeItr).position(2)+maxY)) = ...
-                     max(reconstructedMask((nodes(nodeItr).position(1)-minX):(nodes(nodeItr).position(1)+maxX), ...
-                     (nodes(nodeItr).position(2)-minY):(nodes(nodeItr).position(2)+maxY)), ...
+                 reconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY)) = ... 
+                     max(reconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY)), ...
                      nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
                      ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))));
-    %            reconstructedMask((firstLevel(leafNodeItr).position(1)-minX):(firstLevel(leafNodeItr).position(1)+maxX), ...
-    %                (firstLevel(leafNodeItr).position(2)-minY):(firstLevel(leafNodeItr).position(2)+maxY)) = ...
+                 
+                 % First, write the node label to the labeled mask.
+                 reconstructedPatch = labeledReconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY));
+                 reconstructedPatch(nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
+                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))) > 10) = nodeItr;
+                 labeledReconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY)) = reconstructedPatch;
+                 
+                 % Write the response to the response mask.
+                 reconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY)) = ...
+                     max(reconstructedMask((position(1)-minX):(position(1)+maxX), ...
+                     (position(2)-minY):(position(2)+maxY)), ...
+                     nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
+                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))));
+    %            reconstructedMask((position(1)-minX):(position(1)+maxX), ...
+    %                (position(2)-minY):(position(2)+maxY)) = ...
     %                nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
     %                ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY)));
             end
