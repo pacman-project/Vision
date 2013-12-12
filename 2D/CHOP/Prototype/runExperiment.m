@@ -20,7 +20,7 @@ function [] = runExperiment( datasetName, imageExtension )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     options.numberOfFilters = 6; % Number of Gabor filters at level 1.
-    options.numberOfTrainingImages = 15; % Number of training images to be 
+    options.numberOfTrainingImages = 30; % Number of training images to be 
                                  % used in unsupervised vocabulary learning.
     options.numberOfTestImages = 5; % Number of training images to be 
                                  % used in unsupervised vocabulary learning.                             
@@ -30,7 +30,7 @@ function [] = runExperiment( datasetName, imageExtension )
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area.
-    options.noveltyThr = 0.75;           % The novelty threshold used in the 
+    options.noveltyThr = 0.6;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -49,7 +49,7 @@ function [] = runExperiment( datasetName, imageExtension )
     options.maxImageDim = options.gaborFilterSize*20;
     options.maximumModes = 6;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*1.5; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*1.75; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 10;    % The maximum level count               
@@ -77,7 +77,7 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 4; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 400;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 500;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
