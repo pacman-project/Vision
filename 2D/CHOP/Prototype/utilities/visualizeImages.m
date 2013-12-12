@@ -105,11 +105,28 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
         end
         
         %% Write the reconstructed mask to the output.
+        % Add some random colors to make each composition look different.
         rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');
         rgbImg(:,:,1) = uint8(double(rgbImg(:,:,1)) .* (double(reconstructedMask)/255));
         rgbImg(:,:,2) = uint8(double(rgbImg(:,:,2)) .* (double(reconstructedMask)/255));
         rgbImg(:,:,3) = uint8(double(rgbImg(:,:,3)) .* (double(reconstructedMask)/255));
-        imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
+        
+        if levelItr>1
+            % Read first level to fill the voids left by missing filters.
+            firstLevelImg = imread([outputDir, '/' fileName '_level1.png']);
+            firstLevelMask=max(firstLevelImg, [], 3);
+   %         firstLevelMask = uint8(double(firstLevelMask)/double(max(max(firstLevelMask))));
+            firstLevelMask = (firstLevelMask .* uint8(labeledReconstructedMask==0));
+            firstLevelImg(:,:,1) = firstLevelMask;
+            firstLevelImg(:,:,2) = firstLevelMask;
+            firstLevelImg(:,:,3) = firstLevelMask;
+
+            % Combine both and write to output.
+            imwrite(rgbImg + firstLevelImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
+        else
+            % Write to output.
+            imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
+        end
     end
 end
 

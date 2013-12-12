@@ -39,7 +39,7 @@ function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinRes
     edgeImg = double(edge(doubleImg(:,:), 'canny'));
 
     % Run each filter on the band and collect responses
-    refGaborFilt = gabor_fn(1, 0, 1.2, 0, 0.3);
+    refGaborFilt = gabor_fn(1, 0, 1.75, 0, 0.4);
     dimSize = size(refGaborFilt);
     
     %% Pad or crop the sides of the gabor filter to set it to a fixed size of gaborFilterSize x gaborFilterSize
@@ -72,7 +72,7 @@ function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinRes
        % If the filter does not exist, create it.
  %      if ~exist([currentFolder '/filters/filt' num2str(filtItr+1) '.png'], 'file') 
            theta = (-180/filterCount) * filtItr;
-           gaborFilt = imrotate(refGaborFilt, theta, 'bilinear', 'crop');
+           gaborFilt = imrotate(refGaborFilt, theta, 'nearest', 'crop');
 
            % Normalize the filter so there are no discrepancies between
            % them
