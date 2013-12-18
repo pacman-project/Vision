@@ -59,46 +59,28 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
                 end
 
                 halfSize = (size(nodeMask)-1)/2;
-                minX = halfSize(1);
-                maxX = halfSize(1);
-                minY = halfSize(2);
-                maxY = halfSize(2);
                 imageSize = size(reconstructedMask);
 
-                if imageSize(1)<position(1)+maxX;
-                    maxX = imageSize(1) - position(1);
+                %% If patch is out of bounds, do nothing.
+                if imageSize(1) < position(1)+halfSize(1) || ...
+                        1 > position(1)-halfSize(1) || ...
+                        imageSize(2) < (position(2)+halfSize(2)) ||...
+                        1 > (position(2)-halfSize(2))
+                    continue;
                 end
-                if 1>(position(1)-minX);
-                    minX = position(1) - 1;
-                end
-                if imageSize(2)<(position(2)+maxY);
-                    maxY = imageSize(2) - position(2);
-                end
-                if 1>(position(2)-minY);
-                    minY = position(2) - 1;
-                end
-                 reconstructedMask((position(1)-minX):(position(1)+maxX), ...
-                     (position(2)-minY):(position(2)+maxY)) = ... 
-                     max(reconstructedMask((position(1)-minX):(position(1)+maxX), ...
-                     (position(2)-minY):(position(2)+maxY)), ...
-                     nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
-                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))));
+                
+                reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2))) = ... 
+                     max(reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2))), ...
+                     nodeMask);
                  
                  % First, write the node label to the labeled mask.
-                 reconstructedPatch = labeledReconstructedMask((position(1)-minX):(position(1)+maxX), ...
-                     (position(2)-minY):(position(2)+maxY));
-                 reconstructedPatch(nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
-                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))) > 10) = nodeItr;
-                 labeledReconstructedMask((position(1)-minX):(position(1)+maxX), ...
-                     (position(2)-minY):(position(2)+maxY)) = reconstructedPatch;
-                 
-                 % Write the response to the response mask.
-                 reconstructedMask((position(1)-minX):(position(1)+maxX), ...
-                     (position(2)-minY):(position(2)+maxY)) = ...
-                     max(reconstructedMask((position(1)-minX):(position(1)+maxX), ...
-                     (position(2)-minY):(position(2)+maxY)), ...
-                     nodeMask(((halfSize(1)-minX)+1):(end-(halfSize(1)-maxX)), ...
-                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))));
+                 reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2)));
+                 reconstructedPatch(nodeMask > 10) = nodeItr;
+                 labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2))) = reconstructedPatch;
             end
         end
         
@@ -107,20 +89,26 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
         % and overlay the gabors with the original image.
         rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');
         %% For level 1, write the original image too.
-        rgbImg(:,:,1) = uint8(double(rgbImg(:,:,1)) .* (double(reconstructedMask)/255)) + ...
-            originalImg(:,:,1) .* uint8(reconstructedMask==0);
-        rgbImg(:,:,2) = uint8(double(rgbImg(:,:,2)) .* (double(reconstructedMask)/255)) + ...
-           originalImg(:,:,2) .* uint8(reconstructedMask==0);
-        rgbImg(:,:,3) = uint8(double(rgbImg(:,:,3)) .* (double(reconstructedMask)/255)) + ...
-           originalImg(:,:,3) .* uint8(reconstructedMask==0);
+        if size(originalImg,3) == 1
+           oldOriginalImg = originalImg;
+           originalImg = zeros(size(originalImg,1), size(originalImg,2), 3, 'uint8');
+           for bandItr = 1:3
+              originalImg(:,:,bandItr) = oldOriginalImg; 
+           end
+        end
         
+        for bandItr = 1:size(rgbImg,3)
+            rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask)/255)) + ...
+            originalImg(:,:,bandItr) .* uint8(reconstructedMask==0);
+        end 
+       
         if levelItr>1
             % Read first level to fill the voids left by missing filters.
             firstLevelMask = imread([outputDir, '/' fileName '_level1clean.png']);
-            firstLevelImg = zeros(size(firstLevelMask,1), size(firstLevelMask,2), 'uint8');
-            firstLevelImg(:,:,1) = firstLevelMask;
-            firstLevelImg(:,:,2) = firstLevelMask;
-            firstLevelImg(:,:,3) = firstLevelMask;
+            firstLevelImg = zeros(size(firstLevelMask,1), size(firstLevelMask,2), size(rgbImg,3), 'uint8');
+            for bandItr = 1:size(rgbImg,3)
+                firstLevelImg(:,:,bandItr) = firstLevelMask;
+            end
 
             % Combine both and write to output.
             imwrite(rgbImg + firstLevelImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);

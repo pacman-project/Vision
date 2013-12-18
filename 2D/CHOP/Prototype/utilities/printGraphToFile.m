@@ -13,8 +13,6 @@
 %> Updates
 %> Ver 1.0 on 20.11.2013
 function [ ] = printGraphToFile( fp, nodes, edges, isNumericNode )
-    % Print positive graph indicator
-    fprintf(fp, 'XP\n');
     
     % Print nodes
     if isNumericNode

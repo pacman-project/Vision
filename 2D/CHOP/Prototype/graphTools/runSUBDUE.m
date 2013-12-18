@@ -7,6 +7,7 @@
 %> @param resultFileName The result file's path.
 %> @param options Program options.
 %> @param currentFolder Path to the workspace folder.
+%> @param 
 %>
 %> @retval []
 %> 
@@ -14,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 28.11.2013
-function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder)
+function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder, preDefinedFileName)
 
     % Set SUBDUE options
     subdueOptions = ' ';
@@ -26,6 +27,9 @@ function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder)
     end
     if options.subdue.overlap
        subdueOptions = [subdueOptions '-overlap '];
+    end
+    if ~isempty(preDefinedFileName)
+       subdueOptions = [subdueOptions '-ps ' preDefinedFileName ' -discovery 1 '];
     end
 
     subdueOptions = [subdueOptions '-nsubs ' num2str(options.subdue.nsubs) ...

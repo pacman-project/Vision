@@ -59,7 +59,6 @@ function [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr)
           adjLeafNodes = graphLevel(imageNodeIdx(adjacentNodes(adjNodeItr))).leafNodes;
           numberOfAdjLeafNodes = numel(adjLeafNodes);
           intersectingLeafNodes = intersect(selfLeafNodes, adjLeafNodes);
-          
           %% Check for novelty here. If new nodes are introduced, everything is good. Else, remove the adjacent node.
           if ((numberOfAdjLeafNodes-numel(intersectingLeafNodes))/numberOfAdjLeafNodes) < options.noveltyThr
               discardedNodes(imageNodeIdx(adjacentNodes(adjNodeItr))) = 0;

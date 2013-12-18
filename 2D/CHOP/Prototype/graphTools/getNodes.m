@@ -29,14 +29,15 @@
 %> Ver 1.0 on 18.11.2013
 %> Ver 1.1 on 03.12.2013 Response inhibition added.
 
-function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinResponse, gaborFilterSize, currentFolder)
+function [ nodes, smoothedImg ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinResponse, gaborFilterSize, currentFolder)
     %% Get grayscaled image and get the edges/
     if size(img,3)>1
         img = rgb2gray(img(:,:,1:3));
     end
     doubleImg = img;
     
-    edgeImg = double(edge(doubleImg(:,:), 'canny'));
+%    edgeImg = double(edge(doubleImg(:,:), 'canny'));
+    edgeImg = im2bw(doubleImg, graythresh(doubleImg));
 
     % Run each filter on the band and collect responses
     refGaborFilt = gabor_fn(1, 0, 1.2, 0, 0.4);
@@ -67,35 +68,42 @@ function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinRes
     
     %% Get response by rotating the reference filter and applying over image.
     responseImgs = zeros(size(edgeImg,1), size(edgeImg,2), filterCount);
+    filters = cell(filterCount,1);
     for filtItr = 0:(filterCount-1)
         
        % If the filter does not exist, create it.
- %      if ~exist([currentFolder '/filters/filt' num2str(filtItr+1) '.png'], 'file') 
+      if ~exist([currentFolder '/filters/filt' num2str(filtItr+1) '.png'], 'file') 
            theta = (-180/filterCount) * filtItr;
            gaborFilt = imrotate(refGaborFilt, theta, 'bilinear', 'crop');
 
            % Normalize the filter so there are no discrepancies between
            % them
            curConst = sum(sum(gaborFilt));
-           gaborFilt = gaborFilt * (normConst/curConst);
+ %          gaborFilt = gaborFilt * (normConst/curConst);
+           gaborFilt = gaborFilt - curConst/(numel(refGaborFilt));
+           filters{filtItr+1} = gaborFilt;
            
            % Save filters
-           imwrite(gaborFilt, [currentFolder '/filters/filt' num2str(filtItr+1) '.png']);
-           imwrite(gaborFilt>gaborAreaMinResponse, [currentFolder '/filters/filt' num2str(filtItr+1) 'Mask.png']);
-  %     else
-  %         gaborFilt = double(imread([currentFolder '/filters/filt' num2str(filtItr+1) '.png']));
-  %     end
-
-       responseImg = conv2(edgeImg, gaborFilt, 'same');
+     %      imwrite(gaborFilt, [currentFolder '/filters/filt' num2str(filtItr+1) '.png']);
+     %      imwrite(gaborFilt>gaborAreaMinResponse, [currentFolder '/filters/filt' num2str(filtItr+1) 'Mask.png']);
+      else
+   %       gaborFilt = double(imread([currentFolder '/filters/filt' num2str(filtItr+1) '.png']));
+            load([currentFolder '/filters/filt' num2str(filtItr+1) '.mat']);
+            filters{filtItr+1} = gaborFilt;
+      end
+       responseImg = conv2(double(edgeImg), gaborFilt, 'same');
        responseImg(responseImg<gaborFilterThr) = 0;
        testResp = @(x) testResponse(x);
-       filteredImg = colfilt(responseImg, [gaborFilterSize, gaborFilterSize], 'sliding', testResp);
-       
+       filteredImg = responseImg;
+ %      filteredImg = colfilt(responseImg, [gaborFilterSize, gaborFilterSize], 'sliding', testResp);
        % Save response for future processing
        responseImgs(:,:,(filtItr+1)) = filteredImg;
     end
+    
+   %% Write smooth object boundaries based to an image on responseImgs.
+   smoothedImg = getSmoothedImage(responseImgs, filters);
    
-   %% Inhibit weak responses
+   %% Inhibit weak responses in vicinity of powerful peaks.
    peaks = find(responseImgs);
    [xInd, yInd, ~] = ind2sub(size(responseImgs), peaks);
    halfSize = floor(gaborFilterSize/2);
@@ -107,7 +115,7 @@ function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinRes
               yInd >= (yInd(peakItr) - halfSize) & yInd <= (yInd(peakItr) + halfSize);
           
           maxPeak = max(responseImgs(peaks(nearbyPeakIdx)));
-          if responseImgs(peaks(peakItr)) > (maxPeak-0.0001)
+          if responseImgs(peaks(peakItr)) > (maxPeak-0.00001)
              nearbyPeakIdx(peakItr) = 0;
              responseImgs(peaks(nearbyPeakIdx)) = 0; 
           else
@@ -116,6 +124,11 @@ function [ nodes ] = getNodes( img, filterCount, gaborFilterThr, gaborAreaMinRes
       end
    end
    
+   %% Surpress weak responses.
+   gaborThr = gaborAreaMinResponse * max(unique(responseImgs));
+   responseImgs(responseImgs<gaborThr) = 0;
+   
+   % Write the responses in the final image.
    responseImgs = double(responseImgs>0);
    for filtItr = 1:filterCount
       responseImgs(:,:,filtItr) = responseImgs(:,:,filtItr) .* filtItr;
@@ -146,8 +159,27 @@ end
 %> Updates
 %> Ver 1.0 on 03.12.2013
 function [values] = testResponse(nhood)
-    maxVal = max(nhood, [], 1);
-    areEqual = maxVal == (nhood(ceil(size(nhood,1)/2),:));
+    [maxVal, maxIdx] = max(nhood, [], 1);
+    areEqual = maxVal >= ((nhood(ceil(size(nhood,1)/2),:))-0.00001) & maxVal > 0;
     values = (maxVal .* areEqual)';
+end
+
+
+
+function [smoothedImg] = getSmoothedImage(responseImgs, filters)
+    smoothedImg = zeros(size(responseImgs,1), size(responseImgs,2));
+    halfSize = floor(size(filters{1},1)/2);
+    responseImgs([1:(halfSize+1), (end-halfSize):end], :, :) = 0;
+    responseImgs(:, [1:(halfSize+1), (end-halfSize):end], :) = 0;
+    responseImgs = responseImgs/max(max(max(responseImgs)));
+    for filterItr = 1:size(filters,1)
+        [xInd, yInd, val] = find(responseImgs(:,:,filterItr));
+        for peakItr = 1:size(peaks,1)
+            smoothedImg((xInd(peakItr)-halfSize):(xInd(peakItr)+halfSize), ...
+                (yInd(peakItr)-halfSize):(yInd(peakItr)+halfSize)) = val(peakItr) * filters{filterItr};
+        end
+ %       smoothedImg = smoothedImg + conv2(responseImgs(:,:,filterItr), filters{filterItr});
+    end
+    smoothedImg = smoothedImg/max(max(smoothedImg));
 end
 

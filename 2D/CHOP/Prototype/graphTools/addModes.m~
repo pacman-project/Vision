@@ -173,7 +173,7 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, mo
 
     else
         %% Assuming the distributions have already been learned, create edges and assign edge labels accordingly.
-        currentModes = modes{currentLevel};
+         currentModes = modes{currentLevel};
         nodeOffset = 0;
         
         for imageItr = 1:max(imageIds)

@@ -67,7 +67,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
     
     for levelItr = 2:options.maxLevels
         %% Run SUBDUE on the graph for the first time to go from level 1 to level 2.
-        runSUBDUE(graphFileName, resultFileName, options, options.currentFolder);
+        runSUBDUE(graphFileName, resultFileName, options, options.currentFolder, []);
         
         %% Parse the result file to extract nodes and their relations
         [vocabLevel, graphLevel] = parseResultFile(resultFileName, options);
@@ -130,7 +130,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         end
         
         %% Extract the edges to form the new graph.
-        [currModes, edges] = extractEdges(newNodes, options, levelItr, datasetName);
+        [currModes, edges] = extractEdges(newNodes, options, levelItr, datasetName, []);
         
         % Learn image ids and number of total images.
         imageIds = [currentLevel(:).imageId]';
@@ -148,12 +148,11 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         
         %% If no new edges found, kill program.
         if isempty(edges)
-           vocabulary = vocabulary(1:(levelItr-1),:);
-           mainGraph = mainGraph(1:(levelItr-1),:);
+           vocabulary = vocabulary(1:(levelItr),:);
+           mainGraph = mainGraph(1:(levelItr),:);
            modes = modes(1:(levelItr-1),:);
            % Print new level's words before exiting from loop
            if options.debug
-               
                 % Assign positions, image ids and leaf nodes.
                 previousLevel = mainGraph{levelItr-1};
                 for newNodeItr = 1:numel(graphLevel)
@@ -179,7 +178,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
                % TODO Fix image id missing problem in the last iteration!.
                visualizeImages( fileList, mainGraph, levelItr, options, datasetName, 'train' );
            end
-           break; 
+           break;
         end
         
         %% Print the graphs to the file for new level discovery.
@@ -190,7 +189,9 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
             imageEdges = edges(imageEdgeIdx,:);
             imageEdges(:,1:2) = imageEdges(:,1:2) - nodeOffset;
             
-            % Print the graph to the file.
+            % Print the graph to the file.    
+            % Print positive graph indicator
+            fprintf(fp, 'XP\n');
             printGraphToFile(fp, nodes(:,1), imageEdges, true);
             nodeOffset = nodeOffset + size(nodes,1);
         end
@@ -204,5 +205,5 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
  %       clear graphLevel;
  %       clear modes;
     end
-    vocabulary = vocabulary(1:(levelItr-1),:);
+%    vocabulary = vocabulary(1:levelItr,:);
 end
