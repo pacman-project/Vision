@@ -13,7 +13,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 15.12.2013
-function [ classes ] = testImages(testFileNames, modes, options, currentPath)
+function [ classes ] = testImages(testFileNames, modes, leafNodeAdjArr, options, currentPath)
     numberOfTestImages = size(testFileNames,1);
     classes = zeros(numberOfTestImages,1);
     
@@ -53,7 +53,7 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
     nodeImageIds = cell2mat(allNodes(:,3));
 
     %% Get edges depending on the property to be embedded in the graph.
-    [~, edges] = extractEdges(allNodes, [], options, 1, options.datasetName, modes);
+    [~, edges] = extractEdges(allNodes, [], leafNodeAdjArr, options, 1, options.datasetName, modes);
     %% Fill the basic info in this scene graph level.
     for instanceItr = 1:size(allNodes,1)
        graphLevel(instanceItr).labelId = allNodes{instanceItr,1};
@@ -76,7 +76,6 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
     %% Iteratively process each level to parse the object.
     for levelItr = 2:numel(vocabulary)
         graphFileName = [options.testGraphFolder '/' options.datasetName '_' num2str(levelItr-1) '.g'];
-        resultFileName = [options.testOutputFolder '/' options.datasetName '_' num2str(levelItr-1) '.txt'];
         
         %% Visualize the test images with previous layer's subs.
         if options.debug
@@ -136,6 +135,9 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
             newLevel(newNodeItr).position = round(position/numel(leafNodes));
         end
         
+        %% Apply local inhibition.
+        [newLevel] = applyLocalInhibition(newLevel, options, levelItr);
+        
         %% Sort newLevel based on the image ids.
         [~, sortedIdx] = sort([newLevel.imageId]);
         newLevel = newLevel(1,sortedIdx);
@@ -166,7 +168,7 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
         if numel(modes)<levelItr
            edges=[];
         else
-            [~, edges] = extractEdges(allNodes, mainGraph, options, levelItr, options.datasetName, modes);
+            [~, edges] = extractEdges(allNodes, mainGraph, leafNodeAdjArr, options, levelItr, options.datasetName, modes);
         end
         
         %% If the edges are not empty, fill the edge information in current level.
@@ -182,6 +184,10 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
             end
         end
         
+        %% Visualize the test images with previous layer's subs.
+        if options.debug && levelItr == numel(vocabulary)
+            visualizeImages( testFileNames, mainGraph, levelItr, options, options.datasetName, 'test' );
+        end
     end
     filledIdx = find(~(cellfun('isempty', mainGraph)), 1, 'first');
     mainGraph = mainGraph(1:filledIdx);

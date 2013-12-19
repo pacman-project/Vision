@@ -20,12 +20,14 @@ function [] = runExperiment( datasetName, imageExtension )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     options.datasetName = datasetName;
-    options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
+    options.learnVocabulary = 0; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfFilters = 6; % Number of Gabor filters at level 1.
-    options.numberOfTrainingImages = 5; % Number of training images to be 
+    options.numberOfTrainingImages = 70; % Number of training images to be 
                                  % used in unsupervised vocabulary learning.
-    options.numberOfTestImages = 5; % Number of training images to be 
+    options.numberOfTestImages = 70; % Number of training images to be 
+    options.numberOfVocabImagesPerCategory = 2; % Number of vocabulary images 
+                                 % to be used in vocabulary learning.
                                  % used in unsupervised vocabulary learning.                             
     options.gaborFilterThr = 100; % Response threshold for Gabor filter 
                                  % convolution.
@@ -45,7 +47,7 @@ function [] = runExperiment( datasetName, imageExtension )
                                         % all when you change this!
     options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence' or
-    options.scaling = 0.75;            % Each successive layer is downsampled 
+    options.scaling = 0.66;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -58,10 +60,10 @@ function [] = runExperiment( datasetName, imageExtension )
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhoo) nodes.
-    options.maxImageDim = options.gaborFilterSize*25;
+    options.maxImageDim = options.gaborFilterSize*15;
     options.maximumModes = 6;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*3; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*2; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 5;    % The maximum level count               
@@ -83,10 +85,10 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 4; % Maximum number of nodes in a composition
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition
     options.subdue.nsubs = 2000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 100;   % Beam length in SUBDUE
+    options.subdue.beam = 300;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     
@@ -95,7 +97,7 @@ function [] = runExperiment( datasetName, imageExtension )
     [currentPath, ~, ~] = fileparts(currentFileName);
     % Set folder variables.
     options.currentFolder = currentPath;
-    datasetFolder = [currentPath '/datasets/' datasetName '/'];
+    datasetFolder = [currentPath '/input/' datasetName '/vocab/'];
     options.processedFolder = [currentPath '/output/' datasetName '/original'];
     options.outputFolder = [currentPath '/output/' datasetName];
     options.testOutputFolder = [options.outputFolder '/test'];
@@ -128,8 +130,8 @@ function [] = runExperiment( datasetName, imageExtension )
     
     % Get all images under the dataset
     fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
-    trainingFileNames = fileNames(1:options.numberOfTrainingImages,:);
-    
+%    trainingFileNames = fileNames(1:options.numberOfTrainingImages,:);
+    trainingFileNames = fileNames;
     %% Step 1: Extract nodes of each image for the first level of the hierarchy.
     nodeCounter = 0;
     allNodes = cell(options.maxNumberOfFeatures,3);
@@ -159,7 +161,7 @@ function [] = runExperiment( datasetName, imageExtension )
         allNodes = allNodes(1:nodeCounter,:);
 
         %% Step 2: Get edges depending on the property to be embedded in the graph.
-        [modes, edges] = extractEdges(allNodes, [], options, 1, datasetName, []);
+        [modes, edges, leafNodeAdjArr] = extractEdges(allNodes, [], [], options, 1, datasetName, []);
 
         %% Step 3: Print the graphs to the input file.
         imageIds = cell2mat(allNodes(:,3));
@@ -180,23 +182,23 @@ function [] = runExperiment( datasetName, imageExtension )
         fclose(fp);
 
         %% Step 4: Learn the vocabulary in an unsupervised manner from the input graphs.
-        [vocabulary, mainGraph, modes] = learnVocabulary(allNodes, edges, modes, graphFileName, ...
+        [vocabulary, mainGraph, modes] = learnVocabulary(allNodes, edges, modes, leafNodeAdjArr, graphFileName, ...
                                         resultFileName, options, trainingFileNames, datasetName);
-        save([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes');
+        save([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
     else
-        load([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes');
+        load([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
     end
     
     %% Step 5: For each test image, run inference code. 
     if options.testImages
         % Test images are obtained from the rest of images in dataset.
-        testFileNames = fileNames((options.numberOfTrainingImages+1):(options.numberOfTrainingImages+options.numberOfTestImages),:);
-
+ %       testFileNames = fileNames((options.numberOfTrainingImages+1):(options.numberOfTrainingImages+options.numberOfTestImages),:);
+        testFileNames = fileNames;
         % Create files for pre-defined substructures ( compositions from voc.)
         preparePreDefinedFiles(options.preDefinedFolder, vocabulary);
         
         %% Test the images and get classification results.
-        testImages(testFileNames, modes, options, currentPath);
+        testImages(testFileNames, modes, leafNodeAdjArr, options, currentPath);
 
     end
 end

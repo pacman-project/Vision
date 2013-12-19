@@ -22,14 +22,14 @@
 %>
 %> Updates
 %> Ver 1.0 on 06.12.2013
-function [modes, edges] = extractEdges(nodes, mainGraph, options, currentLevel, datasetName, modes)
-    
+function [modes, edges, leafNodeAdjArr] = extractEdges(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes)
     if strcmp(options.property, 'mode')
         % If needed, process nodes to determine 'mode's, i.e. pair-wise relations.
-        [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, datasetName, modes);
+        [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes);
     else
         % Form simple edges (co-occurence based)
         modes = [];
+        leafNodeAdjArr = [];
         edges = getEdges(nodes, options, currentLevel, datasetName);
     end
 end

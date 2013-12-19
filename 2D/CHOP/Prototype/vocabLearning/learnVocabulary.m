@@ -9,6 +9,7 @@
 %> @param allNodes The nodes of the level 1 input graph. Each node consists
 %> of a label id, position and image id.
 %> @param allEdges The edges of the level 1 input graph.
+%> @param leafNodeAdjArr The adjacency list of leaf nodes.
 %> @param firstModes The pairwise modes in the leve1 input graph.
 %> @param graphFileName The input graph's path.
 %> @param resultFileName The file which will contain Subdue's output at
@@ -24,7 +25,7 @@
 %> Updates
 %> Ver 1.0 on 26.11.2013
 %> Ver 1.1 on 02.12.2013 Completed unlimited number of graph generation.
-function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges, firstModes, graphFileName, ...
+function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges, firstModes, leafNodeAdjArr, graphFileName, ...
                                                             resultFileName,...
                                                             options, fileList, datasetName)
     %% Allocate space for vocabulary and hierarchical graph structure
@@ -103,29 +104,14 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
         [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr);
-        [remainingComps, ~, ~] = unique([graphLevel.labelId], 'stable');
+        [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
         
         %% Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);
-        
-        %% Collect instances of each remaining composition in the vocabulary.
-        [graphLevel] = collectInstances(vocabLevel, graphFileName, options);
-        
-        % Assign positions, image ids and leaf nodes.
+        % Assign new labels of the remaining realizations.
         previousLevel = mainGraph{levelItr-1};
         for newNodeItr = 1:numel(graphLevel)
-            leafNodes = [];
-            position = [0,0];
-            graphLevel(newNodeItr).imageId = previousLevel(graphLevel(newNodeItr).children(1)).imageId;
-            for childItr = 1:numel(graphLevel(newNodeItr).children)
-               leafNodes = [leafNodes, previousLevel(graphLevel(newNodeItr).children(childItr)).leafNodes]; 
-            end
-            leafNodes = unique(leafNodes);
-            for leafNodeItr = 1:numel(leafNodes)
-               position = position + firstLevel(leafNodes(leafNodeItr)).position;
-            end
-            graphLevel(newNodeItr).leafNodes = leafNodes;
-            graphLevel(newNodeItr).position = round(position/numel(leafNodes));
+            graphLevel(newNodeItr).labelId = IC(newNodeItr);
         end
         
         %% Create the parent relationships between current level and previous level.
@@ -147,7 +133,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         end
         
         %% Extract the edges to form the new graph.
-        [currModes, edges] = extractEdges(newNodes, mainGraph, options, levelItr, datasetName, []);
+        [currModes, edges, ~] = extractEdges(newNodes, mainGraph, leafNodeAdjArr, options, levelItr, datasetName, []);
         
         % Learn image ids and number of total images.
         imageIds = [currentLevel(:).imageId]';

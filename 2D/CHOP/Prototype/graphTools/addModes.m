@@ -24,7 +24,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.12.2013
-function [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, datasetName, modes)
+function [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes)
     % Prevent empty cluster warnings in kmeans.
     w = warning('off', 'all');
     
@@ -41,6 +41,10 @@ function [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, data
         currentGraphLevel = mainGraph{currentLevel};
     end
     edges = [];
+    %% In level 1, we create first level adjacency information between nodes.
+    if currentLevel==1 && strcmp(options.edgeType, 'contour')
+        leafNodeAdjArr = cell(size(nodes,1),1);
+    end
     
     if isempty(modes)
         %% For each node pair, get the 2-D distribution of samples.
@@ -85,19 +89,15 @@ function [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, data
                            % information. High level compositions are
                            % linked with their adjacency information among
                            % their leaf nodes at the first level.
-                           adjacentNodes = [];
+                           adjacentNodes = zeros(numel(secondNodeImageIdx),1);
                            selfLeafNodes = currentGraphLevel(firstNodeImageIdx(nodeItr)).leafNodes;
-                           selfLeafNeighbors = [];
-                           for selfLeafItr = 1:numel(selfLeafNodes)
-                                tempNeighbors = unique(firstGraphLevel(selfLeafNodes(selfLeafItr)).adjInfo(:,1:2));
-                                tempNeighbors = setdiff(tempNeighbors, selfLeafNodes(selfLeafItr));
-                                selfLeafNeighbors = [selfLeafNeighbors; tempNeighbors];
-                           end
+                           selfLeafNeighbors = cell2mat(leafNodeAdjArr(selfLeafNodes));
                            for secNodeItr = 1:numel(secondNodeImageIdx)
-                              if numel(intersect(selfLeafNeighbors, currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes)) > 0
-                                 adjacentNodes = [adjacentNodes; secNodeItr];
+                              if sum(ismember(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes, selfLeafNeighbors)) > 0
+                                 adjacentNodes(secNodeItr) = 1;
                               end
                            end
+                           adjacentNodes = find(adjacentNodes);
                        else
                             distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
                             adjacentNodes = find(distances <= neighborhood);    
@@ -108,6 +108,14 @@ function [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, data
                        if node1 == node2
                             adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
                        end
+                       
+                       % For level 1, add adjacency information to the
+                       % leafNodeAdjArr array. Please note that this
+                       % adjacency information is directed (a->b =/= b->a)
+                       if currentLevel == 1
+                           leafNodeAdjArr(firstNodesInImage(nodeItr)) = {[leafNodeAdjArr{firstNodesInImage(nodeItr)}; secondNodesInImage(adjacentNodes)]};
+                       end
+                       
                        relativeVector = secondNodeCoordsInImage - centerArr;
                        relativeVector = relativeVector(adjacentNodes,:);
                        samples = [samples; relativeVector];
@@ -231,19 +239,15 @@ function [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, data
                    % information. High level compositions are
                    % linked with their adjacency information among
                    % their leaf nodes at the first level.
-                   adjacentNodes = [];
+                   adjacentNodes = zeros(numel(imageNodeIdx),1);
                    selfLeafNodes = currentGraphLevel(imageNodeIdx(nodeItr)).leafNodes;
-                   selfLeafNeighbors = [];
-                   for selfLeafItr = 1:numel(selfLeafNodes)
-                        tempNeighbors = unique(firstGraphLevel(selfLeafNodes(selfLeafItr)).adjInfo(:,1:2));
-                        tempNeighbors = setdiff(tempNeighbors, selfLeafNodes(selfLeafItr));
-                        selfLeafNeighbors = [selfLeafNeighbors; tempNeighbors];
-                   end
+                   selfLeafNeighbors = cell2mat(leafNodeAdjArr(selfLeafNodes));
                    for secNodeItr = 1:numel(imageNodeIdx)
-                      if numel(intersect(selfLeafNeighbors, currentGraphLevel(imageNodeIdx(secNodeItr)).leafNodes)) > 0
-                         adjacentNodes = [adjacentNodes; secNodeItr];
+                      if sum(ismember(currentGraphLevel(imageNodeIdx(secNodeItr)).leafNodes, selfLeafNeighbors)) > 0
+                         adjacentNodes(secNodeItr) = 1;
                       end
                    end
+                   adjacentNodes = find(adjacentNodes);
                else
                     distances = sqrt(sum((centerArr - imageCoords).^2, 2));
                     adjacentNodes = find(distances <= neighborhood);  
@@ -279,6 +283,10 @@ function [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, data
             end
             nodeOffset = nodeOffset + numberOfNodes;
         end
+    end
+    %% Remove duplicate neighbors from leaf node adjacency list.
+    if currentLevel==1 && strcmp(options.edgeType, 'contour')
+        leafNodeAdjArr = cellfun(@(x) unique(x), leafNodeAdjArr, 'UniformOutput', false);
     end
 end
 
