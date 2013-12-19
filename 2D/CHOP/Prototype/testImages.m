@@ -53,7 +53,7 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
     nodeImageIds = cell2mat(allNodes(:,3));
 
     %% Get edges depending on the property to be embedded in the graph.
-    [~, edges] = extractEdges(allNodes, options, 1, options.datasetName, modes);
+    [~, edges] = extractEdges(allNodes, [], options, 1, options.datasetName, modes);
     %% Fill the basic info in this scene graph level.
     for instanceItr = 1:size(allNodes,1)
        graphLevel(instanceItr).labelId = allNodes{instanceItr,1};
@@ -72,6 +72,7 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
     %% Assign first level of the scene graph.
     mainGraph(1) = {graphLevel};
     firstLevel = graphLevel;
+    
     %% Iteratively process each level to parse the object.
     for levelItr = 2:numel(vocabulary)
         graphFileName = [options.testGraphFolder '/' options.datasetName '_' num2str(levelItr-1) '.g'];
@@ -107,24 +108,7 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
         
         %% Here, we run SUBDUE over the input graph(s) to find pre-defined compositions within the graph.
         % Each pre-defined sub is searched separately.
-        numberOfPSFiles = numel(vocabulary{levelItr});
-        newLevel = [];
-        for psItr = 1:numberOfPSFiles
-            preDefinedFile = [options.preDefinedFolder '/ps' num2str(levelItr-1) '/ps' num2str(psItr) '.g']; 
-            runSUBDUE(graphFileName, resultFileName, options, options.currentFolder, preDefinedFile);
-            
-            % Read the instances of this sub.
-            [~, psLevel] = parseResultFile(resultFileName, options);
-            % Assign instances correct labels.
-            for instanceItr = 1:numel(psLevel)
-               psLevel(instanceItr).labelId = psItr;
-            end
-           
-            % Combine new level with the instances of this sub.
-            if numel(psLevel)>0
-                newLevel = [newLevel, psLevel];
-            end
-        end
+        newLevel = collectInstances(vocabulary{levelItr}, graphFileName, options);
         
         %% Assign positions, image ids, and leaf nodes. 
         % TODO: It's a shame that we are duplicating code for the following
@@ -161,7 +145,7 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
         % should introduce a novelty (cover a new area of the image). If it
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
-        [newLevel] = applyLocalInhibition(newLevel, options, levelItr);
+%        [newLevel] = applyLocalInhibition(newLevel, options, levelItr);
         
         %% If new level is empty, break.
         if isempty(newLevel)
@@ -175,11 +159,14 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
            allNodes(nodeItr,:) = {newLevel(nodeItr).labelId, newLevel(nodeItr).position, newLevel(nodeItr).imageId};
         end
         
+        %% Create parent relationships.
+        mainGraph = mergeIntoGraph(mainGraph, newLevel, levelItr, 1);
+        
         %% Extract the edges to form the new graph.
         if numel(modes)<levelItr
            edges=[];
         else
-            [~, edges] = extractEdges(allNodes, options, levelItr, options.datasetName, modes);
+            [~, edges] = extractEdges(allNodes, mainGraph, options, levelItr, options.datasetName, modes);
         end
         
         %% If the edges are not empty, fill the edge information in current level.
@@ -195,8 +182,6 @@ function [ classes ] = testImages(testFileNames, modes, options, currentPath)
             end
         end
         
-        %% Create parent relationships.
-        mainGraph = mergeIntoGraph(mainGraph, newLevel, levelItr, 1);
     end
     filledIdx = find(~(cellfun('isempty', mainGraph)), 1, 'first');
     mainGraph = mainGraph(1:filledIdx);

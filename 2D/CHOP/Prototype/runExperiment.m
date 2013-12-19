@@ -23,19 +23,19 @@ function [] = runExperiment( datasetName, imageExtension )
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfFilters = 6; % Number of Gabor filters at level 1.
-    options.numberOfTrainingImages = 20; % Number of training images to be 
+    options.numberOfTrainingImages = 5; % Number of training images to be 
                                  % used in unsupervised vocabulary learning.
-    options.numberOfTestImages = 20; % Number of training images to be 
+    options.numberOfTestImages = 5; % Number of training images to be 
                                  % used in unsupervised vocabulary learning.                             
     options.gaborFilterThr = 100; % Response threshold for Gabor filter 
                                  % convolution.
-    options.gaborAreaMinResponse = 0.5; % The threshold to define the minimum response 
+    options.gaborAreaMinResponse = 0.2; % The threshold to define the minimum response 
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area. Threshold is
                                         % calculated relative to the
                                         % maximum response in that image.
-    options.noveltyThr = 0.4;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -51,13 +51,20 @@ function [] = runExperiment( datasetName, imageExtension )
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
-    options.maxImageDim = options.gaborFilterSize*30;
+    options.edgeType = 'contour';      % If 'contour', the nodes in upper layers 
+                                       % are linked if their leaf nodes are 
+                                       % neighbors in the first layer.If
+                                       % 'centroid', downsampling is
+                                       % applied at each layer, and edges
+                                       % link spatially adjacent (within
+                                       % its neighborhoo) nodes.
+    options.maxImageDim = options.gaborFilterSize*25;
     options.maximumModes = 6;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*1.75; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*3; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
-    options.maxLevels = 10;    % The maximum level count               
+    options.maxLevels = 5;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
                                   % The last three are not really parameters, 
@@ -76,16 +83,12 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 6; % Maximum number of nodes in a composition
+    options.subdue.maxSize = 4; % Maximum number of nodes in a composition
     options.subdue.nsubs = 2000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
-                                % Right now, there is a bug with SUBDUE
-                                % code, so a value of 0 already allows
-                                % overlap and works better. Not advised to
-                                % change it at the moment.
     
     % Learn dataset path relative to this m file
     currentFileName = mfilename('fullpath');
@@ -156,7 +159,7 @@ function [] = runExperiment( datasetName, imageExtension )
         allNodes = allNodes(1:nodeCounter,:);
 
         %% Step 2: Get edges depending on the property to be embedded in the graph.
-        [modes, edges] = extractEdges(allNodes, options, 1, datasetName, []);
+        [modes, edges] = extractEdges(allNodes, [], options, 1, datasetName, []);
 
         %% Step 3: Print the graphs to the input file.
         imageIds = cell2mat(allNodes(:,3));

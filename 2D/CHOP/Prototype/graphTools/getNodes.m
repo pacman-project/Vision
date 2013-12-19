@@ -103,10 +103,16 @@ function [ nodes, smoothedImg ] = getNodes( img, filterCount, gaborFilterThr, ga
    %% Write smooth object boundaries based to an image on responseImgs.
    smoothedImg = getSmoothedImage(responseImgs, filters);
    
+   %% Surpress weak responses.
+   gaborThr = gaborAreaMinResponse * max(unique(responseImgs));
+   responseImgs(responseImgs<gaborThr) = 0;
+   
    %% Inhibit weak responses in vicinity of powerful peaks.
+   halfSize = floor(gaborFilterSize/2);
+   responseImgs([1:halfSize, (end-halfSize):end],:) = 0;
+   responseImgs(:,[1:halfSize, (end-halfSize):end]) = 0;
    peaks = find(responseImgs);
    [xInd, yInd, ~] = ind2sub(size(responseImgs), peaks);
-   halfSize = floor(gaborFilterSize/2);
    
    for peakItr = 1:size(peaks,1)
       % If this peak has not yet been eliminated, go check nearby peaks
@@ -124,16 +130,14 @@ function [ nodes, smoothedImg ] = getNodes( img, filterCount, gaborFilterThr, ga
       end
    end
    
-   %% Surpress weak responses.
-   gaborThr = gaborAreaMinResponse * max(unique(responseImgs));
-   responseImgs(responseImgs<gaborThr) = 0;
-   
    % Write the responses in the final image.
    responseImgs = double(responseImgs>0);
    for filtItr = 1:filterCount
       responseImgs(:,:,filtItr) = responseImgs(:,:,filtItr) .* filtItr;
    end
    responseImg = sum(responseImgs,3);
+   responseImg([1:halfSize, (end-halfSize):end],:) = 0;
+   responseImg(:,[1:halfSize, (end-halfSize):end]) = 0;
    
    %% Out of this response image, we will create the nodes and output them.
    finalNodeIdx = find(responseImg);

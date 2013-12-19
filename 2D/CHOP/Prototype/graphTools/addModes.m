@@ -8,6 +8,7 @@
 %>
 %> @param nodes The node list including label ids, positions and image ids
 %> of each node.
+%> @param mainGraph The object graphs' data structure.
 %> @param options Program options.
 %> @param currentLevel The current scene graph level.
 %> @param datasetName Name of the dataset.
@@ -23,7 +24,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.12.2013
-function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, modes)
+function [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, datasetName, modes)
     % Prevent empty cluster warnings in kmeans.
     w = warning('off', 'all');
     
@@ -35,7 +36,10 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, mo
     nodeCoords = cell2mat(nodes(:,2));
     imageIds = cell2mat(nodes(:,3));
     numberOfNodes = max(nodeIds);
-
+    if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
+        firstGraphLevel = mainGraph{1};
+        currentGraphLevel = mainGraph{currentLevel};
+    end
     edges = [];
     
     if isempty(modes)
@@ -61,6 +65,8 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, mo
                allPairwiseEdges = [];
                % Find all edges in between.
                for imageId = 1:max(firstNodeImageIds)
+                   firstNodeImageIdx = firstNodeIdx(firstNodeImageIds == imageId);
+                   secondNodeImageIdx = secondNodeIdx(secondNodeImageIds == imageId);
                    firstNodeCoordsInImage = firstNodeCoords(firstNodeImageIds == imageId,:);
                    secondNodeCoordsInImage = secondNodeCoords(secondNodeImageIds == imageId,:);
                    numberOfFirstNodes = size(firstNodeCoordsInImage,1);
@@ -70,11 +76,33 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, mo
 
                    % Iterate over each seed node and find its adjacentNodes.
                    for nodeItr = 1:numberOfFirstNodes
+                       %% EDGE INFORMATION EXTRACTION
                        centerArr = [ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,1), ...
-                           ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,2)];
-
-                       distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
-                       adjacentNodes = find(distances <= neighborhood);                   
+                               ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,2)];
+                       if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
+                           % In contour type edges, we work on the first
+                           % level to reveal existing neighboring
+                           % information. High level compositions are
+                           % linked with their adjacency information among
+                           % their leaf nodes at the first level.
+                           adjacentNodes = [];
+                           selfLeafNodes = currentGraphLevel(firstNodeImageIdx(nodeItr)).leafNodes;
+                           selfLeafNeighbors = [];
+                           for selfLeafItr = 1:numel(selfLeafNodes)
+                                tempNeighbors = unique(firstGraphLevel(selfLeafNodes(selfLeafItr)).adjInfo(:,1:2));
+                                tempNeighbors = setdiff(tempNeighbors, selfLeafNodes(selfLeafItr));
+                                selfLeafNeighbors = [selfLeafNeighbors; tempNeighbors];
+                           end
+                           for secNodeItr = 1:numel(secondNodeImageIdx)
+                              if numel(intersect(selfLeafNeighbors, currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes)) > 0
+                                 adjacentNodes = [adjacentNodes; secNodeItr];
+                              end
+                           end
+                       else
+                            distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
+                            adjacentNodes = find(distances <= neighborhood);    
+                       end
+                       
                        % Need to remove the node itself if checking neighbors with same
                        % label id.
                        if node1 == node2
@@ -84,7 +112,7 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, mo
                        relativeVector = relativeVector(adjacentNodes,:);
                        samples = [samples; relativeVector];
 
-                       %% If both nodes are the same, we put twice directed edges to make the final graph undirected.
+                       %% If both nodes are the same, we put directed edges.
                        numberOfCurrEdges = size(adjacentNodes,1);
 
                        % Create edges here.
@@ -158,10 +186,15 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, mo
 
                %% In debug mode, write classes to the output as images.
                if options.debug
-                   distributionImg = zeros(neighborhood*2+1);
-                   samplesToWrite = floor(samples + neighborhood + 1);
+                   distributionImg = zeros(options.maxImageDim*2+1);
+                   samplesToWrite = floor(samples + options.maxImageDim + 1);
                    samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
                    distributionImg(samplesInd) = classes;
+                   
+                   % Resize the distribution image so it is of the smallest
+                   % possible size.
+                   [posSampleX, posSampleY] = find(distributionImg);
+                   distributionImg = distributionImg(min(posSampleX):max(posSampleX), min(posSampleY):max(posSampleY));
                    if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/'], 'dir')
                        mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/']);
                    end
@@ -180,6 +213,7 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, mo
             imageNodes = nodes(imageIds == imageItr,:);
             imageCoords = nodeCoords(imageIds == imageItr,:);
             imageNodeIds = nodeIds(imageIds == imageItr,:);
+            imageNodeIdx = find(imageIds == imageItr);
             
             % If there are no nodes in this image, move on.
             if isempty(imageNodes)
@@ -191,8 +225,29 @@ function [modes, edges] = addModes(nodes, options, currentLevel, datasetName, mo
                centerArr = [ones(size(imageNodes,1),1) * imageCoords(nodeItr,1), ...
                    ones(size(imageNodes,1),1) * imageCoords(nodeItr,2)];
 
-               distances = sqrt(sum((centerArr - imageCoords).^2, 2));
-               adjacentNodes = find(distances <= neighborhood);                
+               if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
+                   % In contour type edges, we work on the first
+                   % level to reveal existing neighboring
+                   % information. High level compositions are
+                   % linked with their adjacency information among
+                   % their leaf nodes at the first level.
+                   adjacentNodes = [];
+                   selfLeafNodes = currentGraphLevel(imageNodeIdx(nodeItr)).leafNodes;
+                   selfLeafNeighbors = [];
+                   for selfLeafItr = 1:numel(selfLeafNodes)
+                        tempNeighbors = unique(firstGraphLevel(selfLeafNodes(selfLeafItr)).adjInfo(:,1:2));
+                        tempNeighbors = setdiff(tempNeighbors, selfLeafNodes(selfLeafItr));
+                        selfLeafNeighbors = [selfLeafNeighbors; tempNeighbors];
+                   end
+                   for secNodeItr = 1:numel(imageNodeIdx)
+                      if numel(intersect(selfLeafNeighbors, currentGraphLevel(imageNodeIdx(secNodeItr)).leafNodes)) > 0
+                         adjacentNodes = [adjacentNodes; secNodeItr];
+                      end
+                   end
+               else
+                    distances = sqrt(sum((centerArr - imageCoords).^2, 2));
+                    adjacentNodes = find(distances <= neighborhood);  
+               end
                adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
                adjacentNodes = adjacentNodes(imageNodeIds(adjacentNodes) >= imageNodeIds(nodeItr));
                

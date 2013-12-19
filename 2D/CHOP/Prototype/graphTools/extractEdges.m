@@ -6,6 +6,7 @@
 %>
 %> @param nodes The node list including label ids, positions and image ids
 %> of each node.
+%> @param mainGraph The object graphs' data structure.
 %> @param options Program options.
 %> @param currentLevel The currnet scene graph level.
 %> @param datasetName Name of the dataset.
@@ -21,11 +22,11 @@
 %>
 %> Updates
 %> Ver 1.0 on 06.12.2013
-function [modes, edges] = extractEdges(nodes, options, currentLevel, datasetName, modes)
+function [modes, edges] = extractEdges(nodes, mainGraph, options, currentLevel, datasetName, modes)
     
     if strcmp(options.property, 'mode')
         % If needed, process nodes to determine 'mode's, i.e. pair-wise relations.
-        [modes, edges] = addModes(nodes, options, currentLevel, datasetName, modes);
+        [modes, edges] = addModes(nodes, mainGraph, options, currentLevel, datasetName, modes);
     else
         % Form simple edges (co-occurence based)
         modes = [];
