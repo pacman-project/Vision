@@ -20,7 +20,7 @@ function [] = runExperiment( datasetName, imageExtension )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     options.datasetName = datasetName;
-    options.learnVocabulary = 0; % If 1, new vocabulary is learned. 
+    options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfFilters = 6; % Number of Gabor filters at level 1.
     options.numberOfTrainingImages = 70; % Number of training images to be 
@@ -41,13 +41,17 @@ function [] = runExperiment( datasetName, imageExtension )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
+    options.edgeNoveltyThr = 0.5;           % The novelty threshold used in the 
+                                        % inhibition process. At least this 
+                                        % percent of a neighbor node's leaf 
+                                        % nodes should be new.
     options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
     options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence' or
-    options.scaling = 0.66;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -60,10 +64,10 @@ function [] = runExperiment( datasetName, imageExtension )
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhoo) nodes.
-    options.maxImageDim = options.gaborFilterSize*15;
+    options.maxImageDim = options.gaborFilterSize*20;
     options.maximumModes = 6;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*2; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*1.5; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 5;    % The maximum level count               
@@ -85,10 +89,10 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 2000;  % Maximum number of nodes allowed in a level
+    options.subdue.maxSize = 5; % Maximum number of nodes in a composition
+    options.subdue.nsubs = 3000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 300;   % Beam length in SUBDUE
+    options.subdue.beam = 500;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     
@@ -197,9 +201,13 @@ function [] = runExperiment( datasetName, imageExtension )
         % Create files for pre-defined substructures ( compositions from voc.)
         preparePreDefinedFiles(options.preDefinedFolder, vocabulary);
         
-        %% Test the images and get classification results.
-        testImages(testFileNames, modes, leafNodeAdjArr, options, currentPath);
-
+        %% Run inference on each test image.
+        for testImgItr = 1:size(testFileNames,1)
+            singleTestImage(testFileNames{testImgItr}, options, currentPath);
+        end
+        
+        %% Run image retrieval tests.
+        runRetrievalTests(options.currentFolder, options.datasetName, options.testGraphFolder, 3);
     end
 end
 

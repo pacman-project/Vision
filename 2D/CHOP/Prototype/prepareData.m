@@ -33,8 +33,7 @@ function [ ] = prepareData( datasetName, numberOfVocabImagesPerCategory)
        lastClass = '';
        classItr = 1;
        for fileItr = 1:numel(fileList)
-           [pathToImages, fileName, ext] = fileparts(fileList{fileItr});
-           fileName
+           [~, fileName, ~] = fileparts(fileList{fileItr});
            imageClassIdx = strfind(fileName, categoryDelim);
            imageClass = fileName(1,1:(imageClassIdx(1)-1));
            

@@ -37,7 +37,6 @@ function [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdj
     imageIds = cell2mat(nodes(:,3));
     numberOfNodes = max(nodeIds);
     if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
-        firstGraphLevel = mainGraph{1};
         currentGraphLevel = mainGraph{currentLevel};
     end
     edges = [];
@@ -92,8 +91,14 @@ function [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdj
                            adjacentNodes = zeros(numel(secondNodeImageIdx),1);
                            selfLeafNodes = currentGraphLevel(firstNodeImageIdx(nodeItr)).leafNodes;
                            selfLeafNeighbors = cell2mat(leafNodeAdjArr(selfLeafNodes));
+                           % Estimate edge novelty threshold so that we can
+                           % connect nodes that provide novel information.
                            for secNodeItr = 1:numel(secondNodeImageIdx)
-                              if sum(ismember(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes, selfLeafNeighbors)) > 0
+                               allowedLeafRepetition = numel(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes) * (1-options.edgeNoveltyThr);
+                               numberOfSharedLeaves = sum(ismember(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes, ...
+                                   selfLeafNodes));
+                              if sum(ismember(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes, selfLeafNeighbors)) > 0 && ...
+                                      numberOfSharedLeaves <= allowedLeafRepetition
                                  adjacentNodes(secNodeItr) = 1;
                               end
                            end
@@ -109,11 +114,12 @@ function [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdj
                             adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
                        end
                        
+                       
                        % For level 1, add adjacency information to the
                        % leafNodeAdjArr array. Please note that this
                        % adjacency information is directed (a->b =/= b->a)
-                       if currentLevel == 1
-                           leafNodeAdjArr(firstNodesInImage(nodeItr)) = {[leafNodeAdjArr{firstNodesInImage(nodeItr)}; secondNodesInImage(adjacentNodes)]};
+                       if strcmp(options.edgeType, 'contour') && currentLevel == 1
+                           leafNodeAdjArr(firstNodeImageIdx(nodeItr)) = {[leafNodeAdjArr{firstNodeImageIdx(nodeItr)}; secondNodeImageIdx(adjacentNodes)]};
                        end
                        
                        relativeVector = secondNodeCoordsInImage - centerArr;
@@ -254,6 +260,13 @@ function [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdj
                end
                adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
                adjacentNodes = adjacentNodes(imageNodeIds(adjacentNodes) >= imageNodeIds(nodeItr));
+               
+               % For level 1, add adjacency information to the
+               % leafNodeAdjArr array. Please note that this
+               % adjacency information is directed (a->b =/= b->a)
+               if strcmp(options.edgeType, 'contour') && currentLevel == 1
+                   leafNodeAdjArr(imageNodeIdx(nodeItr)) = {[leafNodeAdjArr{imageNodeIdx(nodeItr)}; imageNodeIdx(adjacentNodes)]};
+               end
                
                for adjItr = 1:numel(adjacentNodes)
                    sample = imageCoords(adjacentNodes(adjItr),:) - imageCoords(nodeItr,:);

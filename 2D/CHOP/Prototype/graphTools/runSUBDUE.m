@@ -26,7 +26,7 @@ function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder,
        subdueOptions = [subdueOptions '-valuebased '];
     end
     if options.subdue.overlap
-       subdueOptions = [subdueOptions '-overlap '];
+       subdueOptions = [subdueOptions '-overlap -threshold 0.2 '];
     end
     if ~isempty(preDefinedFileName)
        subdueOptions = [subdueOptions '-ps ' preDefinedFileName ' -discovery 1 '];
@@ -47,7 +47,12 @@ function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder,
     elseif ispc
         command = [currentFolder '/miners/subdueWin' subdueOptions];
     end
-    command
-    system(command);
+    if isempty(preDefinedFileName)
+        command
+        system(command);
+    else
+        [~, ~] = system(command);
+    end
+    
 end
 
