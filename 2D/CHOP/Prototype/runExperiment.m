@@ -41,7 +41,7 @@ function [] = runExperiment( datasetName, imageExtension )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.5;           % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
