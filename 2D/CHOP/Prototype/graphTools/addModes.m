@@ -25,9 +25,7 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 function [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes)
-    % Prevent empty cluster warnings in kmeans.
-    w = warning('off', 'all');
-    
+
     % Calculate edge radius.
     scale = (1/options.scaling)^(currentLevel-1);
     neighborhood = fix(options.edgeRadius * scale);
@@ -35,267 +33,123 @@ function [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdj
     nodeIds = cell2mat(nodes(:,1));
     nodeCoords = cell2mat(nodes(:,2));
     imageIds = cell2mat(nodes(:,3));
-    numberOfNodes = max(nodeIds);
+    
+    %% Get current graph level
     if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
         currentGraphLevel = mainGraph{currentLevel};
     end
     edges = [];
+    
     %% In level 1, we create first level adjacency information between nodes.
     if currentLevel==1 && strcmp(options.edgeType, 'contour')
         leafNodeAdjArr = cell(size(nodes,1),1);
     end
     
-    if isempty(modes)
-        %% For each node pair, get the 2-D distribution of samples.
-        % Right now, we only work with 2-dimensional spatial relations.
+    %% Learn pair-wise node distributions (modes)
+    if isempty(modes) 
+        [currentModes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes);    
+        modes = currentModes;
+    else
+        currentModes = modes{currentLevel};
+    end
     
-        modeOffset = 0;
+    %% Assuming the distributions have already been learned, create edges and assign edge labels accordingly.
+    nodeOffset = 0;
+    for imageItr = 1:max(imageIds)
+        imageNodes = nodes(imageIds == imageItr,:);
+        imageCoords = nodeCoords(imageIds == imageItr,:);
+        imageNodeIds = nodeIds(imageIds == imageItr,:);
+        imageNodeIdx = find(imageIds == imageItr);
 
-        for node1 = 1:numberOfNodes
-           for node2 = node1:numberOfNodes
-               % Get first type of nodes.
-               firstNodeIdx = find(nodeIds==node1);
-               firstNodeCoords = nodeCoords(firstNodeIdx, :);
-               firstNodeImageIds = imageIds(firstNodeIdx, :);
+        % If there are no nodes in this image, move on.
+        if isempty(imageNodes)
+           continue; 
+        end
 
-               % Get second type of nodes.
-               secondNodeIdx = find(nodeIds==node2);
-               secondNodeCoords = nodeCoords(secondNodeIdx, :);
-               secondNodeImageIds = imageIds(secondNodeIdx, :);
+        numberOfNodes = size(imageCoords,1);
+        for nodeItr = 1:numberOfNodes
+           centerArr = [ones(size(imageNodes,1),1) * imageCoords(nodeItr,1), ...
+               ones(size(imageNodes,1),1) * imageCoords(nodeItr,2)];
 
-               % Allocate space for pair-wise distribution data
-               samples = [];
-               allPairwiseEdges = [];
-               % Find all edges in between.
-               for imageId = 1:max(firstNodeImageIds)
-                   firstNodeImageIdx = firstNodeIdx(firstNodeImageIds == imageId);
-                   secondNodeImageIdx = secondNodeIdx(secondNodeImageIds == imageId);
-                   firstNodeCoordsInImage = firstNodeCoords(firstNodeImageIds == imageId,:);
-                   secondNodeCoordsInImage = secondNodeCoords(secondNodeImageIds == imageId,:);
-                   numberOfFirstNodes = size(firstNodeCoordsInImage,1);
-
-                   firstNodesInImage = firstNodeIdx(firstNodeImageIds == imageId,:);
-                   secondNodesInImage = secondNodeIdx(secondNodeImageIds == imageId,:);
-
-                   % Iterate over each seed node and find its adjacentNodes.
-                   for nodeItr = 1:numberOfFirstNodes
-                       %% EDGE INFORMATION EXTRACTION
-                       centerArr = [ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,1), ...
-                               ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,2)];
-                       if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
-                           % In contour type edges, we work on the first
-                           % level to reveal existing neighboring
-                           % information. High level compositions are
-                           % linked with their adjacency information among
-                           % their leaf nodes at the first level.
-                           adjacentNodes = zeros(numel(secondNodeImageIdx),1);
-                           selfLeafNodes = currentGraphLevel(firstNodeImageIdx(nodeItr)).leafNodes;
-                           selfLeafNeighbors = cell2mat(leafNodeAdjArr(selfLeafNodes));
-                           % Estimate edge novelty threshold so that we can
-                           % connect nodes that provide novel information.
-                           for secNodeItr = 1:numel(secondNodeImageIdx)
-                               allowedLeafRepetition = numel(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes) * (1-options.edgeNoveltyThr);
-                               numberOfSharedLeaves = sum(ismember(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes, ...
-                                   selfLeafNodes));
-                              if sum(ismember(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes, selfLeafNeighbors)) > 0 && ...
-                                      numberOfSharedLeaves <= allowedLeafRepetition
-                                 adjacentNodes(secNodeItr) = 1;
-                              end
-                           end
-                           adjacentNodes = find(adjacentNodes);
-                       else
-                            distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
-                            adjacentNodes = find(distances <= neighborhood);    
-                       end
-                       
-                       % Need to remove the node itself if checking neighbors with same
-                       % label id.
-                       if node1 == node2
-                            adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
-                       end
-                       
-                       
-                       % For level 1, add adjacency information to the
-                       % leafNodeAdjArr array. Please note that this
-                       % adjacency information is directed (a->b =/= b->a)
-                       if strcmp(options.edgeType, 'contour') && currentLevel == 1
-                           leafNodeAdjArr(firstNodeImageIdx(nodeItr)) = {[leafNodeAdjArr{firstNodeImageIdx(nodeItr)}; secondNodeImageIdx(adjacentNodes)]};
-                       end
-                       
-                       relativeVector = secondNodeCoordsInImage - centerArr;
-                       relativeVector = relativeVector(adjacentNodes,:);
-                       samples = [samples; relativeVector];
-
-                       %% If both nodes are the same, we put directed edges.
-                       numberOfCurrEdges = size(adjacentNodes,1);
-
-                       % Create edges here.
-                       if node1 == node2
-                           directedArr = ones(numberOfCurrEdges,1);
-                       else
-                           directedArr = zeros(numberOfCurrEdges,1);
-                       end
-
-                       currEdges = [ones(numberOfCurrEdges,1) * firstNodesInImage(nodeItr), ...
-                           secondNodesInImage(adjacentNodes), zeros(numberOfCurrEdges,1), directedArr];
-                       if ~isempty(currEdges)
-                           allPairwiseEdges = [allPairwiseEdges; currEdges];
-                       end
-                   end
-               end
-               % Normalize vectors using max distance
-     %          samples = samples / neighborhood;
-
-               % Eliminate some samples so that we only take roughly half of
-               % them into account (only when investigating same node type
-               % pair).
-               if node1 == node2 && ~isempty(samples)
-                   validEdgeIdx = samples(:,1) + samples(:,2) >= 0;
-                   samples = samples(validEdgeIdx, :);
-                   allPairwiseEdges = allPairwiseEdges(validEdgeIdx, :);
-               end
-
-               %% Cluster samples to detect the nodes. 
-               % This step can be replaced with a better, different approach.
-               if isempty(samples)
-                   continue;
-               elseif size(samples,1) < options.maximumModes
-                   if size(samples,1) > 1
-                        classes = mec(samples, 'c', size(samples,1), 'kmeans_i', 5);
-                   else
-                        classes = 1;
-                   end
-               else
-                   % Enough samples, process data.
-                   classes = mec(samples, 'c', options.maximumModes, 'kmeans_i', 5);
-               end
-               %% Calculate cluster centers and reassign the samples to clusters.
-               % This step is required since we would like to have
-               % consistency with our test cases.
-               numberOfClusters = max(classes);
-               centers = zeros(numberOfClusters,4);
-               centers(:,1) = ones(numberOfClusters,1) * node1;
-               centers(:,2) = ones(numberOfClusters,1) * node2;
-               for centerItr = 1:numberOfClusters
-                  centers(centerItr,3:4) = mean(samples(classes==centerItr,:),1);
-               end
-               % Assign centers to modes.
-               modes = [modes; centers];
-               
-               % Reassign the samples to the clusters.
-               for sampleItr = 1:size(samples,1)
-                  sampleArr = [ones(size(centers,1),1)* samples(sampleItr,1), ones(size(centers,1),1)* samples(sampleItr,2)];
-                  distances = sqrt(sum((sampleArr - centers(:,3:4)).^2, 2));
-                  [~, minDist] = min(distances);
-                  if numel(minDist)>0
-                     classes(sampleItr) = minDist(1);
+           if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
+               % In contour type edges, we work on the first
+               % level to reveal existing neighboring
+               % information. High level compositions are
+               % linked with their adjacency information among
+               % their leaf nodes at the first level.
+               adjacentNodes = zeros(numel(imageNodeIdx),1);
+               selfLeafNodes = currentGraphLevel(imageNodeIdx(nodeItr)).leafNodes;
+               selfLeafNeighbors = cell2mat(leafNodeAdjArr(selfLeafNodes));
+               scores = zeros(numel(imageNodeIdx),1);
+               for secNodeItr = 1:numel(imageNodeIdx)
+                   %% Score calculation for each edge takes place in here.
+                  bondStrength = sum(ismember(currentGraphLevel(imageNodeIdx(secNodeItr)).leafNodes, selfLeafNeighbors));
+                  maxOverlap = numel(currentGraphLevel(imageNodeIdx(secNodeItr)).leafNodes) * (1-options.edgeNoveltyThr);
+                  numberOfOverlapLeaves = sum(ismember(selfLeafNodes, currentGraphLevel(imageNodeIdx(secNodeItr)).leafNodes));
+                  if currentLevel == 1 || ((bondStrength > 0 && numberOfOverlapLeaves <= maxOverlap))
+                     scores(secNodeItr) = numberOfOverlapLeaves - bondStrength;
+                     adjacentNodes(secNodeItr) = 1;
                   end
                end
-               
-               % Assign edges, change mode offset and move on.
-               allPairwiseEdges(:,3) = classes+modeOffset;
-               edges = [edges; allPairwiseEdges];
-               modeOffset = modeOffset + max(classes);
+               adjacentNodes = find(adjacentNodes);
+           else
+                distances = sqrt(sum((centerArr - imageCoords).^2, 2));
+                adjacentNodes = find(distances <= neighborhood);
+                scores = distances(adjacentNodes);  
+           end
+           
+           otherAdjacentNodes = adjacentNodes ~= nodeItr;
+           adjacentNodes = adjacentNodes(otherAdjacentNodes);
+           scores = scores(otherAdjacentNodes);
+           validAdjacentNodes = imageNodeIds(adjacentNodes) >= imageNodeIds(nodeItr);
+           adjacentNodes = adjacentNodes(validAdjacentNodes);
+           scores = scores(validAdjacentNodes);
 
+           %% Eliminate low-scored adjacency links to keep the graph degree at a constant level.
+           if currentLevel == 1
+               averageNodeDegree = options.maxNodeDegreeLevel1;
+           else
+               averageNodeDegree = options.maxNodeDegree;
+           end
+           if numel(adjacentNodes)>averageNodeDegree
+                [idx] = getSmallestNElements(scores, averageNodeDegree);
+                adjacentNodes = adjacentNodes(idx);
+           end
+           
+           % For level 1, add adjacency information to the
+           % leafNodeAdjArr array. Please note that this
+           % adjacency information is directed (a->b =/= b->a)
+           if strcmp(options.edgeType, 'contour') && currentLevel == 1
+               leafNodeAdjArr(imageNodeIdx(nodeItr)) = {[leafNodeAdjArr{imageNodeIdx(nodeItr)}; imageNodeIdx(adjacentNodes)]};
+           end
 
-               %% In debug mode, write classes to the output as images.
-               if options.debug
-                   distributionImg = zeros(options.maxImageDim*2+1);
-                   samplesToWrite = floor(samples + options.maxImageDim + 1);
-                   samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
-                   distributionImg(samplesInd) = classes;
-                   
-                   % Resize the distribution image so it is of the smallest
-                   % possible size.
-                   [posSampleX, posSampleY] = find(distributionImg);
-                   distributionImg = distributionImg(min(posSampleX):max(posSampleX), min(posSampleY):max(posSampleY));
-                   if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/'], 'dir')
-                       mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/']);
+           for adjItr = 1:numel(adjacentNodes)
+               sample = imageCoords(adjacentNodes(adjItr),:) - imageCoords(nodeItr,:);
+               if imageNodeIds(nodeItr) == imageNodeIds(adjacentNodes(adjItr))
+                   isDirected = 1;
+                   % Check if this edge is on the right side of separating line.
+                   if sample(1) + sample(2) < 0
+                       continue;
                    end
-                   imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), [options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/' num2str(node1) '_' num2str(node2) '.png']);
+               else
+                   isDirected = 0;
+               end
+
+               % Learn mode by assigning a cluster center to its
+               % relative positioning.
+               applicableModeIdx = find(currentModes(:,1) == imageNodeIds(nodeItr) & ...
+                   currentModes(:,2) == imageNodeIds(adjacentNodes(adjItr)));
+               applicableModes = currentModes(applicableModeIdx,3:4);
+               centerArr2 = [ones(size(applicableModes,1),1) * sample(1), ones(size(applicableModes,1),1) * sample(2)];
+               distances = sqrt(sum((centerArr2 - applicableModes).^2, 2));
+               [~, minDist] = min(distances);
+               if numel(minDist)>0
+                   modeId = applicableModeIdx(minDist(1));
+                   edges = [edges; [nodeItr + nodeOffset, adjacentNodes(adjItr) + nodeOffset, modeId, isDirected]];
                end
            end
         end
-        warning(w);
-
-    else
-        %% Assuming the distributions have already been learned, create edges and assign edge labels accordingly.
-        currentModes = modes{currentLevel};
-        nodeOffset = 0;
-        
-        for imageItr = 1:max(imageIds)
-            imageNodes = nodes(imageIds == imageItr,:);
-            imageCoords = nodeCoords(imageIds == imageItr,:);
-            imageNodeIds = nodeIds(imageIds == imageItr,:);
-            imageNodeIdx = find(imageIds == imageItr);
-            
-            % If there are no nodes in this image, move on.
-            if isempty(imageNodes)
-               continue; 
-            end
-            
-            numberOfNodes = size(imageCoords,1);
-            for nodeItr = 1:numberOfNodes
-               centerArr = [ones(size(imageNodes,1),1) * imageCoords(nodeItr,1), ...
-                   ones(size(imageNodes,1),1) * imageCoords(nodeItr,2)];
-
-               if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
-                   % In contour type edges, we work on the first
-                   % level to reveal existing neighboring
-                   % information. High level compositions are
-                   % linked with their adjacency information among
-                   % their leaf nodes at the first level.
-                   adjacentNodes = zeros(numel(imageNodeIdx),1);
-                   selfLeafNodes = currentGraphLevel(imageNodeIdx(nodeItr)).leafNodes;
-                   selfLeafNeighbors = cell2mat(leafNodeAdjArr(selfLeafNodes));
-                   for secNodeItr = 1:numel(imageNodeIdx)
-                      if sum(ismember(currentGraphLevel(imageNodeIdx(secNodeItr)).leafNodes, selfLeafNeighbors)) > 0
-                         adjacentNodes(secNodeItr) = 1;
-                      end
-                   end
-                   adjacentNodes = find(adjacentNodes);
-               else
-                    distances = sqrt(sum((centerArr - imageCoords).^2, 2));
-                    adjacentNodes = find(distances <= neighborhood);  
-               end
-               adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr);
-               adjacentNodes = adjacentNodes(imageNodeIds(adjacentNodes) >= imageNodeIds(nodeItr));
-               
-               % For level 1, add adjacency information to the
-               % leafNodeAdjArr array. Please note that this
-               % adjacency information is directed (a->b =/= b->a)
-               if strcmp(options.edgeType, 'contour') && currentLevel == 1
-                   leafNodeAdjArr(imageNodeIdx(nodeItr)) = {[leafNodeAdjArr{imageNodeIdx(nodeItr)}; imageNodeIdx(adjacentNodes)]};
-               end
-               
-               for adjItr = 1:numel(adjacentNodes)
-                   sample = imageCoords(adjacentNodes(adjItr),:) - imageCoords(nodeItr,:);
-                   if imageNodeIds(nodeItr) == imageNodeIds(adjacentNodes(adjItr))
-                       isDirected = 1;
-                       % Check if this edge is on the right side of separating line.
-                       if sample(1) + sample(2) < 0
-                           continue;
-                       end
-                   else
-                       isDirected = 0;
-                   end
-                   
-                   % Learn mode by assigning a cluster center to its
-                   % relative positioning.
-                   applicableModeIdx = find(currentModes(:,1) == imageNodeIds(nodeItr) & ...
-                       currentModes(:,2) == imageNodeIds(adjacentNodes(adjItr)));
-                   applicableModes = currentModes(applicableModeIdx,3:4);
-                   centerArr2 = [ones(size(applicableModes,1),1) * sample(1), ones(size(applicableModes,1),1) * sample(2)];
-                   distances = sqrt(sum((centerArr2 - applicableModes).^2, 2));
-                   [~, minDist] = min(distances);
-                   if numel(minDist)>0
-                       modeId = applicableModeIdx(minDist(1));
-                       edges = [edges; [nodeItr + nodeOffset, adjacentNodes(adjItr) + nodeOffset, modeId, isDirected]];
-                   end
-               end
-            end
-            nodeOffset = nodeOffset + numberOfNodes;
-        end
+        nodeOffset = nodeOffset + numberOfNodes;
     end
     %% Remove duplicate neighbors from leaf node adjacency list.
     if currentLevel==1 && strcmp(options.edgeType, 'contour')
@@ -303,3 +157,150 @@ function [modes, edges, leafNodeAdjArr] = addModes(nodes, mainGraph, leafNodeAdj
     end
 end
 
+function [idx] = getSmallestNElements(vect, n)
+    [~, sortedIdx] = sort(vect);
+    idx = sortedIdx(1:n);
+    restVect = vect(sortedIdx((n+1):end));
+    % Add nodes which qualify, since same-valued nodes are already in idx.
+    % Number of such nodes cannot exceed n.
+    restOfNodes = (find(restVect == vect(idx(end)))+n);
+    if numel(restOfNodes)>n
+       restOfNodes = restOfNodes(1:n); 
+    end
+    idx = [idx; restOfNodes];
+end
+
+function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes)
+    % Prevent empty cluster warnings in kmeans.
+    w = warning('off', 'all');
+    
+    % Calculate edge radius.
+    scale = (1/options.scaling)^(currentLevel-1);
+    neighborhood = fix(options.edgeRadius * scale);
+    
+    % Set initial data structures for processing 
+    nodeIds = cell2mat(nodes(:,1));
+    nodeCoords = cell2mat(nodes(:,2));
+    imageIds = cell2mat(nodes(:,3));
+    numberOfNodes = max(nodeIds);
+    if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
+        currentGraphLevel = mainGraph{currentLevel};
+    end
+    
+    %% For each node pair, get the 2-D distribution of samples.
+    % Right now, we only work with 2-dimensional spatial relations.
+
+    modeOffset = 0;
+
+    for node1 = 1:numberOfNodes
+       for node2 = node1:numberOfNodes
+           % Get first type of nodes.
+           firstNodeIdx = find(nodeIds==node1);
+           firstNodeCoords = nodeCoords(firstNodeIdx, :);
+           firstNodeImageIds = imageIds(firstNodeIdx, :);
+
+           % Get second type of nodes.
+           secondNodeIdx = find(nodeIds==node2);
+           secondNodeCoords = nodeCoords(secondNodeIdx, :);
+           secondNodeImageIds = imageIds(secondNodeIdx, :);
+
+           % Allocate space for pair-wise distribution data
+           samples = [];
+           % Find all edges in between.
+           for imageId = 1:max(firstNodeImageIds)
+               firstNodeImageIdx = firstNodeIdx(firstNodeImageIds == imageId);
+               secondNodeImageIdx = secondNodeIdx(secondNodeImageIds == imageId);
+               firstNodeCoordsInImage = firstNodeCoords(firstNodeImageIds == imageId,:);
+               secondNodeCoordsInImage = secondNodeCoords(secondNodeImageIds == imageId,:);
+               numberOfFirstNodes = size(firstNodeCoordsInImage,1);
+
+               % Iterate over each seed node and find its adjacentNodes.
+               for nodeItr = 1:numberOfFirstNodes
+                   %% EDGE INFORMATION EXTRACTION
+                   centerArr = [ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,1), ...
+                           ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,2)];
+                   if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
+                       % In contour type edges, we work on the first
+                       % level to reveal existing neighboring
+                       % information. High level compositions are
+                       % linked with their adjacency information among
+                       % their leaf nodes at the first level.
+                       adjacentNodes = zeros(numel(secondNodeImageIdx),1);
+                       selfLeafNodes = currentGraphLevel(firstNodeImageIdx(nodeItr)).leafNodes;
+                       selfLeafNeighbors = cell2mat(leafNodeAdjArr(selfLeafNodes));
+                       % Estimate edge novelty threshold so that we can
+                       % connect nodes that provide novel information.
+                       secondNodeCount = numel(secondNodeImageIdx);
+                       for secNodeItr = 1:secondNodeCount
+                          neighborLeaveCount = sum(ismember(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes, selfLeafNeighbors));
+                          if neighborLeaveCount > 0
+                             adjacentNodes(secNodeItr) = 1;
+                          end
+                       end
+                       adjacentNodes = find(adjacentNodes);
+                   else
+                        distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
+                        [adjacentNodes] = find(distances <= neighborhood);
+                   end
+
+                   % Need to remove the node itself if checking neighbors with same
+                   % label id.
+                   if node1 == node2
+                        adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr,:);
+                   end
+                   relativeVector = secondNodeCoordsInImage - centerArr;
+                   relativeVector = relativeVector(adjacentNodes,:);
+                   samples = [samples; relativeVector];
+               end
+           end
+           
+           %% Cluster samples to detect the nodes. 
+           % This step can be replaced with a better, different approach.
+           if isempty(samples)
+               continue;
+           elseif size(samples,1) < options.maximumModes
+               if size(samples,1) > 1
+                    classes = mec(samples, 'c', size(samples,1), 'kmeans_i', 5);
+               else
+                    classes = 1;
+               end
+           else
+               % Enough samples, process data.
+               classes = mec(samples, 'c', options.maximumModes, 'kmeans_i', 5);
+           end
+           
+           %% Calculate cluster centers and reassign the samples to clusters.
+           % This step is required since we would like to have
+           % consistency with our test cases.
+           numberOfClusters = max(classes);
+           centers = zeros(numberOfClusters,4);
+           centers(:,1) = ones(numberOfClusters,1) * node1;
+           centers(:,2) = ones(numberOfClusters,1) * node2;
+           for centerItr = 1:numberOfClusters
+              centers(centerItr,3:4) = mean(samples(classes==centerItr,:),1);
+           end
+           % Assign centers to modes.
+           modes = [modes; centers];
+
+           % Change mode offset and move on.
+           modeOffset = modeOffset + max(classes);
+           %% In debug mode, write classes to the output as images.
+           if options.debug
+               distributionImg = zeros(options.maxImageDim*2+1);
+               samplesToWrite = floor(samples + options.maxImageDim + 1);
+               samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
+               distributionImg(samplesInd) = classes;
+
+               % Resize the distribution image so it is of the smallest
+               % possible size.
+               [posSampleX, posSampleY] = find(distributionImg);
+               distributionImg = distributionImg(min(posSampleX):max(posSampleX), min(posSampleY):max(posSampleY));
+               if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/'], 'dir')
+                   mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/']);
+               end
+               imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), [options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/' num2str(node1) '_' num2str(node2) '.png']);
+           end
+       end
+    end
+    warning(w);
+end

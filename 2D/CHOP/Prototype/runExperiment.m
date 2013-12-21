@@ -37,11 +37,11 @@ function [] = runExperiment( datasetName, imageExtension )
                                         % filter area. Threshold is
                                         % calculated relative to the
                                         % maximum response in that image.
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.8;           % The novelty threshold used in the 
+    options.edgeNoveltyThr = 1;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -64,10 +64,13 @@ function [] = runExperiment( datasetName, imageExtension )
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhoo) nodes.
+    options.maxNodeDegreeLevel1 = 4;
+    options.maxNodeDegree = 2;         % (N) closest N nodes are considered at
+                                       % level 1-l.
     options.maxImageDim = options.gaborFilterSize*20;
     options.maximumModes = 6;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*1.5; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*2; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 5;    % The maximum level count               
@@ -89,10 +92,10 @@ function [] = runExperiment( datasetName, imageExtension )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 5; % Maximum number of nodes in a composition
+    options.subdue.maxSize = 2; % Maximum number of nodes in a composition
     options.subdue.nsubs = 3000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 500;   % Beam length in SUBDUE
+    options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     
@@ -207,7 +210,7 @@ function [] = runExperiment( datasetName, imageExtension )
         end
         
         %% Run image retrieval tests.
-        runRetrievalTests(options.currentFolder, options.datasetName, options.testGraphFolder, 3);
+ %       runRetrievalTests(options.currentFolder, options.datasetName, options.testGraphFolder, 3);
     end
 end
 

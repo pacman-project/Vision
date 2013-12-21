@@ -26,7 +26,7 @@ function [ ] = runSUBDUE( graphFileName, resultFileName, options, currentFolder,
        subdueOptions = [subdueOptions '-valuebased '];
     end
     if options.subdue.overlap
-       subdueOptions = [subdueOptions '-overlap -threshold 0.2 '];
+       subdueOptions = [subdueOptions '-overlap -threshold 0.20 '];
     end
     if ~isempty(preDefinedFileName)
        subdueOptions = [subdueOptions '-ps ' preDefinedFileName ' -discovery 1 '];
