@@ -36,9 +36,9 @@ function [newLevel] = collectInstances(vocabLevel, graphFileName, options)
     %% Find realizations of each composition.
     for psItr = 1:numberOfPSFiles
         preDefinedFile = [tempFolder '/ps1/ps' num2str(psItr) '.g']; 
-        runSUBDUE(graphFileName, resultFileName, options, options.currentFolder, preDefinedFile);
-
-        % Read the instances of this sub.
+        
+        %% Discover new level's subs.
+        discoverSubs(graphFileName, resultFileName, options, options.currentFolder, preDefinedFile);
         [~, psLevel] = parseResultFile(resultFileName, options);
         % Assign instances correct labels.
         for instanceItr = 1:numel(psLevel)

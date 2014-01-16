@@ -21,13 +21,9 @@ function [] = visualizeLevel( currentLevel, levelId, modes, currentFolder, optio
        mkdir(reconstructionDir);
     end
     
-    %% Calculate edge radius.
-    scale = (1/options.scaling)^(levelId-1);
-    neighborhood = fix(options.edgeRadius * scale);
-    
     %% In level 1, only print low level filters as first n nodes.
     if levelId == 1
-        filterDir = [currentFolder '/filters/'];
+        filterDir = [currentFolder '/filters/' options.filterType '/'];
         numberOfNodes = numel(currentLevel);
         for nodeItr = 1:numberOfNodes
             mask = imread([filterDir 'filt' num2str(nodeItr) '.png']);

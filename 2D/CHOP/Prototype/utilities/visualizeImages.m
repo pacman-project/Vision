@@ -29,9 +29,10 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
     graphLevel = mainGraph{levelItr};
     
     %% Read level 1 into separate masks.
-    vocabMasks = cell(options.numberOfFilters,1);
+    numberOfFilters = getNumberOfFilters(options);
+    vocabMasks = cell(numberOfFilters,1);
     vocabMaskDir = [options.currentFolder '/debug/' datasetName '/level1/reconstruction'];
-    for fileItr = 1:options.numberOfFilters
+    for fileItr = 1:numberOfFilters
         vocabMasks{fileItr} = imread([vocabMaskDir '/' num2str(fileItr) '.png']);
     end
     
@@ -118,4 +119,3 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
         end
     end
 end
-

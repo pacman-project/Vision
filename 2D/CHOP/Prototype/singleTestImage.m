@@ -14,6 +14,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
+%> 
 function [] = singleTestImage(testFileName, options, currentPath)
     % Here, we will run the inference process by compressing the test
     % images' graphs with the compositions in the vocabulary.
@@ -31,8 +32,7 @@ function [] = singleTestImage(testFileName, options, currentPath)
     imwrite(img, [options.processedFolder '/' fileName '.png']);
 
     %% Form the first level nodes.
-    nodes = getNodes(img, options.numberOfFilters, options.gaborFilterThr, ... 
-        options.gaborAreaMinResponse, options.gaborFilterSize, currentPath);
+    nodes = getNodes(img, options);
     % Assign nodes their image ids.
     imageIds = ones(size(nodes,1), 1);
     nodes(:, 3) = mat2cell(imageIds, ones(size(imageIds)));

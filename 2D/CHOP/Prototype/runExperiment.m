@@ -14,110 +14,20 @@
 %> Updates
 %> Ver 1.0 on 18.11.2013
 %> Ver 1.1 on 05.12.2013 Various parameter additions, 'mode' changes
-
+%> Ver 1.2 on 12.01.2014 Comment changes for unified code look
 function [] = runExperiment( datasetName, imageExtension )
-    %% Step 0: Set program parameters and global variables.
-    options.debug = 1;           % If debug = 1, additional output will be 
-                                 % generated to aid debugging process.
-    options.datasetName = datasetName;
-    options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
-    options.testImages = 1;      % If 1, the test images are processed.
-    options.numberOfFilters = 6; % Number of Gabor filters at level 1.
-    options.numberOfTrainingImages = 70; % Number of training images to be 
-                                 % used in unsupervised vocabulary learning.
-    options.numberOfTestImages = 70; % Number of training images to be 
-    options.numberOfVocabImagesPerCategory = 2; % Number of vocabulary images 
-                                 % to be used in vocabulary learning.
-                                 % used in unsupervised vocabulary learning.                             
-    options.gaborFilterThr = 100; % Response threshold for Gabor filter 
-                                 % convolution.
-    options.gaborAreaMinResponse = 0.2; % The threshold to define the minimum response 
-                                        % of a filter. Lower-valued responses 
-                                        % are inhibited in each response's 
-                                        % filter area. Threshold is
-                                        % calculated relative to the
-                                        % maximum response in that image.
-    options.noveltyThr = 0.0;           % The novelty threshold used in the 
-                                        % inhibition process. At least this 
-                                        % percent of a neighbor node's leaf 
-                                        % nodes should be new.
-    options.edgeNoveltyThr = 1;       % The novelty threshold used in the 
-                                        % inhibition process. At least this 
-                                        % percent of a neighbor node's leaf 
-                                        % nodes should be new.
-    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
-                                        % that the size also depends on the 
-                                        % filter parameters, so consider them 
-                                        % all when you change this!
-    options.property = 'mode'; % Geometric property to be examined
-                                       % 'co-occurence' or
-    options.scaling = 0.5;            % Each successive layer is downsampled 
-                                       % with a ratio of 1/scaling. Changes
-                                       % formation of edges in upper
-                                       % layers, since edge radius
-                                       % stays the same while images are 
-                                       % downsampled.
-    options.edgeType = 'contour';      % If 'contour', the nodes in upper layers 
-                                       % are linked if their leaf nodes are 
-                                       % neighbors in the first layer.If
-                                       % 'centroid', downsampling is
-                                       % applied at each layer, and edges
-                                       % link spatially adjacent (within
-                                       % its neighborhoo) nodes.
-    options.maxNodeDegreeLevel1 = 4;
-    options.maxNodeDegree = 2;         % (N) closest N nodes are considered at
-                                       % level 1-l.
-    options.maxImageDim = options.gaborFilterSize*20;
-    options.maximumModes = 6;          % Maximum number of modes allowed for 
-                                       % a node pair.
-    options.edgeRadius = options.gaborFilterSize*2; % The edge radius for two subs to be 
-                                       % determined as neighbors. Centroids
-                                       % taken into account.
-    options.maxLevels = 5;    % The maximum level count               
-    options.maxLabelLength = 100; % The maximum label name length allowed.
-    options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
-                                  % The last three are not really parameters, 
-                                  % put here to avoid hard-coding.
-    options.subdue.instanceIndicator = sprintf('\n  Instance ');
-    options.subdue.labelIndicator = sprintf('Label: ');
-    options.subdue.nodeIndicator = sprintf('\nv ');
-    options.subdue.edgeIndicator = sprintf('\nu ');
-    options.subdue.directedEdgeIndicator = sprintf('\nd ');
-    options.subdue.endLineIndicator = sprintf('\n');
-    options.subdue.subPrefix = 'SUB_';
-                                % The indicators are put
-                                % here for compliance with SUBDUE output,
-                                % need to be changed if SUBDUE output
-                                % format is changed. They are not
-                                % parameters, and should not be changed
-                                % unless SUBDUE output format is changed.
-    options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 2; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 3000;  % Maximum number of nodes allowed in a level
-    options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 100;   % Beam length in SUBDUE
-    options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
-    options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
+    %% ========== Step 0: Set program options and run initializations ==========
+    %% Step 0.0: Get program options and parameters.
+    options = SetParameters(datasetName);
+    datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
     
-    % Learn dataset path relative to this m file
-    currentFileName = mfilename('fullpath');
-    [currentPath, ~, ~] = fileparts(currentFileName);
-    % Set folder variables.
-    options.currentFolder = currentPath;
-    datasetFolder = [currentPath '/input/' datasetName '/vocab/'];
-    options.processedFolder = [currentPath '/output/' datasetName '/original'];
-    options.outputFolder = [currentPath '/output/' datasetName];
-    options.testOutputFolder = [options.outputFolder '/test'];
-    options.preDefinedFolder = [currentPath '/output/' datasetName '/preDefined'];
-    options.testGraphFolder = [currentPath '/graphs/' datasetName '/test'];
+    %% Step 0.1: Add relevant folders to path.
+    addpath([options.currentFolder '/utilities']);
+    addpath([options.currentFolder '/graphTools']);
+    addpath([options.currentFolder '/vocabLearning']);
     
-    % Add relevant folders to path.
-    addpath([currentPath '/utilities']);
-    addpath([currentPath '/graphTools']);
-    addpath([currentPath '/vocabLearning']);
-    
-    % Specify name of the graph files
-    graphFileName = [currentPath '/graphs/' datasetName '.g'];
+    %% Step 0.2: Specify name of the graph files and create output folders.
+    graphFileName = [options.currentFolder '/graphs/' datasetName '.g'];
     resultFileName = [options.outputFolder '/' datasetName '.txt'];
     fp = fopen(graphFileName, 'w');
     
@@ -135,27 +45,27 @@ function [] = runExperiment( datasetName, imageExtension )
        mkdir(options.testOutputFolder); 
     end
     
-    % Get all images under the dataset
+    %% Step 0.3: Create initial data structures.
     fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
-%    trainingFileNames = fileNames(1:options.numberOfTrainingImages,:);
     trainingFileNames = fileNames;
-    %% Step 1: Extract nodes of each image for the first level of the hierarchy.
     nodeCounter = 0;
     allNodes = cell(options.maxNumberOfFeatures,3);
     
+    %% ========== Step 1: Pre-process the data (extract first level nodes, surpress weak responses) ==========
     if options.learnVocabulary
+        %% Step 1.0: Downsample the image if it is too big.
         for fileItr = 1:size(trainingFileNames,1) 
-            %% First, downsample the image if it is too big.
             img = imread(trainingFileNames{fileItr});
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             if max(size(img)) > options.maxImageDim
                img = imresize(img, options.maxImageDim/max(size(img)), 'bilinear'); 
             end
             imwrite(img, [options.processedFolder '/' fileName '.png']);
-
-            %% Form the first level nodes.
-            nodes = getNodes(img, options.numberOfFilters, options.gaborFilterThr, ... 
-                options.gaborAreaMinResponse, options.gaborFilterSize, currentPath);
+        end
+        
+        %% Step 1.1: Extract a set of features from the input image.
+        for fileItr = 1:size(trainingFileNames,1) 
+            nodes = getNodes(img, options);
             % Keep nodes in the array.
             allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 1:2) = nodes;
             % Assign nodes their image ids.
@@ -165,52 +75,57 @@ function [] = runExperiment( datasetName, imageExtension )
             % Increment node counter.
             nodeCounter = nodeCounter + size(nodes,1);
         end
+        % Trim allNodes array to get rid of empty rows.
         allNodes = allNodes(1:nodeCounter,:);
-
-        %% Step 2: Get edges depending on the property to be embedded in the graph.
+    end
+    %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
+    % Upper level graphs are created in the main loop, as explained in
+    % paper.
+    if options.learnVocabulary
+        %% Step 2.1: Get first-level object graph edges.
         [modes, edges, leafNodeAdjArr] = extractEdges(allNodes, [], [], options, 1, datasetName, []);
 
-        %% Step 3: Print the graphs to the input file.
+        %% Step 2.2: Print the object graphs to a file.
         imageIds = cell2mat(allNodes(:,3));
         numberOfImages = max(imageIds);
         nodeOffset = 0;
         for imageItr = 1:numberOfImages
-            %% Get only nodes and edges belonging to this image and print them.
+            % Get only nodes and edges belonging to this image.
             imageNodeIdx = find(imageIds==imageItr);
             firstNodesOfEdges = edges(:,1);
             imageEdgeIdx = ismember(firstNodesOfEdges, imageNodeIdx);
             imageNodes = allNodes(imageIds==imageItr,:);
             imageEdges = edges(imageEdgeIdx, :);
             imageEdges(:,1:2) = imageEdges(:,1:2) - nodeOffset;
+            
+            % Print graph belonging to this image.
             fprintf(fp, 'XP\n');
             printGraphToFile(fp, imageNodes(:,1), imageEdges, true);
             nodeOffset = nodeOffset + size(imageNodes,1);
         end
         fclose(fp);
-
-        %% Step 4: Learn the vocabulary in an unsupervised manner from the input graphs.
+    end
+    %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of paper). ==========
+    if options.learnVocabulary
         [vocabulary, mainGraph, modes] = learnVocabulary(allNodes, edges, modes, leafNodeAdjArr, graphFileName, ...
                                         resultFileName, options, trainingFileNames, datasetName);
-        save([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
+        save([options.currentFolder '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
     else
-        load([currentPath '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
+        load([options.currentFolder '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
     end
-    
-    %% Step 5: For each test image, run inference code. 
+    %% ========== Step 4: Run inference for all test images with the learned vocabulary. ==========
     if options.testImages
-        % Test images are obtained from the rest of images in dataset.
- %       testFileNames = fileNames((options.numberOfTrainingImages+1):(options.numberOfTrainingImages+options.numberOfTestImages),:);
         testFileNames = fileNames;
-        % Create files for pre-defined substructures ( compositions from voc.)
+        %% Step 4.1: Create files for pre-defined substructures ( compositions from voc. at each level)
         preparePreDefinedFiles(options.preDefinedFolder, vocabulary);
         
-        %% Run inference on each test image.
+        %% Step 4.2: Run inference on each test image.
         for testImgItr = 1:size(testFileNames,1)
-            singleTestImage(testFileNames{testImgItr}, options, currentPath);
+            singleTestImage(testFileNames{testImgItr}, options, options.currentFolder);
         end
         
-        %% Run image retrieval tests.
- %       runRetrievalTests(options.currentFolder, options.datasetName, options.testGraphFolder, 3);
+        %% Step 4.3: Run image retrieval tests.
+%        runRetrievalTests(options.currentFolder, options.datasetName, options.testGraphFolder, 3);
     end
 end
 
