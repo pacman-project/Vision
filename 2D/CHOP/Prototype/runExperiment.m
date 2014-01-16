@@ -64,7 +64,9 @@ function [] = runExperiment( datasetName, imageExtension )
         end
         
         %% Step 1.1: Extract a set of features from the input image.
-        for fileItr = 1:size(trainingFileNames,1) 
+        for fileItr = 1:size(trainingFileNames,1)
+            [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
+            img = imread([options.processedFolder '/' fileName '.png']);
             nodes = getNodes(img, options);
             % Keep nodes in the array.
             allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 1:2) = nodes;
