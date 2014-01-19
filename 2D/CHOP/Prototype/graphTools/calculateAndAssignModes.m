@@ -277,6 +277,12 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
            if options.debug
                distributionImg = zeros(options.maxImageDim*2+1);
                samplesToWrite = floor(samples + options.maxImageDim + 1);
+               
+               % If no samples are to be written, move on.
+               if numel(samplesToWrite) < 1
+                   continue;
+               end
+                   
                samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
                distributionImg(samplesInd) = classes;
 

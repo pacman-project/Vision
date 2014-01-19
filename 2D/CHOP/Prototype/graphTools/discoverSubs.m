@@ -46,13 +46,16 @@ function [ ] = discoverSubs( graphFileName, resultFileName, options, currentFold
         command = [currentFolder '/miners/subdueUnix' subdueOptions];
     elseif ispc
         command = [currentFolder '/miners/subdueWin' subdueOptions];
+        
+        % If Windows, replace all / in command with \.
+        command = strrep(command, '/', options.winSep);
     end
+    
     if isempty(preDefinedFileName)
         command
         system(command);
     else
         [~, ~] = system(command);
     end
-    
 end
 

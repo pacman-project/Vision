@@ -32,10 +32,10 @@ function [ options ] = SetParameters( datasetName )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.2; % Response threshold for convolved features, 
+    options.gaborFilterThr = 0.34; % Response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.gaborAreaMinResponse = 0.2; % The threshold to define the minimum response 
+    options.gaborAreaMinResponse = 0.4; % The threshold to define the minimum response 
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area. Threshold is
@@ -54,34 +54,36 @@ function [ options ] = SetParameters( datasetName )
     options.autoFilterSize = 8;         % Size (one side) of a autodetected 
                                         % filter.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.noveltyThr = 0.0;           % The novelty threshold used in the 
+    options.autoFilterPatchCount = 100000; % Number of random patches used 
+                                           % to find auto-detected filters.
+    options.noveltyThr = 0.25;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.0;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.25;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
     options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence' or
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.8;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
-    options.edgeType = 'contour';      % If 'contour', the nodes in upper layers 
+    options.edgeType = 'centroid';      % If 'contour', the nodes in upper layers 
                                        % are linked if their leaf nodes are 
                                        % neighbors in the first layer.If
                                        % 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhoo) nodes.
-    options.maxNodeDegreeLevel1 = 4;
-    options.maxNodeDegree = 4;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 6;
+    options.maxNodeDegree = 6;         % (N) closest N nodes are considered at
                                        % level 1-l.
-    options.maxImageDim = options.gaborFilterSize*20;
-    options.maximumModes = 8;          % Maximum number of modes allowed for 
+    options.maxImageDim = options.gaborFilterSize*25;
+    options.maximumModes = 10;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = options.gaborFilterSize*2; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
@@ -105,12 +107,14 @@ function [ options ] = SetParameters( datasetName )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 2000;  % Maximum number of nodes allowed in a level
+    options.subdue.maxSize = 4; % Maximum number of nodes in a composition
+    options.subdue.nsubs = 1000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 100;   % Beam length in SUBDUE
+    options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.valuebased = 0; % 1 if value-based queue is used, 0 otw
-    options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
+    options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
+    options.subdue.winSep = '\'; % If windows, we replace '/' in command line
+                                 % with this.
     
     % Learn dataset path relative to this m file
     currentFileName = mfilename('fullpath');

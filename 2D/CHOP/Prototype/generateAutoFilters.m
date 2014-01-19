@@ -14,14 +14,25 @@
 %>
 %> Updates
 %> Ver 1.0 on 13.01.2014
-function [ ] = generateAutoFilters( datasetName, imageExtension )
+function [ ] = generateAutoFilters( datasetName )
     %% Step 1: Get program options and initialize variables.
     options = SetParameters(datasetName);
-    datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
-    fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
+    datasetFolder = [options.currentFolder '/output/' datasetName '/original/'];
+    fileNames = fuf([datasetFolder '*.png'], 1, 'detail');
     
     %% Step 2: Collect random samples from each image to create our data samples.
+    samplesPerImg = options.autoFilterPatchCount / numel(fileNames);
+    samples = samplesPerImg * numel(fileNames);
     
-
+    sampleOffset = 0;
+    for fileItr = numel(fileNames)
+        img = imread(fileNames{fileItr});
+        
+        centers = 
+        for sampleItr = samplesPerImg
+            
+        end
+        sampleOffset = sampleOffset + samplesPerImg;
+    end
 end
 
