@@ -131,7 +131,7 @@ function [smoothedImg] = getSmoothedImage(responseImgs, filters)
     responseImgs = responseImgs/max(max(max(responseImgs)));
     for filterItr = 1:size(filters,1)
         [xInd, yInd, val] = find(responseImgs(:,:,filterItr));
-        for peakItr = 1:size(peaks,1)
+        for peakItr = 1:size(val,1)
             smoothedImg((xInd(peakItr)-halfSize):(xInd(peakItr)+halfSize), ...
                 (yInd(peakItr)-halfSize):(yInd(peakItr)+halfSize)) = val(peakItr) * filters{filterItr};
         end
