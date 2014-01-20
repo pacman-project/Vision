@@ -14,7 +14,7 @@ function [ options ] = SetParameters( datasetName )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     options.datasetName = datasetName;
-    options.learnVocabulary = 0; % If 1, new vocabulary is learned. 
+    options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
@@ -32,10 +32,10 @@ function [ options ] = SetParameters( datasetName )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.34; % Response threshold for convolved features, 
+    options.gaborFilterThr = 0.2; % Response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.gaborAreaMinResponse = 0.4; % The threshold to define the minimum response 
+    options.gaborAreaMinResponse = 0.2; % The threshold to define the minimum response 
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area. Threshold is
@@ -60,35 +60,35 @@ function [ options ] = SetParameters( datasetName )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.25;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.0;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
     options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence' or
-    options.scaling = 0.8;            % Each successive layer is downsampled 
+    options.scaling = 0.75;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
-    options.edgeType = 'centroid';      % If 'contour', the nodes in upper layers 
+    options.edgeType = 'contour';      % If 'contour', the nodes in upper layers 
                                        % are linked if their leaf nodes are 
                                        % neighbors in the first layer.If
                                        % 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhoo) nodes.
-    options.maxNodeDegreeLevel1 = 6;
-    options.maxNodeDegree = 6;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 8;
+    options.maxNodeDegree = 8;         % (N) closest N nodes are considered at
                                        % level 1-l.
     options.maxImageDim = options.gaborFilterSize*25;
     options.maximumModes = 10;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*2; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*3; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
-    options.maxLevels = 10;    % The maximum level count               
+    options.maxLevels = 3;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
                                   % The following are not really parameters, 
@@ -108,10 +108,10 @@ function [ options ] = SetParameters( datasetName )
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 4; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 2000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 4000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 400;   % Beam length in SUBDUE
-    options.subdue.valuebased = 0; % 1 if value-based queue is used, 0 otw
+    options.subdue.beam = 2000;   % Beam length in SUBDUE
+    options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
                                  % with this.
@@ -127,5 +127,6 @@ function [ options ] = SetParameters( datasetName )
     options.testOutputFolder = [options.outputFolder '/test'];
     options.preDefinedFolder = [currentPath '/output/' datasetName '/preDefined'];
     options.testGraphFolder = [currentPath '/graphs/' datasetName '/test'];
+    options.trainGraphFolder = [currentPath '/graphs/' datasetName '/train'];
 end
 

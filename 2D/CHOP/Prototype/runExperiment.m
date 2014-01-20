@@ -27,7 +27,7 @@ function [] = runExperiment( datasetName, imageExtension )
     addpath([options.currentFolder '/vocabLearning']);
     
     %% Step 0.2: Specify name of the graph files and create output folders.
-    graphFileName = [options.currentFolder '/graphs/' datasetName '.g'];
+    graphFileName = [options.currentFolder '/graphs/' datasetName '/train/' datasetName '.g'];
     resultFileName = [options.outputFolder '/' datasetName '.txt'];
     fp = fopen(graphFileName, 'w');
     
@@ -40,6 +40,9 @@ function [] = runExperiment( datasetName, imageExtension )
     end
     if ~exist(options.testGraphFolder, 'dir')
        mkdir(options.testGraphFolder);
+    end
+    if ~exist(options.trainGraphFolder, 'dir')
+       mkdir(options.trainGraphFolder);
     end
     if ~exist(options.testOutputFolder, 'dir')
        mkdir(options.testOutputFolder); 
@@ -111,13 +114,13 @@ function [] = runExperiment( datasetName, imageExtension )
     if options.learnVocabulary
         [vocabulary, mainGraph, modes] = learnVocabulary(allNodes, edges, modes, leafNodeAdjArr, graphFileName, ...
                                         resultFileName, options, trainingFileNames, datasetName);
-        save([options.currentFolder '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
+        save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
     else
-        load([options.currentFolder '/output/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
+        load([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
     end
     %% ========== Step 4: Run inference for all test images with the learned vocabulary. ==========
     if options.testImages
-        testFileNames = fileNames;
+        testFileNames = fuf([options.processedFolder '/*.png'], 1, 'detail');
         %% Step 4.1: Create files for pre-defined substructures ( compositions from voc. at each level)
         preparePreDefinedFiles(options.preDefinedFolder, vocabulary);
         

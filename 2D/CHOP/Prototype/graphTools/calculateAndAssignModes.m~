@@ -281,7 +281,7 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
            if options.debug
                distributionImg = zeros(options.maxImageDim*2+1);
                samplesToWrite = floor(samples + options.maxImageDim + 1);
-               distributionImgDim = max(max(samples)) * 2;
+               distributionImgDim = max(samples) * 2;
                
                % If no samples are to be written, move on.
                if numel(samplesToWrite) < 1
@@ -296,10 +296,10 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
                [posSampleX, posSampleY] = find(distributionImg);
                minX = min(posSampleX);
                maxX = max(abs(minX), max(posSampleX));
-               minX = maxX - distributionImgDim;
+               minX = -maxX;
                minY = min(posSampleY);
                maxY = max(abs(minY), max(posSampleY));
-               minY = maxY - distributionImgDim;
+               minY = -maxY;
                distributionImg = distributionImg(minX:maxX, minY:maxY);
                if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/'], 'dir')
                    mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/']);

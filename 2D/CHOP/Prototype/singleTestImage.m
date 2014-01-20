@@ -19,7 +19,7 @@ function [] = singleTestImage(testFileName, options, currentPath)
     % Here, we will run the inference process by compressing the test
     % images' graphs with the compositions in the vocabulary.
     % Allocate space for current graph level.
-    load([currentPath '/output/' options.datasetName '_vb.mat'], 'vocabulary', 'modes');
+    load([currentPath '/output/' options.datasetName '/' options.datasetName '_vb.mat'], 'vocabulary', 'modes');
     mainGraph = cell(options.maxLevels,1);
     
     %% Get the first level nodes.
@@ -154,6 +154,6 @@ function [] = singleTestImage(testFileName, options, currentPath)
     end
     filledIdx = find(~(cellfun('isempty', mainGraph)), 1, 'first');
     mainGraph = mainGraph(1:filledIdx);
-    save([currentPath '/output/' options.datasetName '_test.mat'], 'mainGraph');
+    save([currentPath '/output/' options.datasetName '/' options.datasetName '_test.mat'], 'mainGraph');
 end
 
