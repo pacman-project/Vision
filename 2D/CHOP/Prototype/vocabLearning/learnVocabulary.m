@@ -82,7 +82,9 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         if isempty(vocabLevel)
             %% Write previous level's appearances to the output folder.
            if options.debug
-               visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+               if strcmp(options.property, 'mode')
+                    visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+               end
                visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
            end
            vocabulary = vocabulary(1:(levelItr-1),:);
