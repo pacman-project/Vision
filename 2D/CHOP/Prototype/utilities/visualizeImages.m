@@ -36,6 +36,8 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type 
         vocabMasks{fileItr} = imread([vocabMaskDir '/filt' num2str(fileItr) '.png']);
     end
     
+    nodeOffset = 0;
+    
     for fileItr = 1:numel(fileList)
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
@@ -43,6 +45,7 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type 
         originalImg = imread([originalDir fileName '.png']);
         reconstructedMask = zeros(size(img,1), size(img,2), 'uint8');
         labeledReconstructedMask = zeros(size(img,1), size(img,2));
+        sizeOfImage = [size(originalImg,1), size(originalImg,2)];
         
         %% Go over each leaf in the graph and write its mask to the reconstructed image.
         nodes = graphLevel(:,[graphLevel.imageId] == fileItr);
@@ -103,6 +106,34 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type 
             originalImg(:,:,bandItr) .* uint8(reconstructedMask==0);
         end 
        
+        %% Add edges to the image for visualization.
+        edgeImg = zeros(sizeOfImage);
+        edgeRgbImg = rgbImg;
+        for nodeItr = 1:numel(nodes)
+            edges = nodes(nodeItr).adjInfo;
+            if isempty(edges)
+               continue;
+            end
+            edges = edges(:,1:2) - nodeOffset;
+            if ~isempty(edges)
+                for edgeItr = 1:size(edges,1)
+                   edgeIdx = drawline(nodes(edges(edgeItr,1)).position, nodes(edges(edgeItr,2)).position, sizeOfImage);
+                   edgeImg(edgeIdx) = 1;
+                end
+            end
+        end
+        nodeOffset = nodeOffset + numel(nodes);
+        edgeImg = edgeImg > 0;
+        
+        for bandItr = 1:3
+            if bandItr == 1
+                edgeRgbImg(:,:,bandItr) = max(rgbImg(:,:,bandItr), uint8(edgeImg * 255));
+            else
+                edgeRgbImg(:,:,bandItr) = min(rgbImg(:,:,bandItr), uint8((~edgeImg) * 255));
+            end
+        end
+        
+        %% Print the images.
         if levelItr>1
             % Read first level to fill the voids left by missing filters.
             firstLevelMask = imread([outputDir, '/' fileName '_level1clean.png']);
@@ -113,8 +144,12 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type 
 
             % Combine both and write to output.
             imwrite(rgbImg + firstLevelImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
+            imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
+            imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges.png']);
         else
             imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
+            imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
+            imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges.png']);
             imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
         end
     end

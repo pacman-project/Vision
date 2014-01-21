@@ -93,10 +93,12 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
        
         %% Step 2.2: Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
         previousLevel = mainGraph{levelItr-1};
+        newImageIds = zeros(numel(graphLevel),1);
         for newNodeItr = 1:numel(graphLevel)
             leafNodes = [];
             position = [0,0];
             graphLevel(newNodeItr).imageId = previousLevel(graphLevel(newNodeItr).children(1)).imageId;
+            newImageIds(newNodeItr) = graphLevel(newNodeItr).imageId;
             for childItr = 1:numel(graphLevel(newNodeItr).children)
                leafNodes = [leafNodes, previousLevel(graphLevel(newNodeItr).children(childItr)).leafNodes]; 
             end
@@ -107,6 +109,10 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
             graphLevel(newNodeItr).leafNodes = leafNodes;
             graphLevel(newNodeItr).position = round(position/numel(leafNodes));
         end
+        
+        % Rearrange graph level so it is sorted by image id.
+        [~, sortedIdx] = sort(newImageIds);
+        graphLevel = graphLevel(1,sortedIdx);
         
         %% Step 2.3: Inhibition! We process the current level to eliminate some of the nodes in the final graph.
         % The rules here are explained in the paper. Basically, each node
@@ -127,15 +133,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);
         
-        %% Step 2.5: Write previous level's appearances to the output folder.
-        if options.debug
-            if strcmp(options.property, 'mode')
-                visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
-            end
-            visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
-        end
-        
-        %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
+        %% Step 2.5: Create object graphs G_(l+1) for the next level, l+1.
         % First, get a list of the new nodes.
         currentLevel = mainGraph{levelItr};
         numberOfNodes = numel(currentLevel);
@@ -158,10 +156,10 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         nodeOffset = 0;
         
         % Assign prolonging data structures
-        currentLevel = vocabulary{levelItr};
+        currentVocabLevel = vocabulary{levelItr};
         previousModes = modes{levelItr-1};
         
-        %% Step 2.7: If no new edges found, kill program.
+        %% Step 2.6: If no new edges found, kill program.
         if isempty(edges)
            vocabulary = vocabulary(1:(levelItr),:);
            mainGraph = mainGraph(1:(levelItr),:);
@@ -191,15 +189,22 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
                
                %% Print out the vocabulary words and object images overlaid with words.
                if strcmp(options.property, 'mode')
-                   visualizeLevel( currentLevel, levelItr, previousModes, options.currentFolder, options, datasetName);
+                   visualizeLevel( currentVocabLevel, levelItr, previousModes, options.currentFolder, options, datasetName);
                end
                % TODO Fix image id missing problem in the last iteration!.
                visualizeImages( fileList, mainGraph, levelItr, options, datasetName, 'train' );
            end
            break;
+        else
+            %% Assign edges to their respective nodes.
+            for nodeItr = 1:numel(graphLevel)
+               nodeEdges = edges(edges(:,1) == nodeItr | edges(:,2) == nodeItr, :);
+               graphLevel(nodeItr).adjInfo = nodeEdges;
+            end
+            mainGraph{levelItr} = graphLevel;
         end
         
-        %% Step 2.8: Print the graphs to a file for the next iteration.
+        %% Step 2.7: Print the graphs to a file for the next iteration.
         for fileItr = 1:imageCount
             nodes = newNodes(imageIds==fileItr,:);
             imageNodeIdx = find(imageIds==fileItr);
@@ -214,6 +219,14 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
             nodeOffset = nodeOffset + size(nodes,1);
         end
         fclose(fp);
+        
+        %% Step 2.8: Write previous level's appearances to the output folder.
+        if options.debug
+            if strcmp(options.property, 'mode')
+                visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+            end
+            visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
+        end
         
         % Add current level's modes to the main 'modes' array.
         modes(levelItr) = {currModes};

@@ -110,7 +110,7 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
                adjacentNodes = find(distances <= neighborhood);
                
                % Looking for farthest nodes to connect.
-               scores = -distances(adjacentNodes);  
+               scores = distances(adjacentNodes);  
            end
            
            %% Get valid adjacent nodes with larger node ids.

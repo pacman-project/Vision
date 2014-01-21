@@ -15,7 +15,7 @@ function [ options ] = SetParameters( datasetName )
                                  % generated to aid debugging process.
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
-    options.testImages = 1;      % If 1, the test images are processed.
+    options.testImages = 0;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
     options.numberOfAutoFilters = 100; % Number of Gabor filters at level 1.
@@ -56,11 +56,11 @@ function [ options ] = SetParameters( datasetName )
     options.autoFilterCount = 100;      % Number of auto-detected filters.
     options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
-    options.noveltyThr = 0.0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.0;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -81,8 +81,8 @@ function [ options ] = SetParameters( datasetName )
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
-    options.maxNodeDegreeLevel1 = 4;
-    options.maxNodeDegree = 4;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 5;
+    options.maxNodeDegree = 5;         % (N) closest N nodes are considered at
                                        % level 1-l.
     options.maxImageDim = options.gaborFilterSize*25;
     options.maximumModes = 10;          % Maximum number of modes allowed for 

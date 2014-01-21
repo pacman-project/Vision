@@ -17,7 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetName, type )
+function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type )
     outputDir = [options.outputFolder '/reconstruction/' type];
     originalDir = [options.outputFolder '/original/'];
     if ~exist(outputDir, 'dir')
@@ -29,11 +29,14 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
     graphLevel = mainGraph{levelItr};
     
     %% Read level 1 into separate masks.
-    vocabMasks = cell(options.numberOfFilters,1);
-    vocabMaskDir = [options.currentFolder '/debug/' datasetName '/level1/reconstruction'];
-    for fileItr = 1:options.numberOfFilters
-        vocabMasks{fileItr} = imread([vocabMaskDir '/' num2str(fileItr) '.png']);
+    numberOfFilters = getNumberOfFilters(options);
+    vocabMasks = cell(numberOfFilters,1);
+    vocabMaskDir = [options.currentFolder '/filters/' options.filterType];
+    for fileItr = 1:numberOfFilters
+        vocabMasks{fileItr} = imread([vocabMaskDir '/filt' num2str(fileItr) '.png']);
     end
+    
+    nodeOffset = 0;
     
     for fileItr = 1:numel(fileList)
         %% Learn the size of the original image, and allocate space for new mask.
@@ -42,6 +45,7 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
         originalImg = imread([originalDir fileName '.png']);
         reconstructedMask = zeros(size(img,1), size(img,2), 'uint8');
         labeledReconstructedMask = zeros(size(img,1), size(img,2));
+        sizeOfImage = [size(originalImg,1), size(originalImg,2)];
         
         %% Go over each leaf in the graph and write its mask to the reconstructed image.
         nodes = graphLevel(:,[graphLevel.imageId] == fileItr);
@@ -70,27 +74,17 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
                 end
                 
                 reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-minY):(position(2)+maxY)) = ... 
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2))) = ... 
                      max(reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-minY):(position(2)+maxY)), ...
-                     nodeMask(((halfSize(1)-halfSize(1))+1):(end-(halfSize(1)-halfSize(1))), ...
-                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))));
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2))), ...
+                     nodeMask);
                  
                  % First, write the node label to the labeled mask.
                  reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-minY):(position(2)+maxY));
-                 reconstructedPatch(nodeMask(((halfSize(1)-halfSize(1))+1):(end-(halfSize(1)-halfSize(1))), ...
-                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))) > 10) = nodeItr;
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2)));
+                 reconstructedPatch(nodeMask > 10) = nodeItr;
                  labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-minY):(position(2)+maxY)) = reconstructedPatch;
-                 
-                 % Write the response to the response mask.
-                 reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-minY):(position(2)+maxY)) = ...
-                     max(reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-minY):(position(2)+maxY)), ...
-                     nodeMask(((halfSize(1)-halfSize(1))+1):(end-(halfSize(1)-halfSize(1))), ...
-                     ((halfSize(2)-minY)+1):(end-(halfSize(2)-maxY))));
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2))) = reconstructedPatch;
             end
         end
         
@@ -99,27 +93,67 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
         % and overlay the gabors with the original image.
         rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');
         %% For level 1, write the original image too.
-        rgbImg(:,:,1) = uint8(double(rgbImg(:,:,1)) .* (double(reconstructedMask)/255)) + ...
-            originalImg(:,:,1) .* uint8(reconstructedMask==0);
-        rgbImg(:,:,2) = uint8(double(rgbImg(:,:,2)) .* (double(reconstructedMask)/255)) + ...
-           originalImg(:,:,2) .* uint8(reconstructedMask==0);
-        rgbImg(:,:,3) = uint8(double(rgbImg(:,:,3)) .* (double(reconstructedMask)/255)) + ...
-           originalImg(:,:,3) .* uint8(reconstructedMask==0);
+        if size(originalImg,3) == 1
+           oldOriginalImg = originalImg;
+           originalImg = zeros(size(originalImg,1), size(originalImg,2), 3, 'uint8');
+           for bandItr = 1:3
+              originalImg(:,:,bandItr) = oldOriginalImg; 
+           end
+        end
         
+        for bandItr = 1:size(rgbImg,3)
+            rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask)/255)) + ...
+            originalImg(:,:,bandItr) .* uint8(reconstructedMask==0);
+        end 
+       
+        %% Add edges to the image for visualization.
+        edgeImg = zeros(sizeOfImage);
+        edgeRgbImg = rgbImg;
+        for nodeItr = 1:numel(nodes)
+            edges = nodes(nodeItr).adjInfo;
+            if isempty(edges)
+               continue;
+            end
+            edges = edges(:,1:2) - nodeOffset;
+            if ~isempty(edges)
+                for edgeItr = 1:size(edges,1)
+                    nodes(edges(edgeItr,1)).position
+                    nodes(edges(edgeItr,2)).position
+                    sizeOfImage
+         %          edgeIdx = drawline(nodes(edges(edgeItr,1)).position, nodes(edges(edgeItr,2)).position, sizeOfImage);
+         %          edgeImg(edgeIdx) = 1;
+                end
+            end
+        end
+        nodeOffset = nodeOffset + numel(nodes);
+        edgeImg = edgeImg > 0;
+        
+        for bandItr = 1:3
+            if bandItr == 1
+                edgeRgbImg(:,:,bandItr) = max(rgbImg(:,:,bandItr), uint8(edgeImg * 255));
+            else
+                edgeRgbImg(:,:,bandItr) = min(rgbImg(:,:,bandItr), uint8((~edgeImg) * 255));
+            end
+        end
+        
+        %% Print the images.
         if levelItr>1
             % Read first level to fill the voids left by missing filters.
             firstLevelMask = imread([outputDir, '/' fileName '_level1clean.png']);
-            firstLevelImg = zeros(size(firstLevelMask,1), size(firstLevelMask,2), 'uint8');
-            firstLevelImg(:,:,1) = firstLevelMask;
-            firstLevelImg(:,:,2) = firstLevelMask;
-            firstLevelImg(:,:,3) = firstLevelMask;
+            firstLevelImg = zeros(size(firstLevelMask,1), size(firstLevelMask,2), size(rgbImg,3), 'uint8');
+            for bandItr = 1:size(rgbImg,3)
+                firstLevelImg(:,:,bandItr) = firstLevelMask;
+            end
 
             % Combine both and write to output.
             imwrite(rgbImg + firstLevelImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
+            imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
+            imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges.png']);
         else
             imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '.png']);
+            imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
+            imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges.png']);
             imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
         end
     end
 end
-
