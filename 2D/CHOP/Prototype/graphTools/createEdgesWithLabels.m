@@ -1,26 +1,30 @@
-%> Name: getEdges
+%> Name: createEdgesWithLabels
 %>
-%> Description: Given the nodes with their indices and center coordinates,
-%> this function forms the edge structure depending on the geometric property
-%> to be examined.
+%> Description: Given the node list, the aim of this
+%> function is to detect spatial distributions by analyzing 2-D spatial
+%> arrangements of node types. For example, if there are 3 distinct
+%> configurations of a node type pair, the edges in between are represented 
+%> with 3 categories.
 %>
-%> @param nodes The nodes extracted from the image in the following format:
-%>      [ index x y;
-%>        index x y;
-%>          ...
-%>        index x y]
+%> @param nodes The node list including label ids, positions and image ids
+%> of each node.
+%> @param mainGraph The object graphs' data structure.
 %> @param options Program options.
-%> @param currentLevel The level for which graph is extracted. Needed since
-%> the local neighborhood is affected by level.
-%>
-%> @retval edges Edges belonging to nodes.
+%> @param currentLevel The current scene graph level.
+%> @param datasetName Name of the dataset.
+%> @param modes If empty, new modes are to be learned. If not, edge labels
+%> will be formed depending on existing modes.
+%> 
+%> @retval modes The mode list representing edge categories.
+%> @retval edges Edges are of the form: [ node1, node2, mode, directed;
+%>                                        node1, node2, mode, directed;
+%>                                      ...]
 %> 
 %> Author: Rusen
 %>
 %> Updates
-%> Ver 1.0 on 20.11.2013
-%> Comment changes on 20.01.2014
-function [edges, leafNodeAdjArr] = getEdges(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName)
+%> Ver 1.0 on 04.12.2013
+function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes)
 
     % Calculate edge radius.
     scale = (1/options.scaling)^(currentLevel-1);
@@ -34,11 +38,29 @@ function [edges, leafNodeAdjArr] = getEdges(nodes, mainGraph, leafNodeAdjArr, op
     if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
         currentGraphLevel = mainGraph{currentLevel};
     end
-    edges = [];
+    edges = zeros(options.maxNumberOfEdges,4);
+    edgeOffset = 1;
     
     %% In level 1, we create first level adjacency information between nodes.
     if currentLevel==1 && strcmp(options.edgeType, 'contour')
         leafNodeAdjArr = cell(size(nodes,1),1);
+    end
+    
+    % Read histogram matrix to be used in 'hist' type edge calculations.
+    if strcmp(options.property, 'hist')
+       load('hMatrix.mat', 'hMatrix'); 
+       sizeHMatrix = size(hMatrix,1);
+       halfSizeHMatrix = floor(sizeHMatrix/2);
+    end
+    
+    %% If necessary, learn pair-wise node distributions (modes)
+    if strcmp(options.property, 'mode')
+        if isempty(modes) 
+            [currentModes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName);    
+            modes = currentModes;
+        else
+            currentModes = modes{currentLevel};
+        end
     end
     
     %% Assuming the distributions have already been learned, create edges and assign edge labels accordingly.
@@ -79,14 +101,19 @@ function [edges, leafNodeAdjArr] = getEdges(nodes, mainGraph, leafNodeAdjArr, op
                      adjacentNodes(secNodeItr) = 1;
                   end
                end
-               adjacentNodes = find(adjacentNodes);
+               %% Verify that the adjacent nodes found by 'contour' info are actually in the neighborhood of seed node.
+               distances = sqrt(sum((centerArr - imageCoords).^2, 2));
+               adjacentNodes = distances <= neighborhood & adjacentNodes;
            else
+               % 'distance' type score calculation
                distances = sqrt(sum((centerArr - imageCoords).^2, 2));
                adjacentNodes = find(distances <= neighborhood);
-               % We want to connect distant nodes here.
+               
+               % Looking for farthest nodes to connect.
                scores = -distances(adjacentNodes);  
            end
            
+           %% Get valid adjacent nodes with larger node ids.
            otherAdjacentNodes = adjacentNodes ~= nodeItr;
            adjacentNodes = adjacentNodes(otherAdjacentNodes);
            scores = scores(otherAdjacentNodes);
@@ -112,8 +139,10 @@ function [edges, leafNodeAdjArr] = getEdges(nodes, mainGraph, leafNodeAdjArr, op
                leafNodeAdjArr(imageNodeIdx(nodeItr)) = {[leafNodeAdjArr{imageNodeIdx(nodeItr)}; imageNodeIdx(adjacentNodes)]};
            end
 
+           %% Create an edge for each seed-adjacent node pair.
            for adjItr = 1:numel(adjacentNodes)
                sample = imageCoords(adjacentNodes(adjItr),:) - imageCoords(nodeItr,:);
+               % Decide whether to put a directed link.
                if imageNodeIds(nodeItr) == imageNodeIds(adjacentNodes(adjItr))
                    isDirected = 1;
                    % Check if this edge is on the right side of separating line.
@@ -124,26 +153,66 @@ function [edges, leafNodeAdjArr] = getEdges(nodes, mainGraph, leafNodeAdjArr, op
                    isDirected = 0;
                end
 
-               % Learn mode by assigning a cluster center to its
-               % relative positioning.
-               centerArr2 = [ones(size(applicableModes,1),1) * sample(1), ones(size(applicableModes,1),1) * sample(2)];
-               distances = sqrt(sum((centerArr2 - applicableModes).^2, 2));
-               [~, minDist] = min(distances);
-               if numel(minDist)>0
-                   modeId = applicableModeIdx(minDist(1));
-                   edges = [edges; [nodeItr + nodeOffset, adjacentNodes(adjItr) + nodeOffset, modeId, isDirected]];
+               %% Assign this edge its label based on property to be examined.
+               if strcmp(options.property, 'mode')
+                    % Estimate mode of this edge.
+                    applicableModeIdx = find(currentModes(:,1) == imageNodeIds(nodeItr) & ...
+                    currentModes(:,2) == imageNodeIds(adjacentNodes(adjItr)));
+                    applicableModes = currentModes(applicableModeIdx,3:4);
+                    centerArr2 = [ones(size(applicableModes,1),1) * sample(1), ones(size(applicableModes,1),1) * sample(2)];
+                    distances = sqrt(sum((centerArr2 - applicableModes).^2, 2));
+                    [~, minDist] = min(distances);
+                    
+                    % If a valid mode exists, assign its label.
+                    if numel(minDist)>0
+                        edgeId = applicableModeIdx(minDist(1));
+                    else
+                        edgeId = 0;
+                    end
+               elseif strcmp(options.property, 'hist')
+                    % Assign the edge a label based on the histogram info
+                    normalizedSample = round((double(sample) / neighborhood)*halfSizeHMatrix) + halfSizeHMatrix;
+                    normalizedSample(normalizedSample < 1) = 1;
+                    normalizedSample(normalizedSample > sizeHMatrix) = sizeHMatrix;
+                    edgeId = hMatrix(normalizedSample(1), normalizedSample(2));
+               else 
+                    % Uniform labeling ('co-occurence' property)
+                    edgeId = 1;
+               end
+               
+               %% Create the edge with the estimated label.
+               if edgeId ~= 0
+                   edges(edgeOffset,:) = [nodeItr + nodeOffset, adjacentNodes(adjItr) + nodeOffset, edgeId, isDirected];
+                   edgeOffset = edgeOffset + 1;
                end
            end
         end
         nodeOffset = nodeOffset + numberOfNodes;
     end
+    
+    % Get nonzero rows of edges
+    edges = edges(1:(edgeOffset-1),:);
+    
     %% Remove duplicate neighbors from leaf node adjacency list.
     if currentLevel==1 && strcmp(options.edgeType, 'contour')
         leafNodeAdjArr = cellfun(@(x) unique(x), leafNodeAdjArr, 'UniformOutput', false);
     end
 end
 
-%% Helper function to fetch smallest n elements from vector vect.
+%> Name: getSmallestNElements
+%>
+%> Description: Given a vector, this function returns smallest n elements
+%> of it.
+%>
+%> @param vect Data vector.
+%> @param n Number of elements to be returned.
+%> 
+%> @retval idx Linear indices of elements returned.
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 04.12.2013
 function [idx] = getSmallestNElements(vect, n)
     [~, sortedIdx] = sort(vect);
     idx = sortedIdx(1:n);
@@ -155,22 +224,4 @@ function [idx] = getSmallestNElements(vect, n)
        restOfNodes = restOfNodes(1:n); 
     end
     idx = [idx; restOfNodes];
-end
-
-
-%% Helper function to get adjacentNodes of a node.
-function [ adjacentNodes ] = getadjacentNodes(nodeItr, nodes, neighborhood)
-    centerArr = [ones(size(nodes,1), 1) * nodes{nodeItr,2}(1), ...
-        ones(size(nodes,1), 1) * nodes{nodeItr,2}(2)];
-    
-    distances = sqrt(sum((centerArr - cell2mat(nodes(:,2))).^2, 2));
-    adjacentNodes = find(distances <= neighborhood);
-    adjacentNodes = adjacentNodes(adjacentNodes > nodeItr);
-end
-
-%% Helper function to estimate relative positioning of two nodes.
-function [vector] = getPositionVector(node1, node2, nodes, neighborhood)
-    point1 = nodes{node1,2};
-    point2 = nodes{node2,2};
-    vector = (point2 - point1) / neighborhood;
 end

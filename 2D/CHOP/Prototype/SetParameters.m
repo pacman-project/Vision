@@ -64,23 +64,25 @@ function [ options ] = SetParameters( datasetName )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'mode'; % Geometric property to be examined
-                                       % 'co-occurence' or
+    options.property = 'hist'; % Geometric property to be examined
+                                       % 'co-occurence': uniform edges 
+                                       % 'mode': cluster relative positions
+                                       % 'hist': divide space into x.
     options.scaling = 0.75;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
-    options.edgeType = 'contour';      % If 'contour', the nodes in upper layers 
+    options.edgeType = 'centroid';      % If 'contour', the nodes in upper layers 
                                        % are linked if their leaf nodes are 
                                        % neighbors in the first layer.If
                                        % 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
-                                       % its neighborhoo) nodes.
-    options.maxNodeDegreeLevel1 = 8;
-    options.maxNodeDegree = 8;         % (N) closest N nodes are considered at
+                                       % its neighborhood) nodes.
+    options.maxNodeDegreeLevel1 = 4;
+    options.maxNodeDegree = 4;         % (N) closest N nodes are considered at
                                        % level 1-l.
     options.maxImageDim = options.gaborFilterSize*25;
     options.maximumModes = 10;          % Maximum number of modes allowed for 
@@ -88,11 +90,12 @@ function [ options ] = SetParameters( datasetName )
     options.edgeRadius = options.gaborFilterSize*3; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
-    options.maxLevels = 3;    % The maximum level count               
+    options.maxLevels = 10;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
                                   % The following are not really parameters, 
                                   % put here to avoid hard-coding.
+    options.maxNumberOfEdges = 1000000;
     options.subdue.instanceIndicator = sprintf('\n  Instance ');
     options.subdue.labelIndicator = sprintf('Label: ');
     options.subdue.nodeIndicator = sprintf('\nv ');

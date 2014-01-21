@@ -129,8 +129,10 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         
         %% Step 2.5: Write previous level's appearances to the output folder.
         if options.debug
-           visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
-           visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
+            if strcmp(options.property, 'mode')
+                visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+            end
+            visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
         end
         
         %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
@@ -187,7 +189,10 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
                vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
                mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);
                
-               visualizeLevel( currentLevel, levelItr, previousModes, options.currentFolder, options, datasetName);
+               %% Print out the vocabulary words and object images overlaid with words.
+               if strcmp(options.property, 'mode')
+                   visualizeLevel( currentLevel, levelItr, previousModes, options.currentFolder, options, datasetName);
+               end
                % TODO Fix image id missing problem in the last iteration!.
                visualizeImages( fileList, mainGraph, levelItr, options, datasetName, 'train' );
            end

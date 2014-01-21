@@ -29,7 +29,6 @@ function [] = runExperiment( datasetName, imageExtension )
     %% Step 0.2: Specify name of the graph files and create output folders.
     graphFileName = [options.currentFolder '/graphs/' datasetName '/train/' datasetName '.g'];
     resultFileName = [options.outputFolder '/' datasetName '.txt'];
-    fp = fopen(graphFileName, 'w');
     
     % Create folder structures.
     if ~exist(options.processedFolder,'dir')
@@ -47,6 +46,7 @@ function [] = runExperiment( datasetName, imageExtension )
     if ~exist(options.testOutputFolder, 'dir')
        mkdir(options.testOutputFolder); 
     end
+    fp = fopen(graphFileName, 'w');
     
     %% Step 0.3: Create initial data structures.
     fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');

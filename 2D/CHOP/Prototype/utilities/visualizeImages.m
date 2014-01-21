@@ -17,7 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetName, type )
+function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type )
     outputDir = [options.outputFolder '/reconstruction/' type];
     originalDir = [options.outputFolder '/original/'];
     if ~exist(outputDir, 'dir')
@@ -31,9 +31,9 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, datasetN
     %% Read level 1 into separate masks.
     numberOfFilters = getNumberOfFilters(options);
     vocabMasks = cell(numberOfFilters,1);
-    vocabMaskDir = [options.currentFolder '/debug/' datasetName '/level1/reconstruction'];
+    vocabMaskDir = [options.currentFolder '/filters/' options.filterType];
     for fileItr = 1:numberOfFilters
-        vocabMasks{fileItr} = imread([vocabMaskDir '/' num2str(fileItr) '.png']);
+        vocabMasks{fileItr} = imread([vocabMaskDir '/filt' num2str(fileItr) '.png']);
     end
     
     for fileItr = 1:numel(fileList)
