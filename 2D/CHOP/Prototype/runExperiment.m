@@ -54,6 +54,10 @@ function [] = runExperiment( datasetName, imageExtension )
     nodeCounter = 0;
     allNodes = cell(options.maxNumberOfFeatures,3);
     
+    %% Step 0.4: Create the filters used to find low-level features.
+    filters = createFilters(options);
+    options.filters = filters;
+    
     %% ========== Step 1: Pre-process the data (extract first level nodes, surpress weak responses) ==========
     if options.learnVocabulary
         %% Step 1.0: Downsample the image if it is too big.

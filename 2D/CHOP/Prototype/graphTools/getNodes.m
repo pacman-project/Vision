@@ -25,13 +25,12 @@ function [ nodes, smoothedImg ] = getNodes( img, options )
     % Either binarize the image using Otsu, or extract edges using Canny.
     %edgeImg = double(edge(doubleImg(:,:), 'canny'));
     edgeImg = im2bw(doubleImg, graythresh(doubleImg));
-    filters = createFilters(options);
-    filterCount = numel(filters);
+    filterCount = numel(options.filters);
     
     %% Get response by applying each filter to the image.
     responseImgs = zeros(size(edgeImg,1), size(edgeImg,2), filterCount);
     for filtItr = 1:filterCount
-       responseImg = conv2(double(edgeImg), filters{filtItr}, 'same');
+       responseImg = conv2(double(edgeImg), options.filters{filtItr}, 'same');
  %      testResp = @(x) testResponse(x);
  %      filteredImg = responseImg;
  %      filteredImg = colfilt(responseImg, [gaborFilterSize, gaborFilterSize], 'sliding', testResp);
@@ -46,29 +45,38 @@ function [ nodes, smoothedImg ] = getNodes( img, options )
    end
     
    %% Write smooth object boundaries to an image based on responseImgs.
-   smoothedImg = getSmoothedImage(responseImgs, filters);
+   smoothedImg = getSmoothedImage(responseImgs, options.filters);
    
    %% Inhibit weak responses in vicinity of powerful peaks.
-   halfSize = floor(options.gaborFilterSize/2);
-   responseImgs([1:halfSize, (end-halfSize):end],:) = 0;
-   responseImgs(:,[1:halfSize, (end-halfSize):end]) = 0;
-   peaks = find(responseImgs);
-   [xInd, yInd, ~] = ind2sub(size(responseImgs), peaks);
+   inhibitionHalfSize = options.gabor.inhibitionRadius;
+   halfSize=floor(options.gaborFilterSize/2);
+   responseImgs([1:inhibitionHalfSize, (end-inhibitionHalfSize):end],:) = 0;
+   responseImgs(:,[1:inhibitionHalfSize, (end-inhibitionHalfSize):end]) = 0;
    
-   for peakItr = 1:size(peaks,1)
-      % If this peak has not yet been eliminated, go check nearby peaks
-      if responseImgs(peaks(peakItr)) > 0 
-          nearbyPeakIdx = xInd >= (xInd(peakItr) - halfSize) & xInd <= (xInd(peakItr) + halfSize) & ...
-              yInd >= (yInd(peakItr) - halfSize) & yInd <= (yInd(peakItr) + halfSize);
-          
-          maxPeak = max(responseImgs(peaks(nearbyPeakIdx)));
-          if responseImgs(peaks(peakItr)) > (maxPeak-0.00001)
-             nearbyPeakIdx(peakItr) = 0;
-             responseImgs(peaks(nearbyPeakIdx)) = 0; 
-          else
-             responseImgs(peaks(peakItr)) = 0;
+   %% Here, we will run a loop till we clear all weak responses.
+   peaks = find(responseImgs);
+   prevPeakCount = inf;
+   peakCount = numel(peaks);
+   while prevPeakCount ~= peakCount
+       [xInd, yInd, ~] = ind2sub(size(responseImgs), peaks);
+       for peakItr = 1:size(peaks,1)
+          % If this peak has not yet been eliminated, go check nearby peaks
+          if responseImgs(peaks(peakItr)) > 0 
+              nearbyPeakIdx = xInd >= (xInd(peakItr) - inhibitionHalfSize) & xInd <= (xInd(peakItr) + inhibitionHalfSize) & ...
+                  yInd >= (yInd(peakItr) - inhibitionHalfSize) & yInd <= (yInd(peakItr) + inhibitionHalfSize);
+
+              maxPeak = max(responseImgs(peaks(nearbyPeakIdx)));
+              if responseImgs(peaks(peakItr)) > (maxPeak-0.0001)
+                 nearbyPeakIdx(peakItr) = 0;
+                 responseImgs(peaks(nearbyPeakIdx)) = 0; 
+              else
+       %          responseImgs(peaks(peakItr)) = 0;
+              end
           end
-      end
+       end
+       prevPeakCount = peakCount;
+       peaks = find(responseImgs);
+       peakCount = numel(peaks);
    end
    
    % Write the responses in the final image.

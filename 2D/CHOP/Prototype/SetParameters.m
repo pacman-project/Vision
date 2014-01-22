@@ -41,26 +41,32 @@ function [ options ] = SetParameters( datasetName )
                                         % filter area. Threshold is
                                         % calculated relative to the
                                         % maximum response in that image.
-    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 11;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
     options.gabor.sigma = 1;            % Gabor filter parameters
     options.gabor.theta = 0;
-    options.gabor.lambda = 1.2;
+    options.gabor.lambda = 1;
     options.gabor.psi = 0;
-    options.gabor.gamma = 0.4;
+    options.gabor.gamma = 0.25;
+    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)-1;
+                                        % The inhibition radius basically 
+                                        % defines the half of the cube's
+                                        % size in which other weaker
+                                        % responses than the seed node will
+                                        % be surpressed.
     
     options.autoFilterSize = 8;         % Size (one side) of a autodetected 
                                         % filter.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
     options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.25;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.25;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -68,7 +74,7 @@ function [ options ] = SetParameters( datasetName )
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
-    options.scaling = 0.75;            % Each successive layer is downsampled 
+    options.scaling = 0.6;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -81,13 +87,13 @@ function [ options ] = SetParameters( datasetName )
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
-    options.maxNodeDegreeLevel1 = 5;
-    options.maxNodeDegree = 5;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 6;
+    options.maxNodeDegree = 6;         % (N) closest N nodes are considered at
                                        % level 1-l.
-    options.maxImageDim = options.gaborFilterSize*25;
+    options.maxImageDim = options.gaborFilterSize*30;
     options.maximumModes = 10;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*3; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*2.5; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 10;    % The maximum level count               
@@ -110,7 +116,7 @@ function [ options ] = SetParameters( datasetName )
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
-    options.subdue.maxSize = 4; % Maximum number of nodes in a composition
+    options.subdue.maxSize = 5; % Maximum number of nodes in a composition
     options.subdue.nsubs = 4000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 2000;   % Beam length in SUBDUE
