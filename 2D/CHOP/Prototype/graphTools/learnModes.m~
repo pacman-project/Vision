@@ -108,9 +108,8 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
                    
                    % Get rid of half of the samples where node1 == node2.
                    if node1 == node2
-                        validIdx = (relativeVector(:,1) >= 0 & sum(relativeVector,2) >= 0) | ...
-                            (relativeVector(:,1) < 0 & sum(relativeVector,2) > 0);
-                        relativeVector = relativeVector(validIdx,:);
+                        validIdx = (relativeVector(:,1) >= 0 & sum(relativeVector,2) >= 0) | (relativeVector(:,1) < 0 & sum(relativeVector,2) <= 0);
+                        relativeVector = relativeVector(sum(relativeVector,2) >= 0,:);
                    end
                    samples = [samples; relativeVector];
                end

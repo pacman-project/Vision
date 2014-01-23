@@ -26,6 +26,9 @@ function [] = singleTestImage(testFileName, options, currentPath)
     % First, downsample the image if it is too big.
     img = imread(testFileName);
     [~, fileName, ~] = fileparts(testFileName);
+    if options.debug
+        display(['Processing ' fileName '.']);
+    end
     if max(size(img)) > options.maxImageDim
        img = imresize(img, options.maxImageDim/max(size(img)), 'bilinear'); 
     end
@@ -81,11 +84,12 @@ function [] = singleTestImage(testFileName, options, currentPath)
         
         %% Here, we run SUBDUE over the input graph(s) to find pre-defined compositions within the graph.
         % Each pre-defined sub is searched separately.
+        if options.debug
+           display(['Working on level ' num2str(levelItr) '.']);
+        end
         newLevel = collectInstances(vocabulary{levelItr}, graphFileName, options);
         
         %% Assign positions, image ids, and leaf nodes. 
-        % TODO: It's a shame that we are duplicating code for the following
-        % ~100 lines. Fix it!
         % If no new subs have been found, finish processing.
         if isempty(newLevel)
            mainGraph = mainGraph(1:(levelItr-1),:);

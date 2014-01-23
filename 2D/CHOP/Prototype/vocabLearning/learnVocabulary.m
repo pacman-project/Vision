@@ -37,7 +37,6 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
     modes = cell(options.maxLevels,1);
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
-    
     %% Step 1.1: Allocate space for current vocabulary and graph levels.
     numberOfFilters = getNumberOfFilters(options);
     vocabLevel(numberOfFilters) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', []);

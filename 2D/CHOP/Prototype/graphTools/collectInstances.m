@@ -37,6 +37,10 @@ function [newLevel] = collectInstances(vocabLevel, graphFileName, options)
     for psItr = 1:numberOfPSFiles
         preDefinedFile = [tempFolder '/ps1/ps' num2str(psItr) '.g']; 
         
+        if options.debug
+           [~, psFileName, ~] = fileparts(preDefinedFile);
+           display(['Collecting instances of ' psFileName '.']); 
+        end
         %% Discover new level's subs.
         discoverSubs(graphFileName, resultFileName, options, options.currentFolder, preDefinedFile);
         [~, psLevel] = parseResultFile(resultFileName, options);

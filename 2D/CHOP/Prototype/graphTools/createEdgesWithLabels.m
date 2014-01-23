@@ -109,7 +109,7 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
                distances = sqrt(sum((centerArr - imageCoords).^2, 2));
                adjacentNodes = find(distances <= neighborhood);
                
-               % Looking for farthest nodes to connect.
+               % Looking for closest nodes to connect!
                scores = distances(adjacentNodes);  
            end
            
@@ -146,7 +146,7 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
                if imageNodeIds(nodeItr) == imageNodeIds(adjacentNodes(adjItr))
                    isDirected = 1;
                    % Check if this edge is on the right side of separating line.
-                   if sample(1) + sample(2) < 0
+                   if (sample(1) >= 0 && sum(sample) < 0) || (sample(1) < 0 && sum(sample) <= 0)
                        continue;
                    end
                else

@@ -26,7 +26,7 @@ function [ ] = discoverSubs( graphFileName, resultFileName, options, currentFold
        subdueOptions = [subdueOptions '-valuebased '];
     end
     if options.subdue.overlap
-       subdueOptions = [subdueOptions '-overlap -threshold 0.20 '];
+       subdueOptions = [subdueOptions '-overlap '];
     end
     if ~isempty(preDefinedFileName)
        subdueOptions = [subdueOptions '-ps ' preDefinedFileName ' -discovery 1 '];
