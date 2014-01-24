@@ -78,6 +78,7 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
 
         numberOfNodes = size(imageCoords,1);
         for nodeItr = 1:numberOfNodes
+            
            centerArr = [ones(size(imageNodes,1),1) * imageCoords(nodeItr,1), ...
                ones(size(imageNodes,1),1) * imageCoords(nodeItr,2)];
 
@@ -148,6 +149,14 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
                    % Check if this edge is on the right side of separating line.
                    if (sample(1) >= 0 && sum(sample) < 0) || (sample(1) < 0 && sum(sample) <= 0)
                        continue;
+                   end
+                   
+                   % If both are at the origin (same spot), this causes
+                   % into duplicate links in our final graph. To prevent
+                   % this, we only link one with smaller index to the
+                   % other one with larger index.
+                   if sample(1) == 0 && sample(2) == 0 && nodeItr >= adjacentNodes(adjItr)
+                      continue; 
                    end
                else
                    isDirected = 0;
@@ -224,4 +233,5 @@ function [idx] = getSmallestNElements(vect, n)
        restOfNodes = restOfNodes(1:n); 
     end
     idx = [idx; restOfNodes];
+    idx = unique(idx, 'stable');
 end

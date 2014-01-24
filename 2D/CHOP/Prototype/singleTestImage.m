@@ -140,6 +140,7 @@ function [] = singleTestImage(testFileName, options, currentPath)
         
         %% If the edges are not empty, fill the edge information in current level.
         if ~isempty(edges)
+            newLevel = mainGraph{levelItr};
             for instanceItr = 1:size(nodes,1)
                nodeEdges = ismember(edges(:,1:2), instanceItr);
 
@@ -149,6 +150,8 @@ function [] = singleTestImage(testFileName, options, currentPath)
                     newLevel(instanceItr).adjInfo = selfEdges;
                end
             end
+            
+            mainGraph{levelItr} = newLevel;
         end
         
         %% Visualize the test images with previous layer's subs.

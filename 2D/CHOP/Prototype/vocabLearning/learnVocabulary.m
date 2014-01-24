@@ -126,6 +126,38 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         % Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);
         
+        %% Step 2.4 To get more accurate realizations, search words in vocabulary one by one, again.
+        % TODO: CODE REPETITION FOR ~30 lines! Fix.
+        % Then, we will apply the local inhibition function again.
+        graphLevel = collectInstances(vocabLevel, graphFileName, options);
+        
+        % Assign realizations R of next graph level (l+1), and fill in their bookkeeping info. (REP)
+        previousLevel = mainGraph{levelItr-1};
+        newImageIds = zeros(numel(graphLevel),1);
+        for newNodeItr = 1:numel(graphLevel)
+            leafNodes = [];
+            position = [0,0];
+            graphLevel(newNodeItr).imageId = previousLevel(graphLevel(newNodeItr).children(1)).imageId;
+            newImageIds(newNodeItr) = graphLevel(newNodeItr).imageId;
+            for childItr = 1:numel(graphLevel(newNodeItr).children)
+               leafNodes = [leafNodes, previousLevel(graphLevel(newNodeItr).children(childItr)).leafNodes]; 
+            end
+            leafNodes = unique(leafNodes);
+            for leafNodeItr = 1:numel(leafNodes)
+               position = position + firstLevel(leafNodes(leafNodeItr)).position;
+            end
+            graphLevel(newNodeItr).leafNodes = leafNodes;
+            graphLevel(newNodeItr).position = round(position/numel(leafNodes));
+        end
+        
+        % Rearrange graph level so it is sorted by image id.
+        [~, sortedIdx] = sort(newImageIds);
+        graphLevel = graphLevel(1,sortedIdx);
+        
+        % Apply local inhibition again.
+        [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr);
+        [~, ~, IC] = unique([graphLevel.labelId], 'stable');
+        
         % Assign new labels of the remaining realizations.
         for newNodeItr = 1:numel(graphLevel)
             graphLevel(newNodeItr).labelId = IC(newNodeItr);

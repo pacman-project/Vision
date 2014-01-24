@@ -25,5 +25,10 @@
 function [modes, edges, leafNodeAdjArr] = extractEdges(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes)
     % If needed, process nodes to determine 'mode's, i.e. pair-wise relations.
     [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes);
+    edges2 = unique(edges, 'rows', 'stable');
+    if size(edges,1) ~= size(edges2,1)
+       size(edges,1) 
+    end
+    edges = edges2;
 end
 

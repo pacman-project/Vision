@@ -37,7 +37,6 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
     modes = cell(options.maxLevels,1);
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
-    
     %% Step 1.1: Allocate space for current vocabulary and graph levels.
     numberOfFilters = getNumberOfFilters(options);
     vocabLevel(numberOfFilters) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', []);
@@ -82,7 +81,9 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         if isempty(vocabLevel)
             %% Write previous level's appearances to the output folder.
            if options.debug
-               visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+               if strcmp(options.property, 'mode')
+                    visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+               end
                visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
            end
            vocabulary = vocabulary(1:(levelItr-1),:);
@@ -93,10 +94,12 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
        
         %% Step 2.2: Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
         previousLevel = mainGraph{levelItr-1};
+        newImageIds = zeros(numel(graphLevel),1);
         for newNodeItr = 1:numel(graphLevel)
             leafNodes = [];
             position = [0,0];
             graphLevel(newNodeItr).imageId = previousLevel(graphLevel(newNodeItr).children(1)).imageId;
+            newImageIds(newNodeItr) = graphLevel(newNodeItr).imageId;
             for childItr = 1:numel(graphLevel(newNodeItr).children)
                leafNodes = [leafNodes, previousLevel(graphLevel(newNodeItr).children(childItr)).leafNodes]; 
             end
@@ -108,6 +111,10 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
             graphLevel(newNodeItr).position = round(position/numel(leafNodes));
         end
         
+        % Rearrange graph level so it is sorted by image id.
+        [~, sortedIdx] = sort(newImageIds);
+        graphLevel = graphLevel(1,sortedIdx);
+        
         %% Step 2.3: Inhibition! We process the current level to eliminate some of the nodes in the final graph.
         % The rules here are explained in the paper. Basically, each node
         % should introduce a novelty (cover a new area of the image). If it
@@ -118,6 +125,9 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         
         % Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);
+        
+        
+        
         
         % Assign new labels of the remaining realizations.
         for newNodeItr = 1:numel(graphLevel)
@@ -192,8 +202,10 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         else
             %% Assign edges to their respective nodes.
             for nodeItr = 1:numel(graphLevel)
-               nodeEdges = edges(ismember(nodeItr, edges(:,1:2)))
+               nodeEdges = edges(edges(:,1) == nodeItr | edges(:,2) == nodeItr, :);
+               graphLevel(nodeItr).adjInfo = nodeEdges;
             end
+            mainGraph{levelItr} = graphLevel;
         end
         
         %% Step 2.7: Print the graphs to a file for the next iteration.

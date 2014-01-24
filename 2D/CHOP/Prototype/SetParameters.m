@@ -14,7 +14,7 @@ function [ options ] = SetParameters( datasetName )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     options.datasetName = datasetName;
-    options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
+    options.learnVocabulary = 0; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
@@ -57,9 +57,9 @@ function [ options ] = SetParameters( datasetName )
                                         % responses than the seed node will
                                         % be surpressed.
     
-    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 9;         % Size (one side) of a autodetected 
                                         % filter.
-    options.autoFilterCount = 100;      % Number of auto-detected filters.
+    options.autoFilterCount = 160;      % Number of auto-detected filters.
     options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.noveltyThr = 0.5;           % The novelty threshold used in the 
@@ -115,6 +115,9 @@ function [ options ] = SetParameters( datasetName )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
+    options.subdue.threshold = 0.0; % Theshold for elasticity-based matching 
+                                    % in SUBDUE. Can be in [0,1]. 0: Strict
+                                    % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
     options.subdue.nsubs = 4000;  % Maximum number of nodes allowed in a level
