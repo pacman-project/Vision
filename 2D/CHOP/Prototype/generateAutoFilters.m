@@ -59,6 +59,8 @@ function [ ] = generateAutoFilters( datasetName )
     else
         load([options.currentFolder '/output/' datasetName '/C.mat']);
     end
+    C = C*invMat + repmat(mu, [160,1]);
+    C = uint8(C);
     
     %% Visualize the centers as a grid image.
     imageSize = [options.autoFilterVisX * options.autoFilterSize + (options.autoFilterVisX-1), ...

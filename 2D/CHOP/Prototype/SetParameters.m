@@ -14,7 +14,7 @@ function [ options ] = SetParameters( datasetName )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     options.datasetName = datasetName;
-    options.learnVocabulary = 0; % If 1, new vocabulary is learned. 
+    options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
@@ -62,6 +62,12 @@ function [ options ] = SetParameters( datasetName )
     options.autoFilterCount = 160;      % Number of auto-detected filters.
     options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
+    options.autoFilterVisX = 10;        % Visualization parameters for 
+                                        % auto-generated filters. The
+                                        % filters are visualized in a
+                                        % grid-like image specified with
+                                        % these parameters.
+    options.autoFilterVisY = 16;
     options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
