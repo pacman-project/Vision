@@ -59,15 +59,15 @@ function [ options ] = SetParameters( datasetName )
     
     options.autoFilterSize = 9;         % Size (one side) of a autodetected 
                                         % filter.
-    options.autoFilterCount = 160;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 100000; % Number of random patches used 
+    options.autoFilterCount = 64;      % Number of auto-detected filters.
+    options.autoFilterPatchCount = 50000; % Number of random patches used 
                                            % to find auto-detected filters.
-    options.autoFilterVisX = 10;        % Visualization parameters for 
+    options.autoFilterVisX = 8;        % Visualization parameters for 
                                         % auto-generated filters. The
                                         % filters are visualized in a
                                         % grid-like image specified with
                                         % these parameters.
-    options.autoFilterVisY = 16;
+    options.autoFilterVisY = 8;
     options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 

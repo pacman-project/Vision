@@ -156,12 +156,15 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         
         % Apply local inhibition again.
         [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr);
-        [~, ~, IC] = unique([graphLevel.labelId], 'stable');
+        [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
         
         % Assign new labels of the remaining realizations.
         for newNodeItr = 1:numel(graphLevel)
             graphLevel(newNodeItr).labelId = IC(newNodeItr);
         end
+        % Eliminate unused compositions from vocabulary.
+        vocabLevel = vocabLevel(1, remainingComps);
+        
         %% Step 2.4: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);

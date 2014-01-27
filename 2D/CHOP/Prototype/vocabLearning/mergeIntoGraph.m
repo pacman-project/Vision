@@ -20,17 +20,17 @@
 function [graph] = mergeIntoGraph(graph, level, levelItr, position)
     %% Go over children list of each instance in current level
     previousLevel = graph{levelItr-1};
-    for newInstItr = 1:numel(level)
-        children = level(newInstItr).children;
-        % If necessary, process the position calculation/imageId copying work too.
-        if position
+    firstLevel = graph{1};
+    if position
+        for newInstItr = 1:numel(level)
+            leafNodes = level(newInstItr).leafNodes;
+            % If necessary, process the position calculation/imageId copying work too.
             newPosition = [0,0];
-            for childItr = 1:numel(children)
-               newPosition = newPosition + previousLevel(children(childItr)).position;
+            for childItr = 1:numel(leafNodes)
+               newPosition = newPosition + firstLevel(leafNodes(childItr)).position;
             end
-            newPosition = round(newPosition / numel(children));
+            newPosition = round(newPosition / numel(leafNodes));
             level(newInstItr).position = newPosition;
-    %        level(newInstItr).imageId = previousLevel(children(1)).imageId;
         end
     end
     

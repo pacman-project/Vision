@@ -59,8 +59,17 @@ function [ ] = generateAutoFilters( datasetName )
     else
         load([options.currentFolder '/output/' datasetName '/C.mat']);
     end
-    C = C*invMat + repmat(mu, [160,1]);
+    C = C*invMat + repmat(mu, [options.autoFilterCount,1]);
     C = uint8(C);
+    
+    %% Cluster samples using MEC and find cluster centers.
+%    XwhLabeled = mec(Xwh, 'c', 64, 'kmeans_i', 1);
+    load('x.mat', 'XwhLabeled');
+    C2 = zeros(size(C));
+    for clusterItr = 1:options.autoFilterCount
+        samples = Xwh(XwhLabeled==clusterItr,:);
+        C2(clusterItr,:) = mean(samples,1);
+    end
     
     %% Visualize the centers as a grid image.
     imageSize = [options.autoFilterVisX * options.autoFilterSize + (options.autoFilterVisX-1), ...
@@ -73,6 +82,19 @@ function [ ] = generateAutoFilters( datasetName )
                 reshape(C(((xItr-1)*options.autoFilterVisY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, size(img,3)]);
         end
     end
-    imwrite(finalImage, [options.currentFolder '/output/' datasetName '/C.png']);
+    imwrite(uint8(finalImage), [options.currentFolder '/output/' datasetName '/C.png']);
+    
+    %% Visualize the MEC centers as grid image.
+    imageSize = [options.autoFilterVisX * options.autoFilterSize + (options.autoFilterVisX-1), ...
+        options.autoFilterVisY * options.autoFilterSize + (options.autoFilterVisY-1), size(img,3)];
+    finalImage = zeros(imageSize);
+    for xItr = 1:options.autoFilterVisX
+        for yItr = 1:options.autoFilterVisY
+            finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
+                ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = ...
+                reshape(C(((xItr-1)*options.autoFilterVisY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, size(img,3)]);
+        end
+    end
+    imwrite(uint8(finalImage), [options.currentFolder '/output/' datasetName '/C.png']);
 end
 
