@@ -24,20 +24,31 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type 
        mkdir(outputDir); 
     end
     processedDir = options.processedFolder;
-    
-    firstLevel = mainGraph{1};
     graphLevel = mainGraph{levelItr};
     
-    %% Read level 1 into separate masks.
-    numberOfFilters = getNumberOfFilters(options);
-    vocabMasks = cell(numberOfFilters,1);
-    vocabMaskDir = [options.currentFolder '/filters/' options.filterType];
-    for fileItr = 1:numberOfFilters
-        vocabMasks{fileItr} = imread([vocabMaskDir '/filt' num2str(fileItr) '.png']);
+    %% Depending on the reconstruction type, we read masks to put on correct positions in images.
+    if strcmp(options.reconstructionType, 'true')
+        % Read masks of compositions in current level.
+        correctLevel = mainGraph{levelItr};
+        usedLevel = levelItr;
+    else
+        % Read level 1 into separate masks.
+        correctLevel = mainGraph{1};
+        usedLevel = 1;
+    end
+    
+    vocabMaskList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*.png'], 1, 'detail');
+    numberOfMasks = numel(vocabMaskList);
+    vocabMasks = cell(numberOfMasks,1);
+
+    for fileItr = 1:numberOfMasks
+        vocabMasks{fileItr} = imread([options.currentFolder '/debug/' options.datasetName ...
+            '/level' num2str(usedLevel) '/reconstruction/' num2str(fileItr) '.png']);
     end
     
     nodeOffset = 0;
     
+    %% Go over the list of images and run reconstruction.
     for fileItr = 1:numel(fileList)
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
@@ -51,11 +62,15 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type 
         nodes = graphLevel(:,[graphLevel.imageId] == fileItr);
         
         for nodeItr = 1:numel(nodes)
-            leafNodes = nodes(nodeItr).leafNodes;
-            for leafNodeItr = 1:numel(leafNodes)
+            if strcmp(options.reconstructionType, 'true')
+                reconstructedNodes = nodeItr;
+            else
+                reconstructedNodes = nodes(nodeItr).leafNodes;
+            end
+            for reconNodeItr = 1:numel(reconstructedNodes)
                 % Read the mask here, and crop it if necessary.
-                nodeMask = vocabMasks{firstLevel(leafNodes(leafNodeItr)).labelId};
-                position = firstLevel(leafNodes(leafNodeItr)).position;
+                nodeMask = vocabMasks{correctLevel(reconstructedNodes(reconNodeItr)).labelId};
+                position = correctLevel(reconstructedNodes(reconNodeItr)).position;
                 
                 % If the part has already been added, move on.
                 if reconstructedMask(position(1), position(2))>0
@@ -74,9 +89,9 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type 
                 end
                 
                 reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-halfSize(2)):(position(2)+halfSize(2))) = ... 
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2)),:) = ... 
                      max(reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-halfSize(2)):(position(2)+halfSize(2))), ...
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2)),:), ...
                      nodeMask);
                  
                  % First, write the node label to the labeled mask.

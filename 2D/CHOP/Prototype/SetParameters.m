@@ -86,7 +86,7 @@ function [ options ] = SetParameters( datasetName )
                                        % layers, since edge radius
                                        % stays the same while images are 
                                        % downsampled.
-    options.edgeType = 'contour';      % If 'contour', the nodes in upper layers 
+    options.edgeType = 'centroid';      % If 'contour', the nodes in upper layers 
                                        % are linked if their leaf nodes are 
                                        % neighbors in the first layer.If
                                        % 'centroid', downsampling is
