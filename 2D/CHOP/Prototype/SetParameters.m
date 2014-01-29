@@ -68,11 +68,11 @@ function [ options ] = SetParameters( datasetName )
                                         % grid-like image specified with
                                         % these parameters.
     options.autoFilterVisY = 8;
-    options.noveltyThr = 0.16;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.25;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.33;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -80,7 +80,7 @@ function [ options ] = SetParameters( datasetName )
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.6;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius

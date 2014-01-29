@@ -36,7 +36,7 @@ function [] = visualizeLevel( currentVocabLevel, mainGraph, levelId, options)
         %% In other levels, combine the nodes of previous levels and visualize current level.
         % Read previous layer's masks.
         prevLevelDir = [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelId-1) '/reconstruction/'];
-        numberOfPrevNodes = numel(fuf([prevLevelDir '*.png'], 1, 'detail'));
+        numberOfPrevNodes = max(prevGraphLevelIds);
         numberOfNodes = numel(currentVocabLevel);
         prevNodeMasks = cell(numberOfPrevNodes,1);
         patchHalfDims = zeros(numberOfPrevNodes,2);

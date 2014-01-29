@@ -60,8 +60,10 @@ function [edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph, leafN
     end
     
     %% If necessary, learn pair-wise node distributions (modes)
-    if ~isempty(modes)
+    if ~isempty(modes) && numel(modes) >= currentLevel
         currentModes = modes{currentLevel};
+    else
+        currentModes = [];
     end
     
     %% Assuming the distributions have already been learned, create edges and assign edge labels accordingly.

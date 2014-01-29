@@ -225,10 +225,10 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( all
                
                %% Print out the vocabulary words and object images overlaid with words.
                if ~isempty(previousModes)
-                   visualizeLevel( currentVocabLevel, mainGraph, levelItr, options);
+                   visualizeLevel( vocabulary{levelItr-1}, mainGraph, (levelItr-1), options);
                end
                % TODO Fix image id missing problem in the last iteration!.
-               visualizeImages( fileList, mainGraph, levelItr, options, datasetName, 'train' );
+               visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
            end
            break;
         else
