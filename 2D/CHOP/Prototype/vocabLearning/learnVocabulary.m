@@ -7,18 +7,21 @@
 %> a single node.
 %>
 %> @param allNodes The nodes of the level 1 input graph. Each node consists
-%> of a label id, position and image id.
+%>      of a label id, position and image id.
 %> @param allEdges The edges of the level 1 input graph.
 %> @param leafNodeAdjArr The adjacency list of leaf nodes.
-%> @param firstModes The pairwise modes in the leve1 input graph.
+%> @param modes The mode array that only includes first level relations.
 %> @param graphFileName The input graph's path.
 %> @param resultFileName The file which will contain Subdue's output at
-%> each level.
+%>      each level.
 %> @param options Program options
 %> @param fileList input image name list.
 %> @param datasetName The name of the dataset.
 %>
 %> @retval vocabulary The hierarchic vocabulary learnt from the data.
+%> @retval mainGraph The hierarchic object graphs.
+%> @retval modes Cell array including modes belonging to each layer, each 
+%>      in a separate cell.
 %> 
 %> Author: Rusen
 %>
@@ -26,7 +29,8 @@
 %> Ver 1.0 on 26.11.2013
 %> Ver 1.1 on 02.12.2013 Completed unlimited number of graph generation.
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
-function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges, firstModes, leafNodeAdjArr, graphFileName, ...
+%> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
+function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( allNodes, allEdges, modes, highLevelModes, leafNodeAdjArr, graphFileName, ...
                                                             resultFileName,...
                                                             options, fileList, datasetName)
                                                         
@@ -34,7 +38,6 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
     vocabulary = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     imageIds = cell2mat(allNodes(:,3));
-    modes = cell(options.maxLevels,1);
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
     %% Step 1.1: Allocate space for current vocabulary and graph levels.
@@ -64,7 +67,6 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
     firstLevel = mainGraph{1};
-    modes(1) = {firstModes};
     [pathToGraphFile, fileName, ext] = fileparts(graphFileName);
     [pathToResultFile, rFileName, resultExt] = fileparts(resultFileName);
     previousModes = [];
@@ -81,14 +83,13 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         if isempty(vocabLevel)
             %% Write previous level's appearances to the output folder.
            if options.debug
-               if strcmp(options.property, 'mode')
-                    visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+               if ~isempty(previousModes)
+                    visualizeLevel( vocabulary{levelItr-1}, mainGraph, levelItr-1, options);
                end
                visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
            end
            vocabulary = vocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
-           modes = modes(1:(levelItr-1),:);
            break; 
         end
        
@@ -121,7 +122,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
         [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr);
-        [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
+        [remainingComps, ~, ~] = unique([graphLevel.labelId], 'stable');
         
         % Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);
@@ -179,7 +180,7 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         end
         
         % Extract the edges between new realizations to form the new object graphs.
-        [currModes, edges, ~] = extractEdges(newNodes, mainGraph, leafNodeAdjArr, options, levelItr, datasetName, []);
+        [modes, highLevelModes, edges, ~] = extractEdges(newNodes, mainGraph, leafNodeAdjArr, options, levelItr, datasetName, modes, highLevelModes);
         
         % Learn image ids and number of total images.
         imageIds = [currentLevel(:).imageId]';
@@ -199,7 +200,6 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         if isempty(edges)
            vocabulary = vocabulary(1:(levelItr),:);
            mainGraph = mainGraph(1:(levelItr),:);
-           modes = modes(1:(levelItr-1),:);
            % Print new level's words before exiting from loop
            if options.debug
                 % Assign positions, image ids and leaf nodes.
@@ -224,8 +224,8 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
                mainGraph = mergeIntoGraph(mainGraph, graphLevel, levelItr, 1);
                
                %% Print out the vocabulary words and object images overlaid with words.
-               if strcmp(options.property, 'mode')
-                   visualizeLevel( currentVocabLevel, levelItr, previousModes, options.currentFolder, options, datasetName);
+               if ~isempty(previousModes)
+                   visualizeLevel( currentVocabLevel, mainGraph, levelItr, options);
                end
                % TODO Fix image id missing problem in the last iteration!.
                visualizeImages( fileList, mainGraph, levelItr, options, datasetName, 'train' );
@@ -258,14 +258,10 @@ function [ vocabulary, mainGraph, modes ] = learnVocabulary( allNodes, allEdges,
         
         %% Step 2.8: Write previous level's appearances to the output folder.
         if options.debug
-            if strcmp(options.property, 'mode')
-                visualizeLevel( vocabulary{levelItr-1}, levelItr-1, previousModes, options.currentFolder, options, datasetName);
+            if ~isempty(previousModes)
+                visualizeLevel( vocabulary{levelItr-1}, mainGraph, levelItr-1, options);
             end
             visualizeImages( fileList, mainGraph, levelItr-1, options, datasetName, 'train' );
         end
-        
-        % Add current level's modes to the main 'modes' array.
-        modes(levelItr) = {currModes};
     end
-%    vocabulary = vocabulary(1:levelItr,:);
 end

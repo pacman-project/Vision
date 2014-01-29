@@ -53,6 +53,7 @@ function [ ] = generateAutoFilters( datasetName )
 
         %% Cluster whitened samples to get cluster centers.
         [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster');
+ %       [XwhLabeled] = mec(Xwh, 'c', options.autoFilterCount);
 
         %% Save cluster centers, along with other info.
         save([options.currentFolder '/output/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');
@@ -61,15 +62,6 @@ function [ ] = generateAutoFilters( datasetName )
     end
     C = C*invMat + repmat(mu, [options.autoFilterCount,1]);
     C = uint8(C);
-    
-    %% Cluster samples using MEC and find cluster centers.
-%    XwhLabeled = mec(Xwh, 'c', 64, 'kmeans_i', 1);
-    load('x.mat', 'XwhLabeled');
-    C2 = zeros(size(C));
-    for clusterItr = 1:options.autoFilterCount
-        samples = Xwh(XwhLabeled==clusterItr,:);
-        C2(clusterItr,:) = mean(samples,1);
-    end
     
     %% Visualize the centers as a grid image.
     imageSize = [options.autoFilterVisX * options.autoFilterSize + (options.autoFilterVisX-1), ...
@@ -84,17 +76,5 @@ function [ ] = generateAutoFilters( datasetName )
     end
     imwrite(uint8(finalImage), [options.currentFolder '/output/' datasetName '/C.png']);
     
-    %% Visualize the MEC centers as grid image.
-    imageSize = [options.autoFilterVisX * options.autoFilterSize + (options.autoFilterVisX-1), ...
-        options.autoFilterVisY * options.autoFilterSize + (options.autoFilterVisY-1), size(img,3)];
-    finalImage = zeros(imageSize);
-    for xItr = 1:options.autoFilterVisX
-        for yItr = 1:options.autoFilterVisY
-            finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
-                ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = ...
-                reshape(C(((xItr-1)*options.autoFilterVisY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, size(img,3)]);
-        end
-    end
-    imwrite(uint8(finalImage), [options.currentFolder '/output/' datasetName '/C.png']);
 end
 

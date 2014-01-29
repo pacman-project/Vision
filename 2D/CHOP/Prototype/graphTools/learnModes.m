@@ -22,6 +22,7 @@
 %> Updates
 %> Ver 1.0 on 21.01.2014
 function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName)
+    %% Step 0: Create initial data structures and initialize them.
     % Prevent empty cluster warnings in kmeans.
     w = warning('off', 'all');
     
@@ -39,7 +40,7 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
         currentGraphLevel = mainGraph{currentLevel};
     end
     
-    %% For each node pair, get the 2-D distribution of samples.
+    %% Step 1: For each composition pair, get the 2-D distribution of samples.
     % Right now, we only work with 2-dimensional spatial relations.
     modeOffset = 0;
 
@@ -67,7 +68,11 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
 
                % Iterate over each seed node and find its adjacentNodes.
                for nodeItr = 1:numberOfFirstNodes
-                   %% EDGE INFORMATION EXTRACTION
+                   %% Step 1.1: Extract edge information. 
+                   % It is crucial that this step is actually on par with
+                   % createEdgesWithlabels function, since the exact code
+                   % here is repeated in that function to actually link
+                   % nodes.
                    centerArr = [ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,1), ...
                            ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,2)];
                    if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
@@ -88,11 +93,10 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
                              adjacentNodes(secNodeItr) = 1;
                           end
                        end
-                       adjacentNodes = find(adjacentNodes);
-                       
                        %% Verify that the adjacent nodes found by 'contour' info are actually in the neighborhood of seed node.
-                       distances = sqrt(sum((centerArr - imageCoords).^2, 2));
+                       distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
                        adjacentNodes = distances <= neighborhood & adjacentNodes;
+                       adjacentNodes = find(adjacentNodes);
                    else
                         distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
                         [adjacentNodes] = find(distances <= neighborhood);
@@ -115,14 +119,10 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
                    samples = [samples; relativeVector];
                end
            end
-           
-           %% Cluster samples to detect the nodes. 
-           % TOCHANGE: This step can be replaced with a different approach.
+           %% Assign a label to each sample.
            classes = assignModes(samples, options);
            
-           %% Calculate cluster centers and reassign the samples to clusters.
-           % This step is required since we would like to have
-           % consistency with our test cases.
+           %% Calculate cluster centers.
            numberOfClusters = max(classes);
            centers = zeros(numberOfClusters,4);
            centers(:,1) = ones(numberOfClusters,1) * node1;
@@ -135,11 +135,11 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
 
            % Change mode offset and move on.
            modeOffset = modeOffset + max(classes);
+           
            %% In debug mode, write classes to the output as images.
            if options.debug
                distributionImg = zeros(options.maxImageDim*2+1);
                samplesToWrite = floor(samples + options.maxImageDim + 1);
-               distributionImgDim = max(max(samples)) * 2;
                
                % If no samples are to be written, move on.
                if numel(samplesToWrite) < 1
@@ -151,14 +151,9 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
 
                % Resize the distribution image so it is of the smallest
                % possible size.
-               [posSampleX, posSampleY] = find(distributionImg);
-               minX = min(posSampleX);
-               maxX = max(abs(minX), max(posSampleX));
-               minX = maxX - distributionImgDim;
-               minY = min(posSampleY);
-               maxY = max(abs(minY), max(posSampleY));
-               minY = maxY - distributionImgDim;
-               distributionImg = distributionImg(minX:maxX, minY:maxY);
+               bound = max(max(abs(samples)));
+               midPoint = options.maxImageDim + 1;
+               distributionImg = distributionImg((midPoint-bound):(midPoint+bound), (midPoint-bound):(midPoint+bound));
                if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/'], 'dir')
                    mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/']);
                end

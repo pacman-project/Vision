@@ -19,7 +19,7 @@ function [] = singleTestImage(testFileName, options, currentPath)
     % Here, we will run the inference process by compressing the test
     % images' graphs with the compositions in the vocabulary.
     % Allocate space for current graph level.
-    load([currentPath '/output/' options.datasetName '/' options.datasetName '_vb.mat'], 'vocabulary', 'modes');
+    load([currentPath '/output/' options.datasetName '/' options.datasetName '_vb.mat'], 'vocabulary', 'modes', 'highLevelModes');
     mainGraph = cell(options.maxLevels,1);
     
     %% Get the first level nodes.
@@ -42,7 +42,7 @@ function [] = singleTestImage(testFileName, options, currentPath)
     graphLevel(size(nodes,1)) = struct('labelId', [], 'imageId', [], 'position', [], 'children', [], 'parents', [], 'adjInfo', [], 'leafNodes', []);
 
     %% Get edges depending on the property to be embedded in the graph.
-    [~, edges, leafNodeAdjArr] = extractEdges(nodes, [], [], options, 1, options.datasetName, modes);
+    [~, ~, edges, leafNodeAdjArr] = extractEdges(nodes, [], [], options, 1, options.datasetName, modes, highLevelModes);
     %% Fill the basic info in this scene graph level.
     for instanceItr = 1:size(nodes,1)
        graphLevel(instanceItr).labelId = nodes{instanceItr,1};
@@ -135,7 +135,7 @@ function [] = singleTestImage(testFileName, options, currentPath)
         if numel(modes)<levelItr
            edges=[];
         else
-            [~, edges] = extractEdges(nodes, mainGraph, leafNodeAdjArr, options, levelItr, options.datasetName, modes);
+            [~, ~, edges, ~] = extractEdges(nodes, mainGraph, leafNodeAdjArr, options, levelItr, options.datasetName, modes, highLevelModes);
         end
         
         %% If the edges are not empty, fill the edge information in current level.

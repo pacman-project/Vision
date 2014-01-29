@@ -92,7 +92,7 @@ function [] = runExperiment( datasetName, imageExtension )
     % paper.
     if options.learnVocabulary
         %% Step 2.1: Get first-level object graph edges.
-        [modes, edges, leafNodeAdjArr] = extractEdges(allNodes, [], [], options, 1, datasetName, []);
+        [modes, highLevelModes, edges, leafNodeAdjArr] = extractEdges(allNodes, [], [], options, 1, datasetName, [], []);
 
         %% Step 2.2: Print the object graphs to a file.
         imageIds = cell2mat(allNodes(:,3));
@@ -116,11 +116,11 @@ function [] = runExperiment( datasetName, imageExtension )
     end
     %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of paper). ==========
     if options.learnVocabulary
-        [vocabulary, mainGraph, modes] = learnVocabulary(allNodes, edges, modes, leafNodeAdjArr, graphFileName, ...
+        [vocabulary, mainGraph, modes, highLevelModes] = learnVocabulary(allNodes, edges, modes, highLevelModes, leafNodeAdjArr, graphFileName, ...
                                         resultFileName, options, trainingFileNames, datasetName);
-        save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
+        save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodeAdjArr');
     else
-        load([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'leafNodeAdjArr');
+        load([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodeAdjArr');
     end
     %% ========== Step 4: Run inference for all test images with the learned vocabulary. ==========
     if options.testImages

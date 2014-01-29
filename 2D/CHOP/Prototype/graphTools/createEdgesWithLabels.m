@@ -7,24 +7,30 @@
 %> with 3 categories.
 %>
 %> @param nodes The node list including label ids, positions and image ids
-%> of each node.
+%>      of each node.
 %> @param mainGraph The object graphs' data structure.
+%> @param leafNodeAdjArr The adjacency array of leaf nodes, in line with
+%>      regular edge generation in the hierarchy. Neighboring low-level
+%>      realizations in first layer are linked together. In first level,
+%> this parameter is empty, and is returned by this function. In upper
+%> levels, it is given as a valid (non-empty) parameter.
 %> @param options Program options.
 %> @param currentLevel The current scene graph level.
-%> @param datasetName Name of the dataset.
 %> @param modes If empty, new modes are to be learned. If not, edge labels
-%> will be formed depending on existing modes.
+%>      will be formed depending on existing modes.
 %> 
-%> @retval modes The mode list representing edge categories.
 %> @retval edges Edges are of the form: [ node1, node2, mode, directed;
 %>                                        node1, node2, mode, directed;
 %>                                      ...]
+%> @retval leafNodeAdjArr Valid response in level 1, where leaf nodes are
+%> linked if they are actually linked in the object graphs.
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 04.12.2013
-function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes)
+%> Separate mode learning from this function on 28.01.2014
+function [edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, modes)
 
     % Calculate edge radius.
     scale = (1/options.scaling)^(currentLevel-1);
@@ -54,13 +60,8 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
     end
     
     %% If necessary, learn pair-wise node distributions (modes)
-    if strcmp(options.property, 'mode')
-        if isempty(modes) 
-            [currentModes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName);    
-            modes = currentModes;
-        else
-            currentModes = modes{currentLevel};
-        end
+    if ~isempty(modes)
+        currentModes = modes{currentLevel};
     end
     
     %% Assuming the distributions have already been learned, create edges and assign edge labels accordingly.
@@ -105,6 +106,7 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
                %% Verify that the adjacent nodes found by 'contour' info are actually in the neighborhood of seed node.
                distances = sqrt(sum((centerArr - imageCoords).^2, 2));
                adjacentNodes = distances <= neighborhood & adjacentNodes;
+               adjacentNodes = find(adjacentNodes);
            else
                % 'distance' type score calculation
                distances = sqrt(sum((centerArr - imageCoords).^2, 2));
@@ -112,6 +114,11 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
                
                % Looking for closest nodes to connect!
                scores = distances(adjacentNodes);  
+           end
+           
+           %% If no adjacent nodes exist, exit.
+           if isempty(adjacentNodes) 
+               continue;
            end
            
            %% Get valid adjacent nodes with larger node ids.
@@ -206,32 +213,4 @@ function [modes, edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph
     if currentLevel==1 && strcmp(options.edgeType, 'contour')
         leafNodeAdjArr = cellfun(@(x) unique(x), leafNodeAdjArr, 'UniformOutput', false);
     end
-end
-
-%> Name: getSmallestNElements
-%>
-%> Description: Given a vector, this function returns smallest n elements
-%> of it.
-%>
-%> @param vect Data vector.
-%> @param n Number of elements to be returned.
-%> 
-%> @retval idx Linear indices of elements returned.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 04.12.2013
-function [idx] = getSmallestNElements(vect, n)
-    [~, sortedIdx] = sort(vect);
-    idx = sortedIdx(1:n);
-    restVect = vect(sortedIdx((n+1):end));
-    % Add nodes which qualify, since same-valued nodes are already in idx.
-    % Number of such nodes cannot exceed n.
-    restOfNodes = (find(restVect == vect(idx(end)))+n);
-    if numel(restOfNodes)>n
-       restOfNodes = restOfNodes(1:n); 
-    end
-    idx = [idx; restOfNodes];
-    idx = unique(idx, 'stable');
 end
