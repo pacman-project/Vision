@@ -39,7 +39,7 @@ function [newLevel] = collectInstances(vocabLevel, graphFileName, options)
         
         if options.debug
            [~, psFileName, ~] = fileparts(preDefinedFile);
-           display(['Collecting instances of ' psFileName '.']); 
+   %        display(['Collecting instances of ' psFileName '.']); 
         end
         %% Discover new level's subs.
         discoverSubs(graphFileName, resultFileName, options, options.currentFolder, preDefinedFile);

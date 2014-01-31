@@ -42,7 +42,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( all
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
     %% Step 1.1: Allocate space for current vocabulary and graph levels.
     numberOfFilters = getNumberOfFilters(options);
-    vocabLevel(numberOfFilters) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', []);
+    vocabLevel(numberOfFilters) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', [], 'mdlScore', []);
     graphLevel(size(allNodes,1)) = struct('labelId', [], 'imageId', [], 'position', [], 'children', [], 'parents', [], 'adjInfo', [], 'leafNodes', []);
     
     %% Step 1.2: Fill the first layer information with existing data.
@@ -78,6 +78,10 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( all
         % other knowledge discovery mechanisms. 
         discoverSubs(graphFileName, resultFileName, options, options.currentFolder, []);
         [vocabLevel, graphLevel] = parseResultFile(resultFileName, options);
+        
+        % Reorder substructres so that the ones having higher mdl score are
+        % actuall on top.
+        [vocabLevel, graphLevel] = reorderSubs(vocabLevel, graphLevel);
        
         % If no new subs have been found, finish processing.
         if isempty(vocabLevel)

@@ -1,9 +1,11 @@
 %> Name: SetParameters
 %>
 %> Description: The parameter setting function of CHOP. All program
-%> parameters are to be set here for a tidy codebase.
+%> parameters are to be set here for a tidy codebase. In addition, some
+%> initializations and folder generations also run here.
 %>
 %> @param datasetName Name of the dataset to work on. 
+%>
 %> @retval options Program options.
 %> 
 %> Author: Rusen
@@ -68,19 +70,19 @@ function [ options ] = SetParameters( datasetName )
                                         % grid-like image specified with
                                         % these parameters.
     options.autoFilterVisY = 8;
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.4;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.33;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'mode'; % Geometric property to be examined
+    options.property = 'hist'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
-    options.scaling = 0.6;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -104,13 +106,17 @@ function [ options ] = SetParameters( datasetName )
                                          % that specific level
                                          % 'leaf': Detected leaf nodes will
                                          % be marked on the image.
-    options.maxNodeDegreeLevel1 = 7;
-    options.maxNodeDegree = 7;         % (N) closest N nodes are considered at
-                                       % level 1-l.
+    options.useReceptiveField = 1;       % If 0, regular graph generation 
+                                         % takes place. If 1, receptive
+                                         % fields are enforced during
+                                         % learning.
+    options.maxNodeDegreeLevel1 = 10;
+    options.maxNodeDegree = 6;         % (N) closest N nodes are considered at
+                                       % level 1-l, to link nodes via edges.
     options.maxImageDim = options.gaborFilterSize*30;
     options.maximumModes = 10;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*3; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*2; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 10;    % The maximum level count               
@@ -121,6 +127,7 @@ function [ options ] = SetParameters( datasetName )
     options.maxNumberOfEdges = 1000000;
     options.subdue.instanceIndicator = sprintf('\n  Instance ');
     options.subdue.labelIndicator = sprintf('Label: ');
+    options.subdue.scoreIndicator = sprintf('Score: ');
     options.subdue.nodeIndicator = sprintf('\nv ');
     options.subdue.edgeIndicator = sprintf('\nu ');
     options.subdue.directedEdgeIndicator = sprintf('\nd ');
@@ -132,14 +139,14 @@ function [ options ] = SetParameters( datasetName )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.2; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.0; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
     options.subdue.nsubs = 4000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 50;   % Beam length in SUBDUE
+    options.subdue.beam = 500;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
@@ -157,5 +164,33 @@ function [ options ] = SetParameters( datasetName )
     options.preDefinedFolder = [currentPath '/output/' datasetName '/preDefined'];
     options.testGraphFolder = [currentPath '/graphs/' datasetName '/test'];
     options.trainGraphFolder = [currentPath '/graphs/' datasetName '/train'];
+    
+    
+    %% Add relevant folders to path.
+    addpath([options.currentFolder '/utilities']);
+    addpath([options.currentFolder '/graphTools']);
+    addpath([options.currentFolder '/vocabLearning']);
+    addpath([options.currentFolder '/inference']);
+    
+    %% Create the filters used to find low-level features.
+    filters = createFilters(options);
+    options.filters = filters;
+    
+    %% Create folder structures required later.
+    if ~exist(options.processedFolder,'dir')
+       mkdir(options.processedFolder); 
+    end
+    if ~exist(options.preDefinedFolder,'dir')
+       mkdir(options.preDefinedFolder); 
+    end
+    if ~exist(options.testGraphFolder, 'dir')
+       mkdir(options.testGraphFolder);
+    end
+    if ~exist(options.trainGraphFolder, 'dir')
+       mkdir(options.trainGraphFolder);
+    end
+    if ~exist(options.testOutputFolder, 'dir')
+       mkdir(options.testOutputFolder); 
+    end
 end
 

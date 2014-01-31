@@ -38,7 +38,7 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
     end
     
     % Allocate space for current vocabulary level.
-    vocabLevel(numberOfNewLabels) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', []);
+    vocabLevel(numberOfNewLabels) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', [], 'mdlScore', []);
     % Allocate space for current graph level.
     graphLevel(numberOfNewNodes) = struct('labelId', [], 'imageId', [], 'position', [], 'children', [], 'parents', [], 'adjInfo', [], 'childrenAdjInfo', []);
     
@@ -72,11 +72,16 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
         [subDefnEndIdx] = find(possibleSubDefnEndIdx>subDefnStartIdx, 1, 'first');
         subDefnEndIdx = possibleSubDefnEndIdx(subDefnEndIdx);
         
-        % Find lines referring to nodes and edges in the definition.
+        % Read sub label and score here.        
         defnString = resultFileString(1, subDefnStartIdx:subDefnEndIdx);
         newLineIdx = strfind(defnString, sprintf('\n'));
         subLabel = sscanf(defnString(1:newLineIdx(1)), '%s%*s');
+        mdlScore = sscanf(defnString((newLineIdx(1)+numel(options.subdue.scoreIndicator)): ...
+                                                newLineIdx(2)), '%lf%*s');
         vocabLevel(labelItr).label = subLabel;
+        vocabLevel(labelItr).mdlScore = mdlScore;
+        
+        % Find lines referring to nodes and edges in the definition.
         defnNodeIdx = strfind(defnString, options.subdue.nodeIndicator);
         defnEdgeIdx = strfind(defnString, options.subdue.edgeIndicator);
         defnDirEdgeIdx = strfind(defnString, options.subdue.directedEdgeIndicator);

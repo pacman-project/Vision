@@ -32,7 +32,7 @@ function [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr)
     for nodeItr = 1:numberOfNodes
         nodeCoords(nodeItr,:) = graphLevel(nodeItr).position;
     end
-    
+
     %% For faster calculation, we reverse array of leaf nodes.
     maxLeafNode = max([graphLevel.leafNodes]);
     leafParentArr = cell(maxLeafNode,1);
