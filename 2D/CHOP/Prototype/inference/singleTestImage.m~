@@ -162,6 +162,6 @@ function [] = singleTestImage(testFileName, options, currentPath)
     end
     filledIdx = find(~(cellfun('isempty', mainGraph)), 1, 'last');
     mainGraph = mainGraph(1:filledIdx);
-    save([options.testInferenceFolder '/' fileName '_test.mat'], 'mainGraph');
+    save([currentPath '/output/' options.datasetName '/' options.datasetName '_test.mat'], 'mainGraph');
 end
 

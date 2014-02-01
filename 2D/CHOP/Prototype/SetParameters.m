@@ -74,7 +74,7 @@ function [ options ] = SetParameters( datasetName )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -111,12 +111,12 @@ function [ options ] = SetParameters( datasetName )
                                          % fields are enforced during
                                          % learning.
     options.maxNodeDegreeLevel1 = 10;
-    options.maxNodeDegree = 6;         % (N) closest N nodes are considered at
+    options.maxNodeDegree = 8;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
     options.maxImageDim = options.gaborFilterSize*30;
     options.maximumModes = 10;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*2; % The edge radius for two subs to be 
+    options.edgeRadius = options.gaborFilterSize*2.5; % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     options.maxLevels = 10;    % The maximum level count               
@@ -146,7 +146,7 @@ function [ options ] = SetParameters( datasetName )
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
     options.subdue.nsubs = 4000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 500;   % Beam length in SUBDUE
+    options.subdue.beam = 1000;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
@@ -161,6 +161,7 @@ function [ options ] = SetParameters( datasetName )
     options.processedFolder = [currentPath '/output/' datasetName '/original'];
     options.outputFolder = [currentPath '/output/' datasetName];
     options.testOutputFolder = [options.outputFolder '/test'];
+    options.testInferenceFolder = [options.outputFolder '/test/inference'];
     options.preDefinedFolder = [currentPath '/output/' datasetName '/preDefined'];
     options.testGraphFolder = [currentPath '/graphs/' datasetName '/test'];
     options.trainGraphFolder = [currentPath '/graphs/' datasetName '/train'];
@@ -191,6 +192,9 @@ function [ options ] = SetParameters( datasetName )
     end
     if ~exist(options.testOutputFolder, 'dir')
        mkdir(options.testOutputFolder); 
+    end
+    if ~exist(options.testInferenceFolder, 'dir')
+       mkdir(options.testInferenceFolder); 
     end
 end
 

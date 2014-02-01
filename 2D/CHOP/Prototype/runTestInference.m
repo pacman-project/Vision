@@ -6,18 +6,20 @@
 %> comes to an end in the last level in the vocabulary.
 %>
 %> @param datasetName Name of the dataset to work on. 
+%> @param ext file extension.
+%> 
 %> @retval options Program options.
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 10.01.2014
-function [ ] = runTestInference( datasetName )
+function [ ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName);
     if options.testImages
         %% Step 1.0: Read vocabulary if it exists.
-        testFileNames = fuf([options.processedFolder '/*.png'], 1, 'detail');
+        testFileNames = fuf([pwd '/input/' datasetName '/vocab/*' ext], 1, 'detail');
         if exist([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'file')
             load([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat']);
         else
