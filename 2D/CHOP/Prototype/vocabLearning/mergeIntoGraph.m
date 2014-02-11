@@ -8,6 +8,7 @@
 %>
 %> @param graph Hierarchical graph structure.
 %> @param level New level.
+%> @param allLeafNodes Array containing leaf nodes.
 %> @param levelItr Level iterator.
 %> @param position Position calculations are processed if 1.
 %>
@@ -17,17 +18,16 @@
 %>
 %> Updates
 %> Ver 1.0 on 02.12.2013
-function [graph] = mergeIntoGraph(graph, level, levelItr, position)
+function [graph] = mergeIntoGraph(graph, level, allLeafNodes, levelItr, position)
     %% Go over children list of each instance in current level
     previousLevel = graph{levelItr-1};
-    firstLevel = graph{1};
     if position
         for newInstItr = 1:numel(level)
             leafNodes = level(newInstItr).leafNodes;
             % If necessary, process the position calculation/imageId copying work too.
             newPosition = [0,0];
             for childItr = 1:numel(leafNodes)
-               newPosition = newPosition + firstLevel(leafNodes(childItr)).position;
+               newPosition = newPosition + allLeafNodes{leafNodes(childItr),2};
             end
             newPosition = round(newPosition / numel(leafNodes));
             level(newInstItr).position = newPosition;

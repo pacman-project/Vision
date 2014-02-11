@@ -38,9 +38,9 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
     end
     
     % Allocate space for current vocabulary level.
-    vocabLevel(numberOfNewLabels) = struct('label', [], 'children', [], 'parents', [], 'adjInfo', [], 'mdlScore', []);
+    vocabLevel(numberOfNewLabels) = options.vocabNode;
     % Allocate space for current graph level.
-    graphLevel(numberOfNewNodes) = struct('labelId', [], 'imageId', [], 'position', [], 'children', [], 'parents', [], 'adjInfo', [], 'childrenAdjInfo', []);
+    graphLevel(numberOfNewNodes) = options.graphNode;
     
     % Try to read all labels within the frames specified with
     % options.subdue.maxLabelLength.

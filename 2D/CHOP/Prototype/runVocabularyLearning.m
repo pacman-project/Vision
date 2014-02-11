@@ -22,16 +22,11 @@ function [] = runVocabularyLearning( datasetName, imageExtension )
     datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
     
     if options.learnVocabulary
-        %% Step 0.1: Specify name of the graph files.
-        graphFileName = [options.currentFolder '/graphs/' datasetName '/train/' datasetName '.g'];
-        resultFileName = [options.outputFolder '/' datasetName '.txt'];
-        fp = fopen(graphFileName, 'w');
-
         %% Step 0.2: Create initial data structures.
         fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
         trainingFileNames = fileNames;
         nodeCounter = 0;
-        allNodes = cell(options.maxNumberOfFeatures,3);
+        allNodes = cell(options.maxNumberOfFeatures,6);
     
         %% ========== Step 1: Pre-process the data (extract first level nodes, surpress weak responses) ==========
         %% Step 1.0: Downsample the image if it is too big.
@@ -55,40 +50,34 @@ function [] = runVocabularyLearning( datasetName, imageExtension )
             imageIds = ones(size(nodes,1), 1)*fileItr;
             allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 3) = ...
                                             mat2cell(imageIds, ones(size(imageIds)));
+            allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 4) = ...
+                                            mat2cell(zeros(size(imageIds)), ones(size(imageIds)));
+            allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 5) = ...
+                                            mat2cell(ones(size(imageIds)), ones(size(imageIds)));
             % Increment node counter.
             nodeCounter = nodeCounter + size(nodes,1);
         end
         % Trim allNodes array to get rid of empty rows.
         allNodes = allNodes(1:nodeCounter,:);
+        
+        %% Step 1.2: If receptive field is used, nodes will be repeated.
+        % (so that each node set corresponds to a different receptive
+        % field)
+        leafNodes = allNodes;
+        [allNodes, ~] = getReceptiveFieldNodes(allNodes, 1, options);
+        
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        % Upper level graphs are created in the main loop, as explained in
-        % paper.
+        [vocabLevel, graphLevel] = generateLevels(allNodes, leafNodes, options);
+        
         %% Step 2.1: Get first-level object graph edges.
-        [modes, highLevelModes, edges, leafNodeAdjArr] = extractEdges(allNodes, [], [], options, 1, datasetName, [], []);
-
-        %% Step 2.2: Print the object graphs to a file.
-        imageIds = cell2mat(allNodes(:,3));
-        numberOfImages = max(imageIds);
-        nodeOffset = 0;
-        for imageItr = 1:numberOfImages
-            % Get only nodes and edges belonging to this image.
-            imageNodeIdx = find(imageIds==imageItr);
-            firstNodesOfEdges = edges(:,1);
-            imageEdgeIdx = ismember(firstNodesOfEdges, imageNodeIdx);
-            imageNodes = allNodes(imageIds==imageItr,:);
-            imageEdges = edges(imageEdgeIdx, :);
-            imageEdges(:,1:2) = imageEdges(:,1:2) - nodeOffset;
-            
-            % Print graph belonging to this image.
-            fprintf(fp, 'XP\n');
-            printGraphToFile(fp, imageNodes(:,1), imageEdges, true);
-            nodeOffset = nodeOffset + size(imageNodes,1);
-        end
-        fclose(fp);
-    %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of paper). ==========
-        [vocabulary, mainGraph, modes, highLevelModes] = learnVocabulary(allNodes, edges, modes, highLevelModes, leafNodeAdjArr, graphFileName, ...
-                                        resultFileName, options, trainingFileNames, datasetName);
-        save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodeAdjArr');
+        mainGraph = {graphLevel};
+        [modes, highLevelModes, mainGraph, leafNodeAdjArr] = extractEdges(mainGraph, [], options, 1, datasetName, [], []);
+        graphLevel = mainGraph{1};
+        
+        %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of paper). ==========
+        [vocabulary, mainGraph, modes, highLevelModes] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, leafNodeAdjArr, ...
+                                        options, trainingFileNames, datasetName);
+        save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodeAdjArr', 'leafNodes', 'fileNames');
     end
 end
 

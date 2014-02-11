@@ -17,23 +17,20 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type )
+function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, ~, type )
     outputDir = [options.outputFolder '/reconstruction/' type];
     originalDir = [options.outputFolder '/original/'];
     if ~exist(outputDir, 'dir')
        mkdir(outputDir); 
     end
     processedDir = options.processedFolder;
-    graphLevel = mainGraph{levelItr};
     
     %% Depending on the reconstruction type, we read masks to put on correct positions in images.
     if strcmp(options.reconstructionType, 'true')
         % Read masks of compositions in current level.
-        correctLevel = mainGraph{levelItr};
         usedLevel = levelItr;
     else
         % Read level 1 into separate masks.
-        correctLevel = mainGraph{1};
         usedLevel = 1;
     end
     
@@ -67,10 +64,11 @@ function [ ] = visualizeImages( fileList, mainGraph, levelItr, options, ~, type 
             else
                 reconstructedNodes = nodes(nodeItr).leafNodes;
             end
-            for reconNodeItr = 1:numel(reconstructedNodes)
+            reconstructedNodes = leafNodes(reconstructedNodes, :);
+            for reconNodeItr = 1:size(reconstructedNodes,1)
                 % Read the mask here, and crop it if necessary.
-                nodeMask = vocabMasks{correctLevel(reconstructedNodes(reconNodeItr)).labelId};
-                position = correctLevel(reconstructedNodes(reconNodeItr)).position;
+                nodeMask = vocabMasks{reconstructedNodes{reconNodeItr,1}};
+                position = reconstructedNodes{reconNodeItr,2};
                 
                 % If the part has already been added, move on.
                 if reconstructedMask(position(1), position(2))>0

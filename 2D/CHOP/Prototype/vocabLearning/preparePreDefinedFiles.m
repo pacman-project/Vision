@@ -26,7 +26,7 @@ function [] = preparePreDefinedFiles( preDefinedFolder, vocabulary )
             fd = fopen([preDefinedFolder, '/ps' num2str(levelItr) '/ps' num2str(compItr) '.g'], 'w');
             fprintf(fd, 'PS\n');
             composition = vocabLevel(compItr);
-            printGraphToFile(fd, mat2cell(composition.children', ones(numel(composition.children), 1)), composition.adjInfo, 1);
+            printGraphToFile(fd, composition.children', composition.adjInfo, 1);
             fclose(fd);
         end
     end

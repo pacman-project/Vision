@@ -1,64 +1,88 @@
 %> Name: discoverSubs
 %>
-%> Description: This function runs SUBDUE with the input image and
-%> parameters defined in options. The result file is saved under ./
+%> Description: This function discovers parts and their realizations with
+%> graphs defined by vocabLevel and graphLevel, as well as their printed
+%> versions in graphFileName. 
 %>
-%> @param graphFileName The input graph's path.
-%> @param resultFileName The result file's path.
+%> @param vocabLevel If preDefinedSearch is 1, the compositions in this
+%> vocabulary level are searched in graphLevel. If 0, simply ignored.
+%> @param graphLevel The current object graphs' level.
 %> @param options Program options.
 %> @param currentFolder Path to the workspace folder.
-%> @param 
+%> @param preDefinedSearch If true, supervised search is run. 
+%> If empty, unsupervised SUBDUE runs over graphLevel.
+%> @param levelItr current level id.
 %>
-%> @retval []
+%> @retval vocabLevel If preDefinedSearch is 1, [] is returned. If it is 0,
+%> best compositions discovered are returned.
+%> @retval graphLevel The graph consisting of part realizations discovered.
+%> It's just a dummy graph including realization labels and children.
 %> 
 %> Author: Rusen
 %>
 %> Updates
-%> Ver 1.0 on 28.11.2013
-function [ ] = discoverSubs( graphFileName, resultFileName, options, currentFolder, preDefinedFileName)
-
-    % Set SUBDUE options
-    subdueOptions = ' ';
-    if options.subdue.diverse
-       subdueOptions = [subdueOptions '-diverse '];
+%> Ver 1.0 on 15.01.2014
+%> 'self' type search added on 05.02.2014
+function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, options, currentFolder, preDefinedSearch, levelItr)
+    startTime = tic;
+    if ~preDefinedSearch
+        display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
     end
-    if options.subdue.valuebased
-       subdueOptions = [subdueOptions '-valuebased '];
-    end
-    if options.subdue.overlap
-       subdueOptions = [subdueOptions '-overlap '];
-    end
-    if options.subdue.threshold > 0.0001
-       subdueOptions = [subdueOptions '-threshold ' num2str(options.subdue.threshold) ' '];
-    end
-    if ~isempty(preDefinedFileName)
-       subdueOptions = [subdueOptions '-ps ' preDefinedFileName ' -discovery 1 '];
-    end
-
-    subdueOptions = [subdueOptions '-nsubs ' num2str(options.subdue.nsubs) ...
-                        ' -minsize ' num2str(options.subdue.minSize) ...
-                        ' -maxsize ' num2str(options.subdue.maxSize) ...
-                        ' -beam ' num2str(options.subdue.beam) ...
-                        ' -fileoutput 3 ' ...
-                        ' -out ' resultFileName ' ' graphFileName];
-
-    % Form the command and run subdue with specified options
-    if ismac
-        command = [currentFolder '/miners/subdueMac' subdueOptions];
-    elseif isunix
-        command = [currentFolder '/miners/subdueUnix' subdueOptions];
-    elseif ispc
-        command = [currentFolder '/miners/subdueWin' subdueOptions];
+    if strcmp(options.subdue.implementation, 'exe')
+        %% Specify name of the graph files.
+        graphFileName = [options.currentFolder '/graphs/' options.datasetName '/train/' options.datasetName '_' num2str(levelItr) '.g'];
+        resultFileName = [options.outputFolder '/' options.datasetName '.txt'];
         
-        % If Windows, replace all / in command with \.
-        command = strrep(command, '/', options.subdue.winSep);
+        %% Print the object graphs to a file.
+        if strcmp(options.subdue.implementation, 'exe')
+            printGraphLevel(graphFileName, graphLevel);
+        end
+        
+        if preDefinedSearch
+
+            numberOfPSFiles = numel(vocabLevel);
+            newLevel = cell(numberOfPSFiles,1);
+
+            % Create temporary folder to put pre-defined subs in.
+            tempFolder = tempname;
+            mkdir(tempFolder);
+
+            % Put vocabLevel into a cell arr to make it compatible with pre-defined
+            % file generator.
+            tempVocabulary = cell(2,1);
+            tempVocabulary(2) = {vocabLevel};
+            preparePreDefinedFiles( tempFolder, tempVocabulary );
+
+            %% Find realizations of each composition.
+            for psItr = 1:numberOfPSFiles
+                preDefinedFile = [tempFolder '/ps1/ps' num2str(psItr) '.g']; 
+
+                %% Discover new level's subs.
+                [~, psLevel] = runSubdueExec(graphFileName, resultFileName, options, currentFolder, preDefinedFile);
+                % Assign instances correct labels.
+                for instanceItr = 1:numel(psLevel)
+                   psLevel(instanceItr).labelId = psItr;
+                end
+
+                % Combine new level with the instances of this sub.
+                if numel(psLevel)>0
+                    newLevel{psItr} =  psLevel;
+                end
+            end
+            graphLevel = cat(2, newLevel{:});
+            rmdir(tempFolder, 's');
+        else
+            [vocabLevel, graphLevel] = runSubdueExec(graphFileName, resultFileName, options, currentFolder, []);
+        end
+    elseif strcmp(options.subdue.implementation, 'self')
+        if preDefinedSearch
+            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, options, true);
+        else
+            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, options, false);
+        end
     end
-    
-    if isempty(preDefinedFileName)
-        command
-        system(command);
-    else
-        [~, ~] = system(command);
-    end
+    display(['.... Time elapsed: ' num2str(toc(startTime)) ' secs.']);
+    display(['.... ' options.subdue.implementation ' type discovery is used. Found ' ...
+        num2str(numel(graphLevel)) ' instances of ' num2str(numel(vocabLevel)) ' compositions.']);
 end
 

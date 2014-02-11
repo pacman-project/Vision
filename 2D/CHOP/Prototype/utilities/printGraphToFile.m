@@ -17,11 +17,11 @@ function [ ] = printGraphToFile( fp, nodes, edges, isNumericNode )
     % Print nodes
     if isNumericNode
         for nodeItr = 1:size(nodes,1)
-            fprintf(fp, ['v ' num2str(nodeItr) ' ' num2str(nodes{nodeItr}) '\n']);
+            fprintf(fp, ['v ' num2str(nodeItr) ' ' num2str(nodes(nodeItr)) '\n']);
         end
     else
         for nodeItr = 1:size(nodes,1)
-            fprintf(fp, ['v ' num2str(nodeItr) ' ' nodes{nodeItr} '\n']);
+            fprintf(fp, ['v ' num2str(nodeItr) ' ' nodes(nodeItr) '\n']);
         end
     end
     

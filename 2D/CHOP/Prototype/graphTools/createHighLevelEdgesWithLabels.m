@@ -24,17 +24,14 @@
 %> Updates
 %> Ver 1.0 on 28.01.2013, dummy function generation with proper
 %>      input/output specs.
-function [edges] = createHighLevelEdgesWithLabels(nodes, mainGraph, options, currentLevel, highLevelModes)
+function [mainGraph] = createHighLevelEdgesWithLabels(mainGraph, options, currentLevel, highLevelModes)
     %% TODO : Implement high level edges here.
     if strcmp(options.highLevelProperty, 'multiview')
         % TODO: Implement 'multiview' type relations.
-        edges = [];
     elseif strcmp(options.highLevelProperty, 'category')
         % TODO: Implement 'category' type relations.
-        edges = [];
     else
         % 'none' option or invalid mode. No analysis on high level
         % relations.
-        edges = [];
     end
 end

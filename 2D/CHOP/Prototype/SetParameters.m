@@ -15,6 +15,7 @@
 function [ options ] = SetParameters( datasetName )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
+    %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
@@ -27,6 +28,7 @@ function [ options ] = SetParameters( datasetName )
     options.numberOfVocabImagesPerCategory = 2; % Number of vocabulary images 
                                  % to be used in vocabulary learning.
                                  % used in unsupervised vocabulary learning.   
+        %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'lhop': Steerable Gabor filters in LHOP 
@@ -70,11 +72,40 @@ function [ options ] = SetParameters( datasetName )
                                         % grid-like image specified with
                                         % these parameters.
     options.autoFilterVisY = 8;
-    options.noveltyThr = 0.4;           % The novelty threshold used in the 
+    
+    %% ========== INTERNAL DATA STRUCTURES ==========
+    % Internal data structure for a vocabulary level.
+    options.vocabNode = struct( 'label', [], ...    
+                                'children', [], ...
+                                'parents', [], ...
+                                'adjInfo', []);
+    % Internal data structure for an graph representing a set of object 
+    % graphs in a given level.                        
+    options.graphNode = struct( 'labelId', [], ...
+                                'imageId', [], ...
+                                'position', [], ...
+                                'rfId', [], ...
+                                'realNodeId', [], ...
+                                'isCenter', [], ...
+                                'children', [], ...
+                                'parents', [], ...
+                                'adjInfo', [], ...
+                                'leafNodes', [], ...
+                                'sign', 1);     % 1: positive, 0: negative node.
+    options.selfSubdue.sub = struct( 'centerId', [], ...
+                                     'edges', [], ...
+                                     'mdlScore', [], ...
+                                     'instances', []);
+    options.selfSubdue.instance = struct( 'centerIdx', [], ...
+                                          'edges', [], ...
+                                          'sign', []);                    
+    %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
+    options.noveltyThr = 0.0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
-                                        % percent of a neighbor node's leaf 
-                                        % nodes should be new.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+                                        % percent of a neighboring node's leaf 
+                                        % nodes should be new so that it is 
+                                        % not inhibited by center.
+    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -110,21 +141,60 @@ function [ options ] = SetParameters( datasetName )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
+    options.receptiveFieldSize = options.gaborFilterSize*3;
+                                         % Size (one side) of the receptive field at
+                                         % each level. Please note that in
+                                         % each level of the hierarchy, the
+                                         % coordinates are scaled, so our
+                                         % receptive field indeed grows.
     options.maxNodeDegreeLevel1 = 10;
     options.maxNodeDegree = 8;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
     options.maxImageDim = options.gaborFilterSize*30;
     options.maximumModes = 10;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = options.gaborFilterSize*2.5; % The edge radius for two subs to be 
+    options.edgeRadius = floor(options.receptiveFieldSize/1.5); % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
+    
     options.maxLevels = 10;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
                                   % The following are not really parameters, 
                                   % put here to avoid hard-coding.
     options.maxNumberOfEdges = 1000000;
+    options.maxSamplesPerNode = 1000; % max number of samples per part pair to 
+                                      % estimate geometric modes. When
+                                      % enough samples are collected, no
+                                      % more points are processed for that
+                                      % pair.
+    %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
+    options.subdue.implementation = 'self'; % Two types of subdue are used.
+                                            % 'self': Matlab-based
+                                            % implementation.
+                                            % 'exe': Ready-to-use
+                                            % executable provided by Rusen.
+                                            
+                                           % The following metric is valid
+                                           % only in 'self' implementation.
+    options.subdue.evalMetric = 'mdl';     % 'mdl' or 'size'. 'mdl' takes 
+                                           % the relations between
+                                           % receptive fields into account,
+                                           % while 'size' based metric
+                                           % treats each receptive field as
+                                           % separate graphs, and evaluates
+                                           % subs based on (size x
+                                           % frequency).
+                                           
+    options.subdue.maxTime = 100;            % Max. number of seconds 'self' 
+                                            % type implemented subdue is
+                                            % run over data. Typically
+                                            % around 100 (secs).
+    options.subdue.maxInferenceTime = 0.5;  % Max. number of seconds 'self' 
+                                            % type subdue is run over data,
+                                            % given a pre-defined
+                                            % vocabulary. Typically around
+                                            % 0.5 (secs).
     options.subdue.instanceIndicator = sprintf('\n  Instance ');
     options.subdue.labelIndicator = sprintf('Label: ');
     options.subdue.scoreIndicator = sprintf('Score: ');
@@ -144,14 +214,15 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 4000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 1000;   % Beam length in SUBDUE
+    options.subdue.beam = 50;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
                                  % with this.
     
+    %% ========== FOLDER STRUCTURE INITIALIZATION & GENERATION ==========
     % Learn dataset path relative to this m file
     currentFileName = mfilename('fullpath');
     [currentPath, ~, ~] = fileparts(currentFileName);
@@ -166,18 +237,7 @@ function [ options ] = SetParameters( datasetName )
     options.testGraphFolder = [currentPath '/graphs/' datasetName '/test'];
     options.trainGraphFolder = [currentPath '/graphs/' datasetName '/train'];
     
-    
-    %% Add relevant folders to path.
-    addpath([options.currentFolder '/utilities']);
-    addpath([options.currentFolder '/graphTools']);
-    addpath([options.currentFolder '/vocabLearning']);
-    addpath([options.currentFolder '/inference']);
-    
-    %% Create the filters used to find low-level features.
-    filters = createFilters(options);
-    options.filters = filters;
-    
-    %% Create folder structures required later.
+    % Create folder structures required later.
     if ~exist(options.processedFolder,'dir')
        mkdir(options.processedFolder); 
     end
@@ -195,6 +255,27 @@ function [ options ] = SetParameters( datasetName )
     end
     if ~exist(options.testInferenceFolder, 'dir')
        mkdir(options.testInferenceFolder); 
+    end
+    
+    %% ========== PATH FOLDER ADDITION ==========
+    addpath(genpath([options.currentFolder '/utilities']));
+    addpath(genpath([options.currentFolder '/graphTools']));
+    addpath(genpath([options.currentFolder '/vocabLearning']));
+    addpath(genpath([options.currentFolder '/inference']));
+    
+    %% ========== LOW - LEVEL FILTER GENERATION ==========
+    filters = createFilters(options);
+    options.filters = filters;
+    options.numberOfFilters = numel(filters);
+    
+    %% Parameter overrides.
+    % If receptive fields are not used, ready-to-use subdue should be used.
+    % It is only designed for graphs created using receptive fields. They
+    % contain no loops, and the graph fragments corresponding to receptive
+    % fields' graphs are star-shaped, meaning all other nodes within the
+    % field are connected to the center node.
+    if ~options.useReceptiveField
+        options.subdue.implementation = 'exe';
     end
 end
 

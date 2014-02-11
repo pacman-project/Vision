@@ -11,7 +11,7 @@
 %> of each node.
 %> @param mainGraph The object graphs' data structure.
 %> @param options Program options.
-%> @param currentLevel The currnet scene graph level.
+%> @param currentLevelId The current scene graph level id.
 %> @param datasetName Name of the dataset.
 %> @param modes Modes up to level (currentLevel-1). If currentLevel == 0, 
 %>      modes should be empty.
@@ -31,9 +31,9 @@
 %> Updates
 %> Ver 1.0 on 06.12.2013
 %> Addition of inter-image edges on 28.01.2014
-function [modes, highLevelModes, edges, leafNodeAdjArr] = extractEdges(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName, modes, highLevelModes)
+function [modes, highLevelModes, mainGraph, leafNodeAdjArr] = extractEdges(mainGraph, leafNodeAdjArr, options, currentLevelId, datasetName, modes, highLevelModes)
     %% Step 1: Learn low-level (within object) and high-level (between objects) modes.
-    [currentModes, currentHighLevelModes] = learnStats(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName);
+    [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevelId, datasetName);
     if ~isempty(currentModes)
         modes = [modes, {currentModes}];
     end
@@ -42,17 +42,12 @@ function [modes, highLevelModes, edges, leafNodeAdjArr] = extractEdges(nodes, ma
     end
 
     %% Create within-object-graph edges.
-    [edges, leafNodeAdjArr] = createEdgesWithLabels(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, modes);
-    edges = unique(edges, 'rows', 'stable');
+    [mainGraph, leafNodeAdjArr] = createEdgesWithLabels(mainGraph, leafNodeAdjArr, options, currentLevelId, modes);
     
     %% Here, we create inter-object-graph edges. Nodes belonging to different object graphs are linked here.
     % CAUTION: Please note that no nodes within the SAME object graph should be
     % linked in this function. It ruins the inference process and causes it
     % to be unstable and inefficient.
-    [highLevelEdges] = createHighLevelEdgesWithLabels(nodes, mainGraph, options, currentLevel, highLevelModes);
-    highLevelEdges = unique(highLevelEdges, 'rows', 'stable');
-    
-    %% Combine both types of edges and return them.
-    edges = [edges; highLevelEdges];
+    [mainGraph] = createHighLevelEdgesWithLabels(mainGraph, options, currentLevelId, highLevelModes);
 end
 

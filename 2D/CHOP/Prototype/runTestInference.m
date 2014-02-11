@@ -13,7 +13,7 @@
 %> Author: Rusen
 %>
 %> Updates
-%> Ver 1.0 on 10.01.2014
+%> Ver 1.0 on 01.02.2014
 function [ ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName);
@@ -34,4 +34,3 @@ function [ ] = runTestInference( datasetName, ext )
         end
     end
 end
-

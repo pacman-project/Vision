@@ -5,11 +5,7 @@
 %> 'modes' matrix. High-level relations are also learned, and they are
 %> returned in 'highLevelModes' array.
 %> 
-%> @param nodes Nodes from the current level.
 %> @param mainGraph The object graphs' data structure.
-%> @param leafNodeAdjArr Leaf node adjacency array, which is basically an
-%>      adjacency list of every leaf node that is connected because they are in
-%>      the neighborhood of each other.
 %> @param options Program options.
 %> @param currentLevel The current scene graph level number. Used to index
 %>      right object graphs from mainGraph.
@@ -21,11 +17,11 @@
 %>
 %> Updates
 %> Ver 1.0 on 28.01.2014
-function [currentModes, currentHighLevelModes] = learnStats(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName)
+function [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevel, datasetName)
     %% Step 1: Learn geometric relations between nodes belonging to a single object.
     if strcmp(options.property, 'mode')
         %% Learn modes from the data.
-        [currentModes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName); 
+        [currentModes] = learnModes(mainGraph, options, currentLevel, datasetName); 
     elseif strcmp(options.property, 'hist')
         %% In 'hist' type geometric property, we assign region centers in hMatrix as modes.
         % Please note that the output modes do not include any composition

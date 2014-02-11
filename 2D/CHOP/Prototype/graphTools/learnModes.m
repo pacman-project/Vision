@@ -2,127 +2,110 @@
 %>
 %> Description: Given the node list of all images, this function learns the
 %> modes by clustering pairwise relative positions in 2D space. 
-%> @param nodes The node list including label ids, positions and image ids
-%> of each node.
+%>
 %> @param mainGraph The object graphs' data structure.
-%> @param leafNodeAdjArr Leaf node adjacency array, which is basically an
-%> adjacency list of every leaf node that is connected because they are in
-%> the neighborhood of each other.
 %> @param options Program options.
 %> @param currentLevel The current scene graph level.
 %> @param datasetName Name of the dataset.
 %> 
 %> @retval modes The mode list representing edge categories.
-%> @retval edges Edges are of the form: [ node1, node2, mode, directed;
-%>                                        node1, node2, mode, directed;
+%>               modes are of the form: [ node11, node12, coord11, coord12;
+%>                                        node21, node22, coord21, coord22;
 %>                                      ...]
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 21.01.2014
-function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, currentLevel, datasetName)
+function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
+    display(['Learning modes for level ' num2str(currentLevelId) '...']);
     %% Step 0: Create initial data structures and initialize them.
     % Prevent empty cluster warnings in kmeans.
     w = warning('off', 'all');
     
     % Calculate edge radius.
-    scale = (1/options.scaling)^(currentLevel-1);
+    scale = (1/options.scaling)^(currentLevelId-1);
     neighborhood = fix(options.edgeRadius * scale);
     
     % Set initial data structures for processing 
-    modes = [];
-    nodeIds = cell2mat(nodes(:,1));
-    nodeCoords = cell2mat(nodes(:,2));
-    imageIds = cell2mat(nodes(:,3));
+    currentLevel = mainGraph{currentLevelId};
+    nodeIds = [currentLevel.labelId]';
+    nodeCoords = cat(1, currentLevel.position);
+    imageIds = [currentLevel.imageId]';
+    rfIds = [currentLevel.rfId]';
+    isCenter = [currentLevel.isCenter]';
     numberOfNodes = max(nodeIds);
-    if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
-        currentGraphLevel = mainGraph{currentLevel};
-    end
+    imageRfPairs = [imageIds, rfIds];
     
     %% Step 1: For each composition pair, get the 2-D distribution of samples.
     % Right now, we only work with 2-dimensional spatial relations.
     modeOffset = 0;
-
+    modeIdxOffset = 1;
+    modes = cell(numberOfNodes * numberOfNodes,1);
+    
     for node1 = 1:numberOfNodes
        for node2 = node1:numberOfNodes
            % Get first type of nodes.
            firstNodeIdx = find(nodeIds==node1);
-           firstNodeCoords = nodeCoords(firstNodeIdx, :);
-           firstNodeImageIds = imageIds(firstNodeIdx, :);
-
+           firstNodeImageRfPairs = imageRfPairs(firstNodeIdx, :);
+           
            % Get second type of nodes.
            secondNodeIdx = find(nodeIds==node2);
-           secondNodeCoords = nodeCoords(secondNodeIdx, :);
-           secondNodeImageIds = imageIds(secondNodeIdx, :);
-
-           % Allocate space for pair-wise distribution data
-           samples = [];
-           % Find all edges in between.
-           for imageId = 1:max(firstNodeImageIds)
-               firstNodeImageIdx = firstNodeIdx(firstNodeImageIds == imageId);
-               secondNodeImageIdx = secondNodeIdx(secondNodeImageIds == imageId);
-               firstNodeCoordsInImage = firstNodeCoords(firstNodeImageIds == imageId,:);
-               secondNodeCoordsInImage = secondNodeCoords(secondNodeImageIds == imageId,:);
-               numberOfFirstNodes = size(firstNodeCoordsInImage,1);
-
-               % Iterate over each seed node and find its adjacentNodes.
-               for nodeItr = 1:numberOfFirstNodes
-                   %% Step 1.1: Extract edge information. 
-                   % It is crucial that this step is actually on par with
-                   % createEdgesWithlabels function, since the exact code
-                   % here is repeated in that function to actually link
-                   % nodes.
-                   centerArr = [ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,1), ...
-                           ones(size(secondNodeCoordsInImage,1),1) * firstNodeCoordsInImage(nodeItr,2)];
-                   if strcmp(options.edgeType, 'contour') && ~isempty(mainGraph)
-                       % In contour type edges, we work on the first
-                       % level to reveal existing neighboring
-                       % information. High level compositions are
-                       % linked with their adjacency information among
-                       % their leaf nodes at the first level.
-                       adjacentNodes = zeros(numel(secondNodeImageIdx),1);
-                       selfLeafNodes = currentGraphLevel(firstNodeImageIdx(nodeItr)).leafNodes;
-                       selfLeafNeighbors = cell2mat(leafNodeAdjArr(selfLeafNodes));
-                       % Estimate edge novelty threshold so that we can
-                       % connect nodes that provide novel information.
-                       secondNodeCount = numel(secondNodeImageIdx);
-                       for secNodeItr = 1:secondNodeCount
-                          neighborLeaveCount = sum(ismember(currentGraphLevel(secondNodeImageIdx(secNodeItr)).leafNodes, selfLeafNeighbors));
-                          if neighborLeaveCount > 0
-                             adjacentNodes(secNodeItr) = 1;
-                          end
-                       end
-                       %% Verify that the adjacent nodes found by 'contour' info are actually in the neighborhood of seed node.
-                       distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
-                       adjacentNodes = distances <= neighborhood & adjacentNodes;
-                       adjacentNodes = find(adjacentNodes);
-                   else
-                        distances = sqrt(sum((centerArr - secondNodeCoordsInImage).^2, 2));
-                        [adjacentNodes] = find(distances <= neighborhood);
-                   end
-
-                   % Need to remove the node itself if checking neighbors with same
-                   % label id.
-                   if node1 == node2
-                        adjacentNodes = adjacentNodes(adjacentNodes ~= nodeItr,:);
-                   end
-                   relativeVector = secondNodeCoordsInImage - centerArr;
-                   relativeVector = relativeVector(adjacentNodes,:);
-                   
-                   % Get rid of half of the samples where node1 == node2.
-                   if node1 == node2
-                        validIdx = (relativeVector(:,1) >= 0 & sum(relativeVector,2) >= 0) | ...
-                            (relativeVector(:,1) < 0 & sum(relativeVector,2) > 0);
-                        relativeVector = relativeVector(validIdx,:);
-                   end
-                   samples = [samples; relativeVector];
-               end
+           secondNodeImageRfPairs = imageRfPairs(secondNodeIdx, :);
+           
+           % Get common image - rf pairs.
+           commonImageRfPairs = intersect(firstNodeImageRfPairs, ...
+               secondNodeImageRfPairs, 'rows');
+           
+           % If no common image-rf pairs exist, nothing to do here.
+           if isempty(commonImageRfPairs)
+              continue; 
            end
+           
+           firstNodeCoords = nodeCoords(firstNodeIdx, :);
+           firstNodeIsCenter = isCenter(firstNodeIdx,:);
+           secondNodeCoords = nodeCoords(secondNodeIdx, :);
+           
+           % Find all edges in between.
+           samples = cell(size(commonImageRfPairs,1),1);
+           for imageRfPairId = 1:size(commonImageRfPairs,1)
+               % Get center coords belonging to first node type in image.
+               imageRfPair = commonImageRfPairs(imageRfPairId,:);
+               firstNodeCenterCoords = firstNodeCoords(ismember(firstNodeImageRfPairs, imageRfPair, 'rows') & firstNodeIsCenter,:);
+               adjacentSecondNodeCoords = secondNodeCoords(ismember(secondNodeImageRfPairs, imageRfPair, 'rows'),:);
+               numberOfCenters = size(firstNodeCenterCoords,1);
+               numberOfAdjacentNodes = size(adjacentSecondNodeCoords,1);
+               
+               % Replicate second node coords as many times as number of
+               % centers.
+               firstNodeCenterCoords = kron(firstNodeCenterCoords,ones(numberOfAdjacentNodes,1));
+               adjacentSecondNodeCoords = repmat(adjacentSecondNodeCoords, numberOfCenters,1);
+               
+               % Get relative coordinates of both sets of nodes.
+               samples(imageRfPairId) = {adjacentSecondNodeCoords - firstNodeCenterCoords};
+           end
+           
+           % Combine all samples, and get rid of invalid ones.
+           samples = cat(1,samples{:});
+           distances = sqrt(sum(samples.^2,2));
+           if node1==node2
+              samples = samples(distances > 0 & distances <= neighborhood,:);
+              
+              % If receptive fields are not used, we only use ~half of the
+              % samples on the right side of a separating line, if node1 == node2.
+              sumSamples = sum(samples,2);
+              if ~options.useReceptiveField
+                  samples = samples((samples(:,1) >= 0 & sumSamples >= 0) | ...
+                      (samples(:,1) < 0 & sumSamples > 0), :);
+              end
+           else
+              samples = samples(distances <= neighborhood,:);
+           end
+           
            %% Assign a label to each sample.
            classes = assignModes(samples, options);
            
-           %% Calculate cluster centers.
+           %% Estimate cluster centers.
            numberOfClusters = max(classes);
            centers = zeros(numberOfClusters,4);
            centers(:,1) = ones(numberOfClusters,1) * node1;
@@ -130,8 +113,10 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
            for centerItr = 1:numberOfClusters
               centers(centerItr,3:4) = mean(samples(classes==centerItr,:),1);
            end
+           
            % Assign centers to modes.
-           modes = [modes; centers];
+           modes(modeIdxOffset) = {centers};
+           modeIdxOffset = modeIdxOffset + 1;
 
            % Change mode offset and move on.
            modeOffset = modeOffset + max(classes);
@@ -154,14 +139,20 @@ function [modes] = learnModes(nodes, mainGraph, leafNodeAdjArr, options, current
                bound = max(max(abs(samples)));
                midPoint = options.maxImageDim + 1;
                distributionImg = distributionImg((midPoint-bound):(midPoint+bound), (midPoint-bound):(midPoint+bound));
-               if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/'], 'dir')
-                   mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/']);
+               if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/'], 'dir')
+                   mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/']);
                end
                if ~isempty(distributionImg)
-                   imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), [options.currentFolder '/debug/' datasetName '/level' num2str(currentLevel) '/pairwise/' num2str(node1) '_' num2str(node2) '.png']);
+                   imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), [options.currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/' num2str(node1) '_' num2str(node2) '.png']);
                end
            end
        end
+    end
+    %% If modes have been found, concatenate and return them.
+    if modeIdxOffset > 1
+        modes = cat(1, modes{1:(modeIdxOffset-1),:});
+    else
+        modes = 0;
     end
     warning(w);
 end

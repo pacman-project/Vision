@@ -93,28 +93,8 @@ function [ nodes, smoothedImg ] = getNodes( img, options )
    nodes = cell(numel(finalNodeIdx), 2);
    for nodeItr = 1:numel(finalNodeIdx)
        [centerX, centerY] = ind2sub(size(responseImg), finalNodeIdx(nodeItr));
-       nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), [centerX, centerY]};
+       nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY])};
    end
-end
-
-
-%> Name: testResponse
-%>
-%> Description: Given a neighborhood, check if seed pixel has maximal
-%> value. If it does, its value is returned. If not, 0 returned.
-%>
-%> @param nhood Column-wise neighborhood information (for optimization)
-%>
-%> @retval values Column-wise tested response.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 03.12.2013
-function [values] = testResponse(nhood)
-    [maxVal, maxIdx] = max(nhood, [], 1);
-    areEqual = maxVal >= ((nhood(ceil(size(nhood,1)/2),:))-0.00001) & maxVal > 0;
-    values = (maxVal .* areEqual)';
 end
 
 %> Name: getSmoothedImage
