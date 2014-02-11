@@ -15,6 +15,7 @@
 %> Ver 1.0 on 18.11.2013
 %> Ver 1.1 on 05.12.2013 Various parameter additions, 'mode' changes
 %> Ver 1.2 on 12.01.2014 Comment changes for unified code look
+%> Ver 1.3 on 12.01.2014 Timing is added by Mete
 function [] = runVocabularyLearning( datasetName, imageExtension )
     %% ========== Step 0: Set program options and run initializations ==========
     %% Step 0.0: Get program options and parameters.
@@ -75,8 +76,16 @@ function [] = runVocabularyLearning( datasetName, imageExtension )
         graphLevel = mainGraph{1};
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of paper). ==========
+        tr_s_time=tic;    
+
         [vocabulary, mainGraph, modes, highLevelModes] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, leafNodeAdjArr, ...
                                         options, trainingFileNames, datasetName);
+                                    
+        tr_stop_time=toc(tr_s_time)
+ 
+
+        save([options.currentFolder '/output/' datasetName '/' datasetName '_trtime.mat'], 'tr_stop_time');
+
         save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodeAdjArr', 'leafNodes', 'fileNames');
     end
 end
