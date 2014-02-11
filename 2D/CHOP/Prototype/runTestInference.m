@@ -34,9 +34,8 @@ function [ ] = runTestInference( datasetName, ext )
          te_s_time=tic;   
     
             singleTestImage(testFileNames{testImgItr}, options, options.currentFolder);
-         test_stop_time(testImgItr)=toc(te_s_time)
+         test_stop_time(testImgItr)=toc(te_s_time);
         end
-        
         save([options.currentFolder '/output/' datasetName '/' datasetName '_tetime.mat'], 'test_stop_time');
     end
 end

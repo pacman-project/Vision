@@ -76,16 +76,11 @@ function [] = runVocabularyLearning( datasetName, imageExtension )
         graphLevel = mainGraph{1};
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of paper). ==========
-        tr_s_time=tic;    
-
+        tr_s_time=tic;  
         [vocabulary, mainGraph, modes, highLevelModes] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, leafNodeAdjArr, ...
                                         options, trainingFileNames, datasetName);
-                                    
-        tr_stop_time=toc(tr_s_time)
- 
-
+        tr_stop_time=toc(tr_s_time);
         save([options.currentFolder '/output/' datasetName '/' datasetName '_trtime.mat'], 'tr_stop_time');
-
         save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodeAdjArr', 'leafNodes', 'fileNames');
     end
 end
