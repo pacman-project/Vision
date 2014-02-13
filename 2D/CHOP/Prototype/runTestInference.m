@@ -25,8 +25,11 @@ function [ ] = runTestInference( datasetName, ext )
         else
             display('No vocabulary exists!');
         end
+        
         %% Step 1.1: Create files for pre-defined substructures ( compositions from voc. at each level)
-        preparePreDefinedFiles(options.preDefinedFolder, vocabulary);
+        if strcmp(options.subdue.implementation, 'exe');
+            preparePreDefinedFiles(options.preDefinedFolder, vocabulary);
+        end
         
         %% Step 1.2: Run inference on each test image.
         for testImgItr = 1:size(testFileNames,1)

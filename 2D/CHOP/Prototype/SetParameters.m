@@ -100,12 +100,12 @@ function [ options ] = SetParameters( datasetName )
                                           'edges', [], ...
                                           'sign', []);                    
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -126,6 +126,9 @@ function [ options ] = SetParameters( datasetName )
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
+                                       % UPDATE: 'contour' TYPE EDGE LACKS
+                                       % CORRECT IMPLEMENTATION, USE
+                                       % 'centroid' INSTEAD.
     options.highLevelProperty = 'none'; % If high-level edges between compositions
                                        % in different objects' graphs are
                                        % considered, they are specified
@@ -141,7 +144,7 @@ function [ options ] = SetParameters( datasetName )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*3;
+    options.receptiveFieldSize = options.gaborFilterSize*4;
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
@@ -186,7 +189,7 @@ function [ options ] = SetParameters( datasetName )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 100;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 1200;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -214,9 +217,9 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 500;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 50;   % Beam length in SUBDUE
+    options.subdue.beam = 75;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line

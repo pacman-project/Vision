@@ -8,6 +8,9 @@
 %> graphLevel.
 %> @param graphLevel The current object graphs' level. The graphLevel's
 %> nodes should be sorted by their image id, and then rfId. 
+%> @param oppositeModes List of the form [oppMode1; oppMode2; ...].
+%> label1 encodes exact opposite geometric information of each mode in its 
+%> index, and same applies to every row of this list. If empty, simply ignored.
 %> @param options Program options.
 %> @param preDefinedSearch If true, pre-defined subs in vocabLevel are found
 %> in graphLevel. If false, graphLevel is given to unsupervised discovery, and
@@ -22,12 +25,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, options, preDefinedSearch)
+function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options, preDefinedSearch)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
     
-    %% Some variables are global since they are accessed often in sub-functions.
+    % Some variables are global since they are accessed often in sub-functions.
     % Copying into function spaces and back is inefficient for this case.
     % They will be removed at the end of this function.
     global globalEdges globalRealNodeIds globalCenterSigns globalLabels globalRealNeighbors
@@ -41,8 +44,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     centerIdx = cat(1, graphLevel.isCenter) > 0;
     
     globalEdges = cat(1, graphLevel.adjInfo);
+    
+    % If no edges are present, time to return.
     if isempty(globalEdges)
-        
+        return;
     end
     
     globalEdges = globalEdges(:,1:3);
@@ -71,8 +76,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     endFlag = 0;
     while ~isempty(parentSubs)
         extendedSubs = [];
-        childSubArr = cell(numel(parentSubs),1);
-        parentItr = 1;
         while ~isempty(parentSubs)
             %% Step 2.1: Get head of parentSubs.
             [parentSub, parentSubs] = getTopQueue(parentSubs);
@@ -86,34 +89,39 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
                 break;
             end
             %% Step 2.2: Extend head in all possible directions into childSubs.
-            childSubArr(parentItr) = {extendSub(parentSub, options)};
-            parentItr = parentItr + 1;
+            childSubs = extendSub(parentSub, options);
+            
+            % If no children are generated or time is up, return.
+            if endFlag || numel(childSubs) < 1
+               break; 
+            end
+            
+            %% Step 2.3: Remove duplicates from childSubs.
+            % Here, we check if childSubs has duplicates in extendedSubs.
+            childSubs = removeDuplicateSubs([extendedSubs, childSubs]);
+            childSubs = childSubs([childSubs.mdlScore] == 0);
+            
+            %% Step 2.4: Evaluate childSubs, find their instances.
+            childSubs = evaluateSubs(childSubs, options);
+            
+            if isempty(childSubs)
+                continue;
+            end
+            %% Step 2.5: Add childSubs to extendedSubs and bestSubs.
+            extendedSubs = addToQueue(childSubs, extendedSubs, options.subdue.beam);
+            if numel(childSubs(1).edges) >= (options.subdue.minSize-1)
+                % Here, a check ensures that the subs to put in bestSubs
+                % are distinct. Simply, an instance of any sub in bestSubs
+                % should not have the exact same node list (children) as
+                % any other sub in the list.
+                childSubs = removeEncodedSubs(childSubs, bestSubs, oppositeModes);
+                
+                % Add remaining child subs to best subs.
+                bestSubs = addToQueue(childSubs, bestSubs, options.subdue.nsubs);    
+            end
         end
-        
-        % If processing has been stopped due to time constraints, return bestSubs.
-        if endFlag
-           break; 
-        end
-        
-        childSubs = cat(2, childSubArr{:});
-        
-        % If no children are generated, return.
-        if numel(childSubs) < 1
-           break; 
-        end
-        %% Step 2.3: Remove duplicates from childSubs.
-        childSubs = removeDuplicateSubs(childSubs);
-        
-        %% Step 2.3: Evaluate childSubs, find their instances.
-        childSubs = evaluateSubs(childSubs, options);
-
-        %% Step 2.4: Add childSubs to extendedSubs.
-        extendedSubs = addToQueue(childSubs, extendedSubs, options.subdue.beam);
-        if numel(childSubs(1).edges) >= (options.subdue.minSize-1)
-            bestSubs = addToQueue(childSubs, bestSubs, options.subdue.nsubs);    
-        end
-        
-        %% Step 2.5: Swap expandedSubs with parentSubs.
+            
+        %% Step 2.6: Swap expandedSubs with parentSubs.
         parentSubs = extendedSubs;
     end
     
@@ -122,8 +130,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     
     % If no subs detected, return.
     if numberOfBestSubs < 1
-       vocabLevel = [];
-       graphLevel = [];
        return;
     end
     
@@ -174,14 +180,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
    % Out of this information, create graphLevel.
    [graphLevel.labelId, graphLevel.children, graphLevel.childrenAdjInfo] = deal(assgnArr{:});
        
-   nextVo
+   nextVocabLevel = vocabLevel;
    nextGraphLevel = graphLevel;
    %% TODO: Implement pre-defined search mode.
    
    
-   
-   
-       
     clearvars -global
 end
 
@@ -234,11 +237,16 @@ function [extendedSubs] = extendSub(sub, options)
     
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(unusedEdges(:, 3:4), 'rows');
-    numberOfEdgeTypes = size(uniqueEdgeTypes,1);
+    
+    % Discard any edge types already existing in sub definition.
+    if ~isempty(sub.edges)
+        uniqueEdgeTypes = setdiff(uniqueEdgeTypes, sub.edges, 'rows');
+    end
     
     % Extend the definition in sub with each edge type in uniqueEdgeTypes.
     % In addition, we pick suitable instances, add this edge, and mark used
     % field of relevant instances.
+    numberOfEdgeTypes = size(uniqueEdgeTypes,1);
     if numberOfEdgeTypes == 0
         extendedSubs = [];
         return;
@@ -341,6 +349,58 @@ function childSubs = removeDuplicateSubs(childSubs)
     subIdentifiers = [cat(1, childSubs.centerId), edges];
     [~, uniqueSubIdentifiers, ~] = unique(subIdentifiers, 'rows', 'stable');
     childSubs = childSubs(uniqueSubIdentifiers);
+end
+
+
+
+function validSubs = removeEncodedSubs(subs2Check, encodedSubs, oppositeEdgeLabelList)
+    validSubs = [];
+    if isempty(subs2Check) 
+        return;
+    end
+    %% First, eliminate duplicate subs in subs2Check.
+    % Check number of nodes in subs2Check. It is assumed that all subs in
+    % subs2Check have the same size. If size ~= 2, there is no ambiguity in
+    % the geometry, and each sub encodes a different structure. No need to
+    % check.
+    numberOfNodes = size(subs2Check(1).edges,1) + 1;
+    if numberOfNodes ~= 2
+       validSubs = subs2Check;
+       return; 
+    end
+    
+    % First, we check for duplicate subs in subs2Check.
+    centerIds = cat(1, subs2Check.centerId);
+    edges = {subs2Check.edges};
+    descriptions = [centerIds, cat(1, edges{:})];
+    reverseDescriptions = [descriptions(:,1), oppositeEdgeLabelList(descriptions(:,2)), descriptions(:,3)];
+    
+    % Get description matches.
+    [~, reverseIdx] = ismember(reverseDescriptions, descriptions, 'rows');
+    
+    % Eliminate half of the matches, since one of the two matching subs
+    % will be left in the sub list.
+    reverseCheckArr = (1:numel(reverseIdx))';
+    remainingSubIdx = reverseIdx(reverseIdx <= reverseCheckArr);
+    validSubs = subs2Check(remainingSubIdx);
+    
+    if isempty(encodedSubs)
+        return;
+    end
+    %% Second task involves checking subs2Check against encodedSubs.
+    encodedSubsNodeCountArr = {encodedSubs.edges};
+    encodedSubsNodeCountArr = cellfun(@(x) size(x,1), encodedSubsNodeCountArr)' + 1;
+    encodedSubs = encodedSubs(encodedSubsNodeCountArr == numberOfNodes);
+    
+    % Eliminated those not having exact same number of nodes. If empty,
+    % return.
+    if isempty(encodedSubs)
+        return
+    end
+    
+    encodedSubs;
+    
+    
 end
 
 %> Name: addToQueue

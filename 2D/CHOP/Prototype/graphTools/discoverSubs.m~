@@ -23,7 +23,7 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, oppositeModes, options, currentFolder, preDefinedSearch, levelItr)
+function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, options, currentFolder, preDefinedSearch, levelItr)
     startTime = tic;
     if ~preDefinedSearch
         display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
@@ -76,9 +76,9 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, opposi
         end
     elseif strcmp(options.subdue.implementation, 'self')
         if preDefinedSearch
-            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options, true);
+            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, options, true);
         else
-            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options, false);
+            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, options, false);
         end
     end
     

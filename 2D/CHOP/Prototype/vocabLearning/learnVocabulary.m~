@@ -151,11 +151,6 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         % Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);
         
-        % Reorder substructres so that the ones having higher mdl score are
-        % actually on top. The mdl score here is not really MDL, but rather
-        % a metric depending on size * frequency.
-%        [vocabLevel, graphLevel] = reorderSubs(vocabLevel, graphLevel);
-        
         %% Calculate statistics from this graph.
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);
         
