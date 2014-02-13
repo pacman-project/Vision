@@ -14,6 +14,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 01.02.2014
+%> Ver 1.1 on 12.01.2014 Timing is added by Mete
 function [ ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName);
@@ -33,7 +34,11 @@ function [ ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         for testImgItr = 1:size(testFileNames,1)
+         te_s_time=tic;   
+    
             singleTestImage(testFileNames{testImgItr}, options, options.currentFolder);
+         test_stop_time(testImgItr)=toc(te_s_time);
         end
+        save([options.currentFolder '/output/' datasetName '/' datasetName '_tetime.mat'], 'test_stop_time');
     end
 end
