@@ -96,7 +96,8 @@ function [ options ] = SetParameters( datasetName )
                                      'edges', [], ...
                                      'mdlScore', [], ...
                                      'instances', []);
-    options.selfSubdue.instance = struct( 'centerIdx', [], ...
+    options.selfSubdue.instance = struct( 'rank', [], ...
+                                          'centerIdx', [], ...
                                           'edges', [], ...
                                           'sign', []);                    
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
@@ -109,7 +110,7 @@ function [ options ] = SetParameters( datasetName )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'hist'; % Geometric property to be examined
+    options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
@@ -217,9 +218,9 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 500;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 75;   % Beam length in SUBDUE
+    options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line

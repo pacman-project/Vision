@@ -18,7 +18,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 18.12.2013
-function [newLevel] = collectInstances(vocabLevel, previousGraphLevel, options, levelItr)
+function [newLevel] = collectInstances(vocabLevel, previousGraphLevel, oppositeModes, options, levelItr)
     %% Discover new level's subs.
-    [~, newLevel] = discoverSubs(vocabLevel, previousGraphLevel, options, options.currentFolder, true, levelItr);
+    [~, newLevel] = discoverSubs(vocabLevel, previousGraphLevel, oppositeModes, options, options.currentFolder, true, levelItr);
 end

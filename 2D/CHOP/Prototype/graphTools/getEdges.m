@@ -156,21 +156,3 @@ function [idx] = getSmallestNElements(vect, n)
     end
     idx = [idx; restOfNodes];
 end
-
-
-%% Helper function to get adjacentNodes of a node.
-function [ adjacentNodes ] = getadjacentNodes(nodeItr, nodes, neighborhood)
-    centerArr = [ones(size(nodes,1), 1) * nodes{nodeItr,2}(1), ...
-        ones(size(nodes,1), 1) * nodes{nodeItr,2}(2)];
-    
-    distances = sqrt(sum((centerArr - cell2mat(nodes(:,2))).^2, 2));
-    adjacentNodes = find(distances <= neighborhood);
-    adjacentNodes = adjacentNodes(adjacentNodes > nodeItr);
-end
-
-%% Helper function to estimate relative positioning of two nodes.
-function [vector] = getPositionVector(node1, node2, nodes, neighborhood)
-    point1 = nodes{node1,2};
-    point2 = nodes{node2,2};
-    vector = (point2 - point1) / neighborhood;
-end

@@ -68,6 +68,8 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
                [~, oppositeModeIdx] = ismember(oppositeMode, currentModes, 'rows' );
                oppositeModes(modeItr) = oppositeModeIdx;
             end
+        else
+            currentModes = [];
         end
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
@@ -108,7 +110,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
             % fails to do so, the one which has a lower mdl ranking is
             % discarded. *Natural selection*
             
-            [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr);
+            [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
             [remainingComps, ~, ~] = unique([graphLevel.labelId], 'stable');
 
             % Eliminate unused compositions from vocabulary.
@@ -116,7 +118,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
 
             %% To get more accurate realizations, search words in vocabulary one by one, again.
             % Then, we will apply the local inhibition function again.
-            graphLevel = collectInstances(vocabLevel, mainGraph{levelItr-1}, options, levelItr-1);
+            graphLevel = collectInstances(vocabLevel, mainGraph{levelItr-1}, oppositeModes, options, levelItr-1);
 
             % Fill in basic info, again.
             graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes);  
@@ -137,7 +139,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
         display('........ Applying inhibition.');
-        [graphLevel] = applyLocalInhibition(graphLevel, options, levelItr);
+        [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
         [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
 
         % Learn number of elements, so that we can order the vocabulary
