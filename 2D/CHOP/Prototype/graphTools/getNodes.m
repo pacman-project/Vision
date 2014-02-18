@@ -5,6 +5,10 @@
 %> response peak is considered as a simple feature instance.
 %>
 %> @param img Input image
+%> @param gtFileName An empty param either means the gt for that image is not
+%> given, or it is of invalid size and cannot be used. If not empty, feel
+%> free to use it in elimination of nodes (given the gt use is enabled in 
+%> options).
 %> @param options Program options.
 %> 
 %> @retval nodes The nodes to form further graphs.
@@ -15,7 +19,8 @@
 %> Ver 1.0 on 18.11.2013
 %> Ver 1.1 on 03.12.2013 Response inhibition added.
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
-function [ nodes, smoothedImg ] = getNodes( img, options )
+%> Ver 1.3 on 17.01.2014 GT use implemented.
+function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     %% Step 1: Get grayscaled and binarized image.
     if size(img,3)>1
         img = rgb2gray(img(:,:,1:3));
@@ -27,14 +32,23 @@ function [ nodes, smoothedImg ] = getNodes( img, options )
     edgeImg = im2bw(doubleImg, graythresh(doubleImg));
     filterCount = numel(options.filters);
     
+    %% Get gt info in the form of a mask.
+    if options.useGT && ~isempty(gtFileName)
+        gtMask = imread(gtFileName);
+        if strcmp(options.gtType, 'contour')
+            gtMask = imdilate(gtMask, strel('disk', options.contourGTNeighborhood, 8));
+        else
+            gtMask = imfill(gtMask, 'holes');
+        end
+    else
+        gtMask = ones(size(doubleImg)) > 0;
+    end
+    
     %% Get response by applying each filter to the image.
     responseImgs = zeros(size(edgeImg,1), size(edgeImg,2), filterCount);
     for filtItr = 1:filterCount
        responseImg = conv2(double(edgeImg), options.filters{filtItr}, 'same');
- %      testResp = @(x) testResponse(x);
- %      filteredImg = responseImg;
- %      filteredImg = colfilt(responseImg, [gaborFilterSize, gaborFilterSize], 'sliding', testResp);
- %      Save response for future processing
+       % Save response for future processing
        responseImgs(:,:,filtItr) = responseImg;
     end
     
@@ -87,6 +101,9 @@ function [ nodes, smoothedImg ] = getNodes( img, options )
    responseImg = sum(responseImgs,3);
    responseImg([1:halfSize, (end-halfSize):end],:) = 0;
    responseImg(:,[1:halfSize, (end-halfSize):end]) = 0;
+   
+   %% Eliminate nodes outside GT mask. If gt is not used, this does not have effect.
+   responseImg(~gtMask) = 0;
    
    %% Out of this response image, we will create the nodes and output them.
    finalNodeIdx = find(responseImg);

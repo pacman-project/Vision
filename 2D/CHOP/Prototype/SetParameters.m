@@ -36,10 +36,10 @@ function [ options ] = SetParameters( datasetName )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.2; % Response threshold for convolved features, 
+    options.gaborFilterThr = 0.1; % Response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.gaborAreaMinResponse = 0.2; % The threshold to define the minimum response 
+    options.gaborAreaMinResponse = 0.1; % The threshold to define the minimum response 
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area. Threshold is
@@ -72,6 +72,19 @@ function [ options ] = SetParameters( datasetName )
                                         % grid-like image specified with
                                         % these parameters.
     options.autoFilterVisY = 8;
+    
+    %% ========== GT Parameters ==========
+    options.useGT = true;              % If true, gt info is used. 
+    options.gtType = 'contour';        % 'contour' type gt: nodes lying under
+                                       % the gt contour is examined (within
+                                       % a neighborhood defined by
+                                       % contourGTNeighborhood). 
+                                       % 'bbox' type gt: nodes in the
+                                       % gt bounding box are examined.
+    options.contourGTNeighborhood = 5;% width of the band along the contour 
+                                       % (half width, actual width is
+                                       % double this value)  in which nodes
+                                       % are examined.
     
     %% ========== INTERNAL DATA STRUCTURES ==========
     % Internal data structure for a vocabulary level.
@@ -110,7 +123,7 @@ function [ options ] = SetParameters( datasetName )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'mode'; % Geometric property to be examined
+    options.property = 'hist'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
@@ -141,7 +154,7 @@ function [ options ] = SetParameters( datasetName )
                                          % that specific level
                                          % 'leaf': Detected leaf nodes will
                                          % be marked on the image.
-    options.useReceptiveField = 1;       % If 0, regular graph generation 
+    options.useReceptiveField = 0;       % If 0, regular graph generation 
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
@@ -154,6 +167,8 @@ function [ options ] = SetParameters( datasetName )
     options.maxNodeDegreeLevel1 = 10;
     options.maxNodeDegree = 8;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
+                                       % UPDATE: If receptive fields are
+                                       % used, no max degree is applied.
     options.maxImageDim = options.gaborFilterSize*30;
     options.maximumModes = 10;          % Maximum number of modes allowed for 
                                        % a node pair.
@@ -173,7 +188,7 @@ function [ options ] = SetParameters( datasetName )
                                       % more points are processed for that
                                       % pair.
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.implementation = 'self'; % Two types of subdue are used.
+    options.subdue.implementation = 'exe'; % Two types of subdue are used.
                                             % 'self': Matlab-based
                                             % implementation.
                                             % 'exe': Ready-to-use
@@ -218,11 +233,11 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 200;   % Beam length in SUBDUE
+    options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
-    options.subdue.overlap = 0; % 1 if overlapping instances allowed, 0 otw
+    options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
                                  % with this.
     
@@ -234,6 +249,7 @@ function [ options ] = SetParameters( datasetName )
     % Set folder parameters.
     options.currentFolder = currentPath;
     options.processedFolder = [currentPath '/output/' datasetName '/original'];
+    options.processedGTFolder = [currentPath '/output/' datasetName '/gt'];
     options.outputFolder = [currentPath '/output/' datasetName];
     options.testOutputFolder = [options.outputFolder '/test'];
     options.testInferenceFolder = [options.outputFolder '/test/inference'];
@@ -244,6 +260,9 @@ function [ options ] = SetParameters( datasetName )
     % Create folder structures required later.
     if ~exist(options.processedFolder,'dir')
        mkdir(options.processedFolder); 
+    end
+    if ~exist(options.processedGTFolder,'dir')
+       mkdir(options.processedGTFolder); 
     end
     if ~exist(options.preDefinedFolder,'dir')
        mkdir(options.preDefinedFolder); 

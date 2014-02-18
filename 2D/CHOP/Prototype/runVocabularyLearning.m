@@ -16,35 +16,61 @@
 %> Ver 1.1 on 05.12.2013 Various parameter additions, 'mode' changes
 %> Ver 1.2 on 12.01.2014 Comment changes for unified code look
 %> Ver 1.3 on 12.01.2014 Timing is added by Mete
-function [] = runVocabularyLearning( datasetName, imageExtension )
+%> Ver 1.4 on 17.02.2014 GT processing added.
+function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtension )
     %% ========== Step 0: Set program options and run initializations ==========
+    % Open threads for parallel processing.
+    matlabpool('open', 6);
+    
     %% Step 0.0: Get program options and parameters.
     options = SetParameters(datasetName);
     datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
+    gtFolder = [options.currentFolder '/input/' datasetName '/gt/'];
     
     if options.learnVocabulary
-        %% Step 0.2: Create initial data structures.
+        %% Step 0.1: Create initial data structures.
         fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
         trainingFileNames = fileNames;
         nodeCounter = 0;
         allNodes = cell(options.maxNumberOfFeatures,6);
-    
+        
+        %% Step 0.2: Allocate space to keep names of corresponding gt files.
+        gtFileNames = cell(numel(trainingFileNames),1);
         %% ========== Step 1: Pre-process the data (extract first level nodes, surpress weak responses) ==========
         %% Step 1.0: Downsample the image if it is too big.
         for fileItr = 1:size(trainingFileNames,1) 
+            % Read image and downsample it.
             img = imread(trainingFileNames{fileItr});
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             if max(size(img)) > options.maxImageDim
                img = imresize(img, options.maxImageDim/max(size(img)), 'bilinear'); 
             end
             imwrite(img, [options.processedFolder '/' fileName '.png']);
+            
+            % If gt file exists, write it to the processed gt folder. In
+            % addition, we keep track of the name of gt file corresponding
+            % to the image read.
+            gtFile = [gtFolder fileName gtImageExtension];
+            if exist(gtFile, 'file')
+                gtImg = imread(gtFile);
+                if size(gtImg,3)>2
+                    gtImg = rgb2gray(gtImg(:,:,1:3))>0;
+                else
+                    gtImg = gtImg(:,:,1)>0;
+                end
+                gtImg = imresize(gtImg, options.maxImageDim/max(size(gtImg)), 'bilinear');
+                if isequal(size(gtImg), [size(img,1), size(img,2)])
+                    gtFileNames(fileItr) = {[options.processedGTFolder '/' fileName '.png']};
+                    imwrite(gtImg, [options.processedGTFolder '/' fileName '.png']);
+                end
+            end
         end
         
         %% Step 1.1: Extract a set of features from the input image.
         for fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([options.processedFolder '/' fileName '.png']);
-            nodes = getNodes(img, options);
+            nodes = getNodes(img, gtFileNames{fileItr}, options);
             % Keep nodes in the array.
             allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 1:2) = nodes;
             % Assign nodes their image ids.

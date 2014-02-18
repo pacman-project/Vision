@@ -64,6 +64,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
             oppositeModes = zeros(numberOfModes,1);
             for modeItr = 1:numberOfModes
                oppositeMode = currentModes(modeItr,:);
+               oppositeMode(1:2) = oppositeMode(2:-1:1);
                oppositeMode(3:4) = oppositeMode(3:4) * -1;
                [~, oppositeModeIdx] = ismember(oppositeMode, currentModes, 'rows' );
                oppositeModes(modeItr) = oppositeModeIdx;
@@ -168,13 +169,21 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         
         %% Step 2.3: If receptive field is used, nodes are repeated into sets representing receptive fields.
         % (so that each node set corresponds to a different receptive
-        % field)        
+        % field)      
+        if options.useReceptiveField
+            refStartTime = tic;
+            display('........ Receptive field processing started..');
+        end
         numberOfNodes = numel(graphLevel);
         newNodes = [num2cell([graphLevel.labelId]'), ...
             mat2cell(cat(1, graphLevel.position), ones(numberOfNodes,1), 2), ...
             num2cell([graphLevel.imageId]')];
         [newNodes, receptiveFieldNodes] = getReceptiveFieldNodes(newNodes, levelItr, options);
         graphLevel = graphLevel(1, receptiveFieldNodes);
+        if options.useReceptiveField
+            refDuration = toc(refStartTime);
+            display(['........ Receptive field processing finished. Time elapsed:' num2str(refDuration) ' secs.']);
+        end
         
         % Assign rfId and isCenter fields.
         [graphLevel.rfId, graphLevel.isCenter, graphLevel.realNodeId] = deal(newNodes{:,4:6});

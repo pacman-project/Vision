@@ -40,7 +40,7 @@ function [] = singleTestImage(testFileName, options, currentPath)
     % Assign nodes their image ids.
     imageIds = ones(size(nodes,1), 1);
     nodes(:, 3) = mat2cell(imageIds, ones(size(imageIds)));
-    graphLevel(size(nodes,1)) = struct('labelId', [], 'imageId', [], 'position', [], 'children', [], 'parents', [], 'adjInfo', [], 'leafNodes', []);
+    graphLevel(size(nodes,1)) = options.graphNode;
 
     %% Get edges depending on the property to be embedded in the graph.
     [~, ~, edges, leafNodeAdjArr] = extractEdges(nodes, [], [], options, 1, options.datasetName, modes, highLevelModes);

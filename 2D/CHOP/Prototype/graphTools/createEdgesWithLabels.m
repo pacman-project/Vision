@@ -78,7 +78,8 @@ function [mainGraph, leafNodeAdjArr] = createEdgesWithLabels(mainGraph, leafNode
         % implement receptive fields, and the graph generation can proceed
         % as it would. If there are other integer ids, basically each of
         % them should be considered separately.
-        rfIdSet = unique(imageRfIds);
+        rfIdSet = fastsortedunique(imageRfIds);
+ %       rfIdSet = unique(imageRfIds);
         for rfId = rfIdSet'
             
             % Prepare receptive-field related data structures.

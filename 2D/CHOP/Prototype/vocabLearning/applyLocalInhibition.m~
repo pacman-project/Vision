@@ -97,9 +97,10 @@ function [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentMode
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
     discardedNodes = cell(numberOfImages,1);
     parfor imageId = 1:numberOfImages
+        imageNodeIdx = imageIds == imageId;
         nodeOffset = numel(find(imageIds<imageId));
-        imageGraphLevel = imageGraphLevels{imageId};
-        imageNodeCoords = imageAllNodeCoords{imageId};
+        imageGraphLevel = imageGraphLevels(1,imageNodeIdx);
+        imageNodeCoords = nodeCoords(imageNodeIdx,:);
         numberOfNodesInImage = numel(imageGraphLevel);
         imageDiscardedNodes = ones(numberOfNodesInImage,1);
         for nodeItr = 1:(numberOfNodesInImage-1)

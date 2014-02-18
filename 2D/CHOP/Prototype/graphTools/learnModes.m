@@ -71,8 +71,8 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
            for imageRfPairId = 1:size(commonImageRfPairs,1)
                % Get center coords belonging to first node type in image.
                imageRfPair = commonImageRfPairs(imageRfPairId,:);
-               firstNodeCenterCoords = firstNodeCoords(ismember(firstNodeImageRfPairs, imageRfPair, 'rows') & firstNodeIsCenter,:);
-               adjacentSecondNodeCoords = secondNodeCoords(ismember(secondNodeImageRfPairs, imageRfPair, 'rows'),:);
+               firstNodeCenterCoords = firstNodeCoords(firstNodeImageRfPairs(:,1) == imageRfPair(1) & firstNodeImageRfPairs(:,2) == imageRfPair(2) & firstNodeIsCenter,:);
+               adjacentSecondNodeCoords = secondNodeCoords(secondNodeImageRfPairs(:,1) == imageRfPair(1) & secondNodeImageRfPairs(:,2) == imageRfPair(2),:);
                numberOfCenters = size(firstNodeCenterCoords,1);
                numberOfAdjacentNodes = size(adjacentSecondNodeCoords,1);
                
