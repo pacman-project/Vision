@@ -41,7 +41,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
        curModes = cell(numberOfNodes,1);
        %    Prevent empty cluster warnings in kmeans.
        w = warning('off', 'all');
-       parfor node2 = node1:numberOfNodes
+       for node2 = node1:numberOfNodes
            % Get first type of nodes.
           
            firstNodeIdx = find(nodeIds==node1);
@@ -52,8 +52,8 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
            secondNodeImageIds = imageIds(secondNodeIdx, :);
            
            % Get common image ids.
-           commonImageIds = fast_unique(fast_intersect_sorted(firstNodeImageIds, ...
-               secondNodeImageIds))';
+           commonImageIds = fastintersect(fastsortedunique(firstNodeImageIds), ...
+               fastsortedunique(secondNodeImageIds));
            
            % If no common imageids exist, nothing to do here.
            if isempty(commonImageIds)
@@ -64,8 +64,8 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
            secondNodeCoords = nodeCoords(secondNodeIdx, :);
            
            % Find all edges in between.
-           samples = cell(size(commonImageIds,1),1);
-           for imageIdItr = 1:size(commonImageIds,1)
+           samples = cell(numel(commonImageIds),1);
+           for imageIdItr = 1:numel(commonImageIds)
                % Get center coords belonging to first node type in image.
                imageId = commonImageIds(imageIdItr);
                firstNodeCenterCoords = firstNodeCoords(firstNodeImageIds == imageId,:);
