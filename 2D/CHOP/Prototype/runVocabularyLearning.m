@@ -19,20 +19,18 @@
 %> Ver 1.4 on 17.02.2014 GT processing added.
 function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtension )
     %% ========== Step 0: Set program options and run initializations ==========
-    % Open threads for parallel processing.
-    matlabpool('open', 6);
-    
     %% Step 0.0: Get program options and parameters.
     options = SetParameters(datasetName);
     datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
     gtFolder = [options.currentFolder '/input/' datasetName '/gt/'];
     
+    % Open threads for parallel processing.
+    matlabpool('open', options.numberOfThreads);
+    
     if options.learnVocabulary
         %% Step 0.1: Create initial data structures.
         fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
         trainingFileNames = fileNames;
-        nodeCounter = 0;
-        allNodes = cell(options.maxNumberOfFeatures,6);
         
         %% Step 0.2: Allocate space to keep names of corresponding gt files.
         gtFileNames = cell(numel(trainingFileNames),1);
@@ -66,48 +64,50 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             end
         end
         
-        %% Step 1.1: Extract a set of features from the input image.
-        for fileItr = 1:size(trainingFileNames,1)
+        %% Step 1.1: Extract a set of features from the input images.
+        processedFolder = options.processedFolder;
+        allNodes = cell(size(trainingFileNames,1),1);
+        parfor fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
-            img = imread([options.processedFolder '/' fileName '.png']);
+            img = imread([processedFolder '/' fileName '.png']);
             nodes = getNodes(img, gtFileNames{fileItr}, options);
             % Keep nodes in the array.
-            allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 1:2) = nodes;
-            % Assign nodes their image ids.
-            imageIds = ones(size(nodes,1), 1)*fileItr;
-            allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 3) = ...
-                                            mat2cell(imageIds, ones(size(imageIds)));
-            allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 4) = ...
-                                            mat2cell(zeros(size(imageIds)), ones(size(imageIds)));
-            allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 5) = ...
-                                            mat2cell(ones(size(imageIds)), ones(size(imageIds)));
-            % Increment node counter.
-            nodeCounter = nodeCounter + size(nodes,1);
+            allNodes(fileItr) = {nodes};
         end
-        % Trim allNodes array to get rid of empty rows.
-        allNodes = allNodes(1:nodeCounter,:);
+        imageIds = cell(size(allNodes,1),1);
+        for fileItr = 1:size(allNodes,1)
+            imageIds(fileItr) = {num2cell(repmat(fileItr, size(allNodes{fileItr},1), 1))};
+        end
+        
+        allNodes = cat(1, allNodes{:});
+        imageIds = cat(1, imageIds{:});
+        allNodes = [allNodes, imageIds];
+        
+        % Assign nodes their image ids.
+     %   imageIds = ones(size(nodes,1), 1)*fileItr;
+    %    allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 3) = ...
+    %                                        num2cell(imageIds);
         
         %% Step 1.2: If receptive field is used, nodes will be repeated.
         % (so that each node set corresponds to a different receptive
         % field)
         leafNodes = allNodes;
-        [allNodes, ~] = getReceptiveFieldNodes(allNodes, 1, options);
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        [vocabLevel, graphLevel] = generateLevels(allNodes, leafNodes, options);
+        [vocabLevel, graphLevel] = generateLevels(allNodes, options);
         
         %% Step 2.1: Get first-level object graph edges.
         mainGraph = {graphLevel};
-        [modes, highLevelModes, mainGraph, leafNodeAdjArr] = extractEdges(mainGraph, [], options, 1, datasetName, [], []);
+        [modes, highLevelModes, mainGraph] = extractEdges(mainGraph, options, 1, [], []);
         graphLevel = mainGraph{1};
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of paper). ==========
         tr_s_time=tic;  
-        [vocabulary, mainGraph, modes, highLevelModes] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, leafNodeAdjArr, ...
+        [vocabulary, mainGraph, modes, highLevelModes] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, ...
                                         options, trainingFileNames, datasetName);
         tr_stop_time=toc(tr_s_time);
         save([options.currentFolder '/output/' datasetName '/' datasetName '_trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodeAdjArr', 'leafNodes', 'fileNames');
+        save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodes', 'fileNames');
     end
 end
 

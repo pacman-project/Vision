@@ -12,7 +12,6 @@
 %> @param mainGraph The object graphs' data structure.
 %> @param options Program options.
 %> @param currentLevelId The current scene graph level id.
-%> @param datasetName Name of the dataset.
 %> @param modes Modes up to level (currentLevel-1). If currentLevel == 0, 
 %>      modes should be empty.
 %> @param highLevelModes High level modes up to level (currentLevel-1). If 
@@ -31,9 +30,9 @@
 %> Updates
 %> Ver 1.0 on 06.12.2013
 %> Addition of inter-image edges on 28.01.2014
-function [modes, highLevelModes, mainGraph, leafNodeAdjArr] = extractEdges(mainGraph, leafNodeAdjArr, options, currentLevelId, datasetName, modes, highLevelModes)
+function [modes, highLevelModes, mainGraph] = extractEdges(mainGraph, options, currentLevelId, modes, highLevelModes)
     %% Step 1: Learn low-level (within object) and high-level (between objects) modes.
-    [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevelId, datasetName);
+    [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevelId);
     if ~isempty(currentModes)
         modes = [modes, {currentModes}];
     end
@@ -41,8 +40,9 @@ function [modes, highLevelModes, mainGraph, leafNodeAdjArr] = extractEdges(mainG
         highLevelModes = [highLevelModes, {currentHighLevelModes}];
     end
 
+    display('Extracting edges...');
     %% Create within-object-graph edges.
-    [mainGraph, leafNodeAdjArr] = createEdgesWithLabels(mainGraph, leafNodeAdjArr, options, currentLevelId, modes);
+    [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, modes);
     
     %% Here, we create inter-object-graph edges. Nodes belonging to different object graphs are linked here.
     % CAUTION: Please note that no nodes within the SAME object graph should be

@@ -29,5 +29,7 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes)
     end
 
     % Rearrange graph level so it is sorted by image id.
-    graphLevel = nestedSortStruct(graphLevel, {'imageId', 'labelId'});
+    arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];
+    [~, sortedIdx] = sortrows(arrayToSort);
+    graphLevel = graphLevel(sortedIdx);
 end

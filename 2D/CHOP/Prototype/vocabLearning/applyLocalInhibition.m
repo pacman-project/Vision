@@ -66,7 +66,6 @@ function [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentMode
     imageIds = [graphLevel.imageId];
     numberOfImages = max(imageIds);
     numberOfNodes = numel(graphLevel);
-    discardedNodes = ones(numberOfNodes,1)>0;
     
     % Get node coordinates.
     nodeCoords = zeros(numberOfNodes,2);

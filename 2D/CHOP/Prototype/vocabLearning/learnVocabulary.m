@@ -8,7 +8,6 @@
 %>
 %> @param vocabLevel The first level of vocabulary, level 1 parts.
 %> @param graphLevel Object graphs level 1.
-%> @param leafNodeAdjArr The adjacency list of leaf nodes.
 %> @param modes The mode array that only includes first level relations.
 %> @param options Program options
 %> @param fileList input image name list.
@@ -27,7 +26,7 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, highLevelModes, leafNodeAdjArr, ...
+function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, highLevelModes, ...
                                                             options, fileList, datasetName)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
@@ -167,27 +166,6 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(vocabLevel)) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) '.']); 
         
-        %% Step 2.3: If receptive field is used, nodes are repeated into sets representing receptive fields.
-        % (so that each node set corresponds to a different receptive
-        % field)      
-        if options.useReceptiveField
-            refStartTime = tic;
-            display('........ Receptive field processing started..');
-        end
-        numberOfNodes = numel(graphLevel);
-        newNodes = [num2cell([graphLevel.labelId]'), ...
-            mat2cell(cat(1, graphLevel.position), ones(numberOfNodes,1), 2), ...
-            num2cell([graphLevel.imageId]')];
-        [newNodes, receptiveFieldNodes] = getReceptiveFieldNodes(newNodes, levelItr, options);
-        graphLevel = graphLevel(1, receptiveFieldNodes);
-        if options.useReceptiveField
-            refDuration = toc(refStartTime);
-            display(['........ Receptive field processing finished. Time elapsed:' num2str(refDuration) ' secs.']);
-        end
-        
-        % Assign rfId and isCenter fields.
-        [graphLevel.rfId, graphLevel.isCenter, graphLevel.realNodeId] = deal(newNodes{:,4:6});
-        
         % Set the sign of all nodes to 1. When negative graphs are introduced,
         % this part should CHANGE.
         [graphLevel.sign] = deal(1);
@@ -198,7 +176,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         
         %% Step 2.5: Create object graphs G_(l+1) for the next level, l+1.
         % Extract the edges between new realizations to form the new object graphs.
-        [modes, highLevelModes, mainGraph, ~] = extractEdges(mainGraph, leafNodeAdjArr, options, levelItr, datasetName, modes, highLevelModes);
+        [modes, highLevelModes, mainGraph] = extractEdges(mainGraph, options, levelItr, modes, highLevelModes);
         graphLevel = mainGraph{levelItr};
         
         %% Print vocabulary and graph level to output images (reconstruction).

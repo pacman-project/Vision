@@ -24,6 +24,7 @@
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
 function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, oppositeModes, options, currentFolder, preDefinedSearch, levelItr)
+    matlabpool close;
     startTime = tic;
     if ~preDefinedSearch
         display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
@@ -85,5 +86,6 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, opposi
     display(['.... Time elapsed: ' num2str(toc(startTime)) ' secs.']);
     display(['.... ' options.subdue.implementation ' type discovery is used. Found ' ...
         num2str(numel(graphLevel)) ' instances of ' num2str(numel(vocabLevel)) ' compositions.']);
+    matlabpool('open', options.numberOfThreads);
 end
 

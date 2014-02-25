@@ -13,8 +13,11 @@
 %> Updates
 %> Ver 1.0 on 10.01.2014
 function [ options ] = SetParameters( datasetName )
+    %% ========== DEBUG PARAMETER ==========
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
+                                 
+    options.numberOfThreads = 7;
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -85,34 +88,7 @@ function [ options ] = SetParameters( datasetName )
                                        % (half width, actual width is
                                        % double this value)  in which nodes
                                        % are examined.
-    
-    %% ========== INTERNAL DATA STRUCTURES ==========
-    % Internal data structure for a vocabulary level.
-    options.vocabNode = struct( 'label', [], ...    
-                                'children', [], ...
-                                'parents', [], ...
-                                'adjInfo', []);
-    % Internal data structure for an graph representing a set of object 
-    % graphs in a given level.                        
-    options.graphNode = struct( 'labelId', [], ...
-                                'imageId', [], ...
-                                'position', [], ...
-                                'rfId', [], ...
-                                'realNodeId', [], ...
-                                'isCenter', [], ...
-                                'children', [], ...
-                                'parents', [], ...
-                                'adjInfo', [], ...
-                                'leafNodes', [], ...
-                                'sign', 1);     % 1: positive, 0: negative node.
-    options.selfSubdue.sub = struct( 'centerId', [], ...
-                                     'edges', [], ...
-                                     'mdlScore', [], ...
-                                     'instances', []);
-    options.selfSubdue.instance = struct( 'rank', [], ...
-                                          'centerIdx', [], ...
-                                          'edges', [], ...
-                                          'sign', []);                    
+                   
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
     options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
@@ -123,7 +99,7 @@ function [ options ] = SetParameters( datasetName )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'hist'; % Geometric property to be examined
+    options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
@@ -154,7 +130,7 @@ function [ options ] = SetParameters( datasetName )
                                          % that specific level
                                          % 'leaf': Detected leaf nodes will
                                          % be marked on the image.
-    options.useReceptiveField = 0;       % If 0, regular graph generation 
+    options.useReceptiveField = 1;       % If 0, regular graph generation 
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
@@ -188,7 +164,7 @@ function [ options ] = SetParameters( datasetName )
                                       % more points are processed for that
                                       % pair.
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.implementation = 'exe'; % Two types of subdue are used.
+    options.subdue.implementation = 'self'; % Two types of subdue are used.
                                             % 'self': Matlab-based
                                             % implementation.
                                             % 'exe': Ready-to-use
@@ -205,7 +181,7 @@ function [ options ] = SetParameters( datasetName )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 1200;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 100;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -233,9 +209,9 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 50;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 100;   % Beam length in SUBDUE
+    options.subdue.beam = 20;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
@@ -280,11 +256,21 @@ function [ options ] = SetParameters( datasetName )
        mkdir(options.testInferenceFolder); 
     end
     
+    
     %% ========== PATH FOLDER ADDITION ==========
     addpath(genpath([options.currentFolder '/utilities']));
     addpath(genpath([options.currentFolder '/graphTools']));
     addpath(genpath([options.currentFolder '/vocabLearning']));
     addpath(genpath([options.currentFolder '/inference']));
+    
+    %% ========== INTERNAL DATA STRUCTURES ==========
+    % Internal data structure for a vocabulary level.
+    options.vocabNode = VocabNode;
+    % Internal data structure for an graph representing a set of object 
+    % graphs in a given level.                        
+    options.graphNode = GraphNode;     % 1: positive, 0: negative node.
+    options.selfSubdue.sub = Substructure;
+    options.selfSubdue.instance = Instance;  
     
     %% ========== LOW - LEVEL FILTER GENERATION ==========
     filters = createFilters(options);
@@ -299,6 +285,8 @@ function [ options ] = SetParameters( datasetName )
     % field are connected to the center node.
     if ~options.useReceptiveField
         options.subdue.implementation = 'exe';
+    else
+        options.subdue.implementation = 'self';
     end
 end
 

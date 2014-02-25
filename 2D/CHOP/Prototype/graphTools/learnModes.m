@@ -19,9 +19,8 @@
 %> Ver 1.0 on 21.01.2014
 function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     display(['Learning modes for level ' num2str(currentLevelId) '...']);
+    useReceptiveField = options.useReceptiveField;
     %% Step 0: Create initial data structures and initialize them.
-    % Prevent empty cluster warnings in kmeans.
-    w = warning('off', 'all');
     
     % Calculate edge radius.
     scale = (1/options.scaling)^(currentLevelId-1);
@@ -32,47 +31,45 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     nodeIds = [currentLevel.labelId]';
     nodeCoords = cat(1, currentLevel.position);
     imageIds = [currentLevel.imageId]';
-    rfIds = [currentLevel.rfId]';
-    isCenter = [currentLevel.isCenter]';
     numberOfNodes = max(nodeIds);
-    imageRfPairs = [imageIds, rfIds];
     
     %% Step 1: For each composition pair, get the 2-D distribution of samples.
     % Right now, we only work with 2-dimensional spatial relations.
-    modeOffset = 0;
-    modeIdxOffset = 1;
-    modes = cell(numberOfNodes * numberOfNodes,1);
-    
+    modes = cell(numberOfNodes,1);
+    tic;
     for node1 = 1:numberOfNodes
-       for node2 = node1:numberOfNodes
+       curModes = cell(numberOfNodes,1);
+       %    Prevent empty cluster warnings in kmeans.
+       w = warning('off', 'all');
+       parfor node2 = node1:numberOfNodes
            % Get first type of nodes.
+          
            firstNodeIdx = find(nodeIds==node1);
-           firstNodeImageRfPairs = imageRfPairs(firstNodeIdx, :);
+           firstNodeImageIds = imageIds(firstNodeIdx, :);
            
            % Get second type of nodes.
            secondNodeIdx = find(nodeIds==node2);
-           secondNodeImageRfPairs = imageRfPairs(secondNodeIdx, :);
+           secondNodeImageIds = imageIds(secondNodeIdx, :);
            
-           % Get common image - rf pairs.
-           commonImageRfPairs = intersect(firstNodeImageRfPairs, ...
-               secondNodeImageRfPairs, 'rows');
+           % Get common image ids.
+           commonImageIds = fast_unique(fast_intersect_sorted(firstNodeImageIds, ...
+               secondNodeImageIds))';
            
-           % If no common image-rf pairs exist, nothing to do here.
-           if isempty(commonImageRfPairs)
+           % If no common imageids exist, nothing to do here.
+           if isempty(commonImageIds)
               continue; 
            end
            
            firstNodeCoords = nodeCoords(firstNodeIdx, :);
-           firstNodeIsCenter = isCenter(firstNodeIdx,:);
            secondNodeCoords = nodeCoords(secondNodeIdx, :);
            
            % Find all edges in between.
-           samples = cell(size(commonImageRfPairs,1),1);
-           for imageRfPairId = 1:size(commonImageRfPairs,1)
+           samples = cell(size(commonImageIds,1),1);
+           for imageIdItr = 1:size(commonImageIds,1)
                % Get center coords belonging to first node type in image.
-               imageRfPair = commonImageRfPairs(imageRfPairId,:);
-               firstNodeCenterCoords = firstNodeCoords(firstNodeImageRfPairs(:,1) == imageRfPair(1) & firstNodeImageRfPairs(:,2) == imageRfPair(2) & firstNodeIsCenter,:);
-               adjacentSecondNodeCoords = secondNodeCoords(secondNodeImageRfPairs(:,1) == imageRfPair(1) & secondNodeImageRfPairs(:,2) == imageRfPair(2),:);
+               imageId = commonImageIds(imageIdItr);
+               firstNodeCenterCoords = firstNodeCoords(firstNodeImageIds == imageId,:);
+               adjacentSecondNodeCoords = secondNodeCoords(secondNodeImageIds == imageId,:);
                numberOfCenters = size(firstNodeCenterCoords,1);
                numberOfAdjacentNodes = size(adjacentSecondNodeCoords,1);
                
@@ -82,7 +79,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
                adjacentSecondNodeCoords = repmat(adjacentSecondNodeCoords, numberOfCenters,1);
                
                % Get relative coordinates of both sets of nodes.
-               samples(imageRfPairId) = {adjacentSecondNodeCoords - firstNodeCenterCoords};
+               samples(imageIdItr) = {adjacentSecondNodeCoords - firstNodeCenterCoords};
            end
            
            % Combine all samples, and get rid of invalid ones.
@@ -93,13 +90,23 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
               
               % If receptive fields are not used, we only use ~half of the
               % samples on the right side of a separating line, if node1 == node2.
-              sumSamples = sum(samples,2);
-              if ~options.useReceptiveField
-                  samples = samples((samples(:,1) >= 0 & sumSamples >= 0) | ...
-                      (samples(:,1) < 0 & sumSamples > 0), :);
+              sampleSums = sum(samples,2);
+              if ~useReceptiveField
+                  samples = samples((samples(:,1) >= 0 & sampleSums >= 0) | ...
+                      (samples(:,1) < 0 & sampleSums > 0), :);
               end
            else
               samples = samples(distances <= neighborhood,:);
+           end
+           
+           % If no samples remain, continue.
+           if isempty(samples)
+              continue; 
+           end
+           
+           %% If there are too many samples, get random samples.
+           if size(samples,1)>200
+                samples = datasample(samples, 200, 'Replace', false);
            end
            
            %% Assign a label to each sample.
@@ -108,19 +115,14 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
            %% Estimate cluster centers.
            numberOfClusters = max(classes);
            centers = zeros(numberOfClusters,4);
-           centers(:,1) = ones(numberOfClusters,1) * node1;
-           centers(:,2) = ones(numberOfClusters,1) * node2;
+           centers(:,1:2) = repmat([node1, node2], numberOfClusters, 1);
            for centerItr = 1:numberOfClusters
               centers(centerItr,3:4) = mean(samples(classes==centerItr,:),1);
            end
            
            % Assign centers to modes.
-           modes(modeIdxOffset) = {centers};
-           modeIdxOffset = modeIdxOffset + 1;
+           curModes(node2) = {centers};
 
-           % Change mode offset and move on.
-           modeOffset = modeOffset + max(classes);
-           
            %% In debug mode, write classes to the output as images.
            if options.debug
                distributionImg = zeros(options.maxImageDim*2+1);
@@ -147,12 +149,23 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
                end
            end
        end
+       modes(node1) = {curModes(node1:end,:)};
+       warning(w);
     end
     %% If modes have been found, concatenate and return them.
-    if modeIdxOffset > 1
-        modes = cat(1, modes{1:(modeIdxOffset-1),:});
-    else
-        modes = 0;
+    modes = cat(1, modes{:});
+    modes = fix(cat(1, modes{:}));
+    
+    %% If receptive fields are used, add reverse modes to the modes array.
+    if options.useReceptiveField
+        reversedModes = modes(modes(:,1) ~= modes(:,2),:);
+        tempArr = reversedModes(:,1);
+        reversedModes(:,1) = reversedModes(:,2);
+        reversedModes(:,2) = tempArr;
+        reversedModes(:,3:4) = reversedModes(:,3:4) * -1;
+        modes = [modes; reversedModes];
+        
+        % Sort array.
+        modes = sortrows(modes);
     end
-    warning(w);
 end

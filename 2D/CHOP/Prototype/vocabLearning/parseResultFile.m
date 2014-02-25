@@ -165,7 +165,6 @@ function[vocabLevel, graphLevel] = parseResultFile(resultFileName, options)
             
             % Assign nodes to sub information
             graphLevel(currentInstance).children = childrenList;
-            graphLevel(currentInstance).childrenAdjInfo = instanceEdges;
         end
         
         currentInstanceOffset = currentInstanceOffset + (numel(subInstanceIdx) - 1);

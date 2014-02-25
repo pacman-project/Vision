@@ -46,7 +46,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, options)
         % Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-        for nodeItr = 1:numberOfNodes
+        parfor nodeItr = 1:numberOfNodes
             node = currentLevel(nodeItr);
             children = node.children;
             childrenCoords = zeros(numel(children),2);

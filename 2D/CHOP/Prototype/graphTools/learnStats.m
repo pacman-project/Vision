@@ -9,7 +9,6 @@
 %> @param options Program options.
 %> @param currentLevel The current scene graph level number. Used to index
 %>      right object graphs from mainGraph.
-%> @param datasetName Name of the dataset.
 %> 
 %> @retval currentModes The mode list representing edge categories for this level. 
 %> 
@@ -17,11 +16,11 @@
 %>
 %> Updates
 %> Ver 1.0 on 28.01.2014
-function [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevel, datasetName)
+function [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevel)
     %% Step 1: Learn geometric relations between nodes belonging to a single object.
     if strcmp(options.property, 'mode')
         %% Learn modes from the data.
-        [currentModes] = learnModes(mainGraph, options, currentLevel, datasetName); 
+        [currentModes] = learnModes(mainGraph, options, currentLevel, options.datasetName); 
     elseif strcmp(options.property, 'hist')
         %% In 'hist' type geometric property, we assign region centers in hMatrix as modes.
         % Please note that the output modes do not include any composition

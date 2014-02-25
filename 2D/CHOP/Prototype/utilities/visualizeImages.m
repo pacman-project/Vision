@@ -20,6 +20,7 @@
 function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, ~, type )
     outputDir = [options.outputFolder '/reconstruction/' type];
     originalDir = [options.outputFolder '/original/'];
+    reconstructionType = options.reconstructionType;
     if ~exist(outputDir, 'dir')
        mkdir(outputDir); 
     end
@@ -43,10 +44,11 @@ function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, optio
             '/level' num2str(usedLevel) '/reconstruction/' num2str(fileItr) '.png']);
     end
     
-    nodeOffset = 0;
+    imageIds = [graphLevel.imageId];
     
     %% Go over the list of images and run reconstruction.
-    for fileItr = 1:numel(fileList)
+    parfor fileItr = 1:numel(fileList)
+        nodeOffset = numel(find(imageIds<fileItr));
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
         img = imread([processedDir '/' fileName '.png']);
@@ -59,7 +61,7 @@ function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, optio
         nodes = graphLevel(:,[graphLevel.imageId] == fileItr);
         
         for nodeItr = 1:numel(nodes)
-            if strcmp(options.reconstructionType, 'true')
+            if strcmp(reconstructionType, 'true')
                 reconstructedNodes = nodeItr;
             else
                 reconstructedNodes = nodes(nodeItr).leafNodes;
@@ -135,7 +137,6 @@ function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, optio
                 end
             end
         end
-        nodeOffset = nodeOffset + numel(nodes);
         edgeImg = edgeImg > 0;
         
         for bandItr = 1:3
