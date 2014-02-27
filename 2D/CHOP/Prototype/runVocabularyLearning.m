@@ -105,5 +105,6 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         save([options.currentFolder '/output/' datasetName '/' datasetName '_trtime.mat'], 'tr_stop_time');
         save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodes', 'fileNames');
     end
+    matlabpool close;
 end
 

@@ -140,8 +140,8 @@ function [ options ] = SetParameters( datasetName )
                                          % each level of the hierarchy, the
                                          % coordinates are scaled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 12;
-    options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 20;
+    options.maxNodeDegree = 20;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
