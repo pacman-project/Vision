@@ -48,7 +48,6 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         visualizeImages( fileList, graphLevel, leafNodes, 1, options, datasetName, 'train' );
     end
     
-    
     %% Calculate statistics from this graph.
     [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', 1);
     display(['........ Average coverage of leaf nodes: ' num2str(avgCoverage) ', while average shareability is: ' num2str(avgShareability) '.']); 
@@ -181,6 +180,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         
         %% Print vocabulary and graph level to output images (reconstruction).
         if options.debug
+           display('........ Visualizing previous level...');
            if ~isempty(vocabLevel)
                visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, options);
                visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, datasetName, 'train' );

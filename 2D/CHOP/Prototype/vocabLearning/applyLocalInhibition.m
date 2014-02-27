@@ -24,6 +24,7 @@ function [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentMode
     % Calculate edge radius.
     scale = (1/options.scaling)^(levelItr-1);
     neighborhood = fix(options.edgeRadius * scale);
+    noveltyThr = options.noveltyThr;
 
     %% First inhibition is done via structural evaluation. 
     % If the structures of two different subs match, it is very likely that
@@ -65,24 +66,9 @@ function [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentMode
     % Fill in necessary internal structures.
     imageIds = [graphLevel.imageId];
     numberOfImages = max(imageIds);
-    numberOfNodes = numel(graphLevel);
     
     % Get node coordinates.
-    nodeCoords = zeros(numberOfNodes,2);
-    for nodeItr = 1:numberOfNodes
-        nodeCoords(nodeItr,:) = graphLevel(nodeItr).position;
-    end
-    
-    %% For faster calculation, we reverse array of leaf nodes.
-    maxLeafNode = max([graphLevel.leafNodes]);
-    leafParentArr = cell(maxLeafNode,1);
-    for nodeItr = 1:numberOfNodes
-        numberOfLeafNodes = numel(graphLevel(nodeItr).leafNodes);
-        for leafNodeItr = 1:numberOfLeafNodes
-            leafParentArr(graphLevel(nodeItr).leafNodes(leafNodeItr)) = {[ ...
-                leafParentArr{(graphLevel(nodeItr).leafNodes(leafNodeItr))}, nodeItr]};
-        end
-    end
+    nodeCoords = cat(1, graphLevel.position);
     
     %% Prepare data structures for parallel processing.
     imageGraphLevels = cell(numberOfImages,1);
@@ -94,43 +80,35 @@ function [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentMode
     end
     
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
-    discardedNodes = cell(numberOfImages,1);
+    preservedNodes = cell(numberOfImages,1);
     parfor imageId = 1:numberOfImages
-        nodeOffset = numel(find(imageIds<imageId));
         imageGraphLevel = imageGraphLevels{imageId};
         imageNodeCoords = imageAllNodeCoords{imageId};
         numberOfNodesInImage = numel(imageGraphLevel);
-        imageDiscardedNodes = ones(numberOfNodesInImage,1);
+        imagePreservedNodes = ones(numberOfNodesInImage,1);
+        imageLeafNodes = {imageGraphLevel.leafNodes}';
+        maxSharedLeafNodes = cellfun(@(x) numel(x) * noveltyThr , imageLeafNodes, 'UniformOutput', false);
+        
         for nodeItr = 1:(numberOfNodesInImage-1)
           %% If nobody has erased this node before, it has a right to be in the final graph.
-          if imageDiscardedNodes(nodeItr) == 0
+          if imagePreservedNodes(nodeItr) == 0
               continue;
           end
-          selfLeafNodes = imageGraphLevel(nodeItr).leafNodes;
-          overlappingNodes = unique([leafParentArr{selfLeafNodes}]) - nodeOffset;
-          overlappingNodes = overlappingNodes(overlappingNodes > nodeItr);
-
+          
           %% Get each neighboring node.
-          possibleAdjacentNodeCoords = imageNodeCoords(overlappingNodes,:);
-          numberOfPossibleAdjacentCoords = numel(overlappingNodes);
           thisNodeCoords = imageNodeCoords(nodeItr,:);
-          centerArr = repmat(thisNodeCoords, numberOfPossibleAdjacentCoords, 1);
-          distances = sqrt(sum((centerArr - possibleAdjacentNodeCoords).^2, 2));
-          adjacentNodes = overlappingNodes(distances <= neighborhood); 
+          centerArr = repmat(thisNodeCoords, numberOfNodesInImage, 1);
+          distances = sqrt(sum((centerArr - imageNodeCoords).^2, 2));
+          adjacentNodes = distances <= neighborhood; 
+          adjacentNodes(1:nodeItr) = 0;
+          selfLeafNodes = imageLeafNodes{nodeItr};
           
           %% Go over each adjacent node, and apply inhibition if their leaf nodes are too common under current novelty threshold.
-          for adjNodeItr = 1:numel(adjacentNodes)
-              adjLeafNodes = imageGraphLevel(adjacentNodes(adjNodeItr)).leafNodes;
-              numberOfAdjLeafNodes = numel(adjLeafNodes);
-              intersectingLeafNodes = fastintersect(selfLeafNodes, adjLeafNodes);
-              %% Check for novelty here. If new nodes are introduced, everything is good. Else, remove the adjacent node.
-              if ((numberOfAdjLeafNodes-numel(intersectingLeafNodes))/numberOfAdjLeafNodes) < options.noveltyThr
-                  imageDiscardedNodes(adjacentNodes(adjNodeItr)) = 0;
-              end
-          end
+          imagePreservedNodes(adjacentNodes) = cellfun(@(x,y) sum(ismembc(x, selfLeafNodes)) <= y, ...
+              imageLeafNodes(adjacentNodes), maxSharedLeafNodes(adjacentNodes));
         end
-        discardedNodes(imageId) = {imageDiscardedNodes'};
+        preservedNodes(imageId) = {imagePreservedNodes'};
     end
-    discardedNodes = [discardedNodes{:}]>0;
-    graphLevel = graphLevel(:,discardedNodes);
+    preservedNodes = [preservedNodes{:}]>0;
+    graphLevel = graphLevel(:,preservedNodes);
 end

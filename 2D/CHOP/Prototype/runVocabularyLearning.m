@@ -23,6 +23,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     options = SetParameters(datasetName);
     datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
     gtFolder = [options.currentFolder '/input/' datasetName '/gt/'];
+    processedFolder = options.processedFolder;
+    processedGTFolder = options.processedGTFolder;
     
     % Open threads for parallel processing.
     matlabpool('open', options.numberOfThreads);
@@ -36,14 +38,15 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         gtFileNames = cell(numel(trainingFileNames),1);
         %% ========== Step 1: Pre-process the data (extract first level nodes, surpress weak responses) ==========
         %% Step 1.0: Downsample the image if it is too big.
-        for fileItr = 1:size(trainingFileNames,1) 
+        maxImageDim = options.maxImageDim;
+        parfor fileItr = 1:size(trainingFileNames,1) 
             % Read image and downsample it.
             img = imread(trainingFileNames{fileItr});
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
-            if max(size(img)) > options.maxImageDim
-               img = imresize(img, options.maxImageDim/max(size(img)), 'bilinear'); 
+            if max(size(img)) > maxImageDim
+               img = imresize(img, maxImageDim/max(size(img)), 'bilinear'); 
             end
-            imwrite(img, [options.processedFolder '/' fileName '.png']);
+            imwrite(img, [processedFolder '/' fileName '.png']);
             
             % If gt file exists, write it to the processed gt folder. In
             % addition, we keep track of the name of gt file corresponding
@@ -56,21 +59,19 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
                 else
                     gtImg = gtImg(:,:,1)>0;
                 end
-                gtImg = imresize(gtImg, options.maxImageDim/max(size(gtImg)), 'bilinear');
-                if isequal(size(gtImg), [size(img,1), size(img,2)])
-                    gtFileNames(fileItr) = {[options.processedGTFolder '/' fileName '.png']};
-                    imwrite(gtImg, [options.processedGTFolder '/' fileName '.png']);
-                end
+                gtImg = imresize(gtImg, [size(img,1), size(img,2)], 'bilinear');
+                gtFileNames(fileItr) = {[processedGTFolder '/' fileName '.png']};
+                imwrite(gtImg, [processedGTFolder '/' fileName '.png']);
             end
         end
         
         %% Step 1.1: Extract a set of features from the input images.
-        processedFolder = options.processedFolder;
         allNodes = cell(size(trainingFileNames,1),1);
         parfor fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([processedFolder '/' fileName '.png']);
             nodes = getNodes(img, gtFileNames{fileItr}, options);
+            
             % Keep nodes in the array.
             allNodes(fileItr) = {nodes};
         end
@@ -82,11 +83,6 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         allNodes = cat(1, allNodes{:});
         imageIds = cat(1, imageIds{:});
         allNodes = [allNodes, imageIds];
-        
-        % Assign nodes their image ids.
-     %   imageIds = ones(size(nodes,1), 1)*fileItr;
-    %    allNodes((nodeCounter + 1):(nodeCounter + size(nodes,1)), 3) = ...
-    %                                        num2cell(imageIds);
         
         %% Step 1.2: If receptive field is used, nodes will be repeated.
         % (so that each node set corresponds to a different receptive

@@ -37,6 +37,13 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     useReceptiveField = options.useReceptiveField;
     maxNodeDegreeLevel1 = options.maxNodeDegreeLevel1;
     maxNodeDegree = options.maxNodeDegree;
+    % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
+    if currentLevelId == 1
+       averageNodeDegree = maxNodeDegreeLevel1;
+    else
+       averageNodeDegree = maxNodeDegree;
+    end
+    
     property = options.property;
     %% Read histogram matrix to be used in 'hist' type edge calculations.
 %    if strcmp(options.property, 'hist')
@@ -58,151 +65,163 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     end
     
     %% Put each image's node set into a different bin.
-    imageGraphNodeSets = cell(max(imageIds), 1);
+    numberOfImages = max(imageIds);
+    imageGraphNodeSets = cell(numberOfImages, 1);
+    imageNodeIdArr = cell(numberOfImages,1);
+    imageNodeCoordArr = cell(numberOfImages,1);
     for imageItr = 1:max(imageIds)
+       imageNodeIdx = imageIds == imageItr;
        imageGraphNodeSets(imageItr) = {currentLevel(imageIds == imageItr)};
+       imageNodeIdArr(imageItr) = {nodeIds(imageNodeIdx)};
+       imageNodeCoordArr(imageItr) = {nodeCoords(imageNodeIdx,:)};
     end
     
+    
     %% Process each image separately (and in parallel)
-    parfor imageItr = 1:max(imageIds)
+    for imageItr = 1:numberOfImages
+        imageNodeOffset = numel(find(imageIds < imageItr));
         imageNodeIdx = imageIds == imageItr;
-        nodeOffset = numel(find(imageIds < imageItr));
 
         % If there are no nodes in this image, move on.
         if nnz(imageNodeIdx) == 0
            continue; 
         end
         
-        % Get data structures corresponding to nodes in this image.
-        curNodeIds = nodeIds(imageNodeIdx);
-        curNodeCoords = nodeCoords(imageNodeIdx,:);
+        % Get data structures containing information about the nodes in this image.
+        curNodeIds = imageNodeIdArr{imageItr};
+        curNodeCoords = imageNodeCoordArr{imageItr};
         imageNodeIdx = find(imageNodeIdx)';
         numberOfNodes = numel(imageNodeIdx);
         curGraphNodes = imageGraphNodeSets{imageItr};
         curLeafNodes = {curGraphNodes.leafNodes};
-
-        %% Process each node in this image. 
-        for nodeItr = 1:numel(imageNodeIdx)
-           %% Depending on the edge type, find a list of nodes which are neighbors of this node.
+        maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeNoveltyThr;
+        curAdjacentNodes = cell(numberOfNodes,1);
+        
+        %% Find all edges within this image.
+        parfor nodeItr = 1:numberOfNodes
            centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
            distances = sqrt(sum((centerArr - curNodeCoords).^2, 2));
-           nearbyNodes = distances <= neighborhood;
-
-           % Check adjacent nodes to see if they are among nodes
-           % introducing enough novelty with respect to each other. 
-           % options.edgeNoveltyThr provides a lower bound for the
-           % novelty each edge should introduce.
+           adjacentNodes = distances <= neighborhood;
+           
+           %% Check for edge novelty.
+           adjacentNodeIdx = find(adjacentNodes);
            if currentLevelId > 1
-               centerLeafNodes = curGraphNodes(nodeItr).leafNodes;
-               leafCounts = cellfun(@(x) numel(x), curLeafNodes);
-               diffLeafCounts = cellfun(@(x) numel(ismembc(x, centerLeafNodes)), curLeafNodes);
-               novelNodes = (diffLeafCounts >= edgeNoveltyThr*leafCounts)';
-               adjacentNodes = novelNodes & nearbyNodes;
+               centerLeafNodes = curLeafNodes{nodeItr};
+               commonLeafCounts = cellfun(@(x) sum(ismembc(x, centerLeafNodes)), curLeafNodes(adjacentNodes));
+               novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
+               adjacentNodes = adjacentNodeIdx(novelNodes);
            else
-               adjacentNodes = nearbyNodes;
+               adjacentNodes = adjacentNodeIdx;
            end
-
-           % 'distance' type score calculation
-           adjacentNodes = find(adjacentNodes);
-
-           % Looking for closest nodes to connect!
-           scores = distances(adjacentNodes); 
-
-           % Let's remove center node from its neighbors.
-           otherAdjacentNodes = adjacentNodes ~= nodeItr;
-           adjacentNodes = adjacentNodes(otherAdjacentNodes);
-           scores = scores(otherAdjacentNodes);
-
-           % If no adjacent nodes exist, exit.
-           if isempty(adjacentNodes)
-               continue;
-           end
-
-           %% If using receptive fields, there is no limit on the number of neighbors.
-           if ~useReceptiveField
-               % Get valid adjacent nodes with larger node ids.
-               validAdjacentNodes = curNodeIds(adjacentNodes) >= curNodeIds(nodeItr);
-               adjacentNodes = adjacentNodes(validAdjacentNodes);
-               scores = scores(validAdjacentNodes);
-
-               % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
-               if currentLevelId == 1
-                   averageNodeDegree = maxNodeDegreeLevel1;
-               else
-                   averageNodeDegree = maxNodeDegree;
-               end
-               if numel(adjacentNodes)>averageNodeDegree
-                    [idx] = getSmallestNElements(scores, averageNodeDegree);
-                    adjacentNodes = adjacentNodes(idx);
-               end
-           end
-
-           if useReceptiveField
-               directedArr = ones(numel(adjacentNodes),1);
-           else
-               samples = curNodeCoords(adjacentNodes,:) - repmat(curNodeCoords(nodeItr,:), numel(adjacentNodes),1);
-               sampleSums = sum(samples,2);
-               
-               % Check which edges are on the right side of separating line.
-               validSamples = ~(curNodeIds(adjacentNodes) == curNodeIds(nodeItr)) | ...
-                   ((samples(:,1) >= 0 & sampleSums >= 0) | (samples(:,1) < 0 & sampleSums > 0));
-               
-               % If both are at the origin (same spot), this causes
-               % into duplicate links in our final graph. To prevent
-               % this, we only link one with smaller index to the
-               % other one with larger index.
-               validSamples = ~(curNodeIds(adjacentNodes) == curNodeIds(nodeItr)) | ...
-                   (validSamples & (~(samples(:,1) == 0 & samples(:,2) == 0) | adjacentNodes>nodeItr));
-               adjacentNodes = adjacentNodes(validSamples);
-               
-               % If both have same label, edge is directed. Otherwise, it
-               % is undirected.
-               directedArr = curNodeIds(adjacentNodes) == curNodeIds(nodeItr);
+           adjacentNodes = adjacentNodes(adjacentNodes~=nodeItr);
+           
+           %% Eliminate adjacent which are far away, if the node has too many neighbors.
+           % Calculate scores (distances).
+           scores = distances(adjacentNodes);
+           
+           % Eliminate nodes having lower scores.
+           if numel(adjacentNodes)>averageNodeDegree
+                [idx] = getSmallestNElements(scores, averageNodeDegree);
+                adjacentNodes = adjacentNodes(idx);
            end
            
-           samples = curNodeCoords(adjacentNodes,:) - repmat(curNodeCoords(nodeItr,:), numel(adjacentNodes),1);
-           %% Create an edge for each center-adjacent node pair.
-           numberOfAdjacentNodes = numel(adjacentNodes);
-           if strcmp(property, 'hist')
-               % Assign the edges their labels based on the histogram info
-               normalizedSamples = round((double(samples) / neighborhood)*halfSizeHMatrix) + halfSizeHMatrix;
-               normalizedSamples(normalizedSamples < 1) = 1;
-               normalizedSamples(normalizedSamples > sizeHMatrix) = sizeHMatrix;
-               hMatrixInd = sub2ind([sizeHMatrix, sizeHMatrix], normalizedSamples(:,1), normalizedSamples(:,2));
-               edgeIds = hMatrix(hMatrixInd);
-           elseif strcmp(property, 'co-occurence')
-               edgeIds = ones(numberOfAdjacentNodes,1);
-           else
-               edgeIds = zeros(numberOfAdjacentNodes,1);
-               % Mode-based edge label assignment.
-               for adjNodeItr = 1:numberOfAdjacentNodes
-                    % Estimate mode of this edge.
-                    applicableModeIdx = find(currentModesFirstNodes == curNodeIds(nodeItr) & ...
-                    currentModesSecNodes == curNodeIds(adjacentNodes(adjNodeItr)));
-                    applicableModes = currentModesPos(applicableModeIdx,:);
-                    centerArr2 = repmat(samples(adjNodeItr,:), size(applicableModes,1),1);
-                    distances = sqrt(sum((centerArr2 - applicableModes).^2, 2));
-                    [~, minDist] = min(distances);
-
-                    % If a valid mode exists, assign its label.
-                    if numel(minDist)>0
-                        edgeIds(adjNodeItr) = applicableModeIdx(minDist(1));
-                    else
-                        edgeIds(adjNodeItr) = 0;
-                    end
-               end
-           end
-           edges = [repmat(imageNodeIdx(nodeItr), numberOfAdjacentNodes,1), ...
-               adjacentNodes + nodeOffset, ...
-               edgeIds, ...
-               directedArr];
-           
-           %% Assign all edges to the node in the given graph.
-           if ~isempty(edges)
-               curGraphNodes(nodeItr).adjInfo = edges;
-           end
+           %% Assign final adjacent nodes.
+           curAdjacentNodes(nodeItr) = {[repmat(nodeItr, numel(adjacentNodes),1), adjacentNodes]}; 
         end
-        imageGraphNodeSets(imageItr) = {curGraphNodes};
+        
+        % Get rid of empty entries in curAdjacentNodes.
+        nonemptyCurAdjacentNodeIdx = cellfun(@(x) ~isempty(x), curAdjacentNodes);
+        curAdjacentNodes = curAdjacentNodes(nonemptyCurAdjacentNodeIdx);
+        
+        allEdges = cat(1, curAdjacentNodes{:});
+        numberOfAllEdges = size(allEdges,1);
+        
+        if numberOfAllEdges == 0
+           continue;
+        end
+        
+        %% In case we do not use receptive fields, redundant edges should be eliminated.
+        % Redundant edges are defined as duplicate edges between nodes of
+        % the graph. Bidirectional edges are reduced to single-linked ones,
+        % based on the rules below. node1 and node2 are the labels of first
+        % node and second node of an edge, respectively.
+        node1Labels = curNodeIds(allEdges(:,1));
+        node2Labels = curNodeIds(allEdges(:,2));
+        node1Coords = curNodeCoords(allEdges(:,1),:);
+        node2Coords = curNodeCoords(allEdges(:,2),:);
+        edgeCoords = node1Coords - node2Coords;
+        if ~useReceptiveField
+            % 1- eliminate if node1<node2
+            validEdges = node1Labels <= node2Labels;
+            
+            % 2- if node1 == node2, eliminate if this edge is on the wrong side
+            % of the road (sorry, separating line).
+            sumCoords = sum(edgeCoords,2);
+            validEdges2 = node1Labels == node2Labels & ...
+                ((edgeCoords(:,1) >= 0 & sumCoords>=0) | (edgeCoords(:,1) < 0 & sumCoords > 0));
+            
+            % 3- if edge coordinates are [0,0] (same center position), get those with smaller indices.
+            validEdges3 = edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0 & ...
+                allEdges(:,2) > allEdges(:,1);
+            
+            % Combine all three rules.
+            validEdges = validEdges & validEdges2 & validEdges3;
+            
+            allEdges = allEdges(validEdges,:);
+            edgeCoords = edgeCoords(validEdges,:);
+            numberOfAllEdges = allEdges(validEdges,:);
+            node1Labels = node1Labels(validEdges,:);
+            node2Labels = node2Labels(validEdges,:);
+            
+            %% Set isDirected property of each edge.
+            directedArr = labelEqualityArr;
+        else
+            % If receptive fields are used, every edge is directed.
+            directedArr = ones(numberOfAllEdges,1);
+        end
+        
+        %% Based on the edge type, assign edge labels here.
+        if strcmp(property, 'hist')
+            normalizedEdgeCoords = round((edgeCoords / neighborhood)*(halfSizeHMatrix-2)) + halfSizeHMatrix;
+            hMatrixInd = sub2ind([sizeHMatrix, sizeHMatrix], normalizedEdgeCoords(:,1), normalizedEdgeCoords(:,2));
+            edgeIds = hMatrix(hMatrixInd);
+        elseif strcmp(property, 'mode');
+            %% Process each node in this image. 
+           edgeIds = zeros(numberOfAllEdges,1);
+           for edgeItr = 1:numberOfAllEdges
+                % Estimate mode of this edge.
+                applicableModeIdx = find(currentModesFirstNodes == node1Labels(edgeItr) & ...
+                currentModesSecNodes == node2Labels(edgeItr));
+                applicableModes = currentModesPos(applicableModeIdx,:);
+                centerArr2 = repmat(edgeCoords(edgeItr,:), size(applicableModes,1),1);
+                distances = sqrt(sum((centerArr2 - applicableModes).^2, 2));
+                [~, minDist] = min(distances);
+
+                % If a valid mode exists, assign its label.
+                if numel(minDist)>0
+                    edgeIds(edgeItr) = applicableModeIdx(minDist(1));
+                else
+                    edgeIds(edgeItr) = 0;
+                end
+           end
+        else
+            edgeIds = zeros(numberOfAllEdges,1);
+        end
+        
+        if ismember(0, edgeIds)
+            1;
+        end
+        
+        edges = [allEdges(:,1:2) + imageNodeOffset, edgeIds, directedArr];
+        
+       %% Assign all edges to their respective nodes in the final graph.
+       
+       if ~isempty(edges)
+           for nodeItr = 1:numberOfNodes
+               curGraphNodes(nodeItr).adjInfo = edges(edges(:,1) == (nodeItr + imageNodeOffset),:);
+           end
+       end
+       imageGraphNodeSets(imageItr) = {curGraphNodes};
     end
     currentLevel = [imageGraphNodeSets{:}];
     mainGraph(currentLevelId) = {currentLevel};

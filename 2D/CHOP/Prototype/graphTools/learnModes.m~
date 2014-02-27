@@ -32,6 +32,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     nodeCoords = cat(1, currentLevel.position);
     imageIds = [currentLevel.imageId]';
     numberOfNodes = max(nodeIds);
+    allEdges = cat(1, currentLevel.adjInfo);
     
     %% Step 1: For each composition pair, get the 2-D distribution of samples.
     % Right now, we only work with 2-dimensional spatial relations.
@@ -47,13 +48,13 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     end
     
     modes = cell(numberOfNodes,1);
-    parfor node1 = 1:numberOfNodes
+    for node1 = 1:numberOfNodes
        firstNodeImageIds = nodeImageIdArr{node1};
        firstNodeCoords = nodeCoordArr{node1};
        curModes = cell(numberOfNodes,1);
        
        %    Prevent empty cluster warnings in kmeans.
-       for node2 = node1:numberOfNodes
+       parfor node2 = node1:numberOfNodes
            % Get first type of nodes.
            w = warning('off', 'all');
            
@@ -149,11 +150,11 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
                midPoint = options.maxImageDim + 1;
                distributionImg = distributionImg((midPoint-bound):(midPoint+bound), (midPoint-bound):(midPoint+bound));
                if ~exist([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/'], 'dir')
-                   mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/']);
+               %    mkdir([options.currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/']);
                end
                if ~isempty(distributionImg)
-                   imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), ...
-                       [options.currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/' num2str(node1) '_' num2str(node2) '.png']);
+              %     imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), ...
+              %         [options.currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/' num2str(node1) '_' num2str(node2) '.png']);
                end
            end
            warning(w);

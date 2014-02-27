@@ -17,7 +17,7 @@ function [ options ] = SetParameters( datasetName )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
-    options.numberOfThreads = 7;
+    options.numberOfThreads = 6;
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -84,7 +84,7 @@ function [ options ] = SetParameters( datasetName )
                                        % contourGTNeighborhood). 
                                        % 'bbox' type gt: nodes in the
                                        % gt bounding box are examined.
-    options.contourGTNeighborhood = 5;% width of the band along the contour 
+    options.contourGTNeighborhood = 8;% width of the band along the contour 
                                        % (half width, actual width is
                                        % double this value)  in which nodes
                                        % are examined.
@@ -95,15 +95,15 @@ function [ options ] = SetParameters( datasetName )
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'mode'; % Geometric property to be examined
+    options.property = 'hist'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.7;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -140,15 +140,15 @@ function [ options ] = SetParameters( datasetName )
                                          % each level of the hierarchy, the
                                          % coordinates are scaled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 10;
-    options.maxNodeDegree = 8;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 12;
+    options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
     options.maxImageDim = options.gaborFilterSize*30;
     options.maximumModes = 10;          % Maximum number of modes allowed for 
                                        % a node pair.
-    options.edgeRadius = floor(options.receptiveFieldSize/1.5); % The edge radius for two subs to be 
+    options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     
@@ -181,7 +181,7 @@ function [ options ] = SetParameters( datasetName )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 100;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 1200;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -209,9 +209,9 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 50;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 2000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 20;   % Beam length in SUBDUE
+    options.subdue.beam = 50;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line

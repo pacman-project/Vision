@@ -78,7 +78,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
                 break;
             end
             %% Step 2.2: Extend head in all possible directions into childSubs.
-            childSubs = extendSub(parentSub, options);
+            childSubs = extendSub(parentSub);
             
             % If no children are generated or time is up, return.
             if endFlag || numel(childSubs) < 1
@@ -231,7 +231,6 @@ end
 %> along with instances of each sub in returned list.
 %> 
 %> @param sub Sub to be extended.
-%> @param options Program options.
 %>
 %> @retval extendedSubs Extended sub list.
 %> 
@@ -239,7 +238,7 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 24.02.2014
-function [extendedSubs] = extendSub(sub, options)
+function [extendedSubs] = extendSub(sub)
     global globalEdges
     
     centerIdx = cat(1,sub.instances.centerIdx);
@@ -247,7 +246,6 @@ function [extendedSubs] = extendSub(sub, options)
     % Get unused edges from sub's instances.
     allUsedEdgeIdx = {sub.instances.edges}';
     allUnusedEdges = cellfun(@(x,y) x(setdiff(1:size(x,1),y),:), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
-    allUnusedInstanceEdges = allUnusedEdges;
     
     % Record which edge belongs to which instance. 
     allEdgeInstanceIds = zeros(size(allUnusedEdges,1),1);
@@ -255,10 +253,16 @@ function [extendedSubs] = extendSub(sub, options)
     unusedEdgeCount = cellfun(@(x) size(x,1), allUnusedEdges);
     for itr = 1:numel(allUnusedEdges)
         beginOffset = itrOffset;
-        allEdgeInstanceIds(beginOffset:(beginOffset+unusedEdgeCount(itr))) = itr;
+        allEdgeInstanceIds(beginOffset:(beginOffset+(unusedEdgeCount(itr)-1))) = itr;
         itrOffset = itrOffset + unusedEdgeCount(itr);
     end         
     allUnusedEdges = cat(1, allUnusedEdges{:});
+    
+    % If no edges remain, exit.
+    if isempty(allUnusedEdges)
+        extendedSubs = [];
+        return; 
+    end
     
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(allUnusedEdges(:, 3:4), 'rows');
@@ -289,12 +293,12 @@ function [extendedSubs] = extendSub(sub, options)
         edgesToExtendIdx = allUnusedEdges(:,3) == uniqueEdgeTypes(edgeTypeItr,1) & ...
             allUnusedEdges(:,4) == uniqueEdgeTypes(edgeTypeItr,2);
         edgesToExtend = allUnusedEdges(edgesToExtendIdx,:);
-        edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx,:)';
+        edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx)';
         newInstances = sub.instances(edgeInstanceIds);
         
         % Each added edge actually means a new instance. 
         for instanceItr = 1:numel(edgeInstanceIds)
-            instanceEdges = allUnusedInstanceEdges{edgeInstanceIds(instanceItr)};
+            instanceEdges = subAllEdges{edgeInstanceIds(instanceItr)};
             if isempty(instanceEdges)
                continue; 
             end
@@ -302,24 +306,7 @@ function [extendedSubs] = extendSub(sub, options)
             newInstances(instanceItr).edges = [newInstances(instanceItr).edges; addedEdgeIdx];
         end
         
-%        % Eliminate those instances not having any edges.
-%         instanceEdges = {newInstances.edges}';
-%         validInstanceIdx = cellfun(@(x) ~isempty(x), instanceEdges);
-%         newInstances = newInstances(validInstanceIdx);
-        %% Before assigning new instances to newSub, we eliminate duplicates.
-        % Because of the instance generation process, an instance has many
-        % parse trees if it has same type of edges between its nodes. So,
-        % we may have the very same instance twice or many times in
-        % newInstances list.
-%         if ~isempty(newInstances)
-%             allNewInstanceEdges = allUnusedInstanceEdges(edgeInstanceIds);
-%             instanceEdges = {newInstances.edges}';
-%             usedNodes = cell2mat(cellfun(@(x,y) x(y, 2)', allNewInstanceEdges, instanceEdges, 'UniformOutput', false));
-%             instanceIdentifier = [cat(1, newInstances.centerIdx), usedNodes];
-%             [~, uniqueInstanceIdx, ~] = unique(instanceIdentifier, 'rows');
-%             newInstances = newInstances(uniqueInstanceIdx);
-%         end
-        
+        % Assign instances and we are good to go.
         newSub.instances = newInstances;
         extendedSubs(edgeTypeItr) = newSub;
     end
