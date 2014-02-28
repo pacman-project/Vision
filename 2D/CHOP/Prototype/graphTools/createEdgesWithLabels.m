@@ -151,6 +151,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
         node2Coords = curNodeCoords(allEdges(:,2),:);
         edgeCoords = node1Coords - node2Coords;
         if ~useReceptiveField
+            labelEqualityArr = node1Labels == node2Labels;
             % 1- eliminate if node1<node2
             validEdges = node1Labels <= node2Labels;
             
@@ -172,6 +173,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
             numberOfAllEdges = allEdges(validEdges,:);
             node1Labels = node1Labels(validEdges,:);
             node2Labels = node2Labels(validEdges,:);
+            labelEqualityArr = labelEqualityArr(validEdges);
             
             %% Set isDirected property of each edge.
             directedArr = labelEqualityArr;
@@ -206,10 +208,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
            end
         else
             edgeIds = zeros(numberOfAllEdges,1);
-        end
-        
-        if ismember(0, edgeIds)
-            1;
         end
         
         edges = [allEdges(:,1:2) + imageNodeOffset, edgeIds, directedArr];

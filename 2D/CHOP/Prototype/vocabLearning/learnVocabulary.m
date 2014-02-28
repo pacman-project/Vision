@@ -44,7 +44,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
     
     %% Print first vocabulary and graph level.
     if options.debug
-        visualizeLevel( vocabulary{1}, 1, previousModes, options);
+        visualizeLevel( vocabulary{1}, 1, previousModes, 0, options);
         visualizeImages( fileList, graphLevel, leafNodes, 1, options, datasetName, 'train' );
     end
     
@@ -182,7 +182,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         if options.debug
            display('........ Visualizing previous level...');
            if ~isempty(vocabLevel)
-               visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, options);
+               visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options);
                visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, datasetName, 'train' );
            end
         end

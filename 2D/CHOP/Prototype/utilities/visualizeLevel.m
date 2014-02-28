@@ -7,13 +7,14 @@
 %> @param currentLevel Current vocabulary level.
 %> @param levelId Identifier of the current level.
 %> @param modes Modes of the previous level to reconstruct the features.
+%> @param numberOfPrevNodes Number of nodes in previous vocabulary level.
 %> @param options Program options.
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 10.02.2014
-function [] = visualizeLevel( currentLevel, levelId, modes, options)
+function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, options)
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
     %% Create output folder structure.
@@ -34,7 +35,6 @@ function [] = visualizeLevel( currentLevel, levelId, modes, options)
         %% In other levels, combine the nodes of previous levels depending on mode info and visualize current level.
         % Read previous layer's masks.
         prevLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId-1) '/reconstruction/'];
-        numberOfPrevNodes = numel(dir(prevLevelDir))-2;
         numberOfNodes = numel(currentLevel);
         prevNodeMasks = cell(numberOfPrevNodes,1);
         patchHalfDims = zeros(numberOfPrevNodes,2);

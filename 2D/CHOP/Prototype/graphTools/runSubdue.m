@@ -368,7 +368,7 @@ function [subs] = evaluateSubs(subs, options)
             % y. Each secondary neighbor (neighbor of neighbor) needs to be
             % represented only once. Constant terms have been discarded
             % from this equation.
-            dlReductions = cellfun(@(x,y) numel(fastintersect(x,y)) + (numel(y) - numel(fast_unique(y))), instanceAllNeighbors, instanceSecondaryNeighbors);
+            dlReductions = cellfun(@(x,y) numel(fastintersect(x,y)) + (numel(y) - numel(unique(y))), instanceAllNeighbors, instanceSecondaryNeighbors);
             
             %% Estimate DL reduction.
             dlDiff = sum(dlReductions(instanceSigns == 1)) - sum(dlReductions(instanceSigns == 0));

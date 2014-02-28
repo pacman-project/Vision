@@ -62,8 +62,8 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
            secondNodeCoords = nodeCoordArr{node2};
            
            % Get common image ids.
-           commonImageIds = fast_unique(fast_intersect_sorted(firstNodeImageIds, ...
-               secondNodeImageIds))';
+           commonImageIds = fastintersect(fastsortedunique(firstNodeImageIds), ...
+               fastsortedunique(secondNodeImageIds));
            
            % If no common imageids exist, nothing to do here.
            if isempty(commonImageIds)
@@ -71,8 +71,8 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
            end
            
            % Find all edges in between.
-           samples = cell(size(commonImageIds,1),1);
-           for imageIdItr = 1:size(commonImageIds,1)
+           samples = cell(numel(commonImageIds),1);
+           for imageIdItr = 1:numel(commonImageIds)
                % Get center coords belonging to first node type in image.
                imageId = commonImageIds(imageIdItr);
                firstNodeCenterCoords = firstNodeCoords(firstNodeImageIds == imageId,:);
