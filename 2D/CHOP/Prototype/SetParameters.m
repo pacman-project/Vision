@@ -17,7 +17,9 @@ function [ options ] = SetParameters( datasetName )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
-    options.numberOfThreads = 6;
+    %% ========== PARALLEL PROCESSING PARAMETERS ==========
+    options.parallelProcessing = true;
+    options.numberOfThreads = feature('NumCores') * 2 - 1;
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 

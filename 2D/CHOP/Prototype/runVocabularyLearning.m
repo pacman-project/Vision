@@ -27,7 +27,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     processedGTFolder = options.processedGTFolder;
     
     % Open threads for parallel processing.
-    matlabpool('open', options.numberOfThreads);
+    if options.parallelProcessing
+        matlabpool('open', options.numberOfThreads);
+    end
     
     if options.learnVocabulary
         %% Step 0.1: Create initial data structures.
@@ -105,6 +107,10 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         save([options.currentFolder '/output/' datasetName '/' datasetName '_trtime.mat'], 'tr_stop_time');
         save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'highLevelModes', 'leafNodes', 'fileNames');
     end
-    matlabpool close;
+    
+    % Close thread pool if opened.
+    if options.parallelProcessing
+        matlabpool close;
+    end
 end
 
