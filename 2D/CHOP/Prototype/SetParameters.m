@@ -14,7 +14,7 @@
 %> Ver 1.0 on 10.01.2014
 function [ options ] = SetParameters( datasetName )
     %% ========== DEBUG PARAMETER ==========
-    options.debug = 1;           % If debug = 1, additional output will be 
+    options.debug = 0;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
@@ -97,7 +97,7 @@ function [ options ] = SetParameters( datasetName )
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -154,7 +154,7 @@ function [ options ] = SetParameters( datasetName )
                                        % determined as neighbors. Centroids
                                        % taken into account.
     
-    options.maxLevels = 10;    % The maximum level count               
+    options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
                                   % The following are not really parameters, 
@@ -183,7 +183,7 @@ function [ options ] = SetParameters( datasetName )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 1200;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 3600;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -211,9 +211,9 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 75;   % Beam length in SUBDUE
+    options.subdue.beam = 500;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
@@ -234,30 +234,6 @@ function [ options ] = SetParameters( datasetName )
     options.preDefinedFolder = [currentPath '/output/' datasetName '/preDefined'];
     options.testGraphFolder = [currentPath '/graphs/' datasetName '/test'];
     options.trainGraphFolder = [currentPath '/graphs/' datasetName '/train'];
-    
-    % Create folder structures required later.
-    if ~exist(options.processedFolder,'dir')
-       mkdir(options.processedFolder); 
-    end
-    if ~exist(options.processedGTFolder,'dir')
-       mkdir(options.processedGTFolder); 
-    end
-    if ~exist(options.preDefinedFolder,'dir')
-       mkdir(options.preDefinedFolder); 
-    end
-    if ~exist(options.testGraphFolder, 'dir')
-       mkdir(options.testGraphFolder);
-    end
-    if ~exist(options.trainGraphFolder, 'dir')
-       mkdir(options.trainGraphFolder);
-    end
-    if ~exist(options.testOutputFolder, 'dir')
-       mkdir(options.testOutputFolder); 
-    end
-    if ~exist(options.testInferenceFolder, 'dir')
-       mkdir(options.testInferenceFolder); 
-    end
-    
     
     %% ========== PATH FOLDER ADDITION ==========
     addpath(genpath([options.currentFolder '/utilities']));
