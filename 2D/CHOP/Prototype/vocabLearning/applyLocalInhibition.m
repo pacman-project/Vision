@@ -85,7 +85,7 @@ function [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentMode
         imageGraphLevel = imageGraphLevels{imageId};
         imageNodeCoords = imageAllNodeCoords{imageId};
         numberOfNodesInImage = numel(imageGraphLevel);
-        imagePreservedNodes = ones(numberOfNodesInImage,1);
+        imagePreservedNodes = ones(numberOfNodesInImage,1)>0;
         imageLeafNodes = {imageGraphLevel.leafNodes}';
         maxSharedLeafNodes = cellfun(@(x) numel(x) * noveltyThr , imageLeafNodes, 'UniformOutput', false);
         
@@ -99,7 +99,7 @@ function [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentMode
           thisNodeCoords = imageNodeCoords(nodeItr,:);
           centerArr = repmat(thisNodeCoords, numberOfNodesInImage, 1);
           distances = sqrt(sum((centerArr - imageNodeCoords).^2, 2));
-          adjacentNodes = distances <= neighborhood; 
+          adjacentNodes = imagePreservedNodes & distances <= neighborhood; 
           adjacentNodes(1:nodeItr) = 0;
           selfLeafNodes = imageLeafNodes{nodeItr};
           
