@@ -99,7 +99,7 @@ function [ options ] = SetParameters( datasetName )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'mode'; % Geometric property to be examined
+    options.property = 'hist'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
