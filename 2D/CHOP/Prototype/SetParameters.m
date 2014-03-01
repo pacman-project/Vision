@@ -156,15 +156,6 @@ function [ options ] = SetParameters( datasetName )
     
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
-    options.maxNumberOfFeatures = 1000000; % Total maximum number of features.
-                                  % The following are not really parameters, 
-                                  % put here to avoid hard-coding.
-    options.maxNumberOfEdges = 1000000;
-    options.maxSamplesPerNode = 1000; % max number of samples per part pair to 
-                                      % estimate geometric modes. When
-                                      % enough samples are collected, no
-                                      % more points are processed for that
-                                      % pair.
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.implementation = 'self'; % Two types of subdue are used.
                                             % 'self': Matlab-based
@@ -211,9 +202,9 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 1000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 500;   % Beam length in SUBDUE
+    options.subdue.beam = 50;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line

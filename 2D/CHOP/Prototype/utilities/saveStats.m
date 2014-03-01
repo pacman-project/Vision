@@ -24,25 +24,24 @@ function [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leaf
     imageIds = [graphLevel.imageId]';
     compositionImageCountArr = zeros(numel(vocabLevel),1);
     
-    for labelId = 1:numel(vocabLevel)
-       compositionImageCountArr(labelId) = numel(unique(imageIds(labelIds==labelId))) / numberOfImages;
+    parfor labelId = 1:numel(vocabLevel)
+       compositionImageCountArr(labelId) = numel(fastsortedunique(imageIds(labelIds==labelId))) / numberOfImages;
     end
     avgShareability = mean(compositionImageCountArr(~isnan(compositionImageCountArr)));
     
     %% Calculate coverage of each image's leaf nodes in detected realizations.
-    detectedLeafNodes = unique([graphLevel.leafNodes]);
     leafNodeIds = 1:size(leafNodes,1);
     leafImageIds = cell2mat(leafNodes(:,3));
-    overallCoverage = numel(detectedLeafNodes) / size(leafNodes,1);
     imageCoverageArr = zeros(numberOfImages,1);
     for imageItr = 1:numberOfImages
-        imageCoverageArr(imageItr) = numel(fastintersect(detectedLeafNodes, leafNodeIds(leafImageIds == imageItr))) / ...
+        detectedLeafNodes = unique([graphLevel(imageIds == imageItr).leafNodes]);
+        imageCoverageArr(imageItr) = numel(ismembc(detectedLeafNodes, leafNodeIds(leafImageIds == imageItr))) / ...
             numel(leafNodeIds(leafImageIds == imageItr));
     end
     avgCoverage = mean(imageCoverageArr(~isnan(imageCoverageArr)));
     
     %% Save info.
     statFile = [options.currentFolder '/output/' options.datasetName '/' state '_' num2str(levelItr) '.mat'];
-    save(statFile, 'compositionImageCountArr', 'avgShareability', 'overallCoverage', 'imageCoverageArr', 'avgCoverage');
+    save(statFile, 'compositionImageCountArr', 'avgShareability', 'imageCoverageArr', 'avgCoverage');
 end
 

@@ -49,6 +49,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
     end
     
     %% Calculate statistics from this graph.
+    display('........ Estimating statistics for level 1..');
     [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', 1);
     display(['........ Average coverage of leaf nodes: ' num2str(avgCoverage) ', while average shareability is: ' num2str(avgShareability) '.']); 
     
@@ -128,8 +129,8 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         end
         
         %% Calculate statistics from this graph.
-        [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', levelItr);
         display('........ Before we apply inhibition, estimating statistics..');
+        [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', levelItr);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) '.']); 
         
         %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.

@@ -38,7 +38,7 @@ function [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, 
         % Normalize the center positions by translating the centers such
         % that midpoint of the matrix is the origin, and the they are
         % resized to fit current neighborhood.
-        normCenters = round((centers - halfSizeMatrix) * (neighborhood/halfSizeMatrix));
+        normCenters = fix((centers - halfSizeMatrix) * (neighborhood/halfSizeMatrix));
         
         % Keep centers of histogram 
         currentModes = [zeros([size(normCenters,1), 2]), normCenters];

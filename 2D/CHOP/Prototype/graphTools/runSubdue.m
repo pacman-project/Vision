@@ -33,7 +33,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     % Some variables are global since they are accessed often in sub-functions.
     % Copying into function spaces and back is inefficient for this case.
     % They will be removed at the end of this function.
-    global globalEdges globalLabels globalNeighbors globalSigns
+    global globalEdges globalLabels globalNeighbors globalSigns globalGraphSize
     
     bestSubs = [];
     parentSubs = [];
@@ -55,6 +55,13 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     globalEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), globalLabels(x(:,2))], ...
         globalEdges(nonemptyEdgeIdx), 'UniformOutput', false);
     globalSigns = cat(1, graphLevel.sign);
+    
+    % Graph size formulation is very simple: 2 * #edges + #nodes. edges are
+    % linked to their node1, so only need to keep node2 and edgeLabel
+    % (2xint). Nodes only keep nodeLabel (1xint). We assume nearly all
+    % edges are doubly linked, therefore leading to an approximate yet fast
+    % calculation of graph size.
+    globalGraphSize = sum(cellfun(@(x) numel(x), globalEdges)) + numel(graphLevel);
     
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
     singleNodeSubs = getSingleNodeSubs(options);
@@ -137,6 +144,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     for bestSubItr = 1:numberOfBestSubs
        % Assign label of sub.
        vocabLevel(bestSubItr).label = num2str(bestSubItr);
+       
+       % Assign mdl score.
+       vocabLevel(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore;
+       vocabLevel(bestSubItr).normMdlScore = bestSubs(bestSubItr).normMdlScore;
        
        % Assign sub edges (definition)
        numberOfEdges = size(bestSubs(bestSubItr).edges,1);
@@ -328,7 +339,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 function [subs] = evaluateSubs(subs, options)
-    global globalSigns globalEdges
+    global globalSigns globalEdges globalGraphSize
     
     numberOfSubs = numel(subs);
     if strcmp(options.subdue.evalMetric, 'mdl')
@@ -361,18 +372,36 @@ function [subs] = evaluateSubs(subs, options)
             instanceSecondaryNeighbors = cell(size(nonemptyNeighborIdx,1),1);
             instanceSecondaryNeighbors(nonemptyNeighborIdx) = cellfun(@(x) x(:,2), instanceNeighborEdges(nonemptyNeighborIdx), 'UniformOutput', false);
             
-            % Calculate DL reduction for each instance. 
+            % Learn number of instances/edges in each instance.
+            numberOfInstances = size(instanceSigns,1);
+            numberOfEdgesInSub = size(subs(subItr).edges,1);
+            positiveInstanceIdx = instanceSigns == 1;
+            negativeInstanceIdx = instanceSigns == 0;
+            numberOfPositiveInstances = numel(find(positiveInstanceIdx));
+            
+            % 1) Calculate edge-based DL reduction for each instance. 
             % (numel(fastintersect(x,y)) : Number of edges to be removed to
-            % represent secondary nodes' edges with the center node.
+            % represent edges from neighbors to secondary neighbors, since 
+            % we connect them directly to the center node.
             % (numel(y) - numel(unique(y))) : Number of duplicates within
             % y. Each secondary neighbor (neighbor of neighbor) needs to be
-            % represented only once. Constant terms have been discarded
-            % from this equation.
-            dlReductions = cellfun(@(x,y) numel(fastintersect(x,y)) + (numel(y) - numel(unique(y))), instanceAllNeighbors, instanceSecondaryNeighbors);
+            % represented only once. 
+            edgeDLReductions = cellfun(@(x,y) numel(fastintersect(x,y)) + (numel(y) - numel(unique(y))), instanceAllNeighbors, instanceSecondaryNeighbors);
+            
+            % 2) Calculate edge-based DL reduction amount due to the removal
+            % of edges with each instance. 
+            % amount = (nPos - (nIns - nPos)) * edgePerSub.
+            selfEdgeDLReductionAmount = (2*numberOfPositiveInstances-numberOfInstances) * numberOfEdgesInSub;
+            
+            % 3) Calculate # of nodes to be removed from the graph.
+            selfNodeDLReductionAmount = numel(unique([instanceNeighbors{positiveInstanceIdx}])) - ...
+                numel(unique([instanceNeighbors{negativeInstanceIdx}]));
             
             %% Estimate DL reduction.
-            dlDiff = sum(dlReductions(instanceSigns == 1)) - sum(dlReductions(instanceSigns == 0));
-            subs(subItr).mdlScore = dlDiff - size(subs(subItr).edges,1);
+            dlDiff = 2*(sum(edgeDLReductions(positiveInstanceIdx)) - sum(edgeDLReductions(negativeInstanceIdx)) + ...
+                selfEdgeDLReductionAmount) + selfNodeDLReductionAmount - (numberOfEdgesInSub * 3);
+            subs(subItr).mdlScore = dlDiff;
+            subs(subItr).normMdlScore = 1 - (dlDiff / globalGraphSize);
         end
     else
         for subItr = 1:numberOfSubs

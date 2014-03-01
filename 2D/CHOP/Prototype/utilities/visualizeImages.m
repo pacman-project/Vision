@@ -58,7 +58,7 @@ function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, optio
         sizeOfImage = [size(originalImg,1), size(originalImg,2)];
         
         %% Go over each leaf in the graph and write its mask to the reconstructed image.
-        nodes = graphLevel(:,[graphLevel.imageId] == fileItr);
+        nodes = graphLevel(imageIds == fileItr);
         
         for nodeItr = 1:numel(nodes)
             if strcmp(reconstructionType, 'true')

@@ -1,6 +1,8 @@
 classdef VocabNode
     properties
         label
+        mdlScore
+        normMdlScore
         children
         parents
         adjInfo

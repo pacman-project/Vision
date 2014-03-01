@@ -20,23 +20,23 @@
 function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtension )
     %% ========== Step 0: Set program options and run initializations ==========
     %% Step 0.0: Get program options and parameters.
-    options = SetParameters(datasetName);
-    datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
-    gtFolder = [options.currentFolder '/input/' datasetName '/gt/'];
-    processedFolder = options.processedFolder;
-    processedGTFolder = options.processedGTFolder;
+    newOptions = SetParameters(datasetName);
+    datasetFolder = [newOptions.currentFolder '/input/' datasetName '/vocab/'];
+    gtFolder = [newOptions.currentFolder '/input/' datasetName '/gt/'];
+    processedFolder = newOptions.processedFolder;
+    processedGTFolder = newOptions.processedGTFolder;
     
     % Open threads for parallel processing.
-    if options.parallelProcessing
-        matlabpool('open', options.numberOfThreads);
+    if newOptions.parallelProcessing
+        matlabpool('open', newOptions.numberOfThreads);
     end
     
-    if options.learnVocabulary
-        workspaceFileAllNodes =[options.currentFolder '/output/' datasetName '/workspaceAllNodes.mat'];
-        
+    if newOptions.learnVocabulary
+        workspaceFileAllNodes =[newOptions.currentFolder '/output/' datasetName '/workspaceAllNodes.mat'];
         %% If the workspace file after all nodes exist, no need to extract first level nodes again.
         if exist(workspaceFileAllNodes, 'file')
             load(workspaceFileAllNodes);
+            options = newOptions;
             if exist([options.currentFolder '/debug/' datasetName], 'dir')
                 rmdir([options.currentFolder '/debug/' datasetName], 's');
             end
@@ -45,6 +45,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             end
             createFolders(options);
         else
+            options = newOptions;
             if exist([options.currentFolder '/debug/' datasetName], 'dir')
                 rmdir([options.currentFolder '/debug/' datasetName], 's');
             end

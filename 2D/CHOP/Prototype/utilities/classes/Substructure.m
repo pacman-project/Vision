@@ -3,6 +3,7 @@ classdef Substructure
         centerId
         edges
         mdlScore
+        normMdlScore
         instances
     end
     methods
