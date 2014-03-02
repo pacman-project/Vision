@@ -22,7 +22,7 @@ function [] = printGraphLevel(graphFileName, graphLevel)
     end
     
     %% For each image, select the nodes and their edges, and print them.
-    for imageItr = 1:numel(uniqueImageIds)
+    parfor imageItr = 1:numel(uniqueImageIds)
         nodeOffset = numel(find(imageIds<uniqueImageIds(imageItr)));
         imageNodes = nodeSets{imageItr};
         if isempty(imageNodes)
