@@ -63,29 +63,30 @@ function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, optio
         
         %% Go over each leaf in the graph and write its mask to the reconstructed image.
         nodes = imageNodeSets{fileItr};
+        if strcmp(reconstructionType, 'true')
+            imageLabelIds = [nodes.labelId]';
+            imageIds = [nodes.imageId]';
+            positions = cat(1, nodes.position);
+            imageNodeIdx = imageIds == fileItr;
+            nodeReconInfo = imageNodeIdx
+            
+            
+        end
+        
         
         % If no nodes exist, do nothing.
         if isempty(nodes)
            continue; 
         end
         
-        % Get the correct node set to reconstruct.
-        if strcmp(reconstructionType, 'true')
-            nodeReconInfo = [{nodes.labelId}', {nodes.position}'];
-        else
-            nodeReconInfo = leafNodes(:,1:2);
-            clear leafNodes;
-        end
-        
-        %% Reconstruct each node.
         for nodeItr = 1:numel(nodes)
             if strcmp(reconstructionType, 'true')
                 reconstructedNodes = nodeItr;
+                reconstructedNodes = 
             else
                 reconstructedNodes = nodes(nodeItr).leafNodes;
+                reconstructedNodes = leafNodes(reconstructedNodes, :);
             end
-            
-            reconstructedNodes = nodeReconInfo(reconstructedNodes,:);
             
             for reconNodeItr = 1:size(reconstructedNodes,1)
                 % Read the mask here, and crop it if necessary.

@@ -98,7 +98,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
         curAdjacentNodes = cell(numberOfNodes,1);
         
         %% Find all edges within this image.
-        parfor nodeItr = 1:numberOfNodes
+        for nodeItr = 1:numberOfNodes
            centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
            distances = sqrt(sum((centerArr - curNodeCoords).^2, 2));
            adjacentNodes = distances <= neighborhood;
@@ -211,6 +211,10 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
         end
         
         edges = [allEdges(:,1:2) + imageNodeOffset, edgeIds, directedArr];
+        
+        % Due to some approximations in mode calculations, some edgeIds might 
+        % have been assigned as 0. Eliminate such cases.
+        edges = edges(edgeIds>0,:);
         
        %% Assign all edges to their respective nodes in the final graph.
        

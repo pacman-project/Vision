@@ -28,13 +28,18 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     
     % Open threads for parallel processing.
     if newOptions.parallelProcessing
+        s = matlabpool('size');
+        if s>0
+           matlabpool close; 
+        end
         matlabpool('open', newOptions.numberOfThreads);
     end
     
     if newOptions.learnVocabulary
         workspaceFileAllNodes =[newOptions.currentFolder '/output/' datasetName '/workspaceAllNodes.mat'];
-        %% If the workspace file after all nodes exist, no need to extract first level nodes again.
-        if exist(workspaceFileAllNodes, 'file')
+        %% If the workspace file after all nodes exist, no need to extract first level nodes again. Currently not in use!
+ %       if exist(workspaceFileAllNodes, 'file')
+        if false
             load(workspaceFileAllNodes);
             options = newOptions;
             if exist([options.currentFolder '/debug/' datasetName], 'dir')
@@ -57,7 +62,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             %% Step 0.1: Create initial data structures.
             fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
             trainingFileNames = fileNames;
-
+            
             %% Step 0.2: Allocate space to keep names of corresponding gt files.
             gtFileNames = cell(numel(trainingFileNames),1);
             %% ========== Step 1: Pre-process the data (extract first level nodes, surpress weak responses) ==========
@@ -99,17 +104,27 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
                 % Keep nodes in the array.
                 allNodes(fileItr) = {nodes};
             end
+            
+            % Reorder images based on their node count. This helps in
+            % parallelization. 
+            nodeCounts = cellfun(@(x) size(x,1), allNodes);
+            [~, sortedImageIdx] = sort(nodeCounts, 'descend');
+            trainingFileNames = trainingFileNames(sortedImageIdx);
+            allNodes = allNodes(sortedImageIdx);
+            
+            % Set image ids array
             imageIds = cell(size(allNodes,1),1);
             for fileItr = 1:size(allNodes,1)
                 imageIds(fileItr) = {num2cell(repmat(fileItr, size(allNodes{fileItr},1), 1))};
             end
 
+            % Convert all into a single matrix.
             allNodes = cat(1, allNodes{:});
             imageIds = cat(1, imageIds{:});
             allNodes = [allNodes, imageIds];
-
         end
         % Save all info to the workspace file.
+        clear newOptions;
         save(workspaceFileAllNodes);
         
         %% Step 1.2: If receptive field is used, nodes will be repeated.

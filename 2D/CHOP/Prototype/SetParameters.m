@@ -14,7 +14,7 @@
 %> Ver 1.0 on 10.01.2014
 function [ options ] = SetParameters( datasetName )
     %% ========== DEBUG PARAMETER ==========
-    options.debug = 0;           % If debug = 1, additional output will be 
+    options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
@@ -101,10 +101,15 @@ function [ options ] = SetParameters( datasetName )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'hist'; % Geometric property to be examined
+    options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
+    options.mode.maxSamplesPerMode = 200; % In mode calculation between node1
+                                          % and node2, not all samples are
+                                          % considered. Randomly chosen
+                                          % samples are used, defined with
+                                          % this number.
     options.scaling = 0.7;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
@@ -127,7 +132,7 @@ function [ options ] = SetParameters( datasetName )
                                        % here. 'multiview' and 'category'
                                        % are considered to be implemented,
                                        % among others.
-    options.reconstructionType = 'leaf'; % 'true': Actual reconstruction at each 
+    options.reconstructionType = 'true'; % 'true': Actual reconstruction at each 
                                          % level with compositions' masks on 
                                          % that specific level
                                          % 'leaf': Detected leaf nodes will
@@ -148,7 +153,7 @@ function [ options ] = SetParameters( datasetName )
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
     options.maxImageDim = options.gaborFilterSize*30;
-    options.maximumModes = 10;          % Maximum number of modes allowed for 
+    options.maximumModes = 50;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
@@ -157,7 +162,7 @@ function [ options ] = SetParameters( datasetName )
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.implementation = 'self'; % Two types of subdue are used.
+    options.subdue.implementation = 'exe'; % Two types of subdue are used.
                                             % 'self': Matlab-based
                                             % implementation.
                                             % 'exe': Ready-to-use
@@ -202,9 +207,9 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 1000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 50;   % Beam length in SUBDUE
+    options.subdue.beam = 75;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line

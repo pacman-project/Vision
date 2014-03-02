@@ -233,8 +233,9 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     end
     modes = fix(cat(1, modes{:}));
     covMats = cat(1, covMats{:});
-    % Save statistics to debug folder.
     save([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/cov.mat'], 'modes', 'covMats');
+    
+    %% Save statistics to debug folder.
         
     %% If receptive fields are used, add reverse modes to the modes array.
     if options.useReceptiveField

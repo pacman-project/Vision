@@ -57,7 +57,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
     for levelItr = 2:options.maxLevels
         %% Step 2.0: Get opposite edge information, if there is any.
         oppositeModes = [];
-        if ~isempty(modes)
+        if ~isempty(modes) && numel(modes)>=(levelItr-1)
             currentModes = modes{levelItr-1};
             numberOfModes = size(currentModes,1);
             oppositeModes = zeros(numberOfModes,1);
@@ -75,13 +75,6 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
         [vocabLevel, graphLevel] = discoverSubs(vocabLevel, graphLevel, oppositeModes, ...
             options, options.currentFolder, false, levelItr-1);
-        
-       % If no new level exists, exit.
-       if isempty(vocabLevel)
-           vocabulary = vocabulary(1:(levelItr-1),:);
-           mainGraph = mainGraph(1:(levelItr-1),:);
-           break; 
-       end
         
         %% If no new subs have been found, finish processing.
         if isempty(vocabLevel)

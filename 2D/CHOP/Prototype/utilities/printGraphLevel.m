@@ -16,36 +16,31 @@ function [] = printGraphLevel(graphFileName, graphLevel)
     uniqueImageIds = unique(imageIds)';
     fp = fopen(graphFileName, 'w');
     
-    %% For each image, select the nodes and their edges, and print them.
-    nodeOffset = 0;
-    rfIds = cat(1, graphLevel.rfId);
-    uniqueRfIds = unique(rfIds)';
+    nodeSets = cell(numel(uniqueImageIds),1);
+    for imageItr = 1:numel(uniqueImageIds)
+        nodeSets(imageItr) = {graphLevel(imageIds==uniqueImageIds(imageItr))};
+    end
     
-    for imageId = uniqueImageIds
-        imageIdx = imageIds==imageId;
-        for rfId = uniqueRfIds
-            rfIdx = rfIds==rfId & imageIdx;
-            if nnz(rfIdx) < 1
-                continue;
-            end
-            
-            rfNodeIds = cat(1, graphLevel(rfIdx).labelId);
-            rfEdges = cat(1, graphLevel(rfIdx).adjInfo);
-            
-            if numel(rfNodeIds) < 1
-                continue;
-            end
-            if nnz(rfEdges) > 0
-                rfEdges(:,1:2) = rfEdges(:,1:2) - nodeOffset;
-            end
-
-            % Print the graph to the file.    
-            % Print positive graph indicator
-            fprintf(fp, 'XP\n');
-            printGraphToFile(fp, rfNodeIds, rfEdges, true);
-            
-            nodeOffset = nodeOffset + numel(rfNodeIds);
+    %% For each image, select the nodes and their edges, and print them.
+    for imageItr = 1:numel(uniqueImageIds)
+        nodeOffset = numel(find(imageIds<uniqueImageIds(imageItr)));
+        imageNodes = nodeSets{imageItr};
+        if isempty(imageNodes)
+            continue;
         end
+
+        imageNodeIds = cat(1, imageNodes.labelId);
+        imageEdges = cat(1, imageNodes.adjInfo);
+
+        if nnz(imageEdges) > 0
+            imageEdges(:,1:2) = imageEdges(:,1:2) - nodeOffset;
+        end
+
+        % Print the graph to the file.    
+        % Print positive graph indicator
+        fprintf(fp, 'XP\n');
+        printGraphToFile(fp, imageNodeIds, imageEdges, true);
+
     end
     fclose(fp);
 end
