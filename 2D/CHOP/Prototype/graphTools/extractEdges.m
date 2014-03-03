@@ -41,10 +41,12 @@ function [modes, highLevelModes, mainGraph] = extractEdges(mainGraph, options, c
             highLevelModes = [highLevelModes, {currentHighLevelModes}];
         end
     end
+    
+    load('hMatrix.mat', 'hMatrix'); 
 
     display('Extracting edges...');
     %% Create within-object-graph edges.
-    [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, modes);
+    [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, modes, hMatrix);
     
     %% Here, we create inter-object-graph edges. Nodes belonging to different object graphs are linked here.
     % CAUTION: Please note that no nodes within the SAME object graph should be

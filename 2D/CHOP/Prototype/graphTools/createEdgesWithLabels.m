@@ -11,6 +11,7 @@
 %> @param currentLevel The current scene graph level.
 %> @param modes If empty, new modes are to be learned. If not, edge labels
 %>      will be formed depending on existing modes.
+%> @param hMatrix histogram matrix helping to label edges in 'hist' mode.
 %> 
 %> @retval edges Edges are of the form: [ node1, node2, mode, directed;
 %>                                        node1, node2, mode, directed;
@@ -21,7 +22,7 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 %> Separate mode learning from this function on 28.01.2014
-function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, modes)
+function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, modes, hMatrix)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
     scale = (1/options.scaling)^(currentLevelId-1);
@@ -45,12 +46,9 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     end
     
     property = options.property;
-    %% Read histogram matrix to be used in 'hist' type edge calculations.
-%    if strcmp(options.property, 'hist')
-    load('hMatrix.mat', 'hMatrix'); 
+    %% Calculate size of the histogram matrix.
     sizeHMatrix = size(hMatrix,1);
     halfSizeHMatrix = floor(sizeHMatrix/2);
-%    end
     
     %% Get relevant pair-wise distributions (nodes)
     if ~isempty(modes) && numel(modes) >= currentLevelId
