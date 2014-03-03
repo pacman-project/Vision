@@ -32,12 +32,14 @@
 %> Addition of inter-image edges on 28.01.2014
 function [modes, highLevelModes, mainGraph] = extractEdges(mainGraph, options, currentLevelId, modes, highLevelModes)
     %% Step 1: Learn low-level (within object) and high-level (between objects) modes.
-    [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevelId);
-    if ~isempty(currentModes)
-        modes = [modes, {currentModes}];
-    end
-    if ~isempty(currentHighLevelModes)
-        highLevelModes = [highLevelModes, {currentHighLevelModes}];
+    if options.isTraining
+        [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevelId);
+        if ~isempty(currentModes)
+            modes = [modes, {currentModes}];
+        end
+        if ~isempty(currentHighLevelModes)
+            highLevelModes = [highLevelModes, {currentHighLevelModes}];
+        end
     end
 
     display('Extracting edges...');

@@ -9,7 +9,6 @@
 %> each image at each level. Each level is assumed to be ordered by image id.
 %> @param levelItr The level index.
 %> @param options Program options.
-%> @param datasetname The name of the dataset.
 %> @param type 'test' if the image list consist of test images, 'train' if 
 %> training.
 %> 
@@ -17,7 +16,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, ~, type )
+function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, type )
     outputDir = [options.outputFolder '/reconstruction/' type];
     originalDir = [options.outputFolder '/original/'];
     if ~exist(outputDir, 'dir')

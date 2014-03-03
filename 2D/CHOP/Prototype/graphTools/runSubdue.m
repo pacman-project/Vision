@@ -12,10 +12,6 @@
 %> label1 encodes exact opposite geometric information of each mode in its 
 %> index, and same applies to every row of this list. If empty, simply ignored.
 %> @param options Program options.
-%> @param preDefinedSearch If true, pre-defined subs in vocabLevel are found
-%> in graphLevel. If false, graphLevel is given to unsupervised discovery, and
-%> detected parts are returned in vocabLevel, while their realizations reside
-%> in graphLevel.
 %>
 %> @retval nextVocabLevel Next vocabulary level ([] if pre-defined search
 %> is on). 
@@ -25,7 +21,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options, ~)
+function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.

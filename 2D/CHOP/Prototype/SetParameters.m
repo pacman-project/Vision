@@ -12,7 +12,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 10.01.2014
-function [ options ] = SetParameters( datasetName )
+function [ options ] = SetParameters( datasetName, isTraining )
+    options.isTraining = isTraining;
     %% ========== DEBUG PARAMETER ==========
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
@@ -97,7 +98,7 @@ function [ options ] = SetParameters( datasetName )
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -152,7 +153,7 @@ function [ options ] = SetParameters( datasetName )
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
-    options.maxImageDim = options.gaborFilterSize*30;
+    options.maxImageDim = options.gaborFilterSize*40;
     options.maximumModes = 50;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 
@@ -162,7 +163,7 @@ function [ options ] = SetParameters( datasetName )
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.implementation = 'exe'; % Two types of subdue are used.
+    options.subdue.implementation = 'self'; % Two types of subdue are used.
                                             % 'self': Matlab-based
                                             % implementation.
                                             % 'exe': Ready-to-use
@@ -207,9 +208,9 @@ function [ options ] = SetParameters( datasetName )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 500;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 75;   % Beam length in SUBDUE
+    options.subdue.beam = 30;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line

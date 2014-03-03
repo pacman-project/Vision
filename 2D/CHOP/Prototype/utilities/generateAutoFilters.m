@@ -16,7 +16,7 @@
 %> Ver 1.0 on 13.01.2014
 function [ ] = generateAutoFilters( datasetName )
     %% Step 1: Get program options and initialize variables.
-    options = SetParameters(datasetName);
+    options = SetParameters(datasetName, true);
     datasetFolder = [options.currentFolder '/output/' datasetName '/original/'];
     fileNames = fuf([datasetFolder '*.jpg'], 1, 'detail');
     img = imread(fileNames{1});

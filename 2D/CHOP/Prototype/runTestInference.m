@@ -17,9 +17,7 @@
 %> Ver 1.1 on 12.01.2014 Timing is added by Mete
 function [ ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
-    options = SetParameters(datasetName);
-    % Override subdue options.
-    options.subdue.implementation = 'exe';
+    options = SetParameters(datasetName, false);
     if options.testImages
         %% Step 1.0: Read vocabulary if it exists.
         testFileNames = fuf([pwd '/input/' datasetName '/vocab/*' ext], 1, 'detail');

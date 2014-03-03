@@ -11,7 +11,6 @@
 %> @param modes The mode array that only includes first level relations.
 %> @param options Program options
 %> @param fileList input image name list.
-%> @param datasetName The name of the dataset.
 %>
 %> @retval vocabulary The hierarchic vocabulary learnt from the data.
 %> @retval mainGraph The hierarchic object graphs.
@@ -26,12 +25,13 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, highLevelModes, ...
-                                                            options, fileList, datasetName)
+function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, highLevelModes, ...
+                                                            options, fileList)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
+    allOppositeModes = cell(options.maxLevels,1);
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
@@ -45,7 +45,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
     %% Print first vocabulary and graph level.
     if options.debug
         visualizeLevel( vocabulary{1}, 1, previousModes, 0, options);
-        visualizeImages( fileList, graphLevel, leafNodes, 1, options, datasetName, 'train' );
+        visualizeImages( fileList, graphLevel, leafNodes, 1, options, 'train' );
     end
     
     %% Calculate statistics from this graph.
@@ -71,6 +71,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         else
             currentModes = [];
         end
+        allOppositeModes(levelItr-1) = {oppositeModes};
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
         [vocabLevel, graphLevel] = discoverSubs(vocabLevel, graphLevel, oppositeModes, ...
@@ -81,6 +82,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
+           allOppositeModes = allOppositeModes(1:(levelItr-1),:);
            break; 
         end
         
@@ -177,7 +179,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
            display('........ Visualizing previous level...');
            if ~isempty(vocabLevel)
                visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options);
-               visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, datasetName, 'train' );
+               visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, 'train' );
            end
         end
         
@@ -186,6 +188,7 @@ function [ vocabulary, mainGraph, modes, highLevelModes ] = learnVocabulary( voc
         if ~newEdgesAvailable
             vocabulary = vocabulary(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
+            allOppositeModes = allOppositeModes(1:(levelItr-1),:);
         end
     end
 end

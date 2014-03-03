@@ -22,7 +22,7 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, options)
     graphLevel(size(nodes,1)) = options.graphNode;
     
     % Fill vocabulary level with labels.
-    labelArr = num2cell(1:6);
+    labelArr = num2cell(1:options.numberOfFilters);
     [vocabLevel.label] = deal(labelArr{:});
     
     % Fill object graph level.
