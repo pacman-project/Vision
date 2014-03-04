@@ -105,6 +105,14 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
     numberOfInstanceArr = cellfun(@(x) size(x,1), vocabRealizations);
     numberOfInstances = sum(numberOfInstanceArr);
     clear graphLevel;
+    
+    %% If no instances have been found, exit.
+    if numberOfInstances<1
+        graphLevel = [];
+        return;
+    end
+    
+    %% Generate graph level.
     graphLevel(numberOfInstances) = options.graphNode;
     
     % Collect label ids, children and signs to assign to instances.

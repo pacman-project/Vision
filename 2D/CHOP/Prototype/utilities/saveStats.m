@@ -24,8 +24,8 @@ function [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leaf
     imageIds = [graphLevel.imageId]';
     compositionImageCountArr = zeros(numel(vocabLevel),1);
     
-    parfor labelId = 1:numel(vocabLevel)
-       compositionImageCountArr(labelId) = numel(fastsortedunique(imageIds(labelIds==labelId))) / numberOfImages;
+    for labelId = 1:numel(vocabLevel)
+       compositionImageCountArr(labelId) = numel(unique(imageIds(labelIds==labelId))) / numberOfImages;
     end
     avgShareability = mean(compositionImageCountArr(~isnan(compositionImageCountArr)));
     

@@ -36,7 +36,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     end
     
     if newOptions.learnVocabulary
-        workspaceFileAllNodes =[newOptions.currentFolder '/output/' datasetName '/workspaceAllNodes.mat'];
+ %       workspaceFileAllNodes =[newOptions.currentFolder '/output/' datasetName '/workspaceAllNodes.mat'];
         %% If the workspace file after all nodes exist, no need to extract first level nodes again. Currently not in use!
  %       if exist(workspaceFileAllNodes, 'file')
         if false
@@ -68,7 +68,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             %% ========== Step 1: Pre-process the data (extract first level nodes, surpress weak responses) ==========
             %% Step 1.0: Downsample the image if it is too big.
             maxImageDim = options.maxImageDim;
-            parfor fileItr = 1:size(trainingFileNames,1) 
+            for fileItr = 1:size(trainingFileNames,1) 
                 % Read image and downsample it.
                 img = imread(trainingFileNames{fileItr});
                 [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
@@ -77,6 +77,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
                 end
                 imwrite(img, [processedFolder '/' fileName '.png']);
 
+                % Switch file names with those copied.
+                trainingFileNames(fileItr) = {[processedFolder '/' fileName '.png']};
+                
                 % If gt file exists, write it to the processed gt folder. In
                 % addition, we keep track of the name of gt file corresponding
                 % to the image read.
@@ -93,8 +96,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
                     imwrite(gtImg, [processedGTFolder '/' fileName '.png']);
                 end
             end
-
+            
             %% Step 1.1: Extract a set of features from the input images.
+            display('..... Level 1 Node Extraction started. This may take a while.');
             allNodes = cell(size(trainingFileNames,1),1);
             parfor fileItr = 1:size(trainingFileNames,1)
                 [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
@@ -125,7 +129,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         end
         % Save all info to the workspace file.
         clear newOptions;
-        save(workspaceFileAllNodes);
+   %     save(workspaceFileAllNodes);
         
         %% Step 1.2: If receptive field is used, nodes will be repeated.
         % (so that each node set corresponds to a different receptive

@@ -67,7 +67,6 @@ function [] = singleTestImage(testFileName, options)
         %% Assign positions, image ids, and leaf nodes. 
         % If no new subs have been found, finish processing.
         if isempty(newLevel)
-           mainGraph = mainGraph(1:(levelItr-1),:);
            break; 
         end
         
