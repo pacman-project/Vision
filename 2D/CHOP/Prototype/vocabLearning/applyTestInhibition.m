@@ -41,7 +41,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
     preservedNodes = cell(numberOfImages,1);
-    for imageId = 1:numberOfImages
+    parfor imageId = 1:numberOfImages
         imageGraphLevel = imageGraphLevels{imageId};
         imageNodeCoords = imageAllNodeCoords{imageId};
         numberOfNodesInImage = numel(imageGraphLevel);

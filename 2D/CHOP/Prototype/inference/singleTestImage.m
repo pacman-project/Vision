@@ -76,7 +76,6 @@ function [] = singleTestImage(testFileName, options)
         
         %% Apply local inhibition.
         [newLevel] = applyTestInhibition(newLevel, options, levelItr);
-%        [newLevel] = applyLocalInhibition(newLevel, options, levelItr);(vocabLevel, graphLevel, currentModes, options, levelItr)
         
         %% If new level is empty, break.
         if isempty(newLevel)
