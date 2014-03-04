@@ -25,7 +25,7 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     if size(img,3)>1
         img = rgb2gray(img(:,:,1:3));
     end
-    doubleImg = img;
+    doubleImg = double(img);
     
     % Either binarize the image using Otsu, or extract edges using Canny.
     %edgeImg = double(edge(doubleImg(:,:), 'canny'));
