@@ -21,6 +21,7 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
     
     % If no edges are present, time to return.
     if isempty(edges)
+        graphLevel = [];
         return;
     end
     
@@ -31,6 +32,12 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
         edges(nonemptyEdgeIdx), 'UniformOutput', false);
     edgeCount = cellfun(@(x) size(x,1), edges);
     edges = cat(1, edges{nonemptyEdgeIdx});
+    
+    % If no edges are present, time to return.
+    if isempty(edges)
+        graphLevel = [];
+        return;
+    end
     
     % Record which edge belongs to which instance. 
     allEdgeInstanceIds = zeros(size(edges,1),1);
