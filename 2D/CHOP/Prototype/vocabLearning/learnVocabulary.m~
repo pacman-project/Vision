@@ -134,7 +134,9 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
         display('........ Applying inhibition.');
-        [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
+%        [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
+        graphLevel=applyTestInhibition(graphLevel, options, levelItr);
+
         [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
 
         % Assign new labels of the remaining realizations.
@@ -144,11 +146,16 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         % Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);
         
-        % Reorder substructres so that the ones having higher mdl score are
-        % actually on top. The mdl score here is not really MDL, but rather
-        % a metric depending on size * frequency.
-%        [vocabLevel, graphLevel] = reorderSubs(vocabLevel, graphLevel);
-        
+        %% Here, we re-discover the nodes and run inhibition again.
+        % This step is crucial if we want to be consistent with the testing
+        % scheme.
+%         graphLevel = collectInstances(vocabLevel, mainGraph{levelItr-1}, [], options, levelItr);
+%         % If no new subs have been found, finish processing.
+%         if isempty(graphLevel)
+%            break; 
+%         end
+%         graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes);
+%         [graphLevel] = applyTestInhibition(graphLevel, options, levelItr);
         
         %% Calculate statistics from this graph.
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);

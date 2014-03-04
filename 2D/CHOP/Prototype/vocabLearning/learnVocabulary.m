@@ -106,7 +106,7 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
             % discarded. *Natural selection*
             
             [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
-            [remainingComps, ~, ~] = unique([graphLevel.labelId], 'stable');
+            [remainingComps, ~, ~] = unique([graphLevel.labelId]);
 
             % Eliminate unused compositions from vocabulary.
             vocabLevel = vocabLevel(1, remainingComps);
@@ -134,10 +134,10 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
         display('........ Applying inhibition.');
-        [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
-%        graphLevel=applyTestInhibition(graphLevel, options, levelItr);
+%        [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
+        graphLevel=applyTestInhibition(graphLevel, options, levelItr);
 
-        [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
+        [remainingComps, ~, IC] = unique([graphLevel.labelId]);
 
         % Assign new labels of the remaining realizations.
         IC = num2cell(IC);
