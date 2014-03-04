@@ -76,7 +76,7 @@ end
 
 % check for empty inputs
 if any(cellfun('isempty',varargin(ii))),
-    warning('ALLCOMB:EmptyInput','Empty inputs result in an empty output.') ;
+%    warning('ALLCOMB:EmptyInput','Empty inputs result in an empty output.') ;
     A = zeros(0,NC) ;
 elseif NC > 1
     isCellInput = cellfun(@iscell,varargin) ;

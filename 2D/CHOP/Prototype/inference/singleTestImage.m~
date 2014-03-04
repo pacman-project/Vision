@@ -76,14 +76,10 @@ function [] = singleTestImage(testFileName, options)
         newLevel = fillBasicInfo(previousLevel, newLevel, leafNodes);
         
         %% Apply local inhibition.
-        [newLevel] = applyTestInhibition(newLevel, options, levelItr);
 %        [newLevel] = applyLocalInhibition(newLevel, options, levelItr);(vocabLevel, graphLevel, currentModes, options, levelItr)
         
         %% If new level is empty, break.
         if isempty(newLevel)
-            if options.debug
-                visualizeImages( {testFileName}, mainGraph{levelItr}, leafNodes, levelItr, options, 'test' );
-            end
             break;
         end
         
@@ -94,10 +90,12 @@ function [] = singleTestImage(testFileName, options)
         [~, ~, mainGraph] = extractEdges(mainGraph, options, levelItr, modes, highLevelModes);
         
         %% Visualize the test images with previous layer's subs.
-        if options.debug
-            visualizeImages( {testFileName}, mainGraph{levelItr}, leafNodes, levelItr, options, 'test' );
+        if options.debug && levelItr == numel(vocabulary)
+            visualizeImages( {testFileName}, mainGraph, levelItr, options, 'test' );
         end
     end
+    filledIdx = find(~(cellfun('isempty', mainGraph)), 1, 'last');
+    mainGraph = mainGraph(1:filledIdx);
     save([options.testInferenceFolder '/' fileName '_test.mat'], 'mainGraph');
 end
 

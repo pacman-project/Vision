@@ -73,7 +73,6 @@ function [ ] = visualizeImages( fileList, graphLevel, leafNodes, levelItr, optio
             nodeReconInfo = [{nodes.labelId}', {nodes.position}'];
         else
             nodeReconInfo = leafNodes(:,1:2);
-            clear leafNodes;
         end
         
         %% Reconstruct each node.

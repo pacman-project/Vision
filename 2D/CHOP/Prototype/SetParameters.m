@@ -15,7 +15,7 @@
 function [ options ] = SetParameters( datasetName, isTraining )
     options.isTraining = isTraining;
     %% ========== DEBUG PARAMETER ==========
-    options.debug = 0;           % If debug = 1, additional output will be 
+    options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
@@ -133,7 +133,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % here. 'multiview' and 'category'
                                        % are considered to be implemented,
                                        % among others.
-    options.reconstructionType = 'true'; % 'true': Actual reconstruction at each 
+    options.reconstructionType = 'leaf'; % 'true': Actual reconstruction at each 
                                          % level with compositions' masks on 
                                          % that specific level
                                          % 'leaf': Detected leaf nodes will

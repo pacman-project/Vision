@@ -137,10 +137,6 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
         [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
 
-        % Learn number of elements, so that we can order the vocabulary
-        % based on number of occurences.
-        
-        
         % Assign new labels of the remaining realizations.
         IC = num2cell(IC);
         [graphLevel.labelId] = deal(IC{:});

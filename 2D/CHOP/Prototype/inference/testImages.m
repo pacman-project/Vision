@@ -79,7 +79,7 @@ function [ classes ] = testImages(testFileNames, options, currentPath)
         
         %% Visualize the test images with previous layer's subs.
         if options.debug
-            visualizeImages( testFileNames, mainGraph, levelItr-1, options, options.datasetName, 'test' );
+            visualizeImages( testFileNames, mainGraph, levelItr-1, options, 'test' );
         end
         
         %% Print the graphs to the input file.
@@ -186,7 +186,7 @@ function [ classes ] = testImages(testFileNames, options, currentPath)
         
         %% Visualize the test images with previous layer's subs.
         if options.debug && levelItr == numel(vocabulary)
-            visualizeImages( testFileNames, mainGraph, levelItr, options, options.datasetName, 'test' );
+            visualizeImages( testFileNames, mainGraph, levelItr, options, 'test' );
         end
     end
     filledIdx = find(~(cellfun('isempty', mainGraph)), 1, 'first');

@@ -171,21 +171,19 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
        instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
        instanceSigns = num2cell(globalSigns(centerIdx));
        
+       % Assign fields to graphs.
        [graphLevel(instanceOffset:instanceEndOffset).labelId] = deal(labelIds{:});
        [graphLevel(instanceOffset:instanceEndOffset).children] = deal(instanceChildren{:});
        [graphLevel(instanceOffset:instanceEndOffset).sign] = deal(instanceSigns{:});
        instanceOffset = instanceOffset + numberOfInstances;
        
-       
+       % Clear variables.
        clear centerIdx centerIdxCellArr edges instanceEdges instanceChildren instanceSigns
     end
     
    nextVocabLevel = vocabLevel;
    nextGraphLevel = graphLevel;
-   %% TODO: Implement pre-defined search mode.
-   
-   
-    clearvars -global
+   clearvars -global
 end
 
 
