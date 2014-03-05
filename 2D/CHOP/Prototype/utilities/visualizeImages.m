@@ -27,6 +27,11 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     reconstructionType = options.reconstructionType;
     imageReconstructionType = options.imageReconstructionType;
     
+    if strcmp(imageReconstructionType, 'individual') && levelItr < options.minIndividualReconstructionLevel
+        return;
+    end
+    
+    
     %% Depending on the reconstruction type, we read masks to put on correct positions in images.
     if strcmp(options.reconstructionType, 'true')
         % Read masks of compositions in current level.
@@ -116,7 +121,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             
             % If each realization is to be written separately, raed a new
             % image each time.
-            if strcmp(imageReconstructionType, 'individual') && levelItr>1
+            if strcmp(imageReconstructionType, 'individual')
                 actualImg = originalImg;
                 labeledReconstructedMask = zeros(size(img,1), size(img,2), 'uint8');
                 reconstructedMask = labeledReconstructedMask;
@@ -127,7 +132,9 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             reconstructedNodes = nodeReconInfo(reconstructedNodes,:);
             for reconNodeItr = 1:size(reconstructedNodes,1)
                 % Read the mask here, and crop it if necessary.
-                mdlScore = mdlScores(reconstructedNodes{reconNodeItr,1});
+                if strcmp(imageReconstructionType, 'individual')
+                    mdlScore = mdlScores(reconstructedNodes{reconNodeItr,1});
+                end
                 nodeMask = vocabMasks{reconstructedNodes{reconNodeItr,1}};
                 position = reconstructedNodes{reconNodeItr,2};
                 
@@ -170,7 +177,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                  
             end
             %% Print this sub to a separate mask, if needed.
-            if strcmp(imageReconstructionType, 'individual') && levelItr > 4
+            if strcmp(imageReconstructionType, 'individual')
                 rgbImg = label2rgb(labeledReconstructedMask, 'autumn', 'k', 'shuffle');
 
                 for bandItr = 1:size(rgbImg,3)
