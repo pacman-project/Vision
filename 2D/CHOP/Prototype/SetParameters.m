@@ -102,7 +102,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'mode'; % Geometric property to be examined
+    options.property = 'hist'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
@@ -138,7 +138,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % that specific level
                                          % 'leaf': Detected leaf nodes will
                                          % be marked on the image.
-    options.imageReconstructionType = 'individual'; % If 'individual' type 
+    options.imageReconstructionType = 'all'; % If 'individual' type 
                                          % image reconstruction is used,
                                          % each realization is written to a
                                          % different image, along with its
