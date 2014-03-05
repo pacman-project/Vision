@@ -18,9 +18,16 @@
 function [ ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName, false);
+    
+    % override options.
+    if ~options.fastInference
+%       options.noveltyThr = options.noveltyThr/2;
+        options.noveltyThr = 0;
+    end
+    
     if options.testImages
         %% Step 1.0: Read vocabulary if it exists.
-        testFileNames = fuf([pwd '/input/' datasetName '/vocab/*' ext], 1, 'detail');
+        testFileNames = fuf([pwd '/input/' datasetName '/test/*' ext], 1, 'detail');
         if exist([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'file')
             load([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat']);
         else

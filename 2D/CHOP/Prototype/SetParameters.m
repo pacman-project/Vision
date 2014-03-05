@@ -80,7 +80,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.autoFilterVisY = 8;
     
     %% ========== GT Parameters ==========
-    options.useGT = false;              % If true, gt info is used. 
+    options.useGT = true;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
                                        % the gt contour is examined (within
                                        % a neighborhood defined by
@@ -142,14 +142,14 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*4;
+    options.receptiveFieldSize = options.gaborFilterSize*5;
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
                                          % coordinates are scaled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 15;
-    options.maxNodeDegree = 15;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 20;
+    options.maxNodeDegree = 20;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
@@ -162,6 +162,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
     
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
+    %% ========== INFERENCE PARAMETERS ==========
+    options.fastInference = false;
+    
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.implementation = 'self'; % Two types of subdue are used.
                                             % 'self': Matlab-based
@@ -180,7 +183,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 3000;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 500;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -208,7 +211,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 200000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw

@@ -75,7 +75,10 @@ function [] = singleTestImage(testFileName, options)
         newLevel = fillBasicInfo(previousLevel, newLevel, leafNodes);
         
         %% Apply local inhibition.
+        display('........ Applying inhibition.');
         [newLevel] = applyTestInhibition(newLevel, options, levelItr);
+        display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
+        display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
         
         %% If new level is empty, break.
         if isempty(newLevel)
