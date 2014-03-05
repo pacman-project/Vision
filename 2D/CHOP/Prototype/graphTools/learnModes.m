@@ -60,7 +60,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     
     %% Process each image separately (and in parallel)
     allSamples = cell(numberOfImages,1);
-    parfor imageItr = 1:numberOfImages
+    for imageItr = 1:numberOfImages
         imageNodeIdx = imageIds == imageItr;
 
         % If there are no nodes in this image, move on.
@@ -167,7 +167,8 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     end
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
-    for uniqueEdgeItr = 1:numberOfUniqueEdges
+    uniqueEdgeEntropyArr = zeros(numberOfUniqueEdges,1);
+    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
         w = warning('off', 'all');
         samples = uniqueEdgeSamples{uniqueEdgeItr};
         edgeType = uniqueEdgeTypes(uniqueEdgeItr,:);
@@ -185,6 +186,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
         centers = zeros(numberOfClusters,4);
         centers(:,1:2) = repmat(edgeType, numberOfClusters, 1);
         covArr = zeros(numberOfClusters,2,2);
+        
         for centerItr = 1:numberOfClusters
           clusterSamples = samples(classes==centerItr,:);
           centers(centerItr,3:4) = mean(clusterSamples,1);
@@ -194,8 +196,14 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
           covMat = cov(clusterSamples);
           covArr(centerItr,:,:) = covMat;
           
-          % TODO: entropy
-          
+          % Calculate cluster's entropy.
+          entropyMatr = hist3(clusterSamples);
+          entropyMatr = entropyMatr / sum(sum(entropyMatr));
+          logEntropyMatr = log(entropyMatr);
+          logEntropyMatr(isinf(logEntropyMatr)) = 0;
+          entropyMatr = entropyMatr .* logEntropyMatr;
+          uniqueEdgeEntropyArr(uniqueEdgeItr) = uniqueEdgeEntropyArr(uniqueEdgeItr) + ...
+              -sum(sum(entropyMatr));
         end
         
         modes(uniqueEdgeItr) = {centers};
@@ -233,8 +241,9 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     end
     modes = fix(cat(1, modes{:}));
     covMats = cat(1, covMats{:});
+    totalEntropy = sum(uniqueEdgeEntropyArr);
     % Save statistics to debug folder.
-    save([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/cov.mat'], 'modes', 'covMats');
+    save([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/cov.mat'], 'modes', 'covMats', 'uniqueEdgeEntropyArr', 'totalEntropy');
         
     %% If receptive fields are used, add reverse modes to the modes array.
     if options.useReceptiveField

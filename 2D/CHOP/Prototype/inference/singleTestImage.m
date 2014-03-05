@@ -52,7 +52,7 @@ function [] = singleTestImage(testFileName, options)
     
     %% Visualize level 1 test image.
     if options.debug
-        visualizeImages( {testFileName}, mainGraph{1}, leafNodes, 1, options, 'test' );
+        visualizeImages( {testFileName}, vocabulary{1}, mainGraph{1}, leafNodes, 1, options, 'test' );
     end
     
     %% Iteratively process each level to parse the object.
@@ -83,7 +83,7 @@ function [] = singleTestImage(testFileName, options)
         %% If new level is empty, break.
         if isempty(newLevel)
             if options.debug
-                visualizeImages( {testFileName}, mainGraph{levelItr}, leafNodes, levelItr, options, 'test' );
+                visualizeImages( {testFileName}, vocabulary{levelItr}, mainGraph{levelItr}, leafNodes, levelItr, options, 'test' );
             end
             break;
         end
@@ -96,7 +96,7 @@ function [] = singleTestImage(testFileName, options)
         
         %% Visualize the test images with previous layer's subs.
         if options.debug
-            visualizeImages( {testFileName}, mainGraph{levelItr}, leafNodes, levelItr, options, 'test' );
+            visualizeImages( {testFileName}, vocabulary{levelItr}, mainGraph{levelItr}, leafNodes, levelItr, options, 'test' );
         end
     end
     save([options.testInferenceFolder '/' fileName '_test.mat'], 'mainGraph');

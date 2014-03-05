@@ -91,6 +91,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             maxMdlScore = 1;
         else
             mdlScores = [vocabLevel.normMdlScore];
+            sort 
             maxMdlScore = max(mdlScores);
             if maxMdlScore == 0
                 maxMdlScore = 1;
@@ -168,20 +169,20 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                  labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+halfSize(2))) = reconstructedPatch;
                  
-            end
-            %% Print this sub to a separate mask, if needed.
-            if strcmp(imageReconstructionType, 'individual') && levelItr > 4
-                rgbImg = label2rgb(labeledReconstructedMask, 'autumn', 'k', 'shuffle');
+                 %% Print this sub to a separate mask, if needed.
+                 if strcmp(imageReconstructionType, 'individual') && levelItr > 1
+                    rgbImg = label2rgb(labeledReconstructedMask, 'autumn', 'k', 'shuffle');
 
-                for bandItr = 1:size(rgbImg,3)
-                    rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask))) + ...
-                    actualImg(:,:,bandItr) .* uint8(reconstructedMask==0);
-                end 
-
-                % Write to output file.
-                imwrite(rgbImg, ...
-                    [outputDir, '/' fileName '_level' num2str(levelItr) '_realization_' num2str(nodeItr) ...
-                    '_mdl_' num2str(mdlScore) '_' reconstructionType '.png']);
+                    for bandItr = 1:size(rgbImg,3)
+                        rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask))) + ...
+                        actualImg(:,:,bandItr) .* uint8(reconstructedMask==0);
+                    end 
+                    
+                    % Write to output file.
+                    imwrite(rgbImg, ...
+                        [outputDir, '/' fileName '_level' num2str(levelItr) '_realization_' num2str(nodeItr) ...
+                        '_mdl_' num2str(mdlScore) '_' reconstructionType '.png']);
+                 end
             end
         end
         

@@ -45,7 +45,7 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
     %% Print first vocabulary and graph level.
     if options.debug
         visualizeLevel( vocabulary{1}, 1, previousModes, 0, options);
-        visualizeImages( fileList, graphLevel, leafNodes, 1, options, 'train' );
+        visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
     end
     
     %% Calculate statistics from this graph.
@@ -146,17 +146,6 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         % Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);
         
-        %% Here, we re-discover the nodes and run inhibition again.
-        % This step is crucial if we want to be consistent with the testing
-        % scheme.
-%         graphLevel = collectInstances(vocabLevel, mainGraph{levelItr-1}, [], options, levelItr);
-%         % If no new subs have been found, finish processing.
-%         if isempty(graphLevel)
-%            break; 
-%         end
-%         graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes);
-%         [graphLevel] = applyTestInhibition(graphLevel, options, levelItr);
-        
         %% Calculate statistics from this graph.
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);
         
@@ -183,7 +172,7 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
            display('........ Visualizing previous level...');
            if ~isempty(vocabLevel)
                visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options);
-               visualizeImages( fileList, graphLevel, leafNodes, levelItr, options, 'train' );
+               visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
            end
         end
         

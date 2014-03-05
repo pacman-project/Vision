@@ -98,11 +98,11 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
-    options.property = 'hist'; % Geometric property to be examined
+    options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
@@ -138,18 +138,29 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % that specific level
                                          % 'leaf': Detected leaf nodes will
                                          % be marked on the image.
+    options.imageReconstructionType = 'individual'; % If 'individual' type 
+                                         % image reconstruction is used,
+                                         % each realization is written to a
+                                         % different image, along with its
+                                         % normalized mdl score. If 'all'
+                                         % type image reconstruction is
+                                         % used, all realizations are
+                                         % written in a single image.
+    options.minIndividualReconstructionLevel = 4;   % Minimum image reconstruction 
+                                         % level for individual part
+                                         % printing. At least 1.
     options.useReceptiveField = 1;       % If 0, regular graph generation 
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*5;
+    options.receptiveFieldSize = options.gaborFilterSize*6;
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
                                          % coordinates are scaled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 20;
-    options.maxNodeDegree = 20;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 15;
+    options.maxNodeDegree = 15;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
@@ -163,7 +174,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     %% ========== INFERENCE PARAMETERS ==========
-    options.fastInference = false;
+    options.fastInference = true;
     
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.implementation = 'self'; % Two types of subdue are used.
