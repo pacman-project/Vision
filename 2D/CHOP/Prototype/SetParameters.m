@@ -159,8 +159,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % each level of the hierarchy, the
                                          % coordinates are scaled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 15;
-    options.maxNodeDegree = 15;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 10;
+    options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
@@ -194,7 +194,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 500;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 30;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -222,9 +222,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 1000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 200;   % Beam length in SUBDUE
+    options.subdue.beam = 50;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line

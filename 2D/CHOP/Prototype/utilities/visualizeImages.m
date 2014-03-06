@@ -41,19 +41,32 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
         usedLevel = 1;
     end
     
+    %% Read vocabulary masks.
     vocabMaskList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*.png'], 1, 'detail');
     numberOfMasks = numel(vocabMaskList);
     vocabMasks = cell(numberOfMasks,1);
-
     for fileItr = 1:numberOfMasks
         vocabMasks{fileItr} = imread([options.currentFolder '/debug/' options.datasetName ...
             '/level' num2str(usedLevel) '/reconstruction/' num2str(fileItr) '.png']);
     end
     
+    %% Put realizations into distinct sets so that each image has its own nodes in a set.
     imageIds = [graphLevel.imageId]';
     imageNodeSets = cell(numel(fileList),1);
     for fileItr = 1:numel(fileList)
         imageNodeSets(fileItr) = {graphLevel(imageIds == fileItr)};
+    end
+    
+    %% Get MDL scores.
+    if levelItr == 1
+        mdlScores = zeros(numel(vocabLevel),1);
+        maxMdlScore = 1;
+    else
+        mdlScores = [vocabLevel.normMdlScore];
+        maxMdlScore = max(mdlScores);
+        if maxMdlScore == 0
+            maxMdlScore = 1;
+        end
     end
     
     %% Go over the list of images and run reconstruction.
@@ -90,19 +103,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
            continue; 
         end
         
-        % Get mdl scores 
-        if levelItr == 1
-            mdlScores = zeros(numel(vocabLevel),1);
-            maxMdlScore = 1;
-        else
-            mdlScores = [vocabLevel.normMdlScore];
-            maxMdlScore = max(mdlScores);
-            if maxMdlScore == 0
-                maxMdlScore = 1;
-            end
-        end
-        
-        
         % Get the correct node set to reconstruct.
         if strcmp(reconstructionType, 'true')
             nodeReconInfo = [{nodes.labelId}', {nodes.position}'];
@@ -133,7 +133,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             for reconNodeItr = 1:size(reconstructedNodes,1)
                 % Read the mask here, and crop it if necessary.
                 if strcmp(imageReconstructionType, 'individual')
-                    mdlScore = mdlScores(reconstructedNodes{reconNodeItr,1});
+                    mdlScore = mdlScores(nodes(nodeItr).labelId);
                 end
                 nodeMask = vocabMasks{reconstructedNodes{reconNodeItr,1}};
                 position = reconstructedNodes{reconNodeItr,2};
@@ -155,12 +155,19 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                 end
                 
                 %% Write to reconstructin mask.
- %               if strcmp(imageReconstructionType, 'all')
-                    reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                         (position(2)-halfSize(2)):(position(2)+halfSize(2)),:) = ... 
-                         max(reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                         (position(2)-halfSize(2)):(position(2)+halfSize(2)),:), ...
-                         nodeMask);
+                 %               if strcmp(imageReconstructionType, 'all')
+                 if strcmp(imageReconstructionType, 'individual')
+                     writtenMask = uint8(nodeMask>10)*255;
+                 else
+                     writtenMask = nodeMask;
+                 end
+                 
+                 reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2)),:) = ... 
+                     max(reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+halfSize(2)),:), ...
+                     writtenMask);
+     
  %               end
                  % First, write the node label to the labeled mask.
                  reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
@@ -178,10 +185,10 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             end
             %% Print this sub to a separate mask, if needed.
             if strcmp(imageReconstructionType, 'individual')
-                rgbImg = label2rgb(labeledReconstructedMask, 'autumn', 'k', 'shuffle');
+                rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');
 
                 for bandItr = 1:size(rgbImg,3)
-                    rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask))) + ...
+                    rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask>0))) + ...
                     actualImg(:,:,bandItr) .* uint8(reconstructedMask==0);
                 end 
 
