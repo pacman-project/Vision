@@ -15,7 +15,7 @@
 %> Updates
 %> Ver 1.0 on 01.02.2014
 %> Ver 1.1 on 12.01.2014 Timing is added by Mete
-function [ ] = runTestInference( datasetName, ext )
+function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName, false);
     
@@ -28,8 +28,8 @@ function [ ] = runTestInference( datasetName, ext )
     if options.testImages
         %% Step 1.0: Read vocabulary if it exists.
         testFileNames = fuf([pwd '/input/' datasetName '/test/*' ext], 1, 'detail');
-        if exist([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'file')
-            load([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat']);
+        if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
+            load([options.currentFolder '/output/' datasetName '/vb.mat']);
         else
             display('No vocabulary exists!');
         end
@@ -40,11 +40,10 @@ function [ ] = runTestInference( datasetName, ext )
         end
         
         %% Step 1.2: Run inference on each test image.
-        for testImgItr = 1:size(testFileNames,1)
-            te_s_time=tic;  
-            singleTestImage(testFileNames{testImgItr}, options);
-            test_stop_time(testImgItr)=toc(te_s_time);
+        totalInferenceTime = 0;
+        for testImgItr = 1:size(testFileNames,1) 
+            totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, options);
         end
-        save([options.currentFolder '/output/' datasetName '/' datasetName '_tetime.mat'], 'test_stop_time');
+        save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
     end
 end

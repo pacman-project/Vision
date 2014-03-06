@@ -149,8 +149,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [vocabulary, mainGraph, modes, allOppositeModes, highLevelModes] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, ...
                                         options, trainingFileNames);
         tr_stop_time=toc(tr_s_time);
-        save([options.currentFolder '/output/' datasetName '/' datasetName '_trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/' datasetName '_vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'allOppositeModes', 'highLevelModes', 'leafNodes', 'trainingFileNames', '-v7.3');
+        save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'allOppositeModes', 'highLevelModes', 'leafNodes', 'trainingFileNames', '-v7.3');
     end
     
     % Close thread pool if opened.

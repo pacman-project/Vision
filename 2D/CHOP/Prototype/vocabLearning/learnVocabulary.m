@@ -51,7 +51,7 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
     %% Calculate statistics from this graph.
     display('........ Estimating statistics for level 1..');
     [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', 1);
-    display(['........ Average coverage of leaf nodes: ' num2str(avgCoverage) ', while average shareability is: ' num2str(avgShareability) '.']); 
+    display(['........ Average coverage of leaf nodes: ' num2str(avgCoverage) ', while average shareability is: ' num2str(avgShareability) ' percent.']); 
     
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
@@ -126,7 +126,7 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         %% Calculate statistics from this graph.
         display('........ Before we apply inhibition, estimating statistics..');
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', levelItr);
-        display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) '.']); 
+        display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
         %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
         % The rules here are explained in the paper. Basically, each node
@@ -152,7 +152,7 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         % display debugging info.
         display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
         display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(vocabLevel)) ' compositions.']);
-        display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) '.']); 
+        display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
         % Set the sign of all nodes to 1. When negative graphs are introduced,
         % this part should CHANGE.

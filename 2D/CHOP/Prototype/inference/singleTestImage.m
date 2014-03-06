@@ -7,20 +7,19 @@
 %> @param testFileImages The test image names to work on.
 %> @param options Program options.
 %>
-%> @retval classes The classification results, the class of each given
-%> image.
+%> @retval totalInferenceTime The amount of time spent in inference.
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
 %> 
-function [] = singleTestImage(testFileName, options)
+function [totalInferenceTime] = singleTestImage(testFileName, options)
     % Here, we will run the inference process by compressing the test
     % images' graphs with the compositions in the vocabulary.
     % Allocate space for current graph level.
-    load([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_vb.mat'], 'vocabulary', 'modes', 'highLevelModes');
-    
+    load([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'modes', 'highLevelModes');
+    totalInferenceTime = 0;
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -62,7 +61,10 @@ function [] = singleTestImage(testFileName, options)
         if options.debug
            display(['Working on level ' num2str(levelItr) '.']);
         end
+        startTime = tic;
         newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, [], options, levelItr);
+        duration = toc(startTime);
+        totalInferenceTime = totalInferenceTime + duration;
         
         %% Assign positions, image ids, and leaf nodes. 
         % If no new subs have been found, finish processing.

@@ -15,7 +15,7 @@
 function [ options ] = SetParameters( datasetName, isTraining )
     options.isTraining = isTraining;
     %% ========== DEBUG PARAMETER ==========
-    options.debug = 1;           % If debug = 1, additional output will be 
+    options.debug = 0;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
@@ -80,7 +80,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.autoFilterVisY = 8;
     
     %% ========== GT Parameters ==========
-    options.useGT = true;              % If true, gt info is used. 
+    options.useGT = false;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
                                        % the gt contour is examined (within
                                        % a neighborhood defined by
@@ -111,7 +111,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % considered. Randomly chosen
                                           % samples are used, defined with
                                           % this number.
-    options.scaling = 0.7;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -153,7 +153,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*6;
+    options.receptiveFieldSize = options.gaborFilterSize*5;
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
@@ -194,7 +194,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 30;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 500;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -222,9 +222,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 1000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 250000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 50;   % Beam length in SUBDUE
+    options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
