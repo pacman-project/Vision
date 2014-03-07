@@ -25,7 +25,7 @@ function [ results ] = collectECCVStatistics( expType )
         
         % average mdl score
         vocabSizes(vocabSizes>topXMdl) = topXMdl;
-        numberOfSelectedParts = sum(vocabSizes);
+        numberOfSelectedParts = sum(vocabSizes) - 6;
         vocabSizes = num2cell(vocabSizes);
         avgMdlScores = cellfun(@(x,y) sum([x(1:y).normMdlScore]), vocabulary, vocabSizes);
         results.mdlScoreArr(setItr) = {avgMdlScores ./ cell2mat(vocabSizes)};
@@ -61,13 +61,13 @@ function [ results ] = collectECCVStatistics( expType )
             levelLabelIds = labelIds{levelItr};
             levelClassLabels = classLabels{levelItr};
             numberOfClasses = 0;
-            for partItr = 1:numel(vocabSizes{levelItr})
+            for partItr = 1:vocabSizes{levelItr}
                 numberOfClasses = numberOfClasses + numel(unique(levelClassLabels(levelLabelIds==partItr)));
             end
-            shareabilityArr(levelItr) = numberOfClasses / (numberOfTotalClasses^2);
+            shareabilityArr(levelItr) = numberOfClasses / (numberOfTotalClasses * vocabSizes{levelItr});
         end
         results.shareabilityArr{setItr} = shareabilityArr;
-        results.avgShareabilityArr(setItr) = sum(shareabilityArr .* cell2mat(vocabSizes))/sum(cell2mat(vocabSizes));
+        results.avgShareabilityArr(setItr) = (sum(shareabilityArr .* cell2mat(vocabSizes))-6)/sum(cell2mat(vocabSizes(2:end)));
         clear vocabulary mainGraph
     end
     save([pwd '/output_ECCV2014/' expType 'results.mat'], 'results');
