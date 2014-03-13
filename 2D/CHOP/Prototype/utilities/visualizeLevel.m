@@ -68,7 +68,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-        for setItr = 1:numberOfThreadsUsed
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
