@@ -93,15 +93,16 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % are examined.
                    
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.3;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.2;       % The novelty threshold used in the 
-                                        % inhibition process. At least this 
+    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+                                        % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
-                                        % nodes should be new.
+                                        % nodes should be new so that they 
+                                        % are linked in the object graph.
     options.property = 'hist'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
@@ -174,7 +175,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     %% ========== INFERENCE PARAMETERS ==========
-    options.fastInference = false;
+    options.fastInference = true;
     
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.implementation = 'self'; % Two types of subdue are used.
