@@ -93,12 +93,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % are examined.
                    
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.3;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.6;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.2;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.

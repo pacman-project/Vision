@@ -21,7 +21,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     % Calculate edge radius.
     scale = (1/options.scaling)^(levelItr-1);
     neighborhood = fix(options.edgeRadius * scale);
-    noveltyThr = options.noveltyThr;
+    noveltyThr = 1 - options.noveltyThr;
 
     % Fill in necessary internal structures.
     imageIds = [graphLevel.imageId];

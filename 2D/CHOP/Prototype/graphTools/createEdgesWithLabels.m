@@ -34,7 +34,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     imageIds = [currentLevel.imageId]';
     
     %% Program options into variables.
-    edgeNoveltyThr = options.edgeNoveltyThr;
+    edgeNoveltyThr = 1-options.edgeNoveltyThr;
     useReceptiveField = options.useReceptiveField;
     maxNodeDegreeLevel1 = options.maxNodeDegreeLevel1;
     maxNodeDegree = options.maxNodeDegree;

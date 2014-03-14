@@ -77,11 +77,12 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
         newLevel = fillBasicInfo(previousLevel, newLevel, leafNodes);
         
         %% Apply local inhibition.
-        display('........ Applying inhibition.');
-        [newLevel] = applyTestInhibition(newLevel, options, levelItr);
-        display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
-        display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
-        
+        if options.fastInference
+            display('........ Applying inhibition.');
+            [newLevel] = applyTestInhibition(newLevel, options, levelItr);
+            display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
+            display(['........ Remaining: ' num2str(numel(newLevel)) ' realizations belonging to ' num2str(numel(unique([newLevel.labelId]))) ' compositions.']);
+        end
         %% If new level is empty, break.
         if isempty(newLevel)
             if options.debug

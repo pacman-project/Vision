@@ -55,6 +55,9 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
     
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
+        if levelItr == 4
+           options.noveltyThr = 0.3; 
+        end
         %% Step 2.0: Get opposite edge information, if there is any.
         oppositeModes = [];
         if ~isempty(modes) && numel(modes)>=(levelItr-1)
