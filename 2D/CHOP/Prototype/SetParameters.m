@@ -1,4 +1,4 @@
-> Name: SetParameters
+%> Name: SetParameters
 %>
 %> Description: The parameter setting function of CHOP. All program
 %> parameters are to be set here for a tidy codebase. In addition, some
@@ -15,7 +15,7 @@
 function [ options ] = SetParameters( datasetName, isTraining )
     options.isTraining = isTraining;
     %% ========== DEBUG PARAMETER ==========
-    options.debug = 0;           % If debug = 1, additional output will be 
+    options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
@@ -80,7 +80,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.autoFilterVisY = 8;
     
     %% ========== GT Parameters ==========
-    options.useGT = false;              % If true, gt info is used. 
+    options.useGT = true;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
                                        % the gt contour is examined (within
                                        % a neighborhood defined by
@@ -93,12 +93,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % are examined.
                    
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.3;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.6;       % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new.
@@ -111,7 +111,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % considered. Randomly chosen
                                           % samples are used, defined with
                                           % this number.
-    options.scaling = 0.7;            % Each successive layer is downsampled 
+    options.scaling = 0.6;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -159,8 +159,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % each level of the hierarchy, the
                                          % coordinates are scaled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 10;
-    options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 15;
+    options.maxNodeDegree = 15;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
@@ -174,7 +174,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     %% ========== INFERENCE PARAMETERS ==========
-    options.fastInference = true;
+    options.fastInference = false;
     
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.implementation = 'self'; % Two types of subdue are used.
