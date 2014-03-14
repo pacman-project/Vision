@@ -1,4 +1,4 @@
-%> Name: SetParameters
+> Name: SetParameters
 %>
 %> Description: The parameter setting function of CHOP. All program
 %> parameters are to be set here for a tidy codebase. In addition, some
@@ -111,7 +111,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % considered. Randomly chosen
                                           % samples are used, defined with
                                           % this number.
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.7;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -222,7 +222,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 250000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 500000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
