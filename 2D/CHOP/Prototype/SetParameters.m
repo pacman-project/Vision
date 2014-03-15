@@ -93,7 +93,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % are examined.
                    
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.3;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -103,7 +103,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.property = 'hist'; % Geometric property to be examined
+    options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into x.
@@ -112,7 +112,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % considered. Randomly chosen
                                           % samples are used, defined with
                                           % this number.
-    options.scaling = 0.6;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
