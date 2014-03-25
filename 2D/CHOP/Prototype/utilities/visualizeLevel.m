@@ -43,11 +43,14 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
         numberOfNodes = numel(currentLevel);
         prevNodeMasks = cell(numberOfPrevNodes,1);
         patchHalfDims = zeros(numberOfPrevNodes,2);
+        lowResponseThrs = zeros(numberOfPrevNodes,1);
+        
         for nodeItr = 1:numberOfPrevNodes
             tempImg = double(imread([prevLevelDir num2str(nodeItr) '.png']));
             tempImg = (tempImg - min(min(tempImg))) / (max(max(tempImg)) - min(min(tempImg)));
             prevNodeMasks(nodeItr) = {tempImg};
             patchHalfDims(nodeItr,:) = size(prevNodeMasks{nodeItr})/2;
+            lowResponseThrs(nodeItr) = max(max(tempImg))/10;
         end
         
         %% To parallelize things, we put vocabulary nodes in different sets, and give each to a thread.
@@ -68,7 +71,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-        parfor setItr = 1:numberOfThreadsUsed
+        for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -173,6 +176,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
 
                 %% Write the children's masks to the current mask.
                 currentMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
+                currentLabelMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
                 for childItr = 1:numel(children)
                       currentMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
                           (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))) = ...
@@ -188,10 +192,17 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
     %                             currentMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
     %                     (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))) = ...
     %                             prevNodeMasks{children(childItr)};
-
-
+                    currentLabelMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
+                         (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))) = ...
+                                 max(currentLabelMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
+                         (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))), ...
+                         double(prevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
                 end
-
+                currentLabelImg = label2rgb(currentLabelMask, 'jet', 'k', 'noshuffle');
+                for bandItr = 1:3
+                    currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask);
+                end
+                
                 %% If the size of the current mask can be divided by two, pad sides to prevent this.
                 dimRems = rem(size(currentMask),2);
                 if dimRems(1) == 0
@@ -202,10 +213,62 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
                 end
                 currentMask = (currentMask - min(min(currentMask))) / (max(max(currentMask)) - min(min(currentMask)));
                 imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
             end
             warning(w);
         end
     end
+    
+    %% Combine all compositions and show them within a single image.
+    if levelId == 1
+        colImgCount = numberOfNodes;
+        rowImgCount = 1;
+    else
+        colImgCount = ceil(sqrt(numberOfNodes));
+        rowImgCount = colImgCount;
+    end
+    
+    %% Show the set of compositions in a single image and save it.
+    
+    % Read all masks into an array, and get the extreme dimensions.
+    allCompMasks = cell(numberOfNodes,1);
+    compMaskSize = [1, 1];
+    for nodeItr = 1:numberOfNodes
+        % Read image and add it to the figure.
+        if levelId == 1
+            tempMask = imread([reconstructionDir num2str(nodeItr) '.png']);
+        else
+            tempMask = imread([reconstructionDir num2str(nodeItr) '_comp.png']);
+        end
+        compMaskSize = max(compMaskSize, [size(tempMask,1), size(tempMask,2)]);
+        allCompMasks(nodeItr) = {tempMask};
+    end
+    
+    % Using the maximum dimensions, transform each composition image to the
+    % same size. 
+    overallImage = zeros((rowImgCount-1)*compMaskSize(1), colImgCount*compMaskSize(2), size(tempMask,3), 'uint8');
+    finalMask = zeros([compMaskSize, size(tempMask,3)], 'uint8');
+    for nodeItr = 1:numberOfNodes
+        compFinalMask = finalMask;
+        compRealMask = allCompMasks{nodeItr};
+        margins = (compMaskSize - [size(compRealMask,1), size(compRealMask,2)])/2;
+        compFinalMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
+            (floor(margins(2))+1):(end-ceil(margins(2))), :) = compRealMask;
+        
+        % A small make up. Going to mark sides by adding a line of white
+        % padding. Framing each composition.
+        compFinalMask([1, end], :, :) = 255;
+        compFinalMask(:, [1, end], :) = 255;
+        
+        % Add the composition's mask to the overall mask image.
+        rowStart = 1 + floor((nodeItr-1)/colImgCount)*compMaskSize(1);
+        colStart = 1 + rem(nodeItr-1, colImgCount) * compMaskSize(2);
+        overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
+            colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
+    end
+        
+    % Then, write the compositions the final image.
+    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
 end
 
 

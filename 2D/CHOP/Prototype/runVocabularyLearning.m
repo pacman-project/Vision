@@ -100,13 +100,17 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             %% Step 1.1: Extract a set of features from the input images.
             display('..... Level 1 Node Extraction started. This may take a while.');
             allNodes = cell(size(trainingFileNames,1),1);
+            smoothedFolder = options.smoothedFolder;
             parfor fileItr = 1:size(trainingFileNames,1)
                 [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
                 img = imread([processedFolder '/' fileName '.png']);
-                nodes = getNodes(img, gtFileNames{fileItr}, options);
+                [nodes, smoothedImg] = getNodes(img, gtFileNames{fileItr}, options);
 
                 % Keep nodes in the array.
                 allNodes(fileItr) = {nodes};
+                
+                % Save smoothed image.
+                imwrite(smoothedImg, [smoothedFolder '/' fileName '.png']);
             end
             
             % Reorder images based on their node count. This helps in

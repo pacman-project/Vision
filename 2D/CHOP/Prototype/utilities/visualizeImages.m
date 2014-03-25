@@ -23,7 +23,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     if ~exist(outputDir, 'dir')
        mkdir(outputDir); 
     end
-    processedDir = options.processedFolder;
+    smoothedDir = options.smoothedFolder;
     reconstructionType = options.reconstructionType;
     imageReconstructionType = options.imageReconstructionType;
     
@@ -70,11 +70,11 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     end
     
     %% Go over the list of images and run reconstruction.
-    parfor fileItr = 1:numel(fileList)
+    for fileItr = 1:numel(fileList)
         nodeOffset = numel(find(imageIds<fileItr));
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
-        img = imread([processedDir '/' fileName '.png']);
+        img = imread([smoothedDir '/' fileName '.png']);
         actualImg = imread([originalDir fileName '.png']);
         
         % If original image's band count is less than 3, duplicate
@@ -238,15 +238,16 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
         
             %% Print the images.
             if levelItr>1
-                % Read first level to fill the voids left by missing filters.
-                firstLevelMask = imread([outputDir, '/' fileName '_level1clean.png']);
-                firstLevelImg = zeros(size(firstLevelMask,1), size(firstLevelMask,2), size(rgbImg,3), 'uint8');
-                for bandItr = 1:size(rgbImg,3)
-                    firstLevelImg(:,:,bandItr) = firstLevelMask;
-                end
-
-                % Combine both and write to output.
-                imwrite(rgbImg + firstLevelImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
+%                 % Read first level to fill the voids left by missing filters.
+%                 firstLevelMask = imread([outputDir, '/' fileName '_level1clean.png']);
+%                 firstLevelImg = zeros(size(firstLevelMask,1), size(firstLevelMask,2), size(rgbImg,3), 'uint8');
+%                 for bandItr = 1:size(rgbImg,3)
+%                     firstLevelImg(:,:,bandItr) = firstLevelMask;
+%                 end
+% 
+%                 % Combine both and write to output.
+%                 imwrite(rgbImg + firstLevelImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
+                imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
                 imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType '.png']);
             else

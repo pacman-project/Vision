@@ -22,5 +22,8 @@ function [ ] = createFolders( options )
     if ~exist(options.testInferenceFolder, 'dir')
        mkdir(options.testInferenceFolder); 
     end
+    if ~exist(options.smoothedFolder,'dir')
+       mkdir(options.smoothedFolder); 
+    end
 end
 

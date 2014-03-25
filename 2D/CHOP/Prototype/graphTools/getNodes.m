@@ -59,7 +59,9 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
    end
     
    %% Write smooth object boundaries to an image based on responseImgs.
-   smoothedImg = getSmoothedImage(responseImgs, options.filters);
+%   smoothedImg = getSmoothedImage(responseImgs, options.filters);
+    smoothedImg = mean(responseImgs,3);
+    smoothedImg = (smoothedImg - min(min(smoothedImg))) / (max(max(smoothedImg)) - min(min(smoothedImg)));
    
    %% Inhibit weak responses in vicinity of powerful peaks.
    inhibitionHalfSize = options.gabor.inhibitionRadius;

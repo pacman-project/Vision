@@ -98,7 +98,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -158,10 +158,10 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
-                                         % coordinates are scaled, so our
+                                         % coordinates are downsampled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 15;
-    options.maxNodeDegree = 15;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 10;
+    options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
@@ -246,6 +246,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.preDefinedFolder = [currentPath '/output/' datasetName '/preDefined'];
     options.testGraphFolder = [currentPath '/graphs/' datasetName '/test'];
     options.trainGraphFolder = [currentPath '/graphs/' datasetName '/train'];
+    options.smoothedFolder = [currentPath '/output/' datasetName '/smoothed'];
     
     %% ========== PATH FOLDER ADDITION ==========
     addpath(genpath([options.currentFolder '/utilities']));
