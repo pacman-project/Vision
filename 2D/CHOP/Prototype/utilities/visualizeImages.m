@@ -19,7 +19,6 @@
 %> Ver 1.0 on 09.12.2013
 function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, type )
     outputDir = [options.outputFolder '/reconstruction/' type];
-    originalDir = [options.outputFolder '/original/'];
     if ~exist(outputDir, 'dir')
        mkdir(outputDir); 
     end
@@ -70,12 +69,12 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     end
     
     %% Go over the list of images and run reconstruction.
-    for fileItr = 1:numel(fileList)
+    parfor fileItr = 1:numel(fileList)
         nodeOffset = numel(find(imageIds<fileItr));
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
         img = imread([smoothedDir '/' fileName '.png']);
-        actualImg = imread([originalDir fileName '.png']);
+        actualImg = img;
         
         % If original image's band count is less than 3, duplicate
         % bands to have a 3-band image.
@@ -174,15 +173,21 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                      (position(2)-halfSize(2)):(position(2)+halfSize(2)));
                  
                  if strcmp(imageReconstructionType, 'all')
-                     reconstructedPatch(nodeMask > 10) = nodeItr;
+                     reconstructedPatch(nodeMask > 10) = nodes(nodeItr).labelId;
                  elseif levelItr>1
                      reconstructedPatch(nodeMask > 10) = round(255*(mdlScore/maxMdlScore));
                  end
                     
                  labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+halfSize(2))) = reconstructedPatch;
-                 
             end
+            
+            %% Mark the center of each realization with its label id.
+            labeledReconstructedMask((nodes(nodeItr).position(1)-2):(nodes(nodeItr).position(1)+2), ...
+                (nodes(nodeItr).position(2)-2):(nodes(nodeItr).position(2)+2)) = nodes(nodeItr).labelId;
+            reconstructedMask((nodes(nodeItr).position(1)-2):(nodes(nodeItr).position(1)+2), ...
+                (nodes(nodeItr).position(2)-2):(nodes(nodeItr).position(2)+2)) = 255;
+            
             %% Print this sub to a separate mask, if needed.
             if strcmp(imageReconstructionType, 'individual')
                 rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');

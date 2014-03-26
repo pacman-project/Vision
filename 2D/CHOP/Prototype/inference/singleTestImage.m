@@ -34,7 +34,9 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
     imwrite(img, [options.processedFolder '/' fileName '.png']);
 
     %% Form the first level nodes.
-    nodes = getNodes(img, [], options);
+    [nodes, smoothedImg] = getNodes(img, [], options);
+    % Save smoothed image.
+    imwrite(smoothedImg, [options.smoothedFolder '/' fileName '.png']);
     % Assign nodes their image ids.
     imageIds = ones(size(nodes,1), 1);
     nodes(:, 3) = mat2cell(imageIds, ones(size(imageIds)));
