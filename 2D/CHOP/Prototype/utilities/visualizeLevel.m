@@ -32,7 +32,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
         numberOfNodes = numel(currentLevel);
         for nodeItr = 1:numberOfNodes
             mask = double(imread([filterDir 'filt' num2str(nodeItr) '.png']));
-            mask = imresize(mask, size(mask)*2+1);
+            mask = imresize(mask, size(mask)*2-3);
             mask = (mask - min(min(mask))) / (max(max(mask)) - min(min(mask)));
             imwrite(mask, [reconstructionDir num2str(nodeItr) '.png']);
         end
@@ -71,7 +71,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-        for setItr = 1:numberOfThreadsUsed
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};

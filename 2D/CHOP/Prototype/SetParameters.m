@@ -60,7 +60,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)-1;
+    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
                                         % The inhibition radius basically 
                                         % defines the half of the cube's
                                         % size in which other weaker
@@ -154,14 +154,14 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*5;
+    options.receptiveFieldSize = options.gaborFilterSize*4;
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
                                          % coordinates are downsampled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 10;
-    options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 15;
+    options.maxNodeDegree = 15;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
@@ -225,7 +225,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
     options.subdue.nsubs = 500000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 100;   % Beam length in SUBDUE
+    options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
