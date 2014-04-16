@@ -161,11 +161,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % coordinates are downsampled, so our
                                          % receptive field indeed grows.
     options.maxNodeDegreeLevel1 = 15;
-<<<<<<< HEAD
     options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
-=======
-    options.maxNodeDegree = 15;         % (N) closest N nodes are considered at
->>>>>>> fcc6881d8888585e12cdcf43ce3da4b6ed64b536
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
