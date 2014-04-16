@@ -42,16 +42,16 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.1; % Response threshold for convolved features, 
+    options.gaborFilterThr = 0.03; % Response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.gaborAreaMinResponse = 0.1; % The threshold to define the minimum response 
+    options.gaborAreaMinResponse = 0.03; % The threshold to define the minimum response 
                                         % of a filter. Lower-valued responses 
                                         % are inhibited in each response's 
                                         % filter area. Threshold is
                                         % calculated relative to the
                                         % maximum response in that image.
-    options.gaborFilterSize = 11;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 9;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -98,7 +98,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by center.
-    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -112,7 +112,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % considered. Randomly chosen
                                           % samples are used, defined with
                                           % this number.
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.7;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -161,11 +161,11 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % coordinates are downsampled, so our
                                          % receptive field indeed grows.
     options.maxNodeDegreeLevel1 = 15;
-    options.maxNodeDegree = 15;         % (N) closest N nodes are considered at
+    options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
-    options.maxImageDim = options.gaborFilterSize*30;
+    options.maxImageDim = options.gaborFilterSize*100;
     options.maximumModes = 50;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 
@@ -195,7 +195,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 500;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 600;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -223,9 +223,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 500000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 200;   % Beam length in SUBDUE
+    options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
@@ -260,8 +260,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
     % Internal data structure for an graph representing a set of object 
     % graphs in a given level.                        
     options.graphNode = GraphNode;     % 1: positive, 0: negative node.
-    options.selfSubdue.sub = Substructure;
-    options.selfSubdue.instance = Instance;  
     
     %% ========== LOW - LEVEL FILTER GENERATION ==========
     filters = createFilters(options);
