@@ -57,9 +57,15 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
         edgeDescriptors = (edges(:,3)-1) * offset2 + (edges(:,4)-1)*offset1 + edges(:,5);
     end
     
+    %% Eliminate subs in vocabLevel that are not indexed from input layer.
+    uniqueLabelIds = unique(labelIds);
+    
     %% Match subs from vocabLevel to their instance in graphLevel.
     vocabRealizations = cell(numel(vocabLevel),1);
     for vocabItr = 1:numel(vocabLevel)
+       if sum(ismember(vocabLevel(vocabItr).children, uniqueLabelIds)) == 0
+           continue;
+       end
        vocabEdges = vocabLevel(vocabItr).adjInfo;
        vocabChildren = (vocabLevel(vocabItr).children)';
        %% Get descriptors for edges in the vocabulary node.

@@ -13,7 +13,6 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-%> 
 function [totalInferenceTime] = singleTestImage(testFileName, options)
     % Here, we will run the inference process by compressing the test
     % images' graphs with the compositions in the vocabulary.
@@ -23,7 +22,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
-    [~, fileName, ~] = fileparts(testFileName);
+    [~, fileName, ext] = fileparts(testFileName);
     if options.debug
         display(['Processing ' fileName '.']);
     end
@@ -105,5 +104,11 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
         end
     end
     save([options.testInferenceFolder '/' fileName '_test.mat'], 'mainGraph');
+    
+    %% Process mainGraph to export realizations in the desired format for inte2D/3D integration.
+    exportArr = exportRealizations(mainGraph);
+    
+    % Write them to output.
+    save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr', '-append');
+    
 end
-

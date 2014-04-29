@@ -27,6 +27,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
+    
+    % Rest of the parameters in this section are obsolete, please ignore
+    % them.
     options.numberOfAutoFilters = 100; % Number of Gabor filters at level 1.
     options.numberOfTrainingImages = 70; % Number of training images to be 
                                  % used in unsupervised vocabulary learning.
@@ -106,7 +109,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
                                        % 'mode': cluster relative positions
-                                       % 'hist': divide space into x.
+                                       % 'hist': divide space into 8 
+                                       % pre-defined regions.
     options.mode.maxSamplesPerMode = 200; % In mode calculation between node1
                                           % and node2, not all samples are
                                           % considered. Randomly chosen
@@ -160,12 +164,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % each level of the hierarchy, the
                                          % coordinates are downsampled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 15;
+    options.maxNodeDegreeLevel1 = 10;
     options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
-    options.maxImageDim = options.gaborFilterSize*100;
+    options.maxImageDim = options.gaborFilterSize*1000;
     options.maximumModes = 50;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 
@@ -195,7 +199,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 600;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 1200;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -225,7 +229,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
     options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
-    options.subdue.beam = 200;   % Beam length in SUBDUE
+    options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
     options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line

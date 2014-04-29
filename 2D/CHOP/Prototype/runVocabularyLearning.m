@@ -120,6 +120,26 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             trainingFileNames = trainingFileNames(sortedImageIdx);
             allNodes = allNodes(sortedImageIdx);
             
+            % Learn category/pose of each image and sort them too.
+            categoryArr = cell(numel(fileNames),1);
+            poseArr = zeros(numel(fileNames),1);
+            for fileItr = 1:numel(fileNames)
+                % Get category label.
+                fullName = fileNames{fileItr};
+                [~, fileName, ext] = fileparts(fileNames{fileItr});
+                strLength = numel([options.currentFolder '/input/' options.datasetName '/vocab/']);
+                fileNameLength = numel(ext) + numel(fileName) + 1; % 1 for '/' (folder delimiter)
+                if numel(fullName) >= strLength + fileNameLength
+                    categoryArr(fileItr) = {fullName(1, (strLength+1):(end-fileNameLength))};
+                else
+                    categoryArr(fileItr) = {''};
+                end
+
+                % Get pose info.
+                poseIdx = strfind(fileName, '_r') + numel('_r');
+                poseArr(fileItr) = sscanf(fileName(1, poseIdx:end), '%d');
+            end
+            
             % Set image ids array
             imageIds = cell(size(allNodes,1),1);
             for fileItr = 1:size(allNodes,1)
@@ -153,8 +173,14 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [vocabulary, mainGraph, modes, allOppositeModes, highLevelModes] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, ...
                                         options, trainingFileNames);
         tr_stop_time=toc(tr_s_time);
+        
+        % Export realizations into easily-readable arrays.
+        exportArr = exportRealizations(mainGraph);
+        
+        % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'mainGraph', 'modes', 'allOppositeModes', 'highLevelModes', 'leafNodes', 'trainingFileNames', '-v7.3');
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'poseArr');
     end
     
     % Close thread pool if opened.
@@ -162,4 +188,3 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         matlabpool close;
     end
 end
-
