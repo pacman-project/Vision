@@ -151,6 +151,7 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
             instanceOffset = instanceEndOffset+1;
        end
     end
+    [~, sortIdx] = sort(labelIds);
     labelIds = num2cell(labelIds);
     allChildren = cellfun(@(x) mat2cell(x, ones(size(x,1),1), size(x,2)), vocabRealizations, 'UniformOutput', false);
     allChildren = cat(1, allChildren{:});
@@ -159,5 +160,8 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
     [graphLevel.labelId] = deal(labelIds{:});
     [graphLevel.children] = deal(allChildren{:});
     [graphLevel.sign] = deal(1);
+    
+    % Sort graph level based on label ids.
+    graphLevel = graphLevel(sortIdx);
 end
 

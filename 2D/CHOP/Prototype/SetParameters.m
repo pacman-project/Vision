@@ -186,7 +186,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     %% ========== INFERENCE PARAMETERS ==========
-    options.fastInference = false;
+    options.fastInference = true;
     
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.implementation = 'self'; % Two types of subdue are used.

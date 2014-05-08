@@ -125,22 +125,16 @@ function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combinePart
                 subClasses(end) = numberOfSubs;
             end
             
-            % Get remaining classes.
-            remainingClasses = unique(subClasses);
-            
             % Create new similarity matrix.
 %            newSimilarityMatrix = newSimilarityMatrix(remainingClasses, remainingClasses);
             newSimilarityMatrix = newSimilarityMatrix/max(max(newSimilarityMatrix));
             
-            % TODO: Do not discard any parts, save them for inference. 
-            
-            %% Get the parts which have been considered to represent other parts.
- %           vocabLevel = vocabLevel(1, remainingClasses);
-
-            % Update graph level.
-            labelIds = cat(1, graphLevel.labelId);
-            IC = num2cell(subClasses(labelIds));
+            % Update graph level's ids, and sort them based on labelIds.
+            labelIds = subClasses(cat(1, graphLevel.labelId));
+            [~, sortedIdx] = sort(labelIds);
+            IC = num2cell(labelIds);
             [graphLevel.labelId] = deal(IC{:});
+            graphLevel = graphLevel(sortedIdx);
         end
     end
 end
