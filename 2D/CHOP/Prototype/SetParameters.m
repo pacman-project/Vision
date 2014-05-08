@@ -111,11 +111,18 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % 'mode': cluster relative positions
                                        % 'hist': divide space into 8 
                                        % pre-defined regions.
-    options.mode.maxSamplesPerMode = 200; % In mode calculation between node1
+    options.mode.maxSamplesPerMode = 100; % In mode calculation between node1
                                           % and node2, not all samples are
                                           % considered. Randomly chosen
                                           % samples are used, defined with
                                           % this number.
+    options.mode.minSamplesPerMode = 5;   % The minimum number of samples to 
+                                          % be assigned to each mode. If
+                                          % there are not enough samples,
+                                          % number of modes for that
+                                          % specific part pair is reduced
+                                          % automatically to match this
+                                          % number, if possible.
     options.scaling = 0.7;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
@@ -179,7 +186,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.maxLevels = 20;    % The maximum level count               
     options.maxLabelLength = 100; % The maximum label name length allowed.
     %% ========== INFERENCE PARAMETERS ==========
-    options.fastInference = true;
+    options.fastInference = false;
     
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.implementation = 'self'; % Two types of subdue are used.
@@ -222,12 +229,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.0; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.075; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 100;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
@@ -280,6 +287,11 @@ function [ options ] = SetParameters( datasetName, isTraining )
         options.subdue.implementation = 'exe';
     else
         options.subdue.implementation = 'self';
+    end
+    
+    if strcmp(options.property, 'co-occurence') && strcmp(options.reconstructionType, 'true')
+        options.reconstructionType = 'leaf';
+        display('"co-occurence" property and "true" reconstruction is incompatible. Switching to "leaf" type reconstruction.');
     end
 end
 

@@ -16,6 +16,12 @@
 %> Updates
 %> Ver 1.0 on 05.02.2014
 function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
+    global redundantVocabLevel;
+    % Combine vocabLevel with redundant compositions.
+    validVocabLevel = [ones(numel(vocabLevel),1); zeros(numel(redundantVocabLevel),1)];
+    realVocabIds = [1:numel(vocabLevel), [redundantVocabLevel.label]];
+    vocabLevel = [vocabLevel, redundantVocabLevel];
+    
     % Read data into helper data structures.
     edges = {graphLevel.adjInfo}';
     
@@ -57,18 +63,21 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
         edgeDescriptors = (edges(:,3)-1) * offset2 + (edges(:,4)-1)*offset1 + edges(:,5);
     end
     
-    %% Eliminate subs in vocabLevel that are not indexed from input layer.
+    %% Get unique label ids of the previous level.
     uniqueLabelIds = unique(labelIds);
     
     %% Match subs from vocabLevel to their instance in graphLevel.
     vocabRealizations = cell(numel(vocabLevel),1);
     for vocabItr = 1:numel(vocabLevel)
-       if sum(ismember(vocabLevel(vocabItr).children, uniqueLabelIds)) == 0
+       %% Quick checks to determine if this composition should be searched.
+       % First, see if all nodes exist in the object graphs.
+       if nnz(ismember(vocabLevel(vocabItr).children, uniqueLabelIds)) ~= numel(vocabLevel(vocabItr).children)
            continue;
        end
+       
+       %% Get descriptors for edges in the vocabulary node.
        vocabEdges = vocabLevel(vocabItr).adjInfo;
        vocabChildren = (vocabLevel(vocabItr).children)';
-       %% Get descriptors for edges in the vocabulary node.
        if strcmp(options.property, 'mode')
             vocabDescriptors = vocabEdges(:,3);
        else
@@ -76,7 +85,7 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
        end
        numberOfVocabEdges = numel(vocabDescriptors);
        
-       %% Search for descriptors in receptive fields, and return those contain at least one instance.
+       %% INDEXING: Search for descriptors in receptive fields, and return those contain at least one.
        nonUnqValidInstances = allEdgeInstanceIds(edgeDescriptors == vocabDescriptors(1));
        if ~isempty(nonUnqValidInstances)
            validInstances = fastsortedunique(allEdgeInstanceIds(edgeDescriptors == vocabDescriptors(1)));
@@ -134,12 +143,15 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
     for vocabItr = 1:numel(vocabLevel)
        if numberOfInstanceArr(vocabItr) > 0
             instanceEndOffset = instanceOffset + (numberOfInstanceArr(vocabItr)-1);
-            labelIds(instanceOffset:instanceEndOffset) = vocabItr;
+            if validVocabLevel(vocabItr)
+                labelIds(instanceOffset:instanceEndOffset) = vocabItr;
+            else
+                labelIds(instanceOffset:instanceEndOffset) = realVocabIds(vocabItr);
+            end
             instanceOffset = instanceEndOffset+1;
        end
     end
     labelIds = num2cell(labelIds);
-    
     allChildren = cellfun(@(x) mat2cell(x, ones(size(x,1),1), size(x,2)), vocabRealizations, 'UniformOutput', false);
     allChildren = cat(1, allChildren{:});
     

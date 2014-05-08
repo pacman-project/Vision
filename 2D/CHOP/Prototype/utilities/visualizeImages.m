@@ -190,7 +190,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             
             %% Print this sub to a separate mask, if needed.
             if strcmp(imageReconstructionType, 'individual')
-                rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');
+                rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k');
 
                 for bandItr = 1:size(rgbImg,3)
                     rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask>0))) + ...
@@ -208,7 +208,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             %% Write the reconstructed mask to the output.
             % Add some random colors to make each composition look different, 
             % and overlay the gabors with the original image.
-            rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');
+            rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k');
             %% Write the original image to a mask.
             for bandItr = 1:size(rgbImg,3)
                 rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask)/255)) + ...

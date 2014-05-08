@@ -16,6 +16,8 @@
 %> Ver 1.0 on 01.02.2014
 %> Ver 1.1 on 12.01.2014 Timing is added by Mete
 function [ totalInferenceTime ] = runTestInference( datasetName, ext )
+    global vocabulary, global redundantVocabulary, global modes, global highLevelModes;
+
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName, false);
     

@@ -13,9 +13,13 @@
 %> @param fileList input image name list.
 %>
 %> @retval vocabulary The hierarchic vocabulary learnt from the data.
+%> @retval redundantVocabulary The vocabulary which contains redundant
+%> compositions, which have indices of actual compositions in their 'label'
+%> fields.
 %> @retval mainGraph The hierarchic object graphs.
 %> @retval modes Cell array including modes belonging to each layer, each 
 %>      in a separate cell.
+%> @retval similarityMatrices Distance matrix of compositions.
 %> 
 %> Author: Rusen
 %>
@@ -25,12 +29,14 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, highLevelModes, ...
+function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, highLevelModes, similarityMatrices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, highLevelModes, ...
                                                             options, fileList)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
+    redundantVocabulary = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
+    similarityMatrices = cell(options.maxLevels,1);
     allOppositeModes = cell(options.maxLevels,1);
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
@@ -39,12 +45,16 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
     mainGraph(1) = {graphLevel};
     previousModes = [];
     
+    %% Create similarity matrices of the first level.
+    similarityMatrices(1) = {createSimilarityMatrix(options)};
+    
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));
     
     %% Print first vocabulary and graph level.
     if options.debug
         visualizeLevel( vocabulary{1}, 1, previousModes, 0, options);
+        imwrite(similarityMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_sim.png']);
         visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
     end
     
@@ -81,7 +91,9 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         if isempty(vocabLevel)
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
+           redundantVocabulary = redundantVocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
+           similarityMatrices = similarityMatrices(1:(levelItr-1),:);
            allOppositeModes = allOppositeModes(1:(levelItr-1),:);
            break; 
         end
@@ -133,25 +145,39 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         % should introduce a novelty (cover a new area of the image). If it
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
+        display('........ Combining parts.');
+        % Here, we combine similar structures into one, which helps
+        % generalization properties of the algorithm.
+        [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, similarityMatrices{levelItr-1}, options);
+        
         display('........ Applying inhibition.');
-%        [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
+        %Now, apply inhibition.
         graphLevel=applyTestInhibition(graphLevel, options, levelItr);
 
-        [remainingComps, ~, IC] = unique([graphLevel.labelId]);
-
         % Assign new labels of the remaining realizations.
+        [remainingComps, ~, IC] = unique([graphLevel.labelId]);
         IC = num2cell(IC);
         [graphLevel.labelId] = deal(IC{:});
-
+        
+        % Get the redundant compositions to help inference process.
+        redundantComps = ismember(subClasses, remainingComps) & subClasses ~= (1:numel(subClasses))';
+        redundantVocabLevel = vocabLevel(1, redundantComps);
+        VIC = num2cell(subClasses(redundantComps));
+        [redundantVocabLevel.label] = deal(VIC{:});
+        
         % Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);
+        
+        % Assign similarity matrix.
+        newSimilarityMatrix = newSimilarityMatrix(remainingComps, remainingComps);
+        similarityMatrices{levelItr} = newSimilarityMatrix;
         
         %% Calculate statistics from this graph.
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);
         
         % display debugging info.
         display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
-        display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(vocabLevel)) ' compositions.']);
+        display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([IC{:}])) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
         % Set the sign of all nodes to 1. When negative graphs are introduced,
@@ -160,6 +186,7 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         
         %% Step 2.4: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
+        redundantVocabulary(levelItr) = {redundantVocabLevel};
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
         
         %% Step 2.5: Create object graphs G_(l+1) for the next level, l+1.
@@ -171,7 +198,10 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         if options.debug
            display('........ Visualizing previous level...');
            if ~isempty(vocabLevel)
-               visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options);
+               imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
+               if ~isempty(modes)
+                    visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options);
+               end
                visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
            end
         end
@@ -180,7 +210,9 @@ function [ vocabulary, mainGraph, modes, allOppositeModes, highLevelModes ] = le
         newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));
         if ~newEdgesAvailable
             vocabulary = vocabulary(1:(levelItr),:);
+            redundantVocabulary = redundantVocabulary(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
+            similarityMatrices = similarityMatrices(1:(levelItr),:);
             allOppositeModes = allOppositeModes(1:(levelItr-1),:);
         end
     end

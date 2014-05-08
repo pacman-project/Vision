@@ -205,7 +205,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 end
            end
         else
-            edgeIds = zeros(numberOfAllEdges,1);
+            edgeIds = ones(numberOfAllEdges,1);
         end
         
         edges = [allEdges(:,1:2) + imageNodeOffset, edgeIds, directedArr];

@@ -14,15 +14,20 @@
 %> Updates
 %> Ver 1.0 on 19.12.2013
 function [totalInferenceTime] = singleTestImage(testFileName, options)
+    global vocabulary;
+    global redundantVocabulary;
+    global modes;
+    global highLevelModes;
+    global redundantVocabLevel;
     % Here, we will run the inference process by compressing the test
     % images' graphs with the compositions in the vocabulary.
     % Allocate space for current graph level.
-    load([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'modes', 'highLevelModes');
+%    load([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes');
     totalInferenceTime = 0;
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
-    [~, fileName, ext] = fileparts(testFileName);
+    [~, fileName, ~] = fileparts(testFileName);
     if options.debug
         display(['Processing ' fileName '.']);
     end
@@ -57,6 +62,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
     
     %% Iteratively process each level to parse the object.
     for levelItr = 2:numel(vocabulary)
+        redundantVocabLevel = redundantVocabulary{levelItr};
         %% Here, we run SUBDUE over the input graph(s) to find pre-defined compositions within the graph.
         % Each pre-defined sub is searched separately.
         if options.debug

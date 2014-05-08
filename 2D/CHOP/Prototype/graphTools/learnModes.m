@@ -21,6 +21,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     display(['Learning modes for level ' num2str(currentLevelId) '...']);
     useReceptiveField = options.useReceptiveField;
     maxSamplesPerMode = options.mode.maxSamplesPerMode;
+    minSamplesPerMode = options.mode.minSamplesPerMode;
     maxImageDim = options.maxImageDim;
     maximumModes = options.maximumModes;
     currentFolder = options.currentFolder;
@@ -160,15 +161,16 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     [uniqueEdgeTypes, ~, IA] = unique(allEdges(:,1:2), 'rows');
     numberOfUniqueEdges = size(uniqueEdgeTypes,1);
     modes = cell(numberOfUniqueEdges,1);
-    covMats = cell(numberOfUniqueEdges,1);
+%    covMats = cell(numberOfUniqueEdges,1);
     uniqueEdgeSamples = cell(numberOfUniqueEdges,1);
     for uniqueEdgeItr = 1:numberOfUniqueEdges
         uniqueEdgeSamples(uniqueEdgeItr) = {allEdges(IA==uniqueEdgeItr,3:4)};
     end
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
-    uniqueEdgeEntropyArr = zeros(numberOfUniqueEdges,1);
+%    uniqueEdgeEntropyArr = zeros(numberOfUniqueEdges,1);
     parfor uniqueEdgeItr = 1:numberOfUniqueEdges
+  %      display(num2str(uniqueEdgeItr));
         w = warning('off', 'all');
         samples = uniqueEdgeSamples{uniqueEdgeItr};
         edgeType = uniqueEdgeTypes(uniqueEdgeItr,:);
@@ -179,71 +181,75 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
         end
 
         %% Assign a label to each sample.
-        classes = assignModes(samples, maximumModes);
+        if maximumModes == 1
+            classes = ones(size(samples,1),1);
+        else
+            classes = assignModes(samples, minSamplesPerMode, maximumModes);
+        end
 
         %% Estimate cluster centers.
         numberOfClusters = max(classes);
         centers = zeros(numberOfClusters,4);
         centers(:,1:2) = repmat(edgeType, numberOfClusters, 1);
-        covArr = zeros(numberOfClusters,2,2);
+%        covArr = zeros(numberOfClusters,2,2);
         
         for centerItr = 1:numberOfClusters
           clusterSamples = samples(classes==centerItr,:);
           centers(centerItr,3:4) = mean(clusterSamples,1);
           
-          % Calculate other statistics too.
-          % Covariance
-          covMat = cov(clusterSamples);
-          covArr(centerItr,:,:) = covMat;
-          
-          % Calculate cluster's entropy.
-          entropyMatr = hist3(clusterSamples);
-          entropyMatr = entropyMatr / sum(sum(entropyMatr));
-          logEntropyMatr = log(entropyMatr);
-          logEntropyMatr(isinf(logEntropyMatr)) = 0;
-          entropyMatr = entropyMatr .* logEntropyMatr;
-          uniqueEdgeEntropyArr(uniqueEdgeItr) = uniqueEdgeEntropyArr(uniqueEdgeItr) + ...
-              -sum(sum(entropyMatr));
+%           % Calculate other statistics too.
+%           % Covariance
+%           covMat = cov(clusterSamples);
+%           covArr(centerItr,:,:) = covMat;
+%           
+%           % Calculate cluster's entropy.
+%           entropyMatr = hist3(clusterSamples);
+%           entropyMatr = entropyMatr / sum(sum(entropyMatr));
+%           logEntropyMatr = log(entropyMatr);
+%           logEntropyMatr(isinf(logEntropyMatr)) = 0;
+%           entropyMatr = entropyMatr .* logEntropyMatr;
+%           uniqueEdgeEntropyArr(uniqueEdgeItr) = uniqueEdgeEntropyArr(uniqueEdgeItr) + ...
+%               -sum(sum(entropyMatr));
         end
         
         modes(uniqueEdgeItr) = {centers};
-        covMats(uniqueEdgeItr) = {covArr};
+%        covMats(uniqueEdgeItr) = {covArr};
         
         %% In debug mode, write classes to the output as images.
-        if debug
-           distributionImg = zeros(maxImageDim*2+1);
-           samplesToWrite = floor(samples + maxImageDim + 1);
-
-           % If no samples are to be written, move on.
-           if numel(samplesToWrite) < 1
-               continue;
-           end
-
-           samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
-           distributionImg(samplesInd) = classes;
-
-           % Resize the distribution image so it is of the smallest
-           % possible size.
-           bound = max(max(abs(samples)));
-           midPoint = maxImageDim + 1;
-           distributionImg = distributionImg((midPoint-bound):(midPoint+bound), (midPoint-bound):(midPoint+bound));
-           if ~exist([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/'], 'dir')
-               mkdir([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/']);
-           end
-           if ~isempty(distributionImg)
-               imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), ...
-                   [currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) ...
-                   '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '.png']);
-           end
-        end
+%         if debug
+%            distributionImg = zeros(maxImageDim*2+1);
+%            samplesToWrite = floor(samples + maxImageDim + 1);
+% 
+%            % If no samples are to be written, move on.
+%            if numel(samplesToWrite) < 1
+%                continue;
+%            end
+% 
+%            samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
+%            distributionImg(samplesInd) = classes;
+% 
+%            % Resize the distribution image so it is of the smallest
+%            % possible size.
+%            bound = max(max(abs(samples)));
+%            midPoint = maxImageDim + 1;
+%            distributionImg = distributionImg((midPoint-bound):(midPoint+bound), (midPoint-bound):(midPoint+bound));
+%            if ~exist([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/'], 'dir')
+%                mkdir([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/']);
+%            end
+%            if ~isempty(distributionImg)
+%                imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), ...
+%                    [currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) ...
+%                    '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '.png']);
+%            end
+%         end
            
        warning(w);
     end
     modes = fix(cat(1, modes{:}));
-    covMats = cat(1, covMats{:});
-    totalEntropy = sum(uniqueEdgeEntropyArr);
+%    covMats = cat(1, covMats{:});
+%     totalEntropy = sum(uniqueEdgeEntropyArr);
     % Save statistics to debug folder.
-    save([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/cov.mat'], 'modes', 'covMats', 'uniqueEdgeEntropyArr', 'totalEntropy');
+%     save([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/cov.mat'], 'modes', 'covMats', 'uniqueEdgeEntropyArr', 'totalEntropy');
         
     %% If receptive fields are used, add reverse modes to the modes array.
     if options.useReceptiveField

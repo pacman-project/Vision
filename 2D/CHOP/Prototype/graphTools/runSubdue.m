@@ -452,8 +452,8 @@ end
 %> Updates
 %> Ver 1.0 on 15.02.2014
 function validSubs = removeEncodedSubs(subs2Check, encodedSubs, oppositeEdgeLabelList)
-    validSubs = [];
-    if isempty(subs2Check) 
+    if isempty(subs2Check) || isempty(oppositeEdgeLabelList) 
+        validSubs = subs2Check;
         return;
     end
     %% First, eliminate duplicate subs in subs2Check.
