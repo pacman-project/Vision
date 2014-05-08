@@ -206,7 +206,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 1200;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 600;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
