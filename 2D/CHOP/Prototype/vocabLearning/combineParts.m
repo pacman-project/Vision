@@ -131,7 +131,9 @@ function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combinePart
             
             % Update graph level's ids, and sort them based on labelIds.
             labelIds = subClasses(cat(1, graphLevel.labelId));
-            [~, sortedIdx] = sort(labelIds);
+            imageIds = cat(1, graphLevel.imageId);
+            arrayToSort = [imageIds, labelIds];
+            [~, sortedIdx] = sortrows(arrayToSort);
             IC = num2cell(labelIds);
             [graphLevel.labelId] = deal(IC{:});
             graphLevel = graphLevel(sortedIdx);

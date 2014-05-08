@@ -63,7 +63,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
+    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)-1;
                                         % The inhibition radius basically 
                                         % defines the half of the cube's
                                         % size in which other weaker
@@ -116,14 +116,14 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % considered. Randomly chosen
                                           % samples are used, defined with
                                           % this number.
-    options.mode.minSamplesPerMode = 5;   % The minimum number of samples to 
+    options.mode.minSamplesPerMode = 4;   % The minimum number of samples to 
                                           % be assigned to each mode. If
                                           % there are not enough samples,
                                           % number of modes for that
                                           % specific part pair is reduced
                                           % automatically to match this
                                           % number, if possible.
-    options.scaling = 0.7;            % Each successive layer is downsampled 
+    options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -165,14 +165,14 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*4;
+    options.receptiveFieldSize = options.gaborFilterSize*4.5;
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
                                          % coordinates are downsampled, so our
                                          % receptive field indeed grows.
-    options.maxNodeDegreeLevel1 = 10;
-    options.maxNodeDegree = 10;         % (N) closest N nodes are considered at
+    options.maxNodeDegreeLevel1 = 12;
+    options.maxNodeDegree = 12;         % (N) closest N nodes are considered at
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
@@ -229,7 +229,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.075; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.1; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 

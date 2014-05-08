@@ -162,8 +162,15 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         % Get the redundant compositions to help inference process.
         redundantComps = ismember(subClasses, remainingComps) & subClasses ~= (1:numel(subClasses))';
         redundantVocabLevel = vocabLevel(1, redundantComps);
-        VIC = num2cell(subClasses(redundantComps));
-        [redundantVocabLevel.label] = deal(VIC{:});
+        
+        % Assign correct labels to the redundant compositions.
+        if ~isempty(redundantVocabLevel)
+            maxRemaining = max(remainingComps);
+            remainingMatchArr = zeros(maxRemaining,1);
+            remainingMatchArr(remainingComps) = 1:numel(remainingComps);
+            VIC = num2cell(remainingMatchArr(subClasses(redundantComps)));
+            [redundantVocabLevel.label] = deal(VIC{:});
+        end
         
         % Eliminate unused compositions from vocabulary.
         vocabLevel = vocabLevel(1, remainingComps);

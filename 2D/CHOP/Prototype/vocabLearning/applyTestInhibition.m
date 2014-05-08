@@ -5,9 +5,10 @@
 %> measured by the ratio of leaf nodes not existing in the main graph over
 %> all leaf nodes of the tested node. In case of an overlap, the node whose
 %> label id is better wins. graphLevel is ASSUMED to be ordered by
-%> labelIds.
+%> imageIds, labelIds.
 %>
-%> @param graphLevel The current graph level, ASSUMED ordered by labelIds.
+%> @param graphLevel The current graph level, ASSUMED ordered by imageIds, 
+%> then labelIds in an ascending manner.
 %> @param options Program options.
 %> @param levelItr Current level number.
 %>
