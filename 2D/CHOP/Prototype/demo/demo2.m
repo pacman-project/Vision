@@ -25,7 +25,7 @@ function [] = demo2(datasetName)
     cd ..
     SetParameters('datasetName', 1);
     if exist([pwd '/output/' datasetName '/vb.mat'], 'file')
-        load([pwd '/output/' datasetName '/vb.mat']);
+        load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes');
     else
         display('No vocabulary exists!');
     end
@@ -49,7 +49,8 @@ function [] = demo2(datasetName)
         if ~strcmp(state,'Exit') && isvalid(vid)
             trigger(vid);
             img=getdata(vid,1,'uint8');
-            img = imresize(img, 0.25);
+            img = img(101:(end-100), 101:(end-100), :);
+ %           img = imresize(img, 0.25);
             
             % Process input image and get the result.
             if strcmp(state, 'Active')
@@ -121,7 +122,6 @@ function [hFig, hAxes] = createFigureAndAxes()
     hAxes.axis1 = createPanelAxisTitle(hFig,[0.1 0.2 0.36 0.6],'Original Video');%[X Y W H]
     hAxes.axis2 = createPanelAxisTitle(hFig,[0.5 0.2 0.36 0.6],'Part detections');
 end
-
 
 %% Name the axes correctly.
 function hAxis = createPanelAxisTitle(hFig, pos, axisTitle)

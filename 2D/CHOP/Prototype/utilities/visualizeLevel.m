@@ -9,12 +9,15 @@
 %> @param modes Modes of the previous level to reconstruct the features.
 %> @param numberOfPrevNodes Number of nodes in previous vocabulary level.
 %> @param options Program options.
+%> @param isRedundant If currentLevel consists of redundant compositions,
+%> set 1. Otherwise set 0.
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 10.02.2014
-function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, options)
+%> Redundant vocabulary output option added. 10.05.2014
+function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, options, isRedundant)
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
     useReceptiveField = options.useReceptiveField;
@@ -24,6 +27,13 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
     reconstructionDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/'];
     if ~exist(reconstructionDir, 'dir')
        mkdir(reconstructionDir);
+    end
+    
+    %% Read label ids if redundant level is processed.
+    if isRedundant
+        labelIds = [currentLevel.label];
+    else
+        labelIds = [];
     end
     
     %% In level 1, only print low level filters as first n nodes.
@@ -212,63 +222,74 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
                     currentMask = [currentMask, zeros(size(currentMask,1), 1)];
                 end
                 currentMask = (currentMask - min(min(currentMask))) / (max(max(currentMask)) - min(min(currentMask)));
-                imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
-                imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
+                
+                %% Print the files to output folders.
+                if isRedundant
+                    realLabel = labelIds(nodeSet(nodeItr));
+                    optionOrder = nnz(labelIds(1:nodeSet(nodeItr))==realLabel);
+                    imwrite(currentMask, [reconstructionDir num2str(realLabel) '_option' num2str(optionOrder) '.png']);
+                else
+                    imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                    imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
+                end
             end
             warning(w);
         end
     end
     
     %% Combine all compositions and show them within a single image.
-    if levelId == 1
-        colImgCount = numberOfNodes;
-        rowImgCount = 1;
-    else
-        colImgCount = ceil(sqrt(numberOfNodes));
-        rowImgCount = colImgCount;
-    end
-    
-    %% Show the set of compositions in a single image and save it.
-    
-    % Read all masks into an array, and get the extreme dimensions.
-    allCompMasks = cell(numberOfNodes,1);
-    compMaskSize = [1, 1];
-    for nodeItr = 1:numberOfNodes
-        % Read image and add it to the figure.
+    if ~isRedundant
+        % Learn number of rows/columns.
         if levelId == 1
-            tempMask = imread([reconstructionDir num2str(nodeItr) '.png']);
+            colImgCount = numberOfNodes;
+            rowImgCount = 1;
         else
-            tempMask = imread([reconstructionDir num2str(nodeItr) '_comp.png']);
+            colImgCount = ceil(sqrt(numberOfNodes));
+            rowImgCount = colImgCount;
         end
-        compMaskSize = max(compMaskSize, [size(tempMask,1), size(tempMask,2)]);
-        allCompMasks(nodeItr) = {tempMask};
+
+        %% Show the set of compositions in a single image and save it.
+
+        % Read all masks into an array, and get the extreme dimensions.
+        allCompMasks = cell(numberOfNodes,1);
+        compMaskSize = [1, 1];
+        for nodeItr = 1:numberOfNodes
+            % Read image and add it to the figure.
+            if levelId == 1
+                tempMask = imread([reconstructionDir num2str(nodeItr) '.png']);
+            else
+                tempMask = imread([reconstructionDir num2str(nodeItr) '_comp.png']);
+            end
+            compMaskSize = max(compMaskSize, [size(tempMask,1), size(tempMask,2)]);
+            allCompMasks(nodeItr) = {tempMask};
+        end
+
+        % Using the maximum dimensions, transform each composition image to the
+        % same size. 
+        overallImage = zeros((rowImgCount-1)*compMaskSize(1), colImgCount*compMaskSize(2), size(tempMask,3), 'uint8');
+        finalMask = zeros([compMaskSize, size(tempMask,3)], 'uint8');
+        for nodeItr = 1:numberOfNodes
+            compFinalMask = finalMask;
+            compRealMask = allCompMasks{nodeItr};
+            margins = (compMaskSize - [size(compRealMask,1), size(compRealMask,2)])/2;
+            compFinalMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
+                (floor(margins(2))+1):(end-ceil(margins(2))), :) = compRealMask;
+
+            % A small make up. Going to mark sides by adding a line of white
+            % padding. Framing each composition.
+            compFinalMask([1, end], :, :) = 255;
+            compFinalMask(:, [1, end], :) = 255;
+
+            % Add the composition's mask to the overall mask image.
+            rowStart = 1 + floor((nodeItr-1)/colImgCount)*compMaskSize(1);
+            colStart = 1 + rem(nodeItr-1, colImgCount) * compMaskSize(2);
+            overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
+                colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
+        end
+
+        % Then, write the compositions the final image.
+        imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
     end
-    
-    % Using the maximum dimensions, transform each composition image to the
-    % same size. 
-    overallImage = zeros((rowImgCount-1)*compMaskSize(1), colImgCount*compMaskSize(2), size(tempMask,3), 'uint8');
-    finalMask = zeros([compMaskSize, size(tempMask,3)], 'uint8');
-    for nodeItr = 1:numberOfNodes
-        compFinalMask = finalMask;
-        compRealMask = allCompMasks{nodeItr};
-        margins = (compMaskSize - [size(compRealMask,1), size(compRealMask,2)])/2;
-        compFinalMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
-            (floor(margins(2))+1):(end-ceil(margins(2))), :) = compRealMask;
-        
-        % A small make up. Going to mark sides by adding a line of white
-        % padding. Framing each composition.
-        compFinalMask([1, end], :, :) = 255;
-        compFinalMask(:, [1, end], :) = 255;
-        
-        % Add the composition's mask to the overall mask image.
-        rowStart = 1 + floor((nodeItr-1)/colImgCount)*compMaskSize(1);
-        colStart = 1 + rem(nodeItr-1, colImgCount) * compMaskSize(2);
-        overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
-            colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
-    end
-        
-    % Then, write the compositions the final image.
-    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
 end
 
 

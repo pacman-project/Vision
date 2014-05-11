@@ -136,8 +136,11 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
                 end
 
                 % Get pose info.
-                poseIdx = strfind(fileName, '_r') + numel('_r');
-                poseArr(fileItr) = sscanf(fileName(1, poseIdx:end), '%d');
+                poseStartIdx = strfind(fileName, '_r');
+                if ~isempty(poseStartIdx)
+                    poseIdx = poseStartIdx + numel('_r');
+                    poseArr(fileItr) = sscanf(fileName(1, poseIdx:end), '%d');
+                end
             end
             
             % Set image ids array

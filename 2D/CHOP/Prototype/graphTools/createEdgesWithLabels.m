@@ -165,20 +165,25 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
             
             % Combine all three rules.
             validEdges = validEdges & validEdges2 & validEdges3;
-            
-            allEdges = allEdges(validEdges,:);
-            edgeCoords = edgeCoords(validEdges,:);
-            numberOfAllEdges = allEdges(validEdges,:);
-            node1Labels = node1Labels(validEdges,:);
-            node2Labels = node2Labels(validEdges,:);
             labelEqualityArr = labelEqualityArr(validEdges);
             
             %% Set isDirected property of each edge.
             directedArr = labelEqualityArr;
         else
+            % Remove edges between overlapping (same position) nodes having same id.
+            labelEqualityArr = node1Labels == node2Labels;
+            validEdges = ~(labelEqualityArr & (edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0));
+            
             % If receptive fields are used, every edge is directed.
-            directedArr = ones(numberOfAllEdges,1);
+            directedArr = ones(nnz(validEdges),1);
         end
+        
+        % Update data structures based on removed edges.
+        allEdges = allEdges(validEdges,:);
+        edgeCoords = edgeCoords(validEdges,:);
+        numberOfAllEdges = nnz(validEdges);
+        node1Labels = node1Labels(validEdges,:);
+        node2Labels = node2Labels(validEdges,:);
         
         %% Based on the edge type, assign edge labels here.
         if strcmp(property, 'hist')

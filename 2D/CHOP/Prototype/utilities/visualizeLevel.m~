@@ -9,12 +9,15 @@
 %> @param modes Modes of the previous level to reconstruct the features.
 %> @param numberOfPrevNodes Number of nodes in previous vocabulary level.
 %> @param options Program options.
+%> @param isRedundant If currentLevel consists of redundant compositions,
+%> set 1. Otherwise set 0.
 %> 
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 10.02.2014
-function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, options)
+%> Redundant vocabulary output option added. 10.05.2014
+function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, options, isRedundant)
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
     useReceptiveField = options.useReceptiveField;
@@ -26,13 +29,18 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
        mkdir(reconstructionDir);
     end
     
+    %% Read label ids if redundant level is processed.
+    if isRedundant
+        labelIds = [currentLevel.labelId];
+    end
+    
     %% In level 1, only print low level filters as first n nodes.
     if levelId == 1
         filterDir = [currentFolder '/filters/' options.filterType '/'];
         numberOfNodes = numel(currentLevel);
         for nodeItr = 1:numberOfNodes
             mask = double(imread([filterDir 'filt' num2str(nodeItr) '.png']));
-            mask = imresize(mask, size(mask)*2+1);
+            mask = imresize(mask, size(mask)*2-3);
             mask = (mask - min(min(mask))) / (max(max(mask)) - min(min(mask)));
             imwrite(mask, [reconstructionDir num2str(nodeItr) '.png']);
         end
@@ -71,7 +79,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-        for setItr = 1:numberOfThreadsUsed
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -212,8 +220,16 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
                     currentMask = [currentMask, zeros(size(currentMask,1), 1)];
                 end
                 currentMask = (currentMask - min(min(currentMask))) / (max(max(currentMask)) - min(min(currentMask)));
-                imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
-                imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
+                
+                %% Print the files to output folders.
+                if isRedundant
+                    realLabel == labelIds(nodeSet(nodeItr));
+                    optionOrder = nnz(labelIds(1:nodeSet(nodeItr))==realLabel);
+                    imwrite(currentMask, [reconstructionDir num2str(realLabel) '_option' num2str(optionOrder) '.png']);
+                else
+                    imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                    imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
+                end
             end
             warning(w);
         end
@@ -246,7 +262,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
     
     % Using the maximum dimensions, transform each composition image to the
     % same size. 
-    overallImage = zeros(rowImgCount*compMaskSize(1), colImgCount*compMaskSize(2), 'uint8');
+    overallImage = zeros((rowImgCount-1)*compMaskSize(1), colImgCount*compMaskSize(2), size(tempMask,3), 'uint8');
     finalMask = zeros([compMaskSize, size(tempMask,3)], 'uint8');
     for nodeItr = 1:numberOfNodes
         compFinalMask = finalMask;
@@ -268,7 +284,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
     end
         
     % Then, write the compositions the final image.
-    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '/comps.png']);
+    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
 end
 
 

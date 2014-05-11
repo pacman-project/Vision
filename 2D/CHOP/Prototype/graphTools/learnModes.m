@@ -124,9 +124,11 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
             
             % 2- if node1 == node2, eliminate if this edge is on the wrong side
             % of the road (sorry, separating line).
+            % Additionally, eliminate overlapping (same id) nodes.
+            % To remove this effect, add '=' the inequalities on one side of or (|).
             sumCoords = sum(edgeCoords,2);
             validEdges2 = node1Labels == node2Labels & ...
-                ((edgeCoords(:,1) >= 0 & sumCoords>=0) | (edgeCoords(:,1) < 0 & sumCoords > 0));
+                ((edgeCoords(:,1) > 0 & sumCoords>0) | (edgeCoords(:,1) < 0 & sumCoords > 0));
             
             % 3- if edge coordinates are [0,0] (same center position), get those with smaller indices.
             validEdges3 = edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0 & ...
