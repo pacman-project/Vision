@@ -1,6 +1,11 @@
-function [ cropBounds ] = getCropInfo( graphlevel )
-imageIds = 
-
-
+function [ cropBounds ] = getCropInfo( exportArr, trainingFileNames )
+    imageIds = exportArr(:,5);
+    numberOfImages = max(imageIds);
+    for imageItr = 1:numberOfImages
+       positions = exportArr(imageIds==imageItr,2:3);
+       
+        
+        
+    end
 end
 
