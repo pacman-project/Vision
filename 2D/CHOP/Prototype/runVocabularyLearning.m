@@ -126,7 +126,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             for fileItr = 1:numel(fileNames)
                 % Get category label.
                 fullName = fileNames{fileItr};
-                [~, fileName, ext] = fileparts(trainingFileNames{fileItr});
+                [~, fileName, ext] = fileparts(fileNames{fileItr});
                 strLength = numel([options.currentFolder '/input/' options.datasetName '/vocab/']);
                 fileNameLength = numel(ext) + numel(fileName) + 1; % 1 for '/' (folder delimiter)
                 if numel(fullName) >= strLength + fileNameLength
