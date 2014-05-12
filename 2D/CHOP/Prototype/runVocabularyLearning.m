@@ -130,7 +130,12 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
                 strLength = numel([options.currentFolder '/input/' options.datasetName '/vocab/']);
                 fileNameLength = numel(ext) + numel(fileName) + 1; % 1 for '/' (folder delimiter)
                 if numel(fullName) >= strLength + fileNameLength
-                    categoryArr(fileItr) = {fullName(1, (strLength+1):(end-fileNameLength))};
+                    categoryStr = fullName(1, (strLength+1):(end-fileNameLength));
+                    categoryStrSepIdx = strfind(categoryStr, '/');
+                    if ~isempty(categoryStrSepIdx)
+                        categoryStr = categoryStr(:, 1:(categoryStrSepIdx(1)-1));
+                    end
+                    categoryArr(fileItr) = {categoryStr};
                 else
                     categoryArr(fileItr) = {''};
                 end
