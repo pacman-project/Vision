@@ -60,8 +60,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             createFolders(options);
             
             %% Step 0.1: Create initial data structures.
-            fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
-            trainingFileNames = fileNames;
+            trainingFileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
             
             %% Step 0.2: Allocate space to keep names of corresponding gt files.
             gtFileNames = cell(numel(trainingFileNames),1);
@@ -121,12 +120,12 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             allNodes = allNodes(sortedImageIdx);
             
             % Learn category/pose of each image and sort them too.
-            categoryArr = cell(numel(fileNames),1);
-            poseArr = zeros(numel(fileNames),1);
-            for fileItr = 1:numel(fileNames)
+            categoryArr = cell(numel(trainingFileNames),1);
+            poseArr = zeros(numel(trainingFileNames),1);
+            for fileItr = 1:numel(trainingFileNames)
                 % Get category label.
-                fullName = fileNames{fileItr};
-                [~, fileName, ext] = fileparts(fileNames{fileItr});
+                fullName = trainingFileNames{fileItr};
+                [~, fileName, ext] = fileparts(trainingFileNames{fileItr});
                 strLength = numel([options.currentFolder '/input/' options.datasetName '/vocab/']);
                 fileNameLength = numel(ext) + numel(fileName) + 1; % 1 for '/' (folder delimiter)
                 if numel(fullName) >= strLength + fileNameLength
