@@ -61,7 +61,8 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
     end
     
     %% Iteratively process each level to parse the object.
-    for levelItr = 2:numel(vocabulary)
+    numberOfLevels = min(options.maxInferenceLevels, numel(vocabulary));
+    for levelItr = 2:numberOfLevels
         redundantVocabLevel = redundantVocabulary{levelItr};
         %% Here, we run SUBDUE over the input graph(s) to find pre-defined compositions within the graph.
         % Each pre-defined sub is searched separately.

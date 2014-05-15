@@ -45,15 +45,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.03; % Response threshold for convolved features, 
+    options.gaborFilterThr = 0.075; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.gaborAreaMinResponse = 0.03; % The threshold to define the minimum response 
-                                        % of a filter. Lower-valued responses 
-                                        % are inhibited in each response's 
-                                        % filter area. Threshold is
-                                        % calculated relative to the
-                                        % maximum response in that image.
     options.gaborFilterSize = 9;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
@@ -176,14 +170,17 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
-    options.maxImageDim = options.gaborFilterSize*40;
+%    options.maxImageDim = options.gaborFilterSize*40;
+    options.maxImageDim = options.gaborFilterSize*71;
     options.maximumModes = 50;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 
                                        % determined as neighbors. Centroids
                                        % taken into account.
     
-    options.maxLevels = 20;    % The maximum level count               
+    options.maxLevels = 20;    % The maximum level count for training.
+    options.maxInferenceLevels = 20; % The maximum level count for testing.
+                                    % Please write 1 off.
     options.maxLabelLength = 100; % The maximum label name length allowed.
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true;
@@ -206,7 +203,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 1000;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 1800;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -229,12 +226,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.05; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.065; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 7500;  % Maximum number of nodes allowed in a level
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
     options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
@@ -260,10 +257,13 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.smoothedFolder = [currentPath '/output/' datasetName '/smoothed'];
     
     %% ========== PATH FOLDER ADDITION ==========
+    w = warning('off', 'all');
     addpath(genpath([options.currentFolder '/utilities']));
+    addpath(genpath([options.currentFolder '/demo']));
     addpath(genpath([options.currentFolder '/graphTools']));
     addpath(genpath([options.currentFolder '/vocabLearning']));
     addpath(genpath([options.currentFolder '/inference']));
+    warning(w);
     
     %% ========== INTERNAL DATA STRUCTURES ==========
     % Internal data structure for a vocabulary level.
