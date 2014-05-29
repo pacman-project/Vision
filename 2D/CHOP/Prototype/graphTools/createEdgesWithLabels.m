@@ -76,7 +76,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     
     
     %% Process each image separately (and in parallel)
-    parfor imageItr = 1:numberOfImages
+    for imageItr = 1:numberOfImages
         imageNodeOffset = numel(find(imageIds < imageItr));
         imageNodeIdx = imageIds == imageItr;
 

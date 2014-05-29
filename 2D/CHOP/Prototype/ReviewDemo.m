@@ -2,13 +2,13 @@ function [] = ReviewDemo(datasetName)
     %% Program initializations
     global state;
     % Recognition-related stuff.
-    global vocabulary, global redundantVocabulary, global modes, global highLevelModes;
+    global vocabulary, global redundantVocabulary, global modes, global highLevelModes, global vocabCounts;
     
     %% Set parameters for demonstration.
     usedCam = 1; % Which cam to use. If you are using the head, most likely 
     % this number is 2 or 3.
-    sideNeutralZone = 1; % This amount of pixels from each side is not processed.
-    imResizeFactor = 0.5; % The factor of downsampling.
+%    sideNeutralZone = 1; % This amount of pixels from each side is not processed.
+%    imResizeFactor = 0.5; % The factor of downsampling.
     
     %% Prepare input video.
     % Stop video objects if they still exist.
@@ -39,6 +39,7 @@ function [] = ReviewDemo(datasetName)
     % Read vocabulary from the file.
     if exist([pwd '/output/' datasetName '/vb.mat'], 'file')
         load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes');
+        vocabCounts = cellfun(@(x) numel(x), vocabulary);
     else
         display('No vocabulary exists!');
     end
@@ -52,7 +53,6 @@ function [] = ReviewDemo(datasetName)
     options.prediction.models = models;
     options.prediction.feature_params = feature_params;
     testFileName = [pwd '/input/' datasetName '/test/lastFrameTestDemo.png'];
-    resultFileName = [pwd '/output/' datasetName '/reconstruction/test/lastFrameTestDemo_level4_leaf.png'];
     
     %% Start gui here.
     [hFig, hAxes] = createFigureAndAxes();
@@ -66,22 +66,28 @@ function [] = ReviewDemo(datasetName)
         set(hFig, 'Interruptible', 'off');
         if ~strcmp(state,'Exit') && isvalid(vid)
             % Get image from the camera.
- %           trigger(vid);
- %           img=getdata(vid,1,'uint8');
-            img = imread('4_r10_l_test.png');
+           trigger(vid);
+           img=getdata(vid,1,'uint8');
+   %         img = imread('/Users/rusi/Desktop/FreshGIT/Vision/2D/CHOP/Prototype/input/Swans/vocab/swimming.jpg');
+ %           img = imread('/Users/rusi/Desktop/FreshGIT/Vision/2D/CHOP/Prototype/input/bham_45/test/aa.png');
+      %       img = imread('/Users/rusi/Desktop/FreshGIT/Vision/2D/CHOP/Prototype/input/bham_45/wideTest/Mug/13/left/13_r0_l.png');
+     %        img = imread('/Users/rusi/Dropbox/same_mug/same_mug_3.png');
+            emptyResultImg = zeros(size(img,1), size(img,2));
             
             % Crop the image and resize it.
-            img = img(sideNeutralZone:(end-sideNeutralZone), sideNeutralZone:(end-sideNeutralZone), :);
-            img = imresize(img, imResizeFactor);
+ %           img = img(sideNeutralZone:(end-sideNeutralZone), sideNeutralZone:(end-sideNeutralZone), :);
+ %           img = imresize(img, imResizeFactor);
             
             % Process input image and get the result.
             if strcmp(state, 'Active')
                 oldImg = img;
-                partImg = processImage(img, datasetName, testFileName, options);
+                [activationImg, detectionImg, partImg] = processImage(img, datasetName, testFileName, options);
                 state = 'Pending';
             elseif strcmp(state, 'Start')
                 oldImg = img;
-                partImg = img;
+                activationImg = emptyResultImg;
+                detectionImg = emptyResultImg;
+                partImg = emptyResultImg;
             end
             
             % Display input video frame on axis
@@ -90,7 +96,15 @@ function [] = ReviewDemo(datasetName)
             
             % Show processed frame.
             axes(hAxes.axis2);
+            imshow(activationImg);
+            
+            axes(hAxes.axis3);
+            imshow(detectionImg);
+            
+            % Show processed frame.
+            axes(hAxes.axis4);
             imshow(partImg);
+            
         elseif strcmp(state,'Exit')
             % Close the figure window
             stop(vid);
@@ -104,43 +118,97 @@ function [] = ReviewDemo(datasetName)
 end
 
 %% Process the image and get level 4 part detections.
-function partImg = processImage(img, datasetName, testFileName, options)
+function [activationImg, detectionImg, partImg] = processImage(img, datasetName, testFileName, options)
+    global vocabCounts;
     % Copy file to the input folder for test.
+    categoryStrs = {'Mug', 'Bowl', 'Tool', 'Pan'};
     inputImageName = 'lastFrameTestDemo';
     if ~exist([pwd '/input/' datasetName '/test'], 'dir')
         mkdir([pwd '/input/' datasetName '/test']);
     end
     imwrite(img, [pwd '/input/' datasetName '/test/' inputImageName '.png']);
     
-    % Run test, and return the output image.
-    singleTestImage(testFileName, options);
-    partImg = img;
-    
     [~, fileName, ~] = fileparts(testFileName);
-    load([pwd '/output/' datasetName '/test/inference/' fileName '_test.mat'], 'exportArr');
+    delete([pwd '/output/' datasetName '/test/inference/' fileName '_test.mat']);
     
-    % Find the category/pose of the object.
-    [detections, windowSizes] = FindDetections(exportArr, options.prediction.models, options.prediction.feature_params, [size(img,1), size(img,2)]);
+    % Run test, and return the output image, along with realizations.
+    singleTestImage(testFileName, options);
+    smoothedImg = imread([pwd '/output/' datasetName '/smoothed/' fileName '.png']);
+    imageSize = [size(smoothedImg,1), size(smoothedImg,2)];
+    orgImg = imread([pwd '/output/' datasetName '/original/' fileName '.png']);
+    
+    if exist([pwd '/output/' datasetName '/test/inference/' fileName '_test.mat'], 'file')
+      load([pwd '/output/' datasetName '/test/inference/' fileName '_test.mat'], 'exportArr');
+    else
+      exportArr = [];
+    end
+    
+    % Update feature parameters.
+    options.prediction.feature_params.isTesting = 1;
+    overlayImg = zeros(imageSize);
+    
+    % If no nodes exist, exit.
+    if isempty(exportArr)
+        partImg = overlayImg;
+        detectionImg = partImg;
+        return;
+    end
+    
+    % Visualize the activated parts.
+    activationImg = GetActivationImage(exportArr, vocabCounts);
+    
+    % Detect objects in the scene.
+    [detections, ~, groupMask] = FindDetections(exportArr, options.prediction.models, options.prediction.feature_params, imageSize);
+    
+    if isempty(detections)
+        partImg = overlayImg;
+        detectionImg = partImg;
+        return;
+    end
     
     % Visualize detection frames.
-    overlayImg = zeros(size(partImg,1), size(partImg,2));
+    detMask = zeros(imageSize);
+    objectVisImg = zeros(size(orgImg), 'uint8');
     for detItr = 1:size(detections,1)
-        halfSizes = round((windowSizes{detections(detItr, 3)} / 2) - 1);
-        overlayImg((detections(detItr, 1)-halfSizes(1)):(detections(detItr, 1)+halfSizes(1)), ...
-            [(detections(detItr, 2)-halfSizes(2)), (detections(detItr, 2)+halfSizes(2))]) = detections(detItr,4);
-        overlayImg([(detections(detItr, 1)-halfSizes(1)),(detections(detItr, 1)+halfSizes(1))], ...
-            (detections(detItr, 2)-halfSizes(2)):(detections(detItr, 2)+halfSizes(2))) = detections(detItr,4);
+        detMask(detections(detItr, 1), detections(detItr, 2)) = detections(detItr,4);
+        
+        % Visualize results.
+        objectMaskStr = [options.currentFolder '/render/' categoryStrs{detections(detItr,4)} ...
+            '/' categoryStrs{detections(detItr,4)} num2str(detections(detItr,5)*30) '.png'];
+        objectMask = imread(objectMaskStr);
+        binaryObjectMask = rgb2gray(objectMask)>0;
+        objectMaskSize = [size(objectMask,1), size(objectMask,2)];
+        lowBounds = detections(detItr, 1:2) - round([size(objectMask,1), size(objectMask,2)]/2);
+        for bandItr = 1:size(orgImg,3)
+            overlapImg = objectVisImg(lowBounds(1):(lowBounds(1)+objectMaskSize(1)-1), lowBounds(2):(lowBounds(2)+objectMaskSize(2)-1), bandItr);
+            objectMaskBand = objectMask(:,:,bandItr);
+            overlapImg(binaryObjectMask) = objectMaskBand(binaryObjectMask);
+            objectVisImg(lowBounds(1):(lowBounds(1)+objectMaskSize(1)-1), lowBounds(2):(lowBounds(2)+objectMaskSize(2)-1), bandItr) = overlapImg;
+        end
     end
-    rgbOverlayImg = label2rgb(overlayImg, 'jet', 'k');
     
-    % Overlay detections with rgb image.
-    for bandItr = 1:size(img,3)
-        bandImg = img(:,:,bandItr);
-        bandOverlayImg = rgbOverlayImg(:,:,bandItr);
-        bandImg(overlayImg>0) = bandOverlayImg(overlayImg>0);
-        rgbOverlayImg(:,:,bandItr) = bandImg;
+    % TODO: Show objectVisImg in gui.
+    detectionImg = objectVisImg;
+    
+    % Get highest-level clean reconstructed image and multiply it with
+    % group image. Each object's realizations will thus have a different
+    % colour.
+    maxLevelId = min(1, (max(exportArr(:,4))-2));
+    cleanRealizationMask = double(imread([options.outputFolder '/reconstruction/test/' fileName '_level' num2str(maxLevelId) 'clean.png']));
+    cleanRealizationMask = cleanRealizationMask / max(max(cleanRealizationMask));
+    groupImg = double(label2rgb(bwlabel(groupMask), 'jet', 'k', 'shuffle'));
+    for bandItr = 1:size(groupImg,3)
+        groupImg(:,:,bandItr) = groupImg(:,:,bandItr) .* cleanRealizationMask;
     end
-    partImg = rgbOverlayImg;
+    groupImg = uint8(round(groupImg));
+    
+    % Combine group image with smoothed image.
+    cleanRealizationMask = uint8(cleanRealizationMask>0);
+    for bandItr = 1:size(groupImg,3)
+        groupImgBand = groupImg(:,:,bandItr);
+        groupImg(:,:,bandItr) = groupImgBand .* cleanRealizationMask + smoothedImg .* uint8(~cleanRealizationMask);
+    end
+    partImg = groupImg;
 end
 
 %% Function to generate gui.
@@ -152,17 +220,19 @@ function [hFig, hAxes] = createFigureAndAxes()
 
     % Create new figure
     hFig = figure('numbertitle', 'off', ...
-           'name', 'Video In Custom GUI', ...
+           'name', 'CHOP in Object Detection / Pose Estimation', ...
            'menubar','none', ...
            'toolbar','none', ...
            'resize', 'on', ...
            'tag',figTag, ...
            'renderer','painters', ...
-           'position',[680 678 480 240]);
+           'position',[200 200 730 600]);
 
     % Create axes and titles
-    hAxes.axis1 = createPanelAxisTitle(hFig,[0.1 0.2 0.36 0.6],'Original Video');%[X Y W H]
-    hAxes.axis2 = createPanelAxisTitle(hFig,[0.5 0.2 0.36 0.6],'Part detections');
+    hAxes.axis1 = createPanelAxisTitle(hFig,[0.041 0.55 0.438 0.40],'Original Image');%[X Y W H]
+    hAxes.axis2 = createPanelAxisTitle(hFig,[0.041 0.1 0.438 0.40],'Activated Compositions');%[X Y W H]
+    hAxes.axis3 = createPanelAxisTitle(hFig,[0.52 0.55 0.438 0.40],'Detected Objects');%[X Y W H]
+    hAxes.axis4 = createPanelAxisTitle(hFig,[0.52 0.1 0.438 0.40],'Object Decomposition');%[X Y W H]
 end
 
 %% Name the axes correctly.
@@ -177,12 +247,12 @@ function hAxis = createPanelAxisTitle(hFig, pos, axisTitle)
 
     % Set video title using uicontrol. uicontrol is used so that text
     % can be positioned in the context of the figure, not the axis.
-    titlePos = [pos(1)+0.02 pos(2)+pos(3)+0.3 0.3 0.07];
-    uicontrol('style','text',...
-        'String', axisTitle,...
-        'Units','Normalized',...
-        'Parent',hFig,'Position', titlePos,...
-        'BackgroundColor',get(hFig,'Color'));
+     titlePos = [pos(1)+0.06, pos(2)+pos(3)-0.038, 0.3, 0.033];
+     uicontrol('style','text',...
+         'String', axisTitle,...
+         'Units','Normalized',...
+         'Parent',hFig,'Position', titlePos,...
+         'BackgroundColor',get(hFig,'Color'));
 end
 
 %% Insert buttons to control the gui.
@@ -190,14 +260,14 @@ function insertButtons(hFig,hAxes,vid)
 
     set(hFig, 'Interruptible', 'off');
 
-    % Play button with text Start/Pause/Continue
+    % Play button with text Snapshot!/Continue.
     uicontrol(hFig,'unit','pixel','style','pushbutton','string','Snapshot!',...
-            'position',[10 10 75 25], 'tag','PBButton123','callback',...
+            'position',[210 15 150 30], 'tag','PBButton123','callback',...
             {@playCallback,vid,hAxes});
 
     % Exit button with text Exit
     uicontrol(hFig,'unit','pixel','style','pushbutton','string','Exit',...
-            'position',[100 10 50 25],'callback', ...
+            'position',[370 15 150 30],'callback', ...
             {@exitCallback,vid,hFig});
 end
 

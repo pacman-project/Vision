@@ -48,6 +48,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.gaborFilterThr = 0.075; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
+    options.absGaborFilterThr = 80; % Absolute response threshold for low-level responses.
     options.gaborFilterSize = 9;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
@@ -88,7 +89,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % (half width, actual width is
                                        % double this value)  in which nodes
                                        % are examined.
-                   
+
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
     options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
@@ -182,6 +183,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.maxInferenceLevels = 20; % The maximum level count for testing.
                                     % Please write 1 off.
     options.maxLabelLength = 100; % The maximum label name length allowed.
+    
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true;
     

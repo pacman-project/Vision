@@ -46,6 +46,10 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
     nodes(:, 3) = mat2cell(imageIds, ones(size(imageIds)));
     leafNodes = nodes;
     
+    if isempty(nodes)
+        return;
+    end
+    
     % Generate first level object graph.
     [~, graphLevel] = generateLevels(nodes, options);
 
@@ -103,7 +107,9 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
         mainGraph = mergeIntoGraph(mainGraph, newLevel, [], levelItr, 1);
         
         %% Extract the edges to form the new graph.
-        [~, ~, mainGraph] = extractEdges(mainGraph, options, levelItr, modes, highLevelModes);
+        if levelItr ~= numberOfLevels
+            [~, ~, mainGraph] = extractEdges(mainGraph, options, levelItr, modes, highLevelModes);
+        end
         
         %% Visualize the test images with previous layer's subs.
         if options.debug

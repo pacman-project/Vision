@@ -183,10 +183,10 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             end
             
             %% Mark the center of each realization with its label id.
-            labeledReconstructedMask((nodes(nodeItr).position(1)-2):(nodes(nodeItr).position(1)+2), ...
-                (nodes(nodeItr).position(2)-2):(nodes(nodeItr).position(2)+2)) = nodes(nodeItr).labelId;
-            reconstructedMask((nodes(nodeItr).position(1)-2):(nodes(nodeItr).position(1)+2), ...
-                (nodes(nodeItr).position(2)-2):(nodes(nodeItr).position(2)+2)) = 255;
+            labeledReconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
+                (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1)) = nodes(nodeItr).labelId;
+            reconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
+                (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1)) = 255;
             
             %% Print this sub to a separate mask, if needed.
             if strcmp(imageReconstructionType, 'individual')
@@ -254,6 +254,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
 %                 imwrite(rgbImg + firstLevelImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
+                imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
                 imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType '.png']);
             else
                 imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);

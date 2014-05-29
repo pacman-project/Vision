@@ -22,6 +22,7 @@
 %> Ver 1.3 on 17.01.2014 GT use implemented.
 function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     %% Step 1: Get grayscaled and binarized image.
+    rgbImg = img;
     if size(img,3)>1
         img = rgb2gray(img(:,:,1:3));
     end
@@ -29,7 +30,8 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     
     % Either binarize the image using Otsu, or extract edges using Canny.
     %edgeImg = double(edge(doubleImg(:,:), 'canny'));
-    edgeImg = im2bw(doubleImg, graythresh(doubleImg));
+%    edgeImg = im2bw(doubleImg, graythresh(doubleImg));
+    edgeImg = img;
     filterCount = numel(options.filters);
     
     %% Get gt info in the form of a mask.
@@ -44,9 +46,31 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         gtMask = ones(size(doubleImg)) > 0;
     end
     
+%     w     = 2;       % bilateral filter half-width
+%     sigma = [3 0.1]; % bilateral filter standard deviations
+%     edgeImg = bfilter2(double(edgeImg)/double(max(max(edgeImg))),w,sigma);
+%     edgeImg = uint8(edgeImg * 255);
+
+    % Apply filtering to get better responses.
+     myfilter = fspecial('gaussian',[3 3], 2);
+     edgeImg = imfilter(edgeImg, myfilter, 'replicate', 'same', 'conv');
+     edgeImg=medfilt2(edgeImg, [3,3]);
+%     limits = stretchlim(edgeImg);
+%     edgeImg = imadjust(edgeImg, limits, []);
+    
+ %   limits = stretchlim(edgeImg, 0.05);
+ %   edgeImg = imadjust(edgeImg, limits, []);
+    
+%     H = padarray(1,[2 2]) - fspecial('gaussian',[5 5], 1); % create unsharp mask
+%     myfilteredimage2 = imfilter(img, H, 'replicate', 'same', 'conv');
+    
     %% Get response by applying each filter to the image.
     responseImgs = zeros(size(edgeImg,1), size(edgeImg,2), filterCount);
     for filtItr = 1:filterCount
+%         responseImg = zeros(size(edgeImg));
+%         for bandItr = 1:size(rgbImg,3)
+%             responseImg = max(responseImg, conv2(double(rgbImg(:,:,bandItr)), options.filters{filtItr}, 'same'));
+%         end
        responseImg = conv2(double(edgeImg), options.filters{filtItr}, 'same');
        % Save response for future processing
        responseImgs(:,:,filtItr) = responseImg;
@@ -55,7 +79,9 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
    %% In Gabor-based features, we apply a minimum response threshold over response image.
    if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
        gaborFilterThr = options.gaborFilterThr * max(max(max(responseImgs)));
-       responseImgs(responseImgs<gaborFilterThr) = 0;
+   %    gaborFilterThr = 150;
+       responseImgs(responseImgs<max(gaborFilterThr, options.absGaborFilterThr)) = 0;
+   %     responseImgs(responseImgs<gaborFilterThr) = 0;
    end
     
    %% Write smooth object boundaries to an image based on responseImgs.

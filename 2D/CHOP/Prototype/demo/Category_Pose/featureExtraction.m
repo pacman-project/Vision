@@ -18,12 +18,8 @@
 function [features] = featureExtraction( locations, feature_type, im_size, feature_params )
 %% Histogram of Parts
 if strcmp(feature_type,'hop') || strcmp(feature_type,'all')
-
     hop=mod(atan2(locations(:,1),locations(:,2)) .* 180./pi, 360   );
-    
     features.hop=hop;
-
-
 end
 %% Histogram of Oriented Gaussians
 if strcmp(feature_type,'hog') || strcmp(feature_type,'all')
