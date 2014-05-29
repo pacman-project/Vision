@@ -16,8 +16,8 @@
 %> Explanation of the algorithm:
 %> 
 %> Given Graph V = (N, E), with node list N and edge Eist E, 
-%>       Queue = [], ExtendQueue = [], FinalQueue = [], options.
-%> Queue, ExtendQueue, FinalQueue are ordered by mdl scores. They are
+%>       Queue = [], ExpandQueue = [], finalQueue = [], options.
+%> Queue, ExpandQueue, FinalQueue are ordered by mdl scores. They are
 %> automatically trimmed to options.beam elements after any addition.
 %> 1- Find single node subs in N and add them to Queue. Occurences of each
 %> node type is counted, and Queue is ordered by the number of occurences.
@@ -26,16 +26,26 @@
 %>      2.1- Extend S by exploring all possible extensions in G 
 %>      into ChildSubs.
 %> 
-%>      2.2- Remove any duplicate subs from ChildSubs. 
+%>      3- Remove any duplicate subs from ChildSubs. 
 %> 
-%>      2.3- Evauate each sub in ChildSubs and assign their mdl scores.
+%>      4- Evauate each sub in ChildSubs and assign their mdl scores.
 %>
-%>      2.4- Add each sub in ChildSubs into ExtendQueue.
+%>      5- Add each sub in ChildSubs into ExpandQueue.
 %>
-%> 3- Add each sub in ExtendQueue to FinalQueue. No duplicate subs are
-%> added to FinalQueue if they already exist.
+%> 6- Add each 
 %> 
-%> 4- Write final subs and their instances to vocabLevel, graphLevel.
+%> 6- Remove duplicates from 
+%>
+%>
+%>
+%>
+%>
+%>
+%>
+%>
+%>
+%>
+%>
 %>
 %> @retval nextVocabLevel Next vocabulary level ([] if pre-defined search
 %> is on). 
