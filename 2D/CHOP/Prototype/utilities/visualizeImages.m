@@ -18,10 +18,7 @@
 %> Updates
 %> Ver 1.0 on 09.12.2013
 function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, type )
-    outputDir = [options.outputFolder '/reconstruction/' type];
-    if ~exist(outputDir, 'dir')
-       mkdir(outputDir); 
-    end
+    outputTempDir = [options.outputFolder '/reconstruction/' type];
     smoothedDir = options.smoothedFolder;
     reconstructionType = options.reconstructionType;
     imageReconstructionType = options.imageReconstructionType;
@@ -73,6 +70,10 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
         nodeOffset = numel(find(imageIds<fileItr));
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
+        outputDir = [outputTempDir '/' fileName];
+        if ~exist(outputDir, 'dir')
+           mkdir(outputDir); 
+        end
         img = imread([smoothedDir '/' fileName '.png']);
         actualImg = img;
         
