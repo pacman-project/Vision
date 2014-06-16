@@ -244,15 +244,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
         
             %% Print the images.
             if levelItr>1
-%                 % Read first level to fill the voids left by missing filters.
-%                 firstLevelMask = imread([outputDir, '/' fileName '_level1clean.png']);
-%                 firstLevelImg = zeros(size(firstLevelMask,1), size(firstLevelMask,2), size(rgbImg,3), 'uint8');
-%                 for bandItr = 1:size(rgbImg,3)
-%                     firstLevelImg(:,:,bandItr) = firstLevelMask;
-%                 end
-% 
-%                 % Combine both and write to output.
-%                 imwrite(rgbImg + firstLevelImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
                 imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);

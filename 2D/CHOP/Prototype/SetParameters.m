@@ -30,13 +30,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     
     % Rest of the parameters in this section are obsolete, please ignore
     % them.
-    options.numberOfAutoFilters = 100; % Number of Gabor filters at level 1.
-    options.numberOfTrainingImages = 70; % Number of training images to be 
-                                 % used in unsupervised vocabulary learning.
-    options.numberOfTestImages = 70; % Number of training images to be 
-    options.numberOfVocabImagesPerCategory = 2; % Number of vocabulary images 
-                                 % to be used in vocabulary learning.
-                                 % used in unsupervised vocabulary learning.   
+    options.numberOfAutoFilters = 100; % Number of Gabor filters at level 1.  
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
@@ -188,12 +182,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.fastInference = true;
     
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.implementation = 'self'; % Two types of subdue are used.
-                                            % 'self': Matlab-based
-                                            % implementation.
-                                            % 'exe': Ready-to-use
-                                            % executable provided by Rusen.
-                                            
                                            % The following metric is valid
                                            % only in 'self' implementation.
     options.subdue.evalMetric = 'mdl';     % 'mdl' or 'size'. 'mdl' takes 
@@ -205,7 +193,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 1800;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 100;            % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -214,30 +202,19 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                             % given a pre-defined
                                             % vocabulary. Typically around
                                             % 0.5 (secs).
-    options.subdue.instanceIndicator = sprintf('\n  Instance ');
-    options.subdue.labelIndicator = sprintf('Label: ');
-    options.subdue.scoreIndicator = sprintf('Score: ');
-    options.subdue.nodeIndicator = sprintf('\nv ');
-    options.subdue.edgeIndicator = sprintf('\nu ');
-    options.subdue.directedEdgeIndicator = sprintf('\nd ');
-    options.subdue.endLineIndicator = sprintf('\n');
-    options.subdue.subPrefix = 'SUB_';
                                 % The indicators are put
                                 % here for compliance with SUBDUE output,
                                 % need to be changed if SUBDUE output
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.033; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.05; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
-    options.subdue.diverse = 1; % 1 if diversity is forced, 0 otw
     options.subdue.beam = 200;   % Beam length in SUBDUE
-    options.subdue.valuebased = 1; % 1 if value-based queue is used, 0 otw
-    options.subdue.overlap = 1; % 1 if overlapping instances allowed, 0 otw
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
                                  % with this.
     
@@ -278,18 +255,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
     filters = createFilters(options);
     options.filters = filters;
     options.numberOfFilters = numel(filters);
-    
-    %% Parameter overrides.
-    % If receptive fields are not used, ready-to-use subdue should be used.
-    % It is only designed for graphs created using receptive fields. They
-    % contain no loops, and the graph fragments corresponding to receptive
-    % fields' graphs are star-shaped, meaning all other nodes within the
-    % field are connected to the center node.
-    if ~options.useReceptiveField
-        options.subdue.implementation = 'exe';
-    else
-        options.subdue.implementation = 'self';
-    end
     
     if strcmp(options.property, 'co-occurence') && strcmp(options.reconstructionType, 'true')
         options.reconstructionType = 'leaf';

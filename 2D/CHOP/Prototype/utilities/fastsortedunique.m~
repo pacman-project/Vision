@@ -1,7 +1,0 @@
-function [ output_args ] = fastsortedunique( input_args )
-%FASTSORTEDUNIQUE Summary of this function goes here
-%   Detailed explanation goes here
-imageRfIds
-
-end
-

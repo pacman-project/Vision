@@ -85,7 +85,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
         [vocabLevel, graphLevel] = discoverSubs(vocabLevel, graphLevel, oppositeModes, ...
-            options, options.currentFolder, false, levelItr-1);
+            options, false, levelItr-1);
         
         %% If no new subs have been found, finish processing.
         if isempty(vocabLevel)
@@ -98,42 +98,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
            break; 
         end
         
-        %% Step 2.2: If necessary, find realizations in graph level again. 
-        % This is necessary since 'exe' type implementation does not always 
-        % calculate mdl correctly.  
-        if strcmp(options.subdue.implementation, 'exe')
-            % Reorder substructres so that the ones having higher mdl score are
-            % actually on top. The mdl score here is not really MDL, but rather
-            % a metric depending on size * frequency.
-            [vocabLevel, graphLevel] = reorderSubs(vocabLevel, graphLevel);
-
-            %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
-            previousLevel = mainGraph{levelItr-1};
-            graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes);
-
-            %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
-            % The rules here are explained in the paper. Basically, each node
-            % should introduce a novelty (cover a new area of the image). If it
-            % fails to do so, the one which has a lower mdl ranking is
-            % discarded. *Natural selection*
-            
-            [graphLevel] = applyLocalInhibition(vocabLevel, graphLevel, currentModes, options, levelItr);
-            [remainingComps, ~, ~] = unique([graphLevel.labelId]);
-
-            % Eliminate unused compositions from vocabulary.
-            vocabLevel = vocabLevel(1, remainingComps);
-
-            %% To get more accurate realizations, search words in vocabulary one by one, again.
-            % Then, we will apply the local inhibition function again.
-            graphLevel = collectInstances(vocabLevel, mainGraph{levelItr-1}, oppositeModes, options, levelItr-1);
-
-            % Fill in basic info, again.
-            graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes);  
-        else
-            %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
-            previousLevel = mainGraph{levelItr-1};
-            graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes);
-        end
+        %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
+        previousLevel = mainGraph{levelItr-1};
+        graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes);
         
         %% Calculate statistics from this graph.
         display('........ Before we apply inhibition, estimating statistics..');
@@ -148,7 +115,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         display('........ Combining parts.');
         % Here, we combine similar structures into one, which helps
         % generalization properties of the algorithm.
-        [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, similarityMatrices{levelItr-1}, options);
+        newSimilarityMatrix = [];
+        subClasses = [];
+ %       [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, similarityMatrices{levelItr-1}, options);
         
         display('........ Applying inhibition.');
         %Now, apply inhibition.
@@ -160,8 +129,12 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         [graphLevel.labelId] = deal(IC{:});
         
         % Get the redundant compositions to help inference process.
-        redundantComps = ismember(subClasses, remainingComps) & subClasses ~= (1:numel(subClasses))';
-        redundantVocabLevel = vocabLevel(1, redundantComps);
+        if ~isempty(subClasses)
+            redundantComps = ismember(subClasses, remainingComps) & subClasses ~= (1:numel(subClasses))';
+            redundantVocabLevel = vocabLevel(1, redundantComps);
+        else
+            redundantVocabLevel = [];
+        end
         
         % Assign correct labels to the redundant compositions.
         if ~isempty(redundantVocabLevel)
@@ -176,7 +149,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         vocabLevel = vocabLevel(1, remainingComps);
         
         % Assign similarity matrix.
-        newSimilarityMatrix = newSimilarityMatrix(remainingComps, remainingComps);
+        if ~isempty(newSimilarityMatrix)
+            newSimilarityMatrix = newSimilarityMatrix(remainingComps, remainingComps);
+        end
         similarityMatrices{levelItr} = newSimilarityMatrix;
         
         %% Calculate statistics from this graph.
@@ -205,10 +180,12 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         if options.debug
            display('........ Visualizing previous level...');
            if ~isempty(vocabLevel)
-               imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
+         %      imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
                if ~isempty(modes)
                     visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 0);
-                    visualizeLevel( redundantVocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 1);
+                    if ~isempty(redundantVocabLevel)
+                        visualizeLevel( redundantVocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 1);
+                    end
                end
                visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
            end

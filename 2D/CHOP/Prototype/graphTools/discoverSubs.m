@@ -23,7 +23,7 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, oppositeModes, options, currentFolder, preDefinedSearch, levelItr)
+function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, oppositeModes, options, preDefinedSearch, levelItr)
     % Close parallel threads as they consume memory.
     if ~preDefinedSearch && options.parallelProcessing
         matlabpool close;
@@ -33,62 +33,17 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, opposi
     if ~preDefinedSearch
         display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
     end
-    if strcmp(options.subdue.implementation, 'exe')
-        %% Specify name of the graph files.
-        graphFileName = [options.currentFolder '/graphs/' options.datasetName '/train/' options.datasetName '_' num2str(levelItr) '.g'];
-        resultFileName = [options.outputFolder '/' options.datasetName '.txt'];
-        
-        %% Print the object graphs to a file.
-        if strcmp(options.subdue.implementation, 'exe')
-            printGraphLevel(graphFileName, graphLevel);
-        end
-        
-        if preDefinedSearch
-
-            numberOfPSFiles = numel(vocabLevel);
-            newLevel = cell(numberOfPSFiles,1);
-
-            % Create temporary folder to put pre-defined subs in.
-            tempFolder = tempname;
-            mkdir(tempFolder);
-
-            % Put vocabLevel into a cell arr to make it compatible with pre-defined
-            % file generator.
-            tempVocabulary = cell(2,1);
-            tempVocabulary(2) = {vocabLevel};
-            preparePreDefinedFiles( tempFolder, tempVocabulary );
-
-            %% Find realizations of each composition.
-            for psItr = 1:numberOfPSFiles
-                preDefinedFile = [tempFolder '/ps1/ps' num2str(psItr) '.g']; 
-
-                %% Discover new level's subs.
-                [~, psLevel] = runSubdueExec(graphFileName, resultFileName, options, currentFolder, preDefinedFile);
-                % Assign instances correct labels.
-                for instanceItr = 1:numel(psLevel)
-                   psLevel(instanceItr).labelId = psItr;
-                end
-
-                % Combine new level with the instances of this sub.
-                if numel(psLevel)>0
-                    newLevel{psItr} =  psLevel;
-                end
-            end
-            graphLevel = cat(2, newLevel{:});
-            rmdir(tempFolder, 's');
-        else
-            [vocabLevel, graphLevel] = runSubdueExec(graphFileName, resultFileName, options, currentFolder, []);
-        end
-    elseif strcmp(options.subdue.implementation, 'self')
-        if preDefinedSearch
-            graphLevel = inferSubs(vocabLevel, graphLevel, options);
-        else
-            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options);
-        end
+    
+    % Search for substructures.
+    if preDefinedSearch
+        graphLevel = inferSubs(vocabLevel, graphLevel, options);
+    else
+        [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options);
     end
     
+    % Show time elapsed.
     display(['.... Time elapsed: ' num2str(toc(startTime)) ' secs.']);
-    display(['.... ' options.subdue.implementation ' type discovery is used. Found ' ...
+    display(['.... Found ' ...
         num2str(numel(graphLevel)) ' instances of ' num2str(numel(vocabLevel)) ' compositions.']);
     
     % Reopen threads.

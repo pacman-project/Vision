@@ -36,11 +36,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             display('No vocabulary exists!');
         end
         
-        %% Step 1.1: Create files for pre-defined substructures ( compositions from voc. at each level)
-        if strcmp(options.subdue.implementation, 'exe');
-            preparePreDefinedFiles(options.preDefinedFolder, vocabulary);
-        end
-        
         %% Step 1.2: Run inference on each test image.
         totalInferenceTime = 0;
         %% TODO: Parallelize? 
