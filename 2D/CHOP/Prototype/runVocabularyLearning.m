@@ -1,13 +1,22 @@
 %> Name: runVocabularyLearning
 %>
-%> Description: The entry function to libHOP code. Calls libHOP with
+%> Description: The entry function to CHOP code. Calls CHOP with
 %> desired parameters on specified dataset. For each image in the dataset,
 %> we create a graph out of level 1 gabor filter responses, and form
-%> edges. Then, we compress samples of each category with SUBDUE to get 
+%> edges. The overall graph that consists of n (image count)
+%> non-overlapping graphs is called "main graph" (how creative). The main
+%> graph is compressed to obtain parts for the next level. Overlapping part
+%> realizations in this new level are processed (so low-rank parts are
+%> inhibited). The remaining part realizations contribute to the main graph 
+%> of the next level. This procedure lasts until no new parts are found.
 %>
 %> @param datasetName Name of the dataset to work on. 
 %> @param imageExtension The extension of the files to work on. Examples
 %> include '.jpg', '.png', '_crop.png'...
+%> @param imageExtension The ground truth image extension for each file.
+%> For example, for a training image "swan.png", the GT image can have the 
+%> name "swan_gt.png", where imageExtension is '.png', and gtImageExtension 
+%> is '_gt.png'.
 %> 
 %> Author: Rusen
 %>
@@ -17,6 +26,7 @@
 %> Ver 1.2 on 12.01.2014 Comment changes for unified code look
 %> Ver 1.3 on 12.01.2014 Timing is added by Mete
 %> Ver 1.4 on 17.02.2014 GT processing added.
+%> Ver 1.5 on 16.06.2014 New comments, simplification on code.
 function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtension )
     %% ========== Step 0: Set program options and run initializations ==========
     %% Step 0.0: Get program options and parameters.
@@ -36,12 +46,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     end
     
     if options.learnVocabulary
-        if exist([options.currentFolder '/debug/' datasetName], 'dir')
-            rmdir([options.currentFolder '/debug/' datasetName], 's');
-        end
-        if exist([options.currentFolder '/output/' datasetName], 'dir')
-            rmdir([options.currentFolder '/output/' datasetName], 's');
-        end
+        % Create the folder structure required.
         createFolders(options);
 
         %% Step 0.1: Create initial data structures.
@@ -50,8 +55,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
 
         %% Step 0.2: Allocate space to keep names of corresponding gt files.
         gtFileNames = cell(numel(trainingFileNames),1);
+        
         %% ========== Step 1: Pre-process the data (extract first level nodes, surpress weak responses) ==========
-        %% Step 1.0: Downsample the image if it is too big.
+        %% Step 1.0: Pre-processing. Downsample images, and associate them with their ground truth.
         maxImageDim = options.maxImageDim;
         for fileItr = 1:size(trainingFileNames,1) 
             % Read image and downsample it.
@@ -89,6 +95,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         for fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([processedFolder '/' fileName '.png']);
+            
+            % Get the Level 1 features.
             [nodes, smoothedImg] = getNodes(img, gtFileNames{fileItr}, options);
 
             % Keep nodes in the array.
@@ -105,7 +113,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         trainingFileNames = trainingFileNames(sortedImageIdx);
         allNodes = allNodes(sortedImageIdx);
 
-        % Learn category/pose of each image and sort them too.
+        % Learn category/pose of each image and and correct their order 
+        % based on the sort order of the images.
         categoryArr = cell(numel(trainingFileNames),1);
         poseArr = zeros(numel(trainingFileNames),1);
         for fileItr = 1:numel(fileNames)
@@ -135,31 +144,26 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         categoryArr = categoryArr(sortedImageIdx);
         poseArr = poseArr(sortedImageIdx);
 
-        % Set image ids array
+        % Set image ids for each node.
         imageIds = cell(size(allNodes,1),1);
         for fileItr = 1:size(allNodes,1)
             imageIds(fileItr) = {num2cell(repmat(fileItr, size(allNodes{fileItr},1), 1))};
         end
 
-        % Convert all into a single matrix.
+        % Convert all node data into a single matrix.
         allNodes = cat(1, allNodes{:});
         imageIds = cat(1, imageIds{:});
-        allNodes = [allNodes, imageIds];
-        
-        %% Step 1.2: If receptive field is used, nodes will be repeated.
-        % (so that each node set corresponds to a different receptive
-        % field)
-        leafNodes = allNodes;
+        leafNodes = [allNodes, imageIds];
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        [vocabLevel, graphLevel] = generateLevels(allNodes, options);
+        [vocabLevel, graphLevel] = generateLevels(leafNodes, options);
         
         %% Step 2.1: Get first-level object graph edges.
         mainGraph = {graphLevel};
         [modes, highLevelModes, mainGraph] = extractEdges(mainGraph, options, 1, [], []);
         graphLevel = mainGraph{1};
         
-        %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of paper). ==========
+        %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
         [vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, highLevelModes, similarityMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, ...
                                         options, trainingFileNames);
@@ -170,7 +174,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/graph.mat'], 'mainGraph', 'allOppositeModes', 'leafNodes', '-v7.3');
+%        save([options.currentFolder '/output/' datasetName '/graph.mat'], 'mainGraph', 'allOppositeModes', 'leafNodes', '-v7.3');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes', 'trainingFileNames');
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'poseArr');
     end

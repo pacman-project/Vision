@@ -1,6 +1,14 @@
+%> Name: createFolders
+%>
+%> Description: Create the data structure required by CHOP to work.
+%>
+%> @param options Program options.
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 16.06.2014
 function [ ] = createFolders( options )
-
-    % Create folder structures required later.
     if ~exist(options.processedFolder,'dir')
        mkdir(options.processedFolder); 
     end
@@ -24,6 +32,9 @@ function [ ] = createFolders( options )
     end
     if ~exist(options.smoothedFolder,'dir')
        mkdir(options.smoothedFolder); 
+    end
+    if ~exist(options.debugFolder,'dir')
+       mkdir(options.debugFolder); 
     end
 end
 

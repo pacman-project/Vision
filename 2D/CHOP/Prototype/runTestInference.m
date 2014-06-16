@@ -21,12 +21,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName, false);
     
-    % override options.
-    if ~options.fastInference
-%       options.noveltyThr = options.noveltyThr/2;
-        options.noveltyThr = 0;
-    end
-    
     if options.testImages
         %% Step 1.0: Read vocabulary if it exists.
         testFileNames = fuf([options.currentFolder '/input/' datasetName '/test/*' ext], 1, 'detail');
@@ -38,7 +32,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         totalInferenceTime = 0;
-        %% TODO: Parallelize? 
         for testImgItr = 1:size(testFileNames,1) 
             totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, options);
         end

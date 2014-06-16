@@ -225,6 +225,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     
     % Set folder parameters.
     options.currentFolder = currentPath;
+    options.debugFolder = [currentPath '/debug/' datasetName];
     options.processedFolder = [currentPath '/output/' datasetName '/original'];
     options.processedGTFolder = [currentPath '/output/' datasetName '/gt'];
     options.outputFolder = [currentPath '/output/' datasetName];
