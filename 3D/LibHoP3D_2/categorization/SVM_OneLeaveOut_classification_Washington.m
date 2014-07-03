@@ -1,10 +1,13 @@
 function [accuracyOverall, confMatr] = SVM_OneLeaveOut_classification_Washington()
 
-setenv OMP_NUM_THREADS 4
-%addpath('libsvm-3.11/matlab');
+setenv('OMP_NUM_THREADS','8');
+%addpath('categorization/SVM/libsvm-3.11/matlab');
+
 addpath('categorization/SVM/SVM_chi2/libsvm_chi_openmp/libsvm_chi_ksirg/matlab');
 
-threads = 4;
+% addpath('categorization/SVM/libsvm-2.9-dense_chi_square_mat');
+
+threads = 8;
 
 % this is structure to collect average error for every class
 accuracies = 0;
@@ -42,14 +45,15 @@ for i = 1:3  % this is one which we leave out
     Ytrain = Y(indsTrain);
     Ytest = Y(indsTest);
 
-%   [C, G, accuracy] = RadialCrossValidation(Xtrain, Ytrain, fold);
+    fold = 5;
+%   [C, G, accuracy] = RadialCrossValidation(Xtrain, Ytrain, fold, threads);
 %   string = ['-t 2 -c ',num2str(C), ' -g ', num2str(G)];
 
 %     [C, accuracy] = RadialCrossValidation_Chi(Xtrain, Ytrain, fold, threads);
 %     string = ['-t 5 -c ',num2str(C), ' -z ', num2str(threads)];    
 %  no need in this cross-validation!!!
     
-    string = ['-t 5 -c 5 -z ', num2str(threads)];
+    string = ['-t 1 -c 10 -z ', num2str(threads)];
     
     model = svmtrain(Ytrain, Xtrain, string);
     [predict_label, accuracy, dec_values] = svmpredict(Ytest, Xtest, model);

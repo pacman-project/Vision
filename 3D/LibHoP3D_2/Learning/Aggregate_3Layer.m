@@ -2,7 +2,7 @@
 % optimization function
 % triples should look like that: left, middle, right
 
-function [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, nClusters, n2Clusters, curTS, sieve_thresh) 
+function [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, n2Clusters, curTS, sieve_thresh) 
      
     % [el_cent    el_left depth_left,  el_right depth_right] ->  [el_left  el_cent  el_right]    
 
@@ -21,15 +21,7 @@ function [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, nCluste
         end
     end
     
-    table = zeros(2,n2Clusters);
-    for i = 1:n2Clusters
-        [clusterX, clusterY] = compute2derivatives(i, nClusters);
-        table(1,i) = clusterX;
-        table(2,i) = clusterY;
-    end
-    
     ind = 0;
-    %X = zeros(curTS,6);
     X = zeros(curTS,3);
     frequencies = zeros(curTS,1);
 
@@ -38,16 +30,10 @@ function [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, nCluste
             for k = 1:n2Clusters
                 if triples(i,j,k) > sieve_thresh
                     ind = ind + 1;
-%                     X(ind,1) = table(1, i);
-%                     X(ind,2) = table(2, i); % left
-%                     X(ind,3) = table(1, j);
-%                     X(ind,4) = table(2, j); % center
-%                     X(ind,5) = table(1, k);
-%                     X(ind,6) = table(2, k); % right
 
-                    X(ind,1) = i;  % left
-                    X(ind,2) = j;  % centre
-                    X(ind,3) = k;  % right
+                    X(ind,1) = i;  % left   or top
+                    X(ind,2) = j;  % centre  or centre
+                    X(ind,3) = k;  % right   or bottom
                     frequencies(ind) = triples(i,j,k); 
                 end
             end
@@ -59,4 +45,22 @@ function [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, nCluste
     frequencies = frequencies(1:ind);
     curTS = ind;
 end
+
+
+
+
+%     X = zeros(curTS,6);
+%     table = zeros(2,n2Clusters);
+%     for i = 1:n2Clusters
+%         [clusterX, clusterY] = compute2derivatives(i, nClusters);
+%         table(1,i) = clusterX;
+%         table(2,i) = clusterY;
+%     end
+
+%                     X(ind,1) = table(1, i);
+%                     X(ind,2) = table(2, i); % left
+%                     X(ind,3) = table(1, j);
+%                     X(ind,4) = table(2, j); % center
+%                     X(ind,5) = table(1, k);
+%                     X(ind,6) = table(2, k); % right
 

@@ -1,100 +1,97 @@
 % this is the script for greedy part selection for the layer 3.
 
 function [partsOut, coverageOut, lenOut] = partSelectionNew(nClusters, n2Clusters, statistics3LayerSieved, statistics3LayerAggregated, ...
-                             dataSetNumber, fieldSize, list_depth, lenF, abstractionLevel, abstractionTable3Layer)
+                             dataSetNumber, fieldSize, list_depth, lenF, abstractionLevel, abstractionTable3Layer, meargeThresh, ...
+                             iterations, layerID, fileForVisualizationPrevLayer)
+                         
+    %   output variables
+    coverageOut = zeros(1,iterations);
+    partsOut = zeros(iterations,3);
+    lenOut = 0;
                            
-    halfFieldSize = floor(fieldSize/2);    %         for example fieldSize = [13, 5, 71];
+    halfFieldSize = floor(fieldSize/2);    %         for example fieldSize = [17, 5, 71];
     dx = halfFieldSize(1);
     dy = halfFieldSize(2);
     
     load(statistics3LayerSieved);          %       'statistics', 'cluster3Depths', 'outputCoords'
     load(statistics3LayerAggregated);      %       'X' ,'frequencies', 'curTS', 'triples'
-    
     lenStat =  size(statistics, 1);
     lenCombs = size(X, 1);
+   
     
-    if abstractionLevel == 1 || abstractionLevel == 2 
-        is_abstraction = true;
-    else
-        is_abstraction = false;
+    if layerID == 3  
+        
+        table2 = zeros(n2Clusters, 2);
+        for i = 1:n2Clusters
+            [clusterX, clusterY] = compute2derivatives(i, nClusters);
+            table2(i, 1) = clusterX;
+            table2(i, 2) = clusterY;
+        end
+        X_first = Convert3ToFirstLayer(X, lenCombs, table2);  % to express parts in terms of the first layer element
+        nPrevClusters = n2Clusters;
+        
+    elseif layerID == 4
+        [X_first, nPrevClusters] = Convert4ToFirstLayer(X, lenCombs, fileForVisualizationPrevLayer); %  'triple3OutDepth'
+    elseif layerID == 5
+        [X_first, nPrevClusters] = Convert5ToFirstLayer(X, lenCombs, fileForVisualizationPrevLayer); %  'triple3OutDepth', 'triple4OutDepth'
+    elseif layerID == 6
+        [X_first, nPrevClusters] = Convert6ToFirstLayer(X, lenCombs, fileForVisualizationPrevLayer); %  'triple3OutDepth', 'triple4OutDepth', 'triple5OutDepth'
     end
-    
-    if is_abstraction
-        [abstractionTable] = computeAbstractionTable(X, nClusters, n2Clusters, abstractionLevel);
-        save(abstractionTable3Layer, 'abstractionTable');  % save the table for the unsorted X
-    else
-        abstractionTable = [];
-    end
- 
-%   output variables
-    coverageOut = zeros(1,lenCombs);
-    partsOut = zeros(lenCombs,3);
-    lenOut = 0;
-    
-    recompute = ones(1, n2Clusters);
     
     coverage = zeros(lenCombs, 1);   % just something to initialize
     coverage = double(coverage);
     
-    [coverage] = recomputeCoverage(statistics, abstractionTable, outputCoords, coverage, X, 1, recompute, dx, dy, list_depth, lenF, n2Clusters);
-    recompute = recompute * 0;
+    tic;
+    [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, 1, dx, dy,...
+                                    list_depth, lenF, nPrevClusters, lenCombs);
+    toc
+
     
     % sort parts according to their coverage
     [coverage, inds] = sort(coverage, 'descend');
     X = X(inds, :);
+    X_first = X_first(inds, :);   
+    X = int16(X);
     
-    if is_abstraction   
-        % sort the abstraction table
-        for j = 1:lenCombs
-            % replace pointers to the elements in the abstractionTable
-            if abstractionTable(j) ~= 0 % there is a pointer
-                newPos = find(inds == abstractionTable(j));
-                abstractionTable(j) = newPos(1);
-            end
-        end
-        abstractionTable = abstractionTable(inds);
-    end
-    
-    for i = 1:800   % for each part 
-
+    for i = 1:iterations   % for each part 
+        
         str = ['element - ', num2str(i)];
         disp(str);
-             
-        elPositions = []; % positions of this part in all images
-        curElPosition = 1;
-         
-        curPart = X(i,:); % take the part with the largest coverage
         
-        if is_abstraction % find the positions of the similar elements in images
-            similarInds = find(abstractionTable == i); % all parts that refer to X(i,:)
+        if coverage(i) == 0
+            return;  % all parts are selected
+        end 
+        
+        if abstractionLevel == 3  % 
+            % merge the selected elements with all elements with distance
+            % less than meargeThresh
             
+            distance = Isodata_distances(X_first, X_first(i,:), lenCombs, 1, false, false);          
+            similarInds = find(distance < meargeThresh);
+            curPart = [];
             for j = 1:length(similarInds)
                 % extract the element X(similarInds(j), :)
-                curPart = [curPart; X(similarInds(j), :)];    
-            end
-            
-        end
-        
-        for j = 1:size(curPart,1) % update recompute list
-            for k = 1:size(curPart,2)
-                recompute(curPart(j,k)) = 1;
-            end
+                curPart = [curPart; X(similarInds(j), :)]; 
+            end 
         end
         
         numEls = size(curPart, 1);
-        % find the parts's positions in all images
-        parfor j = 1:lenStat
-            
-            stat = statistics(j,:);
-            line = [stat(2), stat(1), stat(4)];
-            % match curPart and line
-            for k = 1:numEls
-                if isequal(line, curPart(k,:))
-                    elPositions = [elPositions ; outputCoords(j, :)];
-                    break;
-                end
-            end
+        
+        % find the parts's positions in all images 
+        elPositions = []; % positions of this part in all images
+        indsLine = [2,1,4];
+        stat = statistics(:, indsLine);
+        
+
+        for k = 1:numEls
+            % match this line to all lines in stat
+            kk = repmat(curPart(k,:), lenStat, 1);
+            a = abs(stat - kk);
+            a = sum(a,2);
+            inds = a == 0;
+            elPositions = [elPositions; outputCoords(inds, :)];
         end
+
         
         % project this part to the images
         % curElPosition is already sorted by image number
@@ -104,7 +101,7 @@ function [partsOut, coverageOut, lenOut] = partSelectionNew(nClusters, n2Cluster
             % open the image
             I = imread(list_depth{j});
             
-            % extract all reated to the image
+            % extract all related to the image
             % 1) find the current position in the elPositions
             ind = find(firstColumn == j);
             lenE = length(ind);
@@ -114,71 +111,49 @@ function [partsOut, coverageOut, lenOut] = partSelectionNew(nClusters, n2Cluster
             
                 x = elPositions(ind(k), 2);
                 y = elPositions(ind(k), 3);
-                I(y-dy:y+dy ,x-dx:x+dx, 3) = I(y-dy:y+dy ,x-dx:x+dx, 3) * 0;
-                % I(y-dy:y+dy ,x-dx:x+dx, 2) = I(y-dy:y+dy ,x-dx:x+dx, 2) * 0;
+                I(y-dy:y+dy ,x-dx:x+dx, 3) = zeros(2*dy+1, 2*dx+1); 
             end
 
             % save the last image
             I = uint16(I);
             imwrite(I, list_depth{j}, 'png');
             
-%             if mod(j,10) == 0
-%                 disp('image');
-%                 j
-%             end
         end
         
         coverageOut(i) = coverage(i);
         partsOut(i, :) = X(i,:);
         lenOut = lenOut + 1;
         
-        % when part is selected: destroy links to this group in the
-        % abstraction table
-        groupA = find(abstractionTable == i);  % define a group of elements that refer to X(i,:)
-        % destroy all links to the group elements
-        lenGr = length(groupA);
-        for jj = 1:lenGr
-            subGroup = abstractionTable == groupA(jj);  % all parts which refer to groupA(jj)
-            abstractionTable(subGroup) = 0;
-        end
-        
+ 
         %------------------------------------------------------------------
         % update coverage of the following parts
+        lenRec = 10;
         
-        nextPart = X(i+1,:);
-        
-        if recompute(nextPart(1)) == 1 || recompute(nextPart(2)) == 1 || recompute(nextPart(3)) == 1 % updates required
-            
-            recompute = ones(1, n2Clusters);
-            [coverage] = recomputeCoverage(statistics, abstractionTable, outputCoords, coverage, X, i+1, recompute, dx, dy, list_depth, lenF, n2Clusters);
-            recompute = recompute * 0;
-            
-            % sort parts according to their coverage-----------------------
-            [coverage, inds] = sort(coverage, 'descend');
-            X = X(inds, :);
-            
-            if is_abstraction  
-                % sort the abstraction table
-                for j = 1:lenCombs
-                    % replace pointers to the elements in the abstractionTable
-                    if abstractionTable(j) ~= 0 % there is a pointer
-                        newPos = find(inds == abstractionTable(j));
-                        abstractionTable(j) = newPos(1);
-                    end
-                end
-                abstractionTable = abstractionTable(inds);
-            end
-            %--------------------------------------------------------------
-            
-            a = 2;
-
+        if mod(i, 5) == 0
+            lenRec = 15;
         end
-        
-        
+        if mod(i, 10) == 0
+            lenRec = 25;
+        end
+        if mod(i, 20) == 0  % full recompute
+            lenRec = lenCombs - i;
+        end
+        [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, i+1, dx, dy,...
+                                        list_depth, lenF, nPrevClusters, lenRec);
+
+        % sort parts according to their coverage-----------------------
+        [coverage, inds] = sort(coverage, 'descend');
+        X = X(inds, :);
+        X_first = X_first(inds, :);
+            
+
     end
+        
+        
+end
     
 
-end
+
 
 
 

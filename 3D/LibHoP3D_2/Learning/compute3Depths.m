@@ -2,16 +2,16 @@
 % second layer elements
 
 % quant is a quantile which defines depth range (e.g. 0.1)
-% output is the following cluster3Depths = zeros(n2Clusters, n2Clusters, lenDisp, 3);
+% output is the following cluster3Depths = zeros(n2Clusters, n2Clusters, numDisps, 3);
 % last parameters are min and max
 
-function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, lenDisp)
+function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, numDisps)
     
     disp('Analizing depth distribution of pairs ...');
     % initialize the output matrix;
     % the third parameter is displacement
     % the fourth parameter is min(1) max(2) avg(3)
-    cluster3Depths = zeros(n2Clusters, n2Clusters, lenDisp, 3); 
+    cluster3Depths = zeros(n2Clusters, n2Clusters, numDisps, 3); 
     
     % [-127 .. 127] -> [] + 128;
     adder = 128;
@@ -27,11 +27,11 @@ function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, lenDis
         fourthColumn = stat(:,4);
         
         for k = 1:n2Clusters        
-            for j = 1:lenDisp             % for each displacement
+            for j = 1:numDisps             % for each displacement
                 if j == 1
                     curColumn = secondColumn;
                     nextCol = 3;
-                else
+                elseif j == 2
                     curColumn = fourthColumn;
                     nextCol = 5;
                 end
@@ -45,7 +45,7 @@ function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, lenDis
                 depths = smallStat(:, nextCol);
                 
                 depths = double(depths);
-                depths(depths < -127) = 127;
+                depths(depths < -127) = -127;
                 depths(depths > 127)  = 127;
                 
                 r = length(depths);
@@ -55,6 +55,10 @@ function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, lenDis
                 end
             
                 [depthMin, depthMax, depthAvr] = quantileMy(X, quant, 1-quant, 0.5);
+                
+%                 if i == 41 && k == 5 && j == 1
+%                     a = 2;
+%                 end
 
                 cluster3Depths(i,k,j,1) = depthMin - adder;
                 cluster3Depths(i,k,j,2) = depthMax - adder;

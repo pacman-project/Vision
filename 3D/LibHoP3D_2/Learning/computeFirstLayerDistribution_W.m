@@ -5,26 +5,23 @@
 % [allDXs, allDYs, lenX, LenY] = computeFirstLayerDistribution(list_depth, sigma, sigmaKernelSize, dxKernel, histSize);
 
 function [allDXs, lenX] = computeFirstLayerDistribution_W(list_depth, list_mask, sigma, sigmaKernelSize, dxKernel, isErrosion, discSize, ...
-                                                            is_downsampling, dowsample_rate)
+                               is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2)
 
     disp('Learning statistics of the first layer. Iterations started...');
-    len = length(list_depth);
+    lenF = length(list_depth);
     allDXs = [];
     
     isTrim = true;
     isY = false;
     isX = true;
 
-    parfor k = 1 : len
+    parfor k = 1 : lenF
         I = imread(list_depth{k});
         mask = imread(list_mask{k});
         
-        if is_downsampling
-            I = imresize(I, dowsample_rate);
-            mask = imresize(mask, dowsample_rate);
-        end
-      
-        [~, Ix, ~, mask, ~, ~, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discSize, isX, isY, isTrim, dxKernel, sigmaKernelSize, sigma)
+        I = I(:,:,1);             
+        [~, Ix, ~, mask, ~, ~, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discSize, isX, isY, isTrim, dxKernel,...
+                        sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);
 
         if is_successfull
             Ia = Ix(mask == 1);

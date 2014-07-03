@@ -4,25 +4,24 @@
 % interpretation of depths: range from 0 to 20 in terms of global coords
 % [allDXs, allDYs, lenX, LenY] = computeFirstLayerDistribution(list_depth, sigma, sigmaKernelSize, dxKernel, histSize);
 
-function [allDXs, lenX] = computeFirstLayerDistribution(list_depth, sigma, sigmaKernelSize, dxKernel, isErrosion, discSize, is_downsampling, dowsample_rate)
+function [allDXs, lenX] = computeFirstLayerDistribution(list_depth, sigma, sigmaKernelSize, dxKernel, isErrosion, discSize, ...
+            is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2)
 
 
     disp('Learning statistics of the first layer. Iterations started...');
-    len = length(list_depth);
+    lenF = length(list_depth);
     allDXs = [];
     
     isTrim = true;
     isY = false;
     isX = true;
 
-    parfor k = 1 : len
+    parfor k = 1 : lenF
         I = imread(list_depth{k});
-        
-        if is_downsampling
-            I = imresize(I, dowsample_rate);
-        end
-      
-        [~, Ix, ~, mask, ~, ~, is_successfull] = preliminaryProcessing(I, [], isErrosion, discSize, isX, isY, isTrim, dxKernel, sigmaKernelSize, sigma)
+        I = I(:,:,1);
+            
+        [~, Ix, ~, mask, ~, ~, is_successfull] = preliminaryProcessing(I, [], isErrosion, discSize, isX, isY, isTrim, dxKernel,...
+                        sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);
 
         if is_successfull
             Ia = Ix(mask == 1);

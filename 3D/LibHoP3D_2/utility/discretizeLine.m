@@ -16,19 +16,35 @@ function [nearestClusters, errors, alternativeClusters, alternativeErrors] = dis
     
     for i = 1:strLen  % for every point
         
+        
+        %dX <= -thresh +  clusterSizes(1)/2 && dX >= -thresh - clusterSizes(1)/2
+        
         % first define two nearest clusters
-        if fx(i) <= cluster1Centres(1)
+        if fx(i) < -thresh - cluster1Lengths(1)/2 || fx(i) > thresh + cluster1Lengths(end)/2
+            nearestClusters(i) = 0; 
+            % everithing else is also 0
+            
+        elseif fx(i) <= -thresh +  cluster1Lengths(1)/2 && fx(i) >= -thresh - cluster1Lengths(1)/2
             errors(i) = abs(  (fx(i) - cluster1Centres(1))/cluster1Lengths(1)  );
             nearestClusters(i) = 1;
-            alternativeClusters(i) = 1;
+            if  fx(i) < -thresh
+                alternativeClusters(i) = 0;
+            else
+                alternativeClusters(i) = 2;
+            end
             if errors(i) > 1
                 errors(i) = 1;
             end
             alternativeErrors(i) = errors(i);
             
-        elseif fx(i) >= cluster1Centres(nClusters)
+        elseif fx(i) >= thresh - cluster1Lengths(end)/2 && fx(i) <= thresh + cluster1Lengths(end)/2
             errors(i) = abs(  (fx(i) - cluster1Centres(nClusters))/cluster1Lengths(nClusters)  );
             nearestClusters(i) = nClusters;
+            if  fx(i) > thresh
+                alternativeClusters(i) = 0;
+            else
+                alternativeClusters(i) = nClusters - 1;
+            end
             alternativeClusters(i) = nClusters;
             if errors(i) > 1
                 errors(i) = 1;

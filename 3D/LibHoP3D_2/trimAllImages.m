@@ -1,20 +1,22 @@
 
 fileListPrecomputed = false;
 is_subset = false;
-
+dataSetNumber = 1;
 subset_len = 400;
 
-root = 'D:\3D\LibHoP3D\'
-depthPathDefault = [root, 'settings\list_depth.mat'];
-depthPath = 'D:\3D\Input Data\Images for categorization\1';
+depthPathDefault = '';
+depthPath = 'D:/Input Data/AimShape/4T/';  
 ldp = length(depthPath);
-
-outFolder = 'D:\3D\Input Data\Images for categorization\1T\';
-
-[list_depth, lenF] = extractFileList(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subset_len);
-
 isTrim = true;
 
+outFolder = 'D:/Input Data/AimShape/4TT/';  %'D:/3D/Input Data/Images for categorization/1T/';
+
+if dataSetNumber == 1 || dataSetNumber == 3
+    [list_depth, lenF] = extractFileList(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subset_len);
+    list_mask = [];
+elseif dataSetNumber == 2
+    [list_depth, list_mask, ~, lenF] = extractFileListWashington(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subsetPercent);
+end
 
 parfor i = 1 : lenF
     

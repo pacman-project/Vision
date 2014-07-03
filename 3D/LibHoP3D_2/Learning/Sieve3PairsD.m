@@ -6,16 +6,15 @@
 function [inds, statistics, curTS] = Sieve3PairsD(statistics, curTS, cluster3Depths, lenDisp)
     
     disp('Sieve statistics (step 2)...');
-    inds = [];
+    inds = zeros(1, curTS);
+    indsN = 1;
     
     for i = 1:curTS
         is_ok = true;
-        curLine = statistics(i, :);
-        center = curLine(1);
         for j = 1:lenDisp
-            curDepth =  curLine(2*j+1);
-            depthMin =  cluster3Depths(center, curLine(2*j), j, 1);
-            depthMax =  cluster3Depths(center, curLine(2*j), j, 2);
+            curDepth =  statistics(i, 2*j+1);
+            depthMin =  cluster3Depths(statistics(i,1), statistics(i,2*j), j, 1);
+            depthMax =  cluster3Depths(statistics(i,1), statistics(i,2*j), j, 2);
             
             if curDepth < depthMin || curDepth > depthMax || depthMin == -999 || depthMax == -999  
                 is_ok = false;
@@ -23,10 +22,12 @@ function [inds, statistics, curTS] = Sieve3PairsD(statistics, curTS, cluster3Dep
             end
         end
         if is_ok == true
-            inds = [inds; i];
+            inds(indsN) = i;
+            indsN = indsN+1;
         end
     end
     
+    inds = inds(1:indsN-1);
     statistics = statistics(inds, :);
     curTS = size(statistics, 1);
 end

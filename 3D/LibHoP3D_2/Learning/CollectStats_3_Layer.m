@@ -7,7 +7,8 @@
 
 function [outputStatistics, outputCoords, curTS] = CollectStats_3_Layer(list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discSize, nClusters, ...
                                                         cluster1Centres, cluster1Lengths, thresh, combs, largestLine, displacements, lenDisp, ... 
-                                                        wCoverage, wOverlap, fieldSize, depthStep, is_downsampling, dowsample_rate, dataSetNumber);
+                                                        wCoverage, wOverlap, fieldSize, depthStep, dataSetNumber, ...
+                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2)
     disp('collecting co-occurrence statistics...');
     % field can be non-squared.
     halfFieldSize = floor(fieldSize/2); % for example fieldSize = [17, 5, 71];
@@ -24,7 +25,7 @@ function [outputStatistics, outputCoords, curTS] = CollectStats_3_Layer(list_dep
     % displacements = [0 0; 0 -6; 0 6];
     %      2 1 3
     
-    % should be int8
+    % should be int16
     outputStatistics = [];
     outputCoords = [];
     curTS = 0;
@@ -32,31 +33,27 @@ function [outputStatistics, outputCoords, curTS] = CollectStats_3_Layer(list_dep
     isY = true;
     isX = true;
     isTrim = false; % parameters for preliminary processing
-
+    
+    if dataSetNumber ~= 2
+        list_mask = zeros(1, lenF);
+    end
+    
     parfor i = 1:lenF 
         
         I = imread(list_depth{i});
         I = I(:,:,1);
         mask = [];
         
-        if dataSetNumber == 1  % Aim@Shape dataset
-            if is_downsampling
-                I = imresize(I, dowsample_rate);
-            end
+        if dataSetNumber == 1 || dataSetNumber == 3 % Aim@Shape dataset || Vladislav_STD
             
             [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, [], isErrosion, discSize, isX, isY, ...
-                                isTrim, dxKernel, sigmaKernelSize, sigma);
+                                isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2);
  
-                            
         elseif dataSetNumber == 2  % Washington data set
             
-            mask = imread(list_mask{i});
-            if is_downsampling
-                I = imresize(I, dowsample_rate);
-                mask = imresize(mask, dowsample_rate);
-            end           
+            mask = imread(list_mask{i});        
             [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discSize, isX, isY,...
-                                isTrim, dxKernel, sigmaKernelSize, sigma);
+                                isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2);
         end
         
         if ~is_successfull
@@ -71,8 +68,8 @@ function [outputStatistics, outputCoords, curTS] = CollectStats_3_Layer(list_dep
         windowErrors1Alt = zeros(fieldSize(2), fieldSize(1)); % altermative marks and errors
 
 
-        for j = halfFieldSize(2)+1 : 6 : r-halfFieldSize(2)     % y-direction (rows)
-            for k = halfFieldSize(1)+1 : 6 : c-halfFieldSize(1)   % x-direction (columns)
+        for j = halfFieldSize(2)+1 : 3 : r-halfFieldSize(2)     % y-direction (rows)
+            for k = halfFieldSize(1)+1 : 3 : c-halfFieldSize(1)   % x-direction (columns)
                 
                 % working only with locations where the full element can be
                 % detected
@@ -86,39 +83,20 @@ function [outputStatistics, outputCoords, curTS] = CollectStats_3_Layer(list_dep
                 windowIx = Ix(j-halfFieldSize(2) : j+halfFieldSize(2), k-halfFieldSize(1) : k+halfFieldSize(1));
                 windowIy = Iy(j-halfFieldSize(2) : j+halfFieldSize(2), k-halfFieldSize(1) : k+halfFieldSize(1));
 
+                indsR = 1:2:fieldSize(2);
+                indsC = 3:6:fieldSize(1)-1;
                 
-                % discretize every other row
-                for jj = 1:2:fieldSize(2)
-                    
-                    inds = 3:6:fieldSize(1)-1;
-                    tempLine = windowIx(jj,:);
-                    fx = tempLine(inds);
-                    strLen = length(fx);
-                    [nearestClusters, errors, alternativeClusters, alternativeErrors] = discretizeLine(fx, strLen, nClusters, cluster1Centres, cluster1Lengths, thresh);
-                    % [output, curErrs] = lineDiscretizationOptLayer1(nearestClusters, errors,  wCoverage, wOverlap, combs, largestLine);
-                    
-                    tempLine = zeros(1, fieldSize(1));
-                    tempLine(inds) = nearestClusters;
-                    windowMarks(jj,:) = tempLine;
-                    
-                    tempLine = zeros(1, fieldSize(1));
-                    tempLine(inds) = errors;
-                    windowErrors1(jj,:) = tempLine;
-                    
-                    tempLine = zeros(1, fieldSize(1));
-                    tempLine(inds) = alternativeClusters;
-                    windowMarksAlt(jj,:) = tempLine;
-                    
-                    tempLine = zeros(1, fieldSize(1));
-                    tempLine(inds) = alternativeErrors;
-                    windowErrors1Alt(jj,:) = tempLine;
-
-                end
-                
-%                 windowMarks =   windowMarks.*windowMask; 
-%                 windowErrors1 = windowErrors1.*windowMask;
-%                 windowMarksAlt = windowMarksAlt.*windowMask; 
-%                 windowErrors1Alt = windowErrors1Alt.*windowMask;
+                fx = windowIx(indsR, indsC);
+                [nearestClusters, errors, alternativeClusters, alternativeErrors] = discretizeLineVectorized(fx, nClusters, cluster1Centres, cluster1Lengths, thresh);
+                windowMarks(indsR, indsC) = nearestClusters;
+                windowErrors1(indsR, indsC) = errors;
+                windowMarksAlt(indsR, indsC) = alternativeClusters;
+                windowErrors1Alt(indsR, indsC) = alternativeErrors;
+                                
+                windowMarks =   windowMarks.*windowMask; 
+                windowErrors1 = windowErrors1.*windowMask;
+                windowMarksAlt = windowMarksAlt.*windowMask; 
+                windowErrors1Alt = windowErrors1Alt.*windowMask;
 
                 % next we create second layer elements in every window
                 
@@ -126,7 +104,7 @@ function [outputStatistics, outputCoords, curTS] = CollectStats_3_Layer(list_dep
 
                 isActive = zeros(1,lenDisp);
                 line = zeros(1, lenDisp*2 - 1); 
-                line = int8(line);
+                line = int16(line);
                 curCoords = zeros(1,3);
                 cont = true;
                 
@@ -144,11 +122,6 @@ function [outputStatistics, outputCoords, curTS] = CollectStats_3_Layer(list_dep
                         sliceMarks1Alt = windowMarksAlt(curCenter(1) - halfFieldSize(2): curCenter(1) + halfFieldSize(2), curCenter(2):curCenter(2));
                         sliceErrors1Alt = windowErrors1Alt(curCenter(1) - halfFieldSize(2): curCenter(1) + halfFieldSize(2), curCenter(2):curCenter(2));
                         
-%                         indsY = 1:2:fieldSize(2);
-%                         sliceMarks1 = sliceMarks1(indsY);
-%                         sliceErrors1 = sliceErrors1(indsY);
-%                         sliceMarks1Alt = sliceMarks1Alt(indsY);
-%                         sliceErrors1Alt = sliceErrors1Alt(indsY);
                         
                         [nearestCluster, error] = discretizeY(sliceMarks1, sliceErrors1, sliceMarks1Alt, sliceErrors1Alt, 5, 0);
                         %[nearestCluster, error] = discretizeSlice(sliceMarks1, sliceErrors1, 3);
@@ -157,23 +130,28 @@ function [outputStatistics, outputCoords, curTS] = CollectStats_3_Layer(list_dep
                             % define 2nd layer element
                             dY = windowIy(curCenter(1), curCenter(2));
                             clusterY = define1Cluster(dY, nClusters, cluster1Lengths, thresh);
-                            curEl = compute2elementIndex(nearestCluster(3), clusterY, nClusters);
-                            isActive(jj) =  1; % redundant but just to check
-
-                            % now write this to the array line
-                            if jj == 1
-                                depthCentral = windowI(curCenter(1), curCenter(2));
-                                line(1) = curEl;
+                            if clusterY == 0
+                                isActive(jj) =  0;
+                                cont = false;
                             else
-                                curDepth = windowI(curCenter(1), curCenter(2));
-                                relDepth = (curDepth - depthCentral) / depthStep; % relative depth
-                                if relDepth > 127
-                                    relDepth = 127;
-                                elseif relDepth < -127
-                                    relDepth = -127; % for one bite coding
+                                curEl = compute2elementIndex(nearestCluster(3), clusterY, nClusters);
+                                isActive(jj) =  1; % redundant but just to check
+
+                                % now write this to the array line
+                                if jj == 1
+                                    depthCentral = windowI(curCenter(1), curCenter(2));
+                                    line(1) = curEl;
+                                else
+                                    curDepth = windowI(curCenter(1), curCenter(2));
+                                    relDepth = (curDepth - depthCentral) / depthStep; % relative depth
+                                    if relDepth > 127
+                                        relDepth = 127;
+                                    elseif relDepth < -127
+                                        relDepth = -127; % for one bite coding
+                                    end
+                                    line((jj-1)*2) = curEl;
+                                    line((jj-1)*2+1) = relDepth;
                                 end
-                                line((jj-1)*2) = curEl;
-                                line((jj-1)*2+1) = relDepth;
                             end
                         else
                             isActive(jj) =  0;

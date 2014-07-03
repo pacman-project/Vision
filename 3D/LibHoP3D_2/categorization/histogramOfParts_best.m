@@ -3,9 +3,6 @@
 function [] = histogramOfParts_best(n2Clusters, n3Clusters, n4Clusters)
 
 
-pyramid_levels = [1.0, 0,66];
-pyramid_num_levels = length(pyramid_levels);
-
 nbinsS1 = [1,1];
 nbinsS2 = [2,2];
 nbinsS3 = [3,3];

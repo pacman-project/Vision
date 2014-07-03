@@ -1,36 +1,76 @@
 % this is a function to split a Washington data set
 
-dataSetNumber = 2; % Washington
+select_depths = true;
+select_elements = false;
 
-depthPath_W = '/home/vvk201/Wash-rgbd-dataset';
+dataSetNumber = 2;
 depthPathDefault = '';
 
-outputFolder = '/home/vvk201/Wash-rgbd-dataset_0003';
+if select_depths    
+    list_mask = [];
+    list_images = [];
+%     depthPath = 'D:\Input Data\AimShape\4T';
+%     outputFolder = 'D:\Input Data\AimShape\4T_600';
+
+    depthPath = 'D:\Input Data\Washington\Wash-rgbd-dataset';
+    outputFolder = 'D:\Input Data\Washington\Wash-rgbd-dataset_002';
+   
+end
+
+if select_elements
+    elPath = '/home/vvk201/Input Data/Washington/Wash-rgbd-dataset_layer4';
+    outputFolderE = '/home/vvk201/Input Data/Washington/Wash-rgbd-dataset_layer4_001';
+end
 
 fileListPrecomputed = false;
 is_subset = true;
-subsetPercent = 0.003;
+subset_len = 600;
+subsetPercent = 0.02;
 
+strFolderLen = length(depthPath);
 
-if dataSetNumber == 1
-    [list_depth, lenF] = extractFileList(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subset_len);
-    list_mask = [];
-elseif dataSetNumber == 2
-    [list_depth, list_mask, list_images, lenF] = extractFileListWashington(fileListPrecomputed, depthPath_W, depthPathDefault, is_subset, subsetPercent);
+if select_elements
+    strFolderLenE = length(elPath);
 end
 
-strFolderLen = length(depthPath_W);
+if dataSetNumber == 1 || dataSetNumber == 3
+    [list_depth, lenF] = extractFileList(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subset_len);
+    list_images = zeros(1, lenF);
+    list_mask = zeros(1, lenF);
+elseif dataSetNumber == 2
+    [list_depth, list_mask, list_images, lenF] = extractFileListWashington(fileListPrecomputed, depthPath, depthPathDefault,...
+        is_subset, subsetPercent);
+end
+
+if select_elements
+    % select the same files from folder elPath
+
+    list_els = list_depth;
+    for i = 1:lenF
+        str = list_els{i};
+        str = [elPath ,str(strFolderLen + 1:end)];
+        list_els{i} = str;
+        a = 2;
+    end
+end
 
 
-parfor i = 1:lenF % we have to copy each file to the new location
+for i = 1:lenF % we have to copy each file to the new location
     
     strD = list_depth{i};
-    strI = list_images{i};
-    strM = list_mask{i};
-    
     newFileD = [outputFolder, strD(strFolderLen + 1:end)];
-    newFileI = [outputFolder, strI(strFolderLen + 1:end)];
-    newFileM = [outputFolder, strM(strFolderLen + 1:end)];
+    
+
+    if dataSetNumber == 2
+        strI = list_images{i};
+        strM = list_mask{i};
+        newFileI = [outputFolder, strI(strFolderLen + 1:end)];
+        newFileM = [outputFolder, strM(strFolderLen + 1:end)];
+    end
+    if select_elements
+        strE = list_els{i};
+        newFileE = [outputFolderE, strD(strFolderLen + 1:end)];
+    end
     
     ll = strfind(newFileD, '/');
     ll = ll(end);
@@ -43,6 +83,25 @@ parfor i = 1:lenF % we have to copy each file to the new location
     end
     
     copyfile(list_depth{i}, newFileD);
-    copyfile(list_images{i}, newFileI);
-    copyfile(list_mask{i}, newFileM);
+    
+    if dataSetNumber == 2
+        copyfile(list_images{i}, newFileI);
+        copyfile(list_mask{i}, newFileM);
+    end
+    
+    
+    if select_elements
+        ll = strfind(newFileE, '/');
+        ll = ll(end);
+
+        curFolderNameE = newFileE(1:ll);
+        A = exist(curFolderNameE, 'dir');
+
+        if A == 0
+            mkdir(curFolderNameE);
+        end
+
+        copyfile(list_els{i}, newFileE);
+    end
+    
 end

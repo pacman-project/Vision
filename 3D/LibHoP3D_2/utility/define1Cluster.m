@@ -6,20 +6,10 @@
 
 % -thresh |------------------------------------------------------| thresh
 
-function clusterX = define1Cluster(dX, nClusters, clusterSizes, thresh)
+function clusterX = define1Cluster(dX, cluster1Bounds, nClusters)
 
-     if dX <= -thresh +  clusterSizes(1)/2
-        clusterX = 1;
-     elseif dX >= thresh - clusterSizes(end)/2
-        clusterX = nClusters;  
-     else
-          curCluster = 1;
-          right = - thresh + (clusterSizes(1)/2);
-          while dX >= right
-              curCluster = curCluster + 1;
-              right = right + (clusterSizes(curCluster));
-          end
-          clusterX = curCluster;
-     end
+    clusterX = imquantize(dX, cluster1Bounds) - 1;
+    clusterX(clusterX == nClusters + 1) = 0;
+     
 end
 

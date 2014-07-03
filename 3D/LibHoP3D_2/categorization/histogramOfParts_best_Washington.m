@@ -3,19 +3,16 @@
 function [] = histogramOfParts_best_Washington(n2Clusters, n3Clusters, n4Clusters)
 
 
-pyramid_levels = [1.0, 0,66];
-pyramid_num_levels = length(pyramid_levels);
-
 nbinsS1 = [1,1];
 nbinsS2 = [2,2];
 nbinsS3 = [3,3];
 
-are_neighboursInvolved = false;
+% are_neighboursInvolved = false;
 
 % 1 + 1*1 + 2*2 + 3*3
 totalNumBins = 1 + nbinsS1(1)*nbinsS1(2) + nbinsS2(1)*nbinsS2(2) + nbinsS3(1)*nbinsS3(2);
 
-numChannels = 2;
+numChannels = 1;
 
 if numChannels == 1
     binSize = n2Clusters;
@@ -25,13 +22,12 @@ elseif numChannels == 3
     binSize = n2Clusters + n3Clusters + n4Clusters;
 end
 
-%strRootE = 'D:/3D/Images for categorization/1view_1Scale/Elements';
 
-strRootE = 'D:\3D\Input Data\WashingtonLayers0.1\3layer';
+strRootE = '/home/vvk201/Wash-rgbd-dataset_layers234_01';
 
 is_subset = false;
-subsetPercent = 0.32;
-[list_el, model_id, category_id, len] = extractFileListWashingtonForClassification(strRootE, is_subset, subsetPercent);
+subsetPercent = 1.0;
+[list_el, model_id, category_id, lenF] = extractFileListWashingtonForClassification(strRootE, is_subset, subsetPercent);
 
 descLength = binSize * totalNumBins;
 
@@ -50,7 +46,7 @@ M = [];                % model number
 %     end
 % end
 
-parfor i = 1:len % for every image
+parfor i = 1:lenF % for every image
     
     descriptor = zeros(1, descLength);
     % address different viewing angles, scales

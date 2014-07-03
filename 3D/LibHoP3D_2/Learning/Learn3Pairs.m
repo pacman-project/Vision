@@ -22,14 +22,12 @@ function [tablePairs, numPairs] = Learn3Pairs(statistics, curTS, n2Clusters, thr
         % 1) measure frequency of each pair
 
         for j = 1:curTS
-            a = curStat(j,1);
-            b = curStat(j,2);
-            tablePairs(i, curStat(j,1), curStat(j,2))  = tablePairs(i, curStat(j,1), curStat(j,2)) + 1;  % increase the counter
+            tablePairs(i, curStat(j,1), curStat(j,2)) = tablePairs(i, curStat(j,1), curStat(j,2)) + 1;  % increase the counter
         end
         
         % 2) filter out the least frequent pairs
-        for ii = 1:n2Clusters
-            for jj = 1:n2Clusters
+        for jj = 1:n2Clusters
+            for ii = 1:n2Clusters
                 if tablePairs(i, ii, jj) < thresh3Pair
                     tablePairs(i, ii, jj) = 0; 
                 end        

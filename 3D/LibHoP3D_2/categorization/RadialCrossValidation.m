@@ -19,7 +19,7 @@ function [C, G, accuracy] = RadialCrossValidation(X, y, fold, threads)
         for j = 1:lenG
             curC = Cs(i);
             curG = Gs(j);
-            string = ['-t 2 -c ',num2str(curC), ' -g ', num2str(curG), ' -v ', num2str(fold), ' -z', threads];
+            string = ['-t 2 -c ',num2str(curC), ' -g ', num2str(curG), ' -v ', num2str(fold)];  % , ' -z', threads
             acc = svmtrain(y, X, string);
             AccT(i,j) = acc;
             if (acc > max)

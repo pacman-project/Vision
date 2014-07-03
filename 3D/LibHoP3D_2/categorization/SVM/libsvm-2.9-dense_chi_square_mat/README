@@ -1,0 +1,138 @@
+LIBSVM-CHI2 aggregates several pieces of software to provide a highly optimized MATLAB SVM interface, especially for classifying the dense histograms in computer vision. Its improvements over the standard LIBSVM library include supports for:
+
+1) Exponentiated chi-square kernel k(x,y) = exp(- gamma * \chi^2(x,y)). LIBSVM-CHI2 uses the processor-intrinsics optimized code from Christoph Lampert (https://sites.google.com/a/christoph-lampert.com/work/software) to compute the chi-square distance between the objects. It is at least 3 times faster than a naive implementation.
+2) Multi-core architecture. LIBSVM-CHI2 uses OpenMP(R) to parallelize the kernel computations in LIBSVM. Therefore it runs much faster than conventional LIBSVM on multi-core machines, for all kinds of kernels.
+3) Dense representation. LIBSVM-CHI2 adopts the dense internal representation for the input matrix to store the train/test data by Ming-Fang Weng and wraps it for MATLAB. Using dense representation instead of the standard sparse representation provides an at least 40% speed improvement for vision features which are often fairly dense.
+4) Single-precision floating-point data for the input. LIBSVM-CHI2 has options to use either single-precision or double-precision data for training/test input. Using single-precision saves storage space by half and improves training and testing speed. In the meanwhile, it usually does not deteriorate performance.
+5) Stacking multiple kernels. LIBSVM-CHI2 has a special feature to specify multiple chi-square kernels with different parameters and combination weights within one dataset. This facilitates out-of-core training of multiple-kernel SVM for both classification and regression.
+
+With all the features above, besides supporting the exponential chi-square kernels used in computer vision natively, LIBSVM-CHI2 can also be 15-50x faster than the original LIBSVM on an 8-core machine.
+
+======================
+Compilation
+======================
+In Unix environments, please set the MATLABDIR in the Makefile to the MATLAB directory in your computer. Then type in
+
+make
+
+to make everything. There should be 6 mex files in total:
+svmtrain_chi2.mexa64 (or mexglx depends on your architecture): Train an SVM using double precision feature matrices.
+svmpredict_chi2.mexa64: Predict using the SVM model and a testing set.
+svmtrain_chi2_float.mexa64: Train an SVM using single precision feature matrices.
+svmpredict_chi2_float.mexa64: Predict using the SVM model and a testing set.
+libsvmread.mexa64: The same as the LIBSVM package, read the dataset from a LIBSVM/SVMLight-format text file into MATLAB.
+libsvmwrite.mexa64: The same as the LIBSVM package, write the dataset from a matlab matrix to a LIBSVM/SVMLight-format text file.
+
+The software have not been tested in Windows environments, but you can try building according to the instructions in README.libsvm.
+Remember to define the macros _DENSE_REP and _USE_CHI_SQUARE.
+
+======================
+Usage
+======================
+The usage is very similar to the MATLAB interface for LIBSVM. The options are slightly different with the added kernels. 
+The additional Chi-square and multiple chi-square kernels are specified with '-t 5' and '-t 6' respectively.
+
+Usage of svmtrain_chi2 (call svmtrain_chi2_float instead for the single-precision version):
+matlab> model = svmtrain_chi2(training_label_vector, training_instance_matrix, 'libsvm_options');
+	libsvm_options:
+	-s svm_type : set type of SVM (default 0)
+		0 -- C-SVC
+		1 -- nu-SVC
+		2 -- one-class SVM
+		3 -- epsilon-SVR
+		4 -- nu-SVR
+	-t kernel_type : set type of kernel function (default 2)
+		0 -- linear: u'*v
+		1 -- polynomial: (gamma*u'*v + coef0)^degree
+		2 -- radial basis function: exp(-gamma*|u-v|^2)
+		3 -- sigmoid: tanh(gamma*u'*v + coef0)
+		4 -- precomputed kernel (kernel values in training_instance_matrix)
+		5 -- exponential chi-square kernel: exp(- gamma * chi^2(x,y))
+		6 -- multiple exponential chi-square kernels. sum(weight_i exp( - gamma_i * chi^2(x_i,y_i))) 
+	See the documentation for -u for instructions on how to specify the parameters weight_i, gamma_i, etc.
+	-d degree : set degree in kernel function (default 3)
+	-g gamma : set gamma in kernel function (default 1/k)
+	-r coef0 : set coef0 in kernel function (default 0)
+	-c cost : set the parameter C of C-SVC, epsilon-SVR, and nu-SVR (default 1)
+	-n nu : set the parameter nu of nu-SVC, one-class SVM, and nu-SVR (default 0.5)
+	-p epsilon : set the epsilon in loss function of epsilon-SVR (default 0.1)
+	-m cachesize : set cache memory size in MB (default 100)
+	-e epsilon : set tolerance of termination criterion (default 0.001)
+	-h shrinking : whether to use the shrinking heuristics, 0 or 1 (default 1)
+	-b probability_estimates : whether to train a SVC or SVR model for probability estimates, 0 or 1 (default 0)
+	-wi weight : set the parameter C of class i to weight*C, for C-SVC (default 1)
+	-v n : n-fold cross validation mode
+	-q : quiet mode (no outputs)
+	-u : must be put at the end of all the parameters. Only used for -t 6, multiple exponential chi-square kernels
+	     Use -u length -w weight -g gamma for each kernel.
+             Example: -u 850 -w 1.2 -g 1.5 420 -w 1.3 -g 1.1 specifies 2 kernels, 
+	              the first one is on the first 850 dimensions of the data,
+                      with a weight 1.2 and gamma 1.5, the second one is on the next 420 dimensions,
+	              with a weight 1.3 and gamma 1.1
+
+Usage of svmpredict_chi2 (call svmpredict_chi2_float instead for the single-precision version):
+matlab> [predicted_label, accuracy, decision_values/prob_estimates] = svmpredict_chi2(testing_label_vector, testing_instance_matrix, model [, 'libsvm_options']);
+
+        -testing_label_vector:
+            An m by 1 vector of prediction labels. If labels of test
+            data are unknown, simply use any random values. (type must be double)
+        -testing_instance_matrix:
+            An m by n matrix of m testing instances with n features.
+            It can be dense or sparse. (type must be double)
+        -model:
+            The output of svmtrain_chi2.
+        -libsvm_options:
+              -b probability_estimates: whether to predict probability estimates, 0 or 1 (default 0); one-class SVM not supported yet
+        Returns:
+	    predicted_label: SVM prediction output vector.
+	    accuracy: a vector with accuracy, mean squared error, squared correlation coefficient.
+            prob_estimates: If selected, probability estimate vector.
+
+Note that svmtrain_chi2_float and svmpredict_chi2_float takes single precision data and inputing double will result in an error.
+For libsvmread and libsvmwrite, please consult the original LIBSVM documentation (README.libsvm).
+
+======================
+Examples
+======================
+For an example on training/test the multiple chi-square kernel, see the attached m-files:
+demo.m
+one_vs_all_regression_libsvm_multiple_chi2.m
+one_vs_all_predict_libsvm_multiple_chi2.m
+
+You can run:
+matlab> demo
+
+to see an example of both training and testing.
+
+If libsvm_chi2 ends up using only 1 core, you probably need to set the environment variable OMP_NUM_THREADS to the number of cores you have. e.g. in bash
+
+export OMP_NUM_THREADS=8
+
+or in MATLAB:
+
+matlab> setenv('OMP_NUM_THREADS','8');
+
+======================
+Additional Information
+======================
+This software is copyrighted under GPL-3.
+
+mpi-chi2 is copyrighted to Christoph Lampert (https://sites.google.com/a/christoph-lampert.com/work/software), see README.mpi_chi2.
+LIBSVM is copyrighted to Chih-Chung Chang and Chih-Jen Lin (http://www.csie.ntu.edu.tw/~cjlin/libsvm/), see README.libsvm.
+LIBSVM-Dense is copyrighted to Ming-Fang Weng (http://www.csie.ntu.edu.tw/~cjlin/libsvmtools/), see README.dense.
+
+This software has been used in the winning BONN-SVRSEGM entries for the 2010 and 2011 PASCAL VOC Segmentation challenge. You may also download the trained one-against-all regressors used in the 2010 challenge, from (http://www.cc.gatech.edu/~fli/PASCAL_VOC_2010.zip). However note that although LIBSVM-CHI2 can be re-distributed according to the GPL license, the trained regressors cannot be re-distributed without the approval of the authors.
+
+If you find LIBSVM-CHI2 useful, please cite it as:
+Fuxin Li, Joao Carreira, Cristian Sminchisescu. Object recognition as ranking holistic figure-ground hypotheses. CVPR 2010: 1712-1719.
+
+in bibtex format:
+@inproceedings{li2010holistic,
+	author = {Li, Fuxin and Carreira, Jo{\~a}o and Sminchisescu, Cristian},
+	title = {Object Recognition as Ranking Holistic Figure-Ground Hypotheses},
+	booktitle = CVPR,
+	year = {2010}
+}
+
+For questions and comments, please contact me at 
+fli@cc.gatech.edu or fuxin.li@ins.uni-bonn.de

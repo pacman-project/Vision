@@ -13,7 +13,7 @@ function [list_el, model_id, category_id, lenF] = extractFileListWashingtonForCl
     subfolders(1:2) = [];
     lenS = length(subfolders);
 
-    parfor i = 46:lenS % for each category
+    parfor i = 1:lenS % for each category
         str = [strRootE, '/', subfolders{i}];
         % select a list of subfolders again
         subSubFolders = list_of_subfolders(str);

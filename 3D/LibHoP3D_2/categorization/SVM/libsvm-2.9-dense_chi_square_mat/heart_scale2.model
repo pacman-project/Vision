@@ -1,0 +1,13 @@
+svm_type c_svc
+kernel_type chi_square
+gamma 0.1
+nr_class 2
+total_sv 4
+rho 0.00635931
+label 1 -1
+nr_sv 2 2
+SV
+1 0:1 1:0.5 2:1 
+1 0:0.5 1:1 2:1 
+-1 0:1 1:0.75 2:1 
+-1 1:0.666667 2:1 
