@@ -42,7 +42,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.gaborFilterThr = 0.075; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.absGaborFilterThr = 80; % Absolute response threshold for low-level responses.
+    options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
+                                   % responses. ~80 for natural images.
     options.gaborFilterSize = 9;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
@@ -97,7 +98,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                         % are linked in the object graph.
     options.property = 'mode'; % Geometric property to be examined
                                        % 'co-occurence': uniform edges 
-                                       % 'mode': cluster relative positions
+                                       % 'mode': clusters of relative positions
                                        % 'hist': divide space into 8 
                                        % pre-defined regions.
     options.mode.maxSamplesPerMode = 200; % In mode calculation between node1
@@ -112,7 +113,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % specific part pair is reduced
                                           % automatically to match this
                                           % number, if possible.
-    options.scaling = 0.66;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -166,7 +167,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
 %    options.maxImageDim = options.gaborFilterSize*40;
-    options.maxImageDim = options.gaborFilterSize*71;
+    options.maxImageDim = options.gaborFilterSize*1000;
     options.maximumModes = 50;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 
@@ -193,7 +194,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 100;            % Max. number of seconds 'self' 
+    options.subdue.maxTime = 1200;           % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -208,7 +209,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.05; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.1; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 

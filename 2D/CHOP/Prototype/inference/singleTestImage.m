@@ -116,12 +116,13 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
             visualizeImages( {testFileName}, vocabulary{levelItr}, mainGraph{levelItr}, leafNodes, levelItr, options, 'test' );
         end
     end
-    save([options.testInferenceFolder '/' fileName '_test.mat'], 'mainGraph');
+%    save([options.testInferenceFolder '/' fileName '_test.mat'], 'mainGraph');
     
     %% Process mainGraph to export realizations in the desired format for inte2D/3D integration.
     exportArr = exportRealizations(mainGraph);
     
-    % Write them to output.
-    save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr', '-append');
-    
+    % Determine the category of the image using category probabilities of
+    % highest-valued realizations.
+    categoryLabel = getCategoryLabel(vocabulary, exportArr); %#ok<NASGU>
+    save([options.testInferenceFolder '/' fileName '_test.mat'], 'categoryLabel', 'exportArr', '-append');
 end

@@ -66,6 +66,13 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             if max(size(img)) > maxImageDim
                img = imresize(img, maxImageDim/max(size(img)), 'bilinear'); 
             end
+            
+            % If img is binary, we can save it as a binary png.
+            if size(img,3) == 1 && max(max(max(img))) == 1
+                img = img > 0;
+            end
+            
+            % Save image into processed folder.
             imwrite(img, [processedFolder '/' fileName '.png']);
 
             % Switch file names with those copied.
@@ -92,7 +99,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         display('..... Level 1 Node Extraction started. This may take a while.');
         allNodes = cell(size(trainingFileNames,1),1);
         smoothedFolder = options.smoothedFolder;
-        for fileItr = 1:size(trainingFileNames,1)
+        parfor fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([processedFolder '/' fileName '.png']);
             
@@ -172,11 +179,19 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % Export realizations into easily-readable arrays.
         exportArr = exportRealizations(mainGraph);
         
+        % Transform category array into an index-based one (having numbers
+        % instead of category strings). The category string labels is saved
+        % in categoryNames.
+        [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable');
+        categoryNames = categoryArr(categoryNames);
+        
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
 %        save([options.currentFolder '/output/' datasetName '/graph.mat'], 'mainGraph', 'allOppositeModes', 'leafNodes', '-v7.3');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes', 'trainingFileNames');
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'poseArr');
+        % categoryArr is kept for backward-compatibility. It will be
+        % removed in further releases.
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryNames', 'categoryArr', 'categoryArrIdx', 'poseArr'); 
     end
     
     % Close thread pool if opened.

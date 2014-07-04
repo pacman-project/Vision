@@ -115,9 +115,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         display('........ Combining parts.');
         % Here, we combine similar structures into one, which helps
         % generalization properties of the algorithm.
-        newSimilarityMatrix = [];
-        subClasses = [];
- %       [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, similarityMatrices{levelItr-1}, options);
+ %       newSimilarityMatrix = [];
+ %       subClasses = [];
+        [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, similarityMatrices{levelItr-1}, options);
         
         display('........ Applying inhibition.');
         %Now, apply inhibition.
@@ -180,7 +180,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         if options.debug
            display('........ Visualizing previous level...');
            if ~isempty(vocabLevel)
-         %      imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
+               if ~isempty(newSimilarityMatrix)
+                   imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
+               end
                if ~isempty(modes)
                     visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 0);
                     if ~isempty(redundantVocabLevel)
