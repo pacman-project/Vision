@@ -123,6 +123,10 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
     
     % Determine the category of the image using category probabilities of
     % highest-valued realizations.
-    categoryLabel = getCategoryLabel(vocabulary, exportArr); %#ok<NASGU>
-    save([options.testInferenceFolder '/' fileName '_test.mat'], 'categoryLabel', 'exportArr', '-append');
+    estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr); %#ok<NASGU>
+    if exist([options.testInferenceFolder '/' fileName '_test.mat'], 'file')
+        save([options.testInferenceFolder '/' fileName '_test.mat'], 'estimatedCategoryLabel', 'exportArr', '-append');
+    else
+        save([options.testInferenceFolder '/' fileName '_test.mat'], 'estimatedCategoryLabel', 'exportArr');
+    end
 end

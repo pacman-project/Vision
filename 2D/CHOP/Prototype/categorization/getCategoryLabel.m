@@ -17,8 +17,11 @@ function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr)
     maxLevels = max(exportArr(:,4));
     categoryLabel = -1;
     for levelItr = maxLevels:-1:1
-        vocabLevel = vocabulary{1};
+        vocabLevel = vocabulary{levelItr};
         categoryArrs = cat(1, vocabLevel.categoryArr);
+        if isempty(categoryArrs) 
+           break; 
+        end
         nodes = exportArr(exportArr(:,4) == levelItr,:);
         categoryDecisionArr = sum(categoryArrs(nodes(:,1),:),1) / size(nodes,1);
         [~, bestCategories] = find(categoryDecisionArr == max(categoryDecisionArr));

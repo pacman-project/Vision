@@ -188,10 +188,10 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
 %        save([options.currentFolder '/output/' datasetName '/graph.mat'], 'mainGraph', 'allOppositeModes', 'leafNodes', '-v7.3');
-        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes', 'trainingFileNames');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes', 'trainingFileNames', 'categoryNames');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryNames', 'categoryArr', 'categoryArrIdx', 'poseArr'); 
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'categoryArrIdx', 'poseArr'); 
     end
     
     % Close thread pool if opened.
