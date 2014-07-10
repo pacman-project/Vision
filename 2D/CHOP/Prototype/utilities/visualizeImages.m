@@ -139,9 +139,9 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                 position = reconstructedNodes{reconNodeItr,2};
                 
                 % If the part has already been added, move on.
-                 if reconstructedMask(position(1), position(2))>0
-                    continue; 
-                 end
+%                  if reconstructedMask(position(1), position(2))>0
+%                     continue; 
+%                  end
 
                 halfSize = (size(nodeMask)-1)/2;
                 imageSize = size(reconstructedMask);
