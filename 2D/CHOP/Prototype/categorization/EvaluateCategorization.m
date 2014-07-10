@@ -27,5 +27,9 @@ function [ ] = EvaluateCategorization( datasetName )
     display(['Accuracy: ' num2str(accuracy)]);
     display('Confusion matrix:');
     display(mat2str(confMat));
+    confMatStr = mat2str(confMat);
+    fid = fopen([options.outputFolder '/confMat.txt'], 'w');
+    fprintf(fid, '%s', confMatStr);
+    fclose(fid);
 end
 
