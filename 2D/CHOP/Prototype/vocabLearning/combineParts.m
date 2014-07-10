@@ -25,10 +25,10 @@
 %> Ver 1.0 on 05.05.2014
 function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, similarityMatrix, options)
     global simMat;
+    setSize = 20; % Parallelization parameter.
     simMat = similarityMatrix;
     regularizationParam = options.subdue.maxSize * 2;
     threshold = options.subdue.threshold * regularizationParam;
-    coarsityParam = 4;
     %% First inhibition is done via structural evaluation. 
     % If the structures of two different subs match, it is very likely that
     % they have same node sets. We must eliminate such cases.
@@ -84,7 +84,7 @@ function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combinePart
             
             %% For each sub, we will find matching ones with a cost.
             numberOfSubs = numel(vocabDescriptions);
-            matchedSubs = zeros(numberOfSubs,1);
+            matchedSubs = zeros(1, numberOfSubs)>0;
             subClasses = (1:numberOfSubs)';
             newSimilarityMatrix = zeros(numberOfSubs);
             
@@ -93,73 +93,50 @@ function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combinePart
             % rest of the parts are compared with the selected ones. When
             % comparison is over, the data structures are updated, and a
             % new set of parts are selected from remaining list.
- %           numberOfThreads = options.numberOfThreads;
-%             partStartIdx = 1;
-%  %           newSimilarityMatrix = newSimilarityMatrix(:);
-%             
-%             while true
-%                 % Select first numberOfThreads parts.
-%                 [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
-%                     numberOfThreads, maxDistance, threshold);
-%                 similarityMatrixEntries = cell(numberOfSubs-partStartIdx,1);
-%                 
-%                 for partItr = (partStartIdx+1):numberOfSubs
-%                     description = vocabDescriptions{partItr};
-%                     
-%                     newEntries = zeros(1, numel(selectedParts));
-%                     for partItr2 = 1:numel(selectedParts)
-%                         description2 = vocabDescriptions{selectedParts(partItr2)}; %#ok<PFBNS>
-%                         matchingCost = InexactMatch(description, description2, maxDistance);
-%                         if matchingCost <= threshold && selectedParts(partItr2) < partItr
-%                             matchedSubs(partItr) = 1;
-%                             subClasses(partItr) = selectedParts(partItr2);
-%                             break; %#ok<PFBR>
-%                         else
-%                             newEntries(partItr2) = matchingCost;
-%                         end
-%                     end
-%                     if ~matchedSubs(partItr)
-%                         similarityMatrixEntries{partItr} = newEntries;
-%                     end
-%                 end
-%                 
-%                 % Update the similarity matrix based on the new entries.
-%                 allEntries = cat(1, similarityMatrixEntries{:});
-%                 newSimilarityMatrix((partStartIdx+1):numberOfSubs, selectedParts) = allEntries;
-%                 newSimilarityMatrix(selectedParts, (partStartIdx+1):numberOfSubs) = allEntries';
-%                 
-%                 partStartIdx = partEndIdx;
-%             end
+            partStartIdx = 1;
+            oldSimMat = simMat;
+ %           newSimilarityMatrix = newSimilarityMatrix(:);
             
-            for subItr = 1:(numberOfSubs-1)
-                if ~matchedSubs(subItr) 
-                    % Get the description of this composition.
-                    description = vocabDescriptions{subItr};
-                    
-                    % Run inexact matching on every pair of subs.
-                    for subItr2 = (subItr+1):numberOfSubs
-                        if ~matchedSubs(subItr2)
-                            description2 = vocabDescriptions{subItr2};
-                            
-                            % Match the two descriptions in an inexact
-                            % manner. TODO: This part will be improved.
-                            matchingCost = InexactMatch(description, description2, maxDistance);
-                            
-                            % If they match, assign the class of the
-                            % first composition to that of the matching
-                            % one. TODO: This part will be improved to
-                            % assign each composition to its closest match,
-                            % not highest scoring match.
-                            if matchingCost <= threshold
-                                matchedSubs(subItr2) = 1;
-                                subClasses(subItr2) = subItr;
+            while partStartIdx < numberOfSubs
+                % Select first numberOfThreads parts.
+                [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
+                    matchedSubs, setSize, maxDistance, threshold);
+                similarityMatrixEntries = cell(numberOfSubs-partStartIdx,1);
+                
+                % If set is empty, we're at the end of the list.
+                if isempty(selectedParts)
+                    break;
+                end
+                   
+                % Check against the rest of the parts.
+                parfor partItr = (partStartIdx+1):numberOfSubs
+                    if ~matchedSubs(partItr)
+                        description = vocabDescriptions{partItr};
+
+                        newEntries = zeros(1, numel(selectedParts));
+                        for partItr2 = 1:numel(selectedParts)
+                            description2 = vocabDescriptions{selectedParts(partItr2)}; %#ok<PFBNS>
+                            matchingCost = InexactMatch(description, description2, maxDistance, oldSimMat);
+                            if matchingCost <= threshold && selectedParts(partItr2) < partItr
+                                matchedSubs(partItr) = 1;
+                                subClasses(partItr) = selectedParts(partItr2);
+                                break; 
                             else
-                                newSimilarityMatrix(subItr, subItr2) = matchingCost;
-                                newSimilarityMatrix(subItr2, subItr) = matchingCost;
+                                newEntries(partItr2) = matchingCost;
                             end
+                        end
+                        if ~matchedSubs(partItr)
+                            similarityMatrixEntries{partItr} = newEntries;
                         end
                     end
                 end
+                
+                % Update the similarity matrix based on the new entries.
+                allEntries = cat(1, similarityMatrixEntries{:});
+                nonemptyIdx = cellfun(@(x) ~isempty(x), similarityMatrixEntries);
+                newSimilarityMatrix(nonemptyIdx, selectedParts) = allEntries;
+                newSimilarityMatrix(selectedParts, nonemptyIdx) = allEntries';
+                partStartIdx = partEndIdx;
             end
             
             % Process the last sub, if it has not been assigned to any
@@ -197,30 +174,44 @@ end
 %> Updates
 %> Ver 1.0 on 10.07.2014
 function [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
-                    numberOfThreads, maxDistance, threshold)
+                    matchedSubs, numberOfThreads, maxDistance, threshold)
+    global simMat;
     selectedPartCount = 1;
     partEndIdx = partStartIdx + 1;
     selectedParts = zeros(numberOfThreads,1);
-    selectedParts(1) = partStartIdx;
+    firstPartIdx = find(~matchedSubs(partStartIdx:end), 1, 'first') + partStartIdx-1;
+    
+    % If no unmatched part exists, exit.
+    if isempty(firstPartIdx)
+        selectedParts = [];
+        partEndIdx = numel(vocabDescriptions) + 1;
+        return;
+    end
+    selectedParts(1) = firstPartIdx;
+    
+    % Select a number of initial parts.
     while selectedPartCount<numberOfThreads && partEndIdx <= numel(vocabDescriptions) 
-        matchFlag = false;
-        description = vocabDescriptions{partEndIdx};
-        
-        for partItr = 1:selectedPartCount
-            description2 = vocabDescriptions{selectedParts(partItr)};
-            matchingCost = InexactMatch(description, description2, maxDistance);
-            if matchingCost <= threshold
-                matchFlag = true;
-                break;
+        if ~matchedSubs(partEndIdx)
+            matchFlag = false;
+            description = vocabDescriptions{partEndIdx};
+
+            for partItr = 1:selectedPartCount
+                description2 = vocabDescriptions{selectedParts(partItr)};
+                matchingCost = InexactMatch(description, description2, maxDistance, simMat);
+                if matchingCost <= threshold
+                    matchFlag = true;
+                    break;
+                end
             end
-        end
-        
-        if ~matchFlag 
-            selectedPartCount = selectedPartCount+1;
-            selectedParts(selectedPartCount) = partEndIdx;
+
+            if ~matchFlag 
+                selectedPartCount = selectedPartCount+1;
+                selectedParts(selectedPartCount) = partEndIdx;
+            end
         end
         partEndIdx = partEndIdx+1;
     end
+    selectedParts = selectedParts(selectedParts>0);
 end
 
 %> Name: InexactMatch
@@ -244,9 +235,7 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 06.05.2014
-function [lowestCost] = InexactMatch(description, description2, maxDistance)
-    global simMat;
-    
+function [lowestCost] = InexactMatch(description, description2, maxDistance, simMat)
     % Get both descriptions to the same size.
     firstDesSize = size(description,1);
     secDesSize = size(description2,1);
