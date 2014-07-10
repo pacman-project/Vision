@@ -88,6 +88,49 @@ function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combinePart
             subClasses = (1:numberOfSubs)';
             newSimilarityMatrix = zeros(numberOfSubs);
             
+            % Here, we parallelize the part comparison process. In order to
+            % do that, numberOfThreads best parts are selected, while the
+            % rest of the parts are compared with the selected ones. When
+            % comparison is over, the data structures are updated, and a
+            % new set of parts are selected from remaining list.
+ %           numberOfThreads = options.numberOfThreads;
+%             partStartIdx = 1;
+%  %           newSimilarityMatrix = newSimilarityMatrix(:);
+%             
+%             while true
+%                 % Select first numberOfThreads parts.
+%                 [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
+%                     numberOfThreads, maxDistance, threshold);
+%                 similarityMatrixEntries = cell(numberOfSubs-partStartIdx,1);
+%                 
+%                 for partItr = (partStartIdx+1):numberOfSubs
+%                     description = vocabDescriptions{partItr};
+%                     
+%                     newEntries = zeros(1, numel(selectedParts));
+%                     for partItr2 = 1:numel(selectedParts)
+%                         description2 = vocabDescriptions{selectedParts(partItr2)}; %#ok<PFBNS>
+%                         matchingCost = InexactMatch(description, description2, maxDistance);
+%                         if matchingCost <= threshold && selectedParts(partItr2) < partItr
+%                             matchedSubs(partItr) = 1;
+%                             subClasses(partItr) = selectedParts(partItr2);
+%                             break; %#ok<PFBR>
+%                         else
+%                             newEntries(partItr2) = matchingCost;
+%                         end
+%                     end
+%                     if ~matchedSubs(partItr)
+%                         similarityMatrixEntries{partItr} = newEntries;
+%                     end
+%                 end
+%                 
+%                 % Update the similarity matrix based on the new entries.
+%                 allEntries = cat(1, similarityMatrixEntries{:});
+%                 newSimilarityMatrix((partStartIdx+1):numberOfSubs, selectedParts) = allEntries;
+%                 newSimilarityMatrix(selectedParts, (partStartIdx+1):numberOfSubs) = allEntries';
+%                 
+%                 partStartIdx = partEndIdx;
+%             end
+            
             for subItr = 1:(numberOfSubs-1)
                 if ~matchedSubs(subItr) 
                     % Get the description of this composition.
@@ -138,6 +181,45 @@ function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combinePart
             [graphLevel.labelId] = deal(IC{:});
             graphLevel = graphLevel(sortedIdx);
         end
+    end
+end
+
+%> Name: GetBestParts
+%>
+%> Description: 
+%>
+%> @param 
+%>
+%> @retval 
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 10.07.2014
+function [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
+                    numberOfThreads, maxDistance, threshold)
+    selectedPartCount = 1;
+    partEndIdx = partStartIdx + 1;
+    selectedParts = zeros(numberOfThreads,1);
+    selectedParts(1) = partStartIdx;
+    while selectedPartCount<numberOfThreads && partEndIdx <= numel(vocabDescriptions) 
+        matchFlag = false;
+        description = vocabDescriptions{partEndIdx};
+        
+        for partItr = 1:selectedPartCount
+            description2 = vocabDescriptions{selectedParts(partItr)};
+            matchingCost = InexactMatch(description, description2, maxDistance);
+            if matchingCost <= threshold
+                matchFlag = true;
+                break;
+            end
+        end
+        
+        if ~matchFlag 
+            selectedPartCount = selectedPartCount+1;
+            selectedParts(selectedPartCount) = partEndIdx;
+        end
+        partEndIdx = partEndIdx+1;
     end
 end
 
