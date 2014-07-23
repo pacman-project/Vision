@@ -1,0 +1,119 @@
+% this is to perform recognition of all levels of the hierarchy
+function [] = LayersRecognition()
+
+% define folders configuration
+root = 'D:\3D\LibHoP3D\';
+
+addpath([root,'utility']);
+addpath([root,'settings']);
+addpath([root,'categorization']);
+addpath([root,'Recognition']);
+
+% define the input data
+% depthPath = 'F:\STD Rendered\depth\';
+% depthPath_W = 'D:\3D\Input Data\Washington Cropped';
+depthPath = 'D:\3D\Input Data\Images for categorization\20_views_1Scale\images';
+
+depthPathDefault = [root, 'settings\list_depth.mat'];
+fileListPrecomputed = false; 
+is_subset = false; % whether we shall use all files for learning
+subset_len = 100; % how much shall we use
+subsetPercent = 0.10;
+
+% define and download the parameters
+ss = load('settings/sigma.mat');
+sigma = ss.sigma; % this is a sigma for gaussian derivative 
+sigmaKernelSize = 7; % ss.sigmaKernelSize; % size of the kernel for gaussian
+dxKernel = load('dxKernel.mat');
+dxKernel = dxKernel.dxKernel;
+nClusters = 9;
+combs = load('settings/combs10.mat');
+combs = combs.combs; % combinations for the line discretization function
+largestLine = 10; % for decomposition of the line discretization function
+
+% ------------ parameters for line discretization--------------------------
+% min [error + wOverlap * overlap - wCoverage*coverage ]
+wCoverage = 0.25;
+wOverlap = 0.2; 
+
+% --------Define the layers for recognition--------------------------------
+is_first_layer = false;
+is_second_layer = true; 
+is_third_layer = false;
+is_4th_layer = true; 
+is_5th_layer = false; 
+is_6th_layer = false;
+
+is_inhibition = false;
+is_downsampling = true;
+dowsample_rate = 2.5;
+
+areLayersRequired = [is_first_layer, is_second_layer, is_third_layer, is_4th_layer, is_5th_layer, is_6th_layer];
+% --------output files-----------------------------------------------------
+
+% outRoot = 'F:\STD Rendered_ coverage\2Layer';
+% outRoot = 'D:\3D\Input Data\WashingtonLayers\2Layer';
+
+outRoot = 'D:\3D\Input Data\Images for categorization\8view_1Scale\2nd layer\ElementsOpt_075';
+
+
+%--------------------------------------------------------------------------
+% forming a filelist here
+
+[list_depth, lenF] = extractFileList(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subset_len);
+% [list_depth, list_mask, ~, lenF] = extractFileListWashington(fileListPrecomputed, depthPath_W, depthPathDefault, is_subset, subsetPercent);
+
+% struct = load([root, 'settings/firstLayer']);
+% 
+% cluster1Centres = struct.cluster1Centres;
+% cluster1Lengths = struct.cluster1Lengths;
+% thresh = struct.thresh;
+load('settings/firswLayerW.mat');
+sigma = 1.7;
+
+%--------------------------------------------------------------------------
+
+if is_first_layer || is_second_layer 
+    computeCoverage(list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, nClusters, cluster1Centres, cluster1Lengths, thresh, ...
+                areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, is_inhibition, is_downsampling, dowsample_rate, depthPath_W);
+end
+
+% LIST_MASK - TO DELETE
+            
+if is_third_layer || is_4th_layer 
+    
+    elPath = 'D:\3D\Input Data\WashingtonLayers0.1\2Layer'; % second layer elements
+    fileListPrecomputed = false;
+    is_subset = false;
+    % [list_El, lenE] = extractFileList(fileListPrecomputed, elPath, elPath, is_subset, subset_len);
+    
+    [list_el, ~, ~, lenF] = extractFileListWashingtonForClassification(elPath, is_subset, 0.5);
+    
+    a = 2;
+    
+    n2Clusters = 81;
+    % read layers 3 and 4
+%     load('statistics\cluster3Depth.mat');
+%     load('statistics\Layer3_final.mat');
+%     load('statistics\triple3OutDepth.mat');
+
+    load([root, 'statistics/layer3_WashBest.mat']);          % triples3Out
+    load('statistics/layer4WashBest.mat');                  % triples4Out
+
+    n3Clusters = size(triples3Out, 1);
+    n4Clusters = size(triples4Out, 1);
+    
+    outRoot = 'D:\3D\Input Data\WashingtonLayers0.1\3layer';
+    
+    computeCoverage3_4(list_el, lenF, sigma, nClusters, n2Clusters, n3Clusters, n4Clusters, triples3Out, triples4Out, ...
+                areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, is_inhibition, is_downsampling, dowsample_rate, elPath);
+            
+            
+%     computeCoverage3_4(list_depth, list_El, lenF, sigma, nClusters, n2Clusters, n3Clusters, n4Clusters, triples3Out, triple3OutDepth, triples4Out, ...
+%             areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, is_inhibition);
+end
+
+
+
+
+

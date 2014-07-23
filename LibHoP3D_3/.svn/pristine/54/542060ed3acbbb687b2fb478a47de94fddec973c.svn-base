@@ -1,0 +1,302 @@
+% this is to compute coverage of the third and 4th layers
+
+% function [] = computeCoverage3_4(list_depth, list_El, lenF, sigma, nClusters, n2Clusters, n3Clusters, n4Clusters, triples3Out,  ...
+%                triple3OutDepth, triples4Out, areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, is_inhibition)
+
+function [] = computeCoverage3_4(list_El, lenF, sigma, nClusters, n2Clusters, n3Clusters, n4Clusters, triples3Out,  ...
+               triples4Out, areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, is_inhibition, is_downsampling, dowsample_rate, elPath)
+
+   
+    is_third_layer = areLayersRequired(3);
+    is_4th_layer = areLayersRequired(4);
+    
+    displ = 4;
+    hDispl = round(displ/2); % half displ
+    
+    lenDPW = length(elPath);
+    
+    isTrim = true;
+    isErrosion = false;
+    isX = false;
+    isY = false;
+    
+    % this parameters are not meaningful
+    discSize = 1;
+    dxKernel = 1;
+    sigmaKernelSize = 1;
+    
+    
+    table = zeros(n2Clusters, 2);
+    for i = 1:n2Clusters
+        [clusterX, clusterY] = compute2derivatives(i, nClusters);
+        table(i, 1) = clusterX;
+        table(i, 2) = clusterY;
+    end
+    
+    table3 = uint16(zeros(nClusters,nClusters,nClusters,nClusters,nClusters,nClusters));
+    table4 = uint16(zeros(n3Clusters, n3Clusters, n3Clusters));
+    
+    for iii = 1:n3Clusters
+        cur = triples3Out(iii,:);
+        table3(cur(1),cur(2),cur(3),cur(4),cur(5),cur(6)) = iii;
+    end
+    
+    for iii = 1:n4Clusters
+        cur = triples4Out(iii,:);
+        table4(cur(1),cur(2),cur(3)) = iii;
+    end
+    
+   parfor i = 1:lenF 
+        
+%         I = imread(list_depth{i}); 
+%         I = double(I);
+%         if is_downsampling
+%             I = imresize(I, dowsample_rate);
+%         end
+        marks2 = imread(list_El{i});
+        
+        % trim image I
+%         [I, ~, ~, ~, r, c, is_successfull] = preliminaryProcessing(I, isErrosion, discSize, isX, isY, isTrim, dxKernel, sigmaKernelSize, sigma);
+        
+        [r, c] = size(marks2);
+%         if r~=rEl || c ~= cEl
+%             disp('ERROR');
+%         end
+        
+        marks3 = zeros(r,c);
+        marks4 = zeros(r,c);
+        Imarks = zeros(r,c,3);
+        
+        [rows, cols] = find(marks2 > 0);
+        nEl = length(rows);
+        
+        for j = 1: nEl
+            
+            % check whether it is close to the boundary
+            if rows(j) < displ + 1  || rows(j) > r - displ  || cols(j) < displ + 1 || cols(j) > c - displ
+                continue;
+            else
+                
+                if rows(j) == 218 && cols(j) == 62
+                    a = 2;
+                end
+                central = marks2(rows(j), cols(j));
+%                 depth_centr =  I(rows(j), cols(j));
+                
+                clusterXC = table(central, 1);
+                clusterYC = table(central, 2);
+                
+                % check what are left and right neighbours
+                
+                lefts =  [marks2(rows(j), cols(j) - displ), marks2(rows(j), cols(j) - hDispl)];  % , marks2(rows(j), cols(j) - displ - hDispl)
+                rights = [marks2(rows(j), cols(j) + displ), marks2(rows(j), cols(j) + hDispl)];  % , marks2(rows(j), cols(j) + displ + hDispl)
+                indsL = find(lefts > 0);
+                indsR = find(rights > 0);
+
+                if (isempty(indsL)) || (isempty(indsR))
+                    continue;
+                end
+%                 depthsLeft =  [I(rows(j), cols(j) - displ), I(rows(j), cols(j) - hDispl)];
+%                 depthsRight = [I(rows(j), cols(j) + displ), I(rows(j), cols(j) + hDispl)];
+                lefts = lefts(indsL);
+                rights = rights(indsR);
+%                 depthsLeft = depthsLeft(indsL);
+%                 depthsRight = depthsRight(indsR);
+                
+                done = false; % local structure if matched to the vocabulary elements
+                ii = 1;
+                jj = 1;
+                
+                while (~done && ii <= length(indsL) && jj <= length(indsR))
+                    left = lefts(ii);
+                    right = rights(jj);
+%                     dLeft = depthsLeft(ii);
+%                     dRight = depthsRight(jj);
+                    
+                    clusterXL = table(left, 1);
+                    clusterYL = table(left, 2);
+                    clusterXR = table(right, 1);
+                    clusterYR = table(right, 2);
+                    
+%                     % this is a simulation of OR-nodes
+%                     if clusterXL == clusterXC-2 || clusterXL == clusterXC-3;
+%                         clusterXL = clusterXC-1;
+%                     elseif clusterXL == clusterXC+2 || clusterXL == clusterXC+3;
+%                         clusterXL = clusterXC+1;
+%                     end
+%                     
+%                     if clusterXR == clusterXC-2 || clusterXR == clusterXC-3;
+%                         clusterXR = clusterXC-1;
+%                     elseif clusterXR == clusterXC+2 || clusterXR == clusterXC+3;
+%                         clusterXR = clusterXC+1;
+%                     end
+
+                    
+                    el = [clusterXL, clusterYL, clusterXC, clusterYC, clusterXR, clusterYR];
+                    
+                    % matching
+                    
+                    curEl = table3(el(1), el(2), el(3), el(4), el(5), el(6));
+                    
+                    if curEl ~= 0
+                        marks3(rows(j), cols(j)) = curEl;
+                        done = true;
+%                     else % try nearest
+%                         for gg = 1:nuDim
+%                             adder = zeros(1,6);
+%                             adder(gg) = 1;
+%                             el = el + adder;
+%                             if max(el) < nClusters && min(el) > 0
+%                                 curEl = table3(el(1), el(2), el(3), el(4), el(5), el(6));
+%                             end
+%                         end
+                        
+                    end
+                    
+                    jj = jj+1; % increment loop variable
+                    if jj > length(indsR)
+                        jj = 1;
+                        ii = ii+1;
+                    end
+                    
+                end
+                               
+            end 
+        end
+        
+        
+        % ----------------------RECOGNITION OF THE 4TH LAYER HERE----------
+        
+        [rows, cols] = find(marks3 > 0);
+        nEl = length(rows);
+        
+        
+        for j = 1:nEl
+            
+            % check whether it is close to the boundary
+            if rows(j) < displ + 1  || rows(j) > r - displ  || cols(j) < displ + 1 || cols(j) > c - displ
+                continue;
+            else
+                central = marks3(rows(j), cols(j));
+%                 depth_centr =  I(rows(j), cols(j));
+                
+                
+                % check what are top and bottom neighbours
+                
+                tops =  [marks3(rows(j) - displ, cols(j)), marks3(rows(j) - hDispl, cols(j)), ...
+                         marks3(rows(j) - displ, cols(j) - hDispl), marks3(rows(j) - displ, cols(j) + hDispl) ]; 
+                
+                bottoms = [marks3(rows(j) + displ, cols(j)),  marks3(rows(j) + hDispl, cols(j)), ...
+                         marks3(rows(j) + displ, cols(j) - hDispl), marks3(rows(j) + displ, cols(j) + hDispl)];
+                
+%                 tops =  [marks3(rows(j) - displ, cols(j)),          marks3(rows(j) - hDispl, cols(j)), ...
+%                          marks3(rows(j) - displ, cols(j) - hDispl), marks3(rows(j) - displ, cols(j) + hDispl), ...
+%                          marks3(rows(j) - hDispl, cols(j)- hDispl), marks3(rows(j) - hDispl, cols(j)+ hDispl)]; 
+%                 
+%                 bottoms = [marks3(rows(j) + displ, cols(j)),          marks3(rows(j) + hDispl, cols(j)), ...
+%                          marks3(rows(j) + displ, cols(j) - hDispl), marks3(rows(j) + displ, cols(j) + hDispl), ...
+%                          marks3(rows(j) + hDispl, cols(j)- hDispl), marks3(rows(j) + hDispl, cols(j)+ hDispl)];
+                     
+                     
+                indsT = find(tops > 0);
+                indsB = find(bottoms > 0);
+
+                if (isempty(indsT)) || (isempty(indsB))
+                    continue;
+                end
+                
+%                 depthsTop =    [I(rows(j) - displ, cols(j)), I(rows(j) - hDispl, cols(j))];
+%                 depthsBottom = [I(rows(j) + displ, cols(j)), I(rows(j) + hDispl, cols(j))];
+
+                tops = tops(indsT);
+                bottoms = bottoms(indsB);
+                
+%                 depthsTop = depthsTop(indsT);
+%                 depthsBottom = depthsBottom(indsB);
+                
+                done = false; % local structure if matched to the vocabulary elements
+                ii = 1;
+                jj = 1;
+                
+                while (~done && ii <= length(indsT) && jj <= length(indsB))
+                    top = tops(ii);
+                    bottom = bottoms(jj);
+%                     dTop = depthsTop(ii);
+%                     dBottom = depthsBottom(jj);
+                    
+                    el = [top, central, bottom];
+                    
+%                     % this is imitation of the OR-nodes
+%                     el = orNode4(el, table3, triples3Out);
+                    
+                    % matching
+                    curEl = table4(el(1), el(2), el(3));
+                    
+                    if curEl ~= 0
+                        marks4(rows(j), cols(j)) = curEl;
+                        done = true;                 
+                    end
+                    
+                    jj = jj+1; % increment loop variable
+                    if jj > length(indsB)
+                        jj = 1;
+                        ii = ii+1;
+                    end
+                    
+                end
+                               
+            end 
+        end
+        
+        %---------------------------end of 4th layer recognition-----------
+        
+        if is_third_layer && is_4th_layer  % write the results somewhere
+            
+            shift = n2Clusters;
+            marks3 = marks3 + shift;
+            marks3(marks3 == shift) = 0;
+            
+%             imtool(I, [min(min(I)), max(max(I))]);
+%             imtool(marks3, [min(min(marks3)), max(max(marks3))]);
+%             imtool(marks4, [min(min(marks4)), max(max(marks4))]);
+            
+%             len = length(marks3>0)
+            
+            shift = n2Clusters + n3Clusters;
+            marks4 = marks4 + shift;
+            marks4(marks4 == shift) = 0;
+            
+            curStr = list_El{i};
+    %       ll = strfind(curStr, '/');
+    %       fileName = curStr(ll:end);
+
+            fileName = curStr(lenDPW+1:end);
+            outFile = [outRoot, fileName];
+
+            ll = strfind(outFile, '/');
+            ll = ll(end); % last position
+            folderName = outFile(1:ll);
+            b = exist(folderName,'dir');
+
+            if b == 0
+                mkdir(folderName);
+            end
+            
+            % create many dimensional feature vector
+            Imarks(:,:,1) = marks2;
+            Imarks(:,:,2) = marks3;
+            Imarks(:,:,3) = marks4;
+            Imarks = uint16(Imarks);
+            
+            imwrite(Imarks, outFile, 'png');
+        end
+
+      %  imtool(marks3, [min(min(marks3)), max(max(marks3))]);
+        if mod(i,10) == 0
+            i
+        end
+    end
+    
+
+        
+end
