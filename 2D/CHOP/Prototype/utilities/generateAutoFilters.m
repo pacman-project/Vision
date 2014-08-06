@@ -18,8 +18,14 @@ function [ ] = generateAutoFilters( datasetName )
     %% Step 1: Get program options and initialize variables.
     options = SetParameters(datasetName, true);
     datasetFolder = [options.currentFolder '/output/' datasetName '/original/'];
-    fileNames = fuf([datasetFolder '*.jpg'], 1, 'detail');
+    fileNames = fuf([datasetFolder '*.mask.0.png'], 1, 'detail');
     img = imread(fileNames{1});
+    if ~exist([options.currentFolder '/filters/auto'], 'dir')
+        mkdir([options.currentFolder '/filters/auto']);
+    else
+        rmdir([options.currentFolder '/filters/auto'], 's');
+        mkdir([options.currentFolder '/filters/auto']);
+    end
     
     if ~exist([options.currentFolder '/output/' datasetName '/C.mat'], 'file')
         %% Set initial variables for collecting data.
@@ -42,17 +48,17 @@ function [ ] = generateAutoFilters( datasetName )
             for sampleItr = 1:samplesPerImg
                 sample = img((centers(sampleItr,1)-lowOffset):(centers(sampleItr,1)+highOffset), ...
                     (centers(sampleItr,2)-lowOffset):(centers(sampleItr,2)+highOffset), :);
+                size(sample)
                 samples(sampleItr+sampleOffset, :) = sample(:)';
             end
             sampleOffset = sampleOffset + samplesPerImg;
         end
 
         %% Now, we'll apply ZCA whitening to all samples.
-        [Xwh, mu, invMat, whMat] = whiten(samples);
-
+        [Xwh, mu, invMat, whMat] = whiten(samples); %#ok<NASGU>
 
         %% Cluster whitened samples to get cluster centers.
-        [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster');
+        [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', 'EmptyAction', 'Singleton');
  %       [XwhLabeled] = mec(Xwh, 'c', options.autoFilterCount);
 
         %% Save cluster centers, along with other info.
@@ -60,21 +66,28 @@ function [ ] = generateAutoFilters( datasetName )
     else
         load([options.currentFolder '/output/' datasetName '/C.mat']);
     end
-    C = C*invMat + repmat(mu, [options.autoFilterCount,1]);
+    numberOfFilters = size(C,1);
+    C = C*invMat + repmat(mu, [numberOfFilters,1]);
     C = uint8(C);
     
     %% Visualize the centers as a grid image.
-    imageSize = [options.autoFilterVisX * options.autoFilterSize + (options.autoFilterVisX-1), ...
-        options.autoFilterVisY * options.autoFilterSize + (options.autoFilterVisY-1), size(img,3)];
+    visX = ceil(sqrt(numberOfFilters));
+    visY = ceil(numberOfFilters/visX);
+    imageSize = [visX * options.autoFilterSize + (visX-1), ...
+        visY * options.autoFilterSize + (visY-1), size(img,3)];
     finalImage = zeros(imageSize);
-    for xItr = 1:options.autoFilterVisX
-        for yItr = 1:options.autoFilterVisY
+    filterItr = 1;
+    for xItr = 1:visX
+        for yItr = 1:visY
+            gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, size(img,3)]);
             finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
-                ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = ...
-                reshape(C(((xItr-1)*options.autoFilterVisY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, size(img,3)]);
+                ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = gaborFilt;
+            imwrite(gaborFilt, [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
+            gaborFilt = double(gaborFilt)./double(max(gaborFilt(:)));
+            save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
+            filterItr = filterItr+1;
         end
     end
     imwrite(uint8(finalImage), [options.currentFolder '/output/' datasetName '/C.png']);
-    
 end
 

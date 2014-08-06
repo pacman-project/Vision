@@ -22,7 +22,6 @@
 %> Ver 1.3 on 17.01.2014 GT use implemented.
 function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     %% Step 1: Get grayscaled and binarized image.
-    rgbImg = img;
     if size(img,3)>1
         img = rgb2gray(img(:,:,1:3));
     end
@@ -45,33 +44,15 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     else
         gtMask = ones(size(doubleImg)) > 0;
     end
-    
-%     w     = 2;       % bilateral filter half-width
-%     sigma = [3 0.1]; % bilateral filter standard deviations
-%     edgeImg = bfilter2(double(edgeImg)/double(max(max(edgeImg))),w,sigma);
-%     edgeImg = uint8(edgeImg * 255);
-
     % Apply filtering to get better responses.
      myfilter = fspecial('gaussian',[3 3], 2);
      edgeImg = imfilter(edgeImg, myfilter, 'replicate', 'same', 'conv');
      edgeImg=medfilt2(edgeImg, [3,3]);
-%     limits = stretchlim(edgeImg);
-%     edgeImg = imadjust(edgeImg, limits, []);
-    
- %   limits = stretchlim(edgeImg, 0.05);
- %   edgeImg = imadjust(edgeImg, limits, []);
-    
-%     H = padarray(1,[2 2]) - fspecial('gaussian',[5 5], 1); % create unsharp mask
-%     myfilteredimage2 = imfilter(img, H, 'replicate', 'same', 'conv');
     
     %% Get response by applying each filter to the image.
     responseImgs = zeros(size(edgeImg,1), size(edgeImg,2), filterCount);
     for filtItr = 1:filterCount
-%         responseImg = zeros(size(edgeImg));
-%         for bandItr = 1:size(rgbImg,3)
-%             responseImg = max(responseImg, conv2(double(rgbImg(:,:,bandItr)), options.filters{filtItr}, 'same'));
-%         end
-       responseImg = conv2(double(edgeImg), options.filters{filtItr}, 'same');
+       responseImg = conv2(double(edgeImg), double(options.filters{filtItr}), 'same');
        % Save response for future processing
        responseImgs(:,:,filtItr) = responseImg;
     end
@@ -82,6 +63,9 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
    %    gaborFilterThr = 150;
        responseImgs(responseImgs<max(gaborFilterThr, options.absGaborFilterThr)) = 0;
    %     responseImgs(responseImgs<gaborFilterThr) = 0;
+   elseif strcmp(options.filterType, 'auto')
+       filterThr = options.autoFilterThr * max(max(max(responseImgs)));
+       responseImgs(responseImgs<filterThr) = 0;
    end
     
    %% Write smooth object boundaries to an image based on responseImgs.
@@ -91,7 +75,12 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
    
    %% Inhibit weak responses in vicinity of powerful peaks.
    inhibitionHalfSize = options.gabor.inhibitionRadius;
-   halfSize=floor(options.gaborFilterSize/2);
+   if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
+      filterSize = options.gaborFilterSize;
+   else
+      filterSize = options.autoFilterSize; 
+   end
+   halfSize=floor(filterSize/2);
    responseImgs([1:inhibitionHalfSize, (end-inhibitionHalfSize):end],:) = 0;
    responseImgs(:,[1:inhibitionHalfSize, (end-inhibitionHalfSize):end]) = 0;
    
@@ -141,35 +130,3 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
        nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY])};
    end
 end
-
-%> Name: getSmoothedImage
-%>
-%> Description: Writes each filter response to the output image to form a
-%> nearly correct reconstruction based on current responses.
-%>
-%> @param responseImgs Response images with the same number as filters.
-%> @param filters The filters applied.
-%>
-%> @retval smoothedImg The output response.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 12.01.2014
-function [smoothedImg] = getSmoothedImage(responseImgs, filters)
-    smoothedImg = zeros(size(responseImgs,1), size(responseImgs,2));
-    halfSize = floor(size(filters{1},1)/2);
-    responseImgs([1:(halfSize+1), (end-halfSize):end], :, :) = 0;
-    responseImgs(:, [1:(halfSize+1), (end-halfSize):end], :) = 0;
-    responseImgs = responseImgs/max(max(max(responseImgs)));
-    for filterItr = 1:size(filters,1)
-        [xInd, yInd, val] = find(responseImgs(:,:,filterItr));
-        for peakItr = 1:size(val,1)
-            smoothedImg((xInd(peakItr)-halfSize):(xInd(peakItr)+halfSize), ...
-                (yInd(peakItr)-halfSize):(yInd(peakItr)+halfSize)) = val(peakItr) * filters{filterItr};
-        end
-        smoothedImg = smoothedImg + conv2(responseImgs(:,:,filterItr), filters{filterItr}, 'same');
-    end
-    smoothedImg = smoothedImg/max(max(smoothedImg));
-end
-

@@ -28,9 +28,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
     
-    % Rest of the parameters in this section are obsolete, please ignore
-    % them.
-    options.numberOfAutoFilters = 100; % Number of Gabor filters at level 1.  
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
@@ -60,17 +57,14 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                         % responses than the seed node will
                                         % be surpressed.
     
-    options.autoFilterSize = 9;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 11;         % Size (one side) of a autodetected 
                                         % filter.
-    options.autoFilterCount = 64;      % Number of auto-detected filters.
+    options.autoFilterThr = 0.5;      % Min response threshold for convolved 
+                                       % features, taken as the percentage 
+                                       % of max response in each image.
+    options.autoFilterCount = 20;      % Number of auto-detected filters.
     options.autoFilterPatchCount = 50000; % Number of random patches used 
                                            % to find auto-detected filters.
-    options.autoFilterVisX = 8;        % Visualization parameters for 
-                                        % auto-generated filters. The
-                                        % filters are visualized in a
-                                        % grid-like image specified with
-                                        % these parameters.
-    options.autoFilterVisY = 8;
     
     %% ========== GT Parameters ==========
     options.useGT = true;              % If true, gt info is used. 

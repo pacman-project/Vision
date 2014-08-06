@@ -76,10 +76,13 @@ function [ filters ] = createFilters( options )
         end
     %% Auto-generated filters are basically clustered ZCA-whitened random patches. 
     elseif strcmp(options.filterType, 'auto')
-        filters = cell(options.numberOfAutoFilters,1);
-        for filtItr = 0:(options.numberOfAutoFilters-1)
-           load([options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) '.mat'], 'gaborFilt');
-           filters{filtItr+1} = gaborFilt;
+        filters = cell(options.autoFilterCount,1);
+        for filtItr = 0:(options.autoFilterCount-1)
+            fileName = [options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) '.mat'];
+            if exist(fileName, 'file')
+               load(fileName, 'gaborFilt');
+               filters{filtItr+1} = gaborFilt;
+            end
         end
     end
 end
