@@ -21,17 +21,19 @@
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
 %> Ver 1.3 on 17.01.2014 GT use implemented.
 function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
-    %% Step 1: Get grayscaled and binarized image.
-    if size(img,3)>1
-        img = rgb2gray(img(:,:,1:3));
+    %% Step 1: Get grayscaled image.
+    if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
+        if size(img,3)>1
+            img = rgb2gray(img(:,:,1:3));
+        end
+    else
+        whMat = options.auto.whMat;
+        invMat = options.auto.invMat;
+        mu = options.auto.mu;
     end
-    doubleImg = uint8(img);
-    
-    % Either binarize the image using Otsu, or extract edges using Canny.
-    %edgeImg = double(edge(doubleImg(:,:), 'canny'));
-%    edgeImg = im2bw(doubleImg, graythresh(doubleImg));
-    edgeImg = img;
     filterCount = numel(options.filters);
+    filterSize = size(options.filters{1});
+    filterBandSize = filterSize(1:2);
     
     %% Get gt info in the form of a mask.
     if options.useGT && ~isempty(gtFileName)
@@ -42,31 +44,68 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
             gtMask = imfill(gtMask, 'holes');
         end
     else
-        gtMask = ones(size(doubleImg)) > 0;
+        gtMask = ones(size(img(:,:,1))) > 0;
     end
-    % Apply filtering to get better responses.
-     myfilter = fspecial('gaussian',[3 3], 2);
-     edgeImg = imfilter(edgeImg, myfilter, 'replicate', 'same', 'conv');
-     edgeImg=medfilt2(edgeImg, [3,3]);
+    
+    % Apply denoising to get better responses.
+    for bandItr = 1:size(img,3);
+        myfilter = fspecial('gaussian',[3 3], 2);
+        img(:,:,bandItr) = imfilter(img(:,:,bandItr), myfilter, 'replicate', 'same', 'conv');
+        img(:,:,bandItr)=medfilt2(img(:,:,bandItr), [3,3]);
+        img = double(img);
+    end
     
     %% Get response by applying each filter to the image.
-    responseImgs = zeros(size(edgeImg,1), size(edgeImg,2), filterCount);
+    responseImgs = zeros(size(img,1), size(img,2), filterCount);
+    tempImgs = zeros(size(img,1), size(img,2), size(img,3));
+  %  filterBand = [];
     for filtItr = 1:filterCount
-       responseImg = conv2(double(edgeImg), double(options.filters{filtItr}), 'same');
-       % Save response for future processing
-       responseImgs(:,:,filtItr) = responseImg;
+        currentFilter = double(options.filters{filtItr});
+  %      currentFilterDim = currentFilter(:)';
+  %      currentFilterDim = currentFilterDim * invMat + mu;
+  %      currentFilter = reshape(currentFilterDim, size(currentFilter));
+  
+        if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
+            responseImg = conv2(img, currentFilter, 'same');
+        else
+            imgCols = zeros((size(img,1)-filterSize(1)+1) * (size(img,2)-filterSize(1)+1), prod(filterSize));
+            startIdx = 1;
+            iterator = prod(filterBandSize)-1;
+            for bandItr = 1:size(img,3)
+   %         filterBand = currentFilter(:,:,bandItr);
+                imgCols(:,startIdx:(startIdx+iterator)) = im2col(img(:,:,bandItr), filterBandSize)';
+                startIdx = startIdx + iterator + 1;
+            end
+            imgCols = imgCols - repmat(mu, [size(imgCols,1), 1]);
+            imgCols = imgCols * whMat;
+            imgCols = imgCols * currentFilter(:);
+            responses = imgCols-min(imgCols);
+            responseImg = zeros(size(img,1), size(img,2));
+            halfSize = ceil(filterSize(1)/2);
+            responseImg(halfSize:(end-halfSize+1), halfSize:(end-halfSize+1)) = reshape(responses, ...
+                [size(responseImg,1)-filterSize(1)+1, size(responseImg,2)-filterSize(1)+1]);
+        end
+            
+        % Save response for future processing
+        responseImgs(:,:,filtItr2) = responseImg;
     end
     
-   %% In Gabor-based features, we apply a minimum response threshold over response image.
-   if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
+%     function x = myConv(x)
+%         x = x - mu;
+%         x = x * whMat;
+%         x = sum(x*currentFilter);
+%     end
+    
+    %% In Gabor-based features, we apply a minimum response threshold over response image.
+    if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
        gaborFilterThr = options.gaborFilterThr * max(max(max(responseImgs)));
-   %    gaborFilterThr = 150;
+    %    gaborFilterThr = 150;
        responseImgs(responseImgs<max(gaborFilterThr, options.absGaborFilterThr)) = 0;
-   %     responseImgs(responseImgs<gaborFilterThr) = 0;
-   elseif strcmp(options.filterType, 'auto')
+    %     responseImgs(responseImgs<gaborFilterThr) = 0;
+    elseif strcmp(options.filterType, 'auto')
        filterThr = options.autoFilterThr * max(max(max(responseImgs)));
        responseImgs(responseImgs<filterThr) = 0;
-   end
+    end
     
    %% Write smooth object boundaries to an image based on responseImgs.
 %   smoothedImg = getSmoothedImage(responseImgs, options.filters);

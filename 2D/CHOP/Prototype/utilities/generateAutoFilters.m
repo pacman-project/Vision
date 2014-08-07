@@ -18,7 +18,7 @@ function [ ] = generateAutoFilters( datasetName )
     %% Step 1: Get program options and initialize variables.
     options = SetParameters(datasetName, true);
     datasetFolder = [options.currentFolder '/output/' datasetName '/original/'];
-    fileNames = fuf([datasetFolder '*.mask.0.png'], 1, 'detail');
+    fileNames = fuf([datasetFolder '*.jpg'], 1, 'detail');
     img = imread(fileNames{1});
     if ~exist([options.currentFolder '/filters/auto'], 'dir')
         mkdir([options.currentFolder '/filters/auto']);
@@ -48,8 +48,16 @@ function [ ] = generateAutoFilters( datasetName )
             for sampleItr = 1:samplesPerImg
                 sample = img((centers(sampleItr,1)-lowOffset):(centers(sampleItr,1)+highOffset), ...
                     (centers(sampleItr,2)-lowOffset):(centers(sampleItr,2)+highOffset), :);
-                size(sample)
-                samples(sampleItr+sampleOffset, :) = sample(:)';
+        %        size(sample)
+                newSample = zeros(1, numel(sample));
+                sampleStartItr = 1;
+                pixelsPerBand = size(sample,1) * size(sample,2) - 1;
+                for bandItr = 1:size(img,3)
+                   sampleInd = sample(:,:,bandItr);
+                   newSample(sampleStartItr:(sampleStartItr+pixelsPerBand)) = sampleInd;
+                   sampleStartItr = sampleStartItr + pixelsPerBand + 1;
+                end
+                samples(sampleItr+sampleOffset, :) = newSample;
             end
             sampleOffset = sampleOffset + samplesPerImg;
         end

@@ -29,7 +29,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'lhop': Steerable Gabor filters in LHOP 
                                   % are used as feature detectors.
@@ -63,7 +63,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                        % features, taken as the percentage 
                                        % of max response in each image.
     options.autoFilterCount = 20;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 50000; % Number of random patches used 
+    options.autoFilterPatchCount = 10000; % Number of random patches used 
                                            % to find auto-detected filters.
     
     %% ========== GT Parameters ==========
@@ -256,6 +256,13 @@ function [ options ] = SetParameters( datasetName, isTraining )
     if strcmp(options.property, 'co-occurence') && strcmp(options.reconstructionType, 'true')
         options.reconstructionType = 'leaf';
         display('"co-occurence" property and "true" reconstruction is incompatible. Switching to "leaf" type reconstruction.');
+    end
+    
+    if strcmp(options.filterType, 'auto') && exist([options.outputFolder '/C.mat'], 'file') 
+        load([options.outputFolder '/C.mat'], 'whMat', 'mu', 'invMat');
+        options.auto.whMat = whMat;
+        options.auto.invMat = invMat;
+        options.auto.mu = mu;
     end
 end
 
