@@ -59,35 +59,35 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     responseImgs = zeros(size(img,1), size(img,2), filterCount);
     tempImgs = zeros(size(img,1), size(img,2), size(img,3));
   %  filterBand = [];
+    imgCols = zeros((size(img,1)-filterSize(1)+1) * (size(img,2)-filterSize(1)+1), prod(filterSize));
+    startIdx = 1;
+    iterator = prod(filterBandSize)-1;
+    for bandItr = 1:size(img,3)
+%         filterBand = currentFilter(:,:,bandItr);
+        imgCols(:,startIdx:(startIdx+iterator)) = im2col(img(:,:,bandItr), filterBandSize)';
+        startIdx = startIdx + iterator + 1;
+    end
+    muArr = repmat(mu, [size(imgCols,1), 1]);
+    halfSize = ceil(filterSize(1)/2);
+  
     for filtItr = 1:filterCount
         currentFilter = double(options.filters{filtItr});
-  %      currentFilterDim = currentFilter(:)';
-  %      currentFilterDim = currentFilterDim * invMat + mu;
-  %      currentFilter = reshape(currentFilterDim, size(currentFilter));
   
         if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
             responseImg = conv2(img, currentFilter, 'same');
         else
-            imgCols = zeros((size(img,1)-filterSize(1)+1) * (size(img,2)-filterSize(1)+1), prod(filterSize));
-            startIdx = 1;
-            iterator = prod(filterBandSize)-1;
-            for bandItr = 1:size(img,3)
-   %         filterBand = currentFilter(:,:,bandItr);
-                imgCols(:,startIdx:(startIdx+iterator)) = im2col(img(:,:,bandItr), filterBandSize)';
-                startIdx = startIdx + iterator + 1;
-            end
-            imgCols = imgCols - repmat(mu, [size(imgCols,1), 1]);
-            imgCols = imgCols * whMat;
-            imgCols = imgCols * currentFilter(:);
-            responses = imgCols-min(imgCols);
+%            responseImg = mean(convn(img, currentFilter, 'same'), 3);
+            imgCols2 = imgCols - muArr;
+            imgCols2 = imgCols2 * whMat;
+            imgCols2 = imgCols2 * currentFilter(:);
+            responses = (imgCols2-min(imgCols2)) / (max(imgCols2) - min(imgCols2));
             responseImg = zeros(size(img,1), size(img,2));
-            halfSize = ceil(filterSize(1)/2);
             responseImg(halfSize:(end-halfSize+1), halfSize:(end-halfSize+1)) = reshape(responses, ...
                 [size(responseImg,1)-filterSize(1)+1, size(responseImg,2)-filterSize(1)+1]);
         end
             
         % Save response for future processing
-        responseImgs(:,:,filtItr2) = responseImg;
+        responseImgs(:,:,filtItr) = responseImg;
     end
     
 %     function x = myConv(x)
@@ -125,29 +125,45 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
    
    %% Here, we will run a loop till we clear all weak responses.
    peaks = find(responseImgs);
-   prevPeakCount = inf;
+%   prevPeakCount = inf;
    peakCount = numel(peaks);
-   while prevPeakCount ~= peakCount
-       [xInd, yInd, ~] = ind2sub(size(responseImgs), peaks);
-       for peakItr = 1:size(peaks,1)
-          % If this peak has not yet been eliminated, go check nearby peaks
-          if responseImgs(peaks(peakItr)) > 0 
-              nearbyPeakIdx = xInd >= (xInd(peakItr) - inhibitionHalfSize) & xInd <= (xInd(peakItr) + inhibitionHalfSize) & ...
-                  yInd >= (yInd(peakItr) - inhibitionHalfSize) & yInd <= (yInd(peakItr) + inhibitionHalfSize);
-
-              maxPeak = max(responseImgs(peaks(nearbyPeakIdx)));
-              if responseImgs(peaks(peakItr)) > (maxPeak-0.0001)
-                 nearbyPeakIdx(peakItr) = 0;
-                 responseImgs(peaks(nearbyPeakIdx)) = 0; 
-              else
-       %          responseImgs(peaks(peakItr)) = 0;
-              end
-          end
+   [~, orderedPeakIdx] = sort(responseImgs(peaks), 'descend');
+   orderedPeaks = peaks(orderedPeakIdx);
+   validPeaks = ones(size(orderedPeaks))>0;
+   [xInd, yInd, ~] = ind2sub(size(responseImgs), orderedPeaks);
+   for peakItr = 1:(peakCount-1)
+       if validPeaks(peakItr)
+           nextPeakItr = peakItr+1;
+           nearbyPeakIdx = ~(xInd(nextPeakItr:end) >= (xInd(peakItr) - inhibitionHalfSize) & xInd(nextPeakItr:end) <= (xInd(peakItr) + inhibitionHalfSize) & ...
+                yInd(nextPeakItr:end) >= (yInd(peakItr) - inhibitionHalfSize) & yInd(nextPeakItr:end) <= (yInd(peakItr) + inhibitionHalfSize));
+           validPeaks(nextPeakItr:end) = nearbyPeakIdx & validPeaks(nextPeakItr:end);
        end
-       prevPeakCount = peakCount;
-       peaks = find(responseImgs);
-       peakCount = numel(peaks);
    end
+   responseImgs(orderedPeaks(~validPeaks)) = 0;
+%   peaks = find(validPeaks);
+%   peakCount = numel(peaks);
+%    
+%    while prevPeakCount ~= peakCount
+%        [xInd, yInd, ~] = ind2sub(size(responseImgs), peaks);
+%        for peakItr = 1:size(peaks,1)
+%           % If this peak has not yet been eliminated, go check nearby peaks
+%           if responseImgs(peaks(peakItr)) > 0 
+%               nearbyPeakIdx = xInd >= (xInd(peakItr) - inhibitionHalfSize) & xInd <= (xInd(peakItr) + inhibitionHalfSize) & ...
+%                   yInd >= (yInd(peakItr) - inhibitionHalfSize) & yInd <= (yInd(peakItr) + inhibitionHalfSize);
+% 
+%               maxPeak = max(responseImgs(peaks(nearbyPeakIdx)));
+%               if responseImgs(peaks(peakItr)) > (maxPeak-0.0001)
+%                  nearbyPeakIdx(peakItr) = 0;
+%                  responseImgs(peaks(nearbyPeakIdx)) = 0; 
+%               else
+%        %          responseImgs(peaks(peakItr)) = 0;
+%               end
+%           end
+%        end
+%        prevPeakCount = peakCount;
+%        peaks = find(responseImgs);
+%        peakCount = numel(peaks);
+%    end
    
    % Write the responses in the final image.
    responseImgs = double(responseImgs>0);
