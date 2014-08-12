@@ -21,7 +21,7 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
     useReceptiveField = options.useReceptiveField;
-    
+    filtBandCount = size(options.filters{1},3);
     numberOfThreads = options.numberOfThreads;
     %% Create output folder structure.
     reconstructionDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/'];
@@ -54,15 +54,17 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
         prevLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId-1) '/reconstruction/'];
         numberOfNodes = numel(currentLevel);
         prevNodeMasks = cell(numberOfPrevNodes,1);
+        avgPrevNodeMasks = cell(numberOfPrevNodes,1);
         patchHalfDims = zeros(numberOfPrevNodes,2);
         lowResponseThrs = zeros(numberOfPrevNodes,1);
         
         for nodeItr = 1:numberOfPrevNodes
             tempImg = double(imread([prevLevelDir num2str(nodeItr) '.png']));
-            tempImg = (tempImg - min(min(tempImg))) / (max(max(tempImg)) - min(min(tempImg)));
+            tempImg = (tempImg - min(min(min(tempImg)))) / (max(max(max(tempImg))) - min(min(min(tempImg))));
             prevNodeMasks(nodeItr) = {tempImg};
-            patchHalfDims(nodeItr,:) = size(prevNodeMasks{nodeItr})/2;
-            lowResponseThrs(nodeItr) = max(max(tempImg))/10;
+            avgPrevNodeMasks(nodeItr) = {mean(tempImg,3)};
+            patchHalfDims(nodeItr,:) = [size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)]/2;
+            lowResponseThrs(nodeItr) = max(max(max(tempImg)))/10;
         end
         
         %% To parallelize things, we put vocabulary nodes in different sets, and give each to a thread.
@@ -187,14 +189,14 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
                 childrenCoords = round(childrenCoords - [ones(numel(children),1) * maskMinX, ones(numel(children),1) * maskMinY]);
 
                 %% Write the children's masks to the current mask.
-                currentMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
+                currentMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
                 currentLabelMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
                 for childItr = 1:numel(children)
                       currentMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
-                          (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))) = ...
+                          (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2))),:) = ...
                           prevNodeMasks{children(childItr)} + ...
                               currentMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
-                                  (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2))));
+                                  (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2))),:);
 %                       currentMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
 %                           (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))) = ...
 %                           max(prevNodeMasks{children(childItr)}, ...
@@ -208,22 +210,26 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
                          (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))) = ...
                                  max(currentLabelMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
                          (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))), ...
-                         double(prevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
+                         double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
                 end
                 currentLabelImg = label2rgb(currentLabelMask, 'jet', 'k', 'noshuffle');
                 for bandItr = 1:3
-                    currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask);
+                    if filtBandCount>1
+                        currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask(:,:,bandItr));
+                    else
+                        currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask);
+                    end
                 end
                 
                 %% If the size of the current mask can be divided by two, pad sides to prevent this.
                 dimRems = rem(size(currentMask),2);
                 if dimRems(1) == 0
-                    currentMask = [currentMask; zeros(1, size(currentMask,2))];
+                    currentMask = [currentMask; zeros(1, size(currentMask,2), size(currentMask,3))];
                 end
                 if dimRems(2) == 0
-                    currentMask = [currentMask, zeros(size(currentMask,1), 1)];
+                    currentMask = [currentMask, zeros(size(currentMask, 1), 1, size(currentMask,3))];
                 end
-                currentMask = (currentMask - min(min(currentMask))) / (max(max(currentMask)) - min(min(currentMask)));
+                currentMask = (currentMask - min(min(min(currentMask)))) / (max(max(max(currentMask))) - min(min(min(currentMask))));
                 
                 %% Print the files to output folders.
                 if isRedundant

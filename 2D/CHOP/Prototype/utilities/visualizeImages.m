@@ -67,7 +67,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     end
     
     %% Go over the list of images and run reconstruction.
-    for fileItr = 1:numel(fileList)
+    parfor fileItr = 1:numel(fileList)
         nodeOffset = numel(find(imageIds<fileItr));
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
