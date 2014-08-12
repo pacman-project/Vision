@@ -208,8 +208,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
-    options.subdue.beam = 200;   % Beam length in SUBDUE
+    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
+    options.subdue.beam = 20;   % Beam length in SUBDUE
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
                                  % with this.
     

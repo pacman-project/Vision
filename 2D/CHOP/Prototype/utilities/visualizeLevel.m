@@ -42,8 +42,10 @@ function [] = visualizeLevel( currentLevel, levelId, modes, numberOfPrevNodes, o
         numberOfNodes = numel(currentLevel);
         for nodeItr = 1:numberOfNodes
             mask = double(imread([filterDir 'filt' num2str(nodeItr) '.png']));
-            mask = imresize(mask, size(mask)*2-3);
-            mask = (mask - min(min(mask))) / (max(max(mask)) - min(min(mask)));
+            if size(mask,1)==1
+                mask = imresize(mask, size(mask)*2-3);
+            end
+            mask = (mask - min(min(min(mask)))) / (max(max(max(mask))) - min(min(min(mask))));
             imwrite(mask, [reconstructionDir num2str(nodeItr) '.png']);
         end
     else

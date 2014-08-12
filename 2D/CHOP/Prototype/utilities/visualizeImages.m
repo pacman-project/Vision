@@ -26,7 +26,8 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     if strcmp(imageReconstructionType, 'individual') && levelItr < options.minIndividualReconstructionLevel
         return;
     end
-    
+    filter1 = options.filters{1};
+    filtBandCount = size(filter1,3);
     
     %% Depending on the reconstruction type, we read masks to put on correct positions in images.
     if strcmp(options.reconstructionType, 'true')
@@ -66,7 +67,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     end
     
     %% Go over the list of images and run reconstruction.
-    parfor fileItr = 1:numel(fileList)
+    for fileItr = 1:numel(fileList)
         nodeOffset = numel(find(imageIds<fileItr));
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
@@ -91,7 +92,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
         end
             
         originalImg = actualImg;
-        reconstructedMask = zeros(size(img,1), size(img,2), 'uint8');
+        reconstructedMask = zeros(size(img,1), size(img,2), filtBandCount, 'uint8');
         labeledReconstructedMask = zeros(size(img,1), size(img,2));
         sizeOfImage = [size(img,1), size(img,2)];
         
@@ -124,7 +125,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             if strcmp(imageReconstructionType, 'individual')
                 actualImg = originalImg;
                 labeledReconstructedMask = zeros(size(img,1), size(img,2), 'uint8');
-                reconstructedMask = labeledReconstructedMask;
+                reconstructedMask = zeros(size(img,1), size(img,2), filtBandCount, 'uint8');
                 labeledReconstructedMask(end,end) = 255;
             end
             
@@ -173,10 +174,11 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                  reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+halfSize(2)));
                  
+                 avgNodeMask = mean(nodeMask,3);
                  if strcmp(imageReconstructionType, 'all')
-                     reconstructedPatch(nodeMask > 10) = nodes(nodeItr).labelId;
+                     reconstructedPatch(avgNodeMask > 10) = nodes(nodeItr).labelId;
                  elseif levelItr>1
-                     reconstructedPatch(nodeMask > 10) = round(255*(mdlScore/maxMdlScore));
+                     reconstructedPatch(avgNodeMask > 10) = round(255*(mdlScore/maxMdlScore));
                  end
                     
                  labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
@@ -187,15 +189,15 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             labeledReconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
                 (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1)) = nodes(nodeItr).labelId;
             reconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
-                (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1)) = 255;
+                (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1),:) = 255;
             
             %% Print this sub to a separate mask, if needed.
             if strcmp(imageReconstructionType, 'individual')
                 rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k');
-
+                meanReconstructedMask = mean(reconstructedMask,3);
                 for bandItr = 1:size(rgbImg,3)
-                    rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask>0))) + ...
-                    actualImg(:,:,bandItr) .* uint8(reconstructedMask==0);
+                    rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(meanReconstructedMask>0))) + ...
+                    actualImg(:,:,bandItr) .* uint8(meanReconstructedMask==0);
                 end 
 
                 % Write to output file.
@@ -211,9 +213,14 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             % and overlay the gabors with the original image.
             rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k');
             %% Write the original image to a mask.
+            if size(reconstructedMask,3)>1
+                assignedBands = 1:size(reconstructedMask,3);
+            else
+                assignedBands = ones(size(reconstructedMask,3),1);
+            end
             for bandItr = 1:size(rgbImg,3)
-                rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask)/255)) + ...
-                actualImg(:,:,bandItr) .* uint8(reconstructedMask==0);
+                rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask(:,:,assignedBands(bandItr)))/255)) + ...
+                actualImg(:,:,bandItr) .* uint8(reconstructedMask(:,:,assignedBands(bandItr))==0);
             end 
 
             %% Add edges to the image for visualization.
