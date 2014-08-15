@@ -62,8 +62,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.autoFilterThr = 0.5;      % Min response threshold for convolved 
                                        % features, taken as the percentage 
                                        % of max response in each image.
-    options.autoFilterCount = 20;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 10000; % Number of random patches used 
+    options.autoFilterCount = 100;      % Number of auto-detected filters.
+    options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
     
     %% ========== GT Parameters ==========
