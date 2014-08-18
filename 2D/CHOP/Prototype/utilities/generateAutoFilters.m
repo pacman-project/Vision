@@ -17,8 +17,8 @@
 function [ ] = generateAutoFilters( datasetName )
     %% Step 1: Get program options and initialize variables.
     options = SetParameters(datasetName, true);
-    datasetFolder = [options.currentFolder '/output/' datasetName '/original/'];
-    fileNames = fuf([datasetFolder '*.jpg'], 1, 'detail');
+    datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
+    fileNames = fuf([datasetFolder '*.png'], 1, 'detail');
     img = imread(fileNames{1});
     if ~exist([options.currentFolder '/filters/auto'], 'dir')
         mkdir([options.currentFolder '/filters/auto']);
@@ -28,6 +28,9 @@ function [ ] = generateAutoFilters( datasetName )
     end
     
     if ~exist([options.currentFolder '/output/' datasetName '/C.mat'], 'file')
+        if ~exist([options.currentFolder '/output/' datasetName], 'dir')
+            mkdir([options.currentFolder '/output/' datasetName]);
+        end
         %% Set initial variables for collecting data.
         lowOffset = floor((options.autoFilterSize-1)/2);
         highOffset = floor(options.autoFilterSize/2);
@@ -66,7 +69,9 @@ function [ ] = generateAutoFilters( datasetName )
         [Xwh, mu, invMat, whMat] = whiten(samples); %#ok<NASGU>
 
         %% Cluster whitened samples to get cluster centers.
-        [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', 'EmptyAction', 'Singleton');
+        opts = statset('MaxIter', 300);
+        [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', ...
+            'EmptyAction', 'Singleton', 'Replicates', 3, 'Options', opts);
  %       [XwhLabeled] = mec(Xwh, 'c', options.autoFilterCount);
 
         %% Save cluster centers, along with other info.

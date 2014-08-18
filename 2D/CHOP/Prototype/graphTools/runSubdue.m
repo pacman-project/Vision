@@ -229,6 +229,7 @@ function singleNodeSubs = getSingleNodeSubs(~)
     global globalLabels globalSigns
     numberOfSubs = max(globalLabels);
     singleNodeSubs(numberOfSubs) = Substructure();
+    validSubs = ones(numberOfSubs,1)>0;
     
     %% For each center node label type, we create a substructure.
     for subItr = 1:numberOfSubs
@@ -241,16 +242,23 @@ function singleNodeSubs = getSingleNodeSubs(~)
         
         % Give maximum score so that it is at the top of things.
         singleNodeSubs(subItr).mdlScore = numberOfInstances;
-        singleNodeInstances(numberOfInstances) = Instance();
-        
-        % Fill in instance information. 
-        instanceIdx = globalLabels == subItr;
-        subNodeAssgnArr = num2cell([find(instanceIdx), globalSigns(instanceIdx,1)]);
-        [singleNodeInstances.centerIdx, singleNodeInstances.sign] = deal(subNodeAssgnArr{:});
-        
-        singleNodeSubs(subItr).instances = singleNodeInstances;
-        clear singleNodeInstances;
+        if numberOfInstances>0
+            singleNodeInstances(numberOfInstances) = Instance(); %#ok<AGROW>
+
+            % Fill in instance information. 
+            instanceIdx = globalLabels == subItr;
+            subNodeAssgnArr = num2cell([find(instanceIdx), globalSigns(instanceIdx,1)]);
+            [singleNodeInstances.centerIdx, singleNodeInstances.sign] = deal(subNodeAssgnArr{:});
+
+            singleNodeSubs(subItr).instances = singleNodeInstances;
+            clear singleNodeInstances;
+        else
+            validSubs(subItr) = 0;
+        end
     end
+    
+    % Eliminate those with no instances.
+    singleNodeSubs = singleNodeSubs(validSubs);
 end
 
 %> Name: extendSub

@@ -27,11 +27,40 @@ function [ simMat ] = createSimilarityMatrix( options )
         % Oh god.. Shakespeare would be proud.
     elseif strcmp(options.filterType, 'auto')
         filters = options.filters;
+        cogFilters = cell(numel(filters),1);
+        numberOfFilters = numel(filters);
         simMat = zeros(numel(filters));
-        for filtItr = 1:(numel(filters)-1)
+        filterSize = [size(filters{1},1), size(filters{1},2)];
+        binaryMask = true(filterSize);
+        cogs = zeros(numel(filters),2);
+        trueCenter = round(filterSize/2);
+        
+        % Find center of gravity for each filter, and center it around its
+        % cog to estimate correct distance between pairs of filters.
+        for filtItr = 1:numel(filters)
             filter1 = filters{filtItr};
-            for filtItr2 = (filtItr+1):numel(filters)
-                filter2 = filters{filtItr2};
+            
+            if size(filter1,3) > 1
+                filter1Gray = mean(filter1,3);
+            else
+                filter1Gray = filter1;
+            end
+            measurements = regionprops(binaryMask, filter1Gray, 'WeightedCentroid');
+            cogs(filtItr,[2 1]) = round(measurements(1).WeightedCentroid);
+            halfDims = min((cogs(filtItr,:)-1), filterSize - cogs(filtItr,:));
+            newFilter = zeros(size(filter1), class(filter1));
+            newFilter((trueCenter(1)-halfDims(1)):(trueCenter(1)+halfDims(1)), ...
+                (trueCenter(2)-halfDims(2)):(trueCenter(2)+halfDims(2)), :) = ...
+                filter1((cogs(filtItr,1)-halfDims(1)):(cogs(filtItr,1)+halfDims(1)), ...
+                (cogs(filtItr,2)-halfDims(2)):(cogs(filtItr,2)+halfDims(2)), :);
+            cogFilters(filtItr) = {newFilter};
+        end
+        
+        % Find similarity between each pair of filters (cog-normalized).
+        for filtItr = 1:(numberOfFilters-1)
+            filter1 = cogFilters{filtItr};
+            for filtItr2 = (filtItr+1):numberOfFilters
+                filter2 = cogFilters{filtItr2};
                 distance = sqrt(sum(sum(sum((filter1-filter2).^2))));
                 simMat(filtItr, filtItr2) = distance;
                 simMat(filtItr2, filtItr) = distance;
@@ -42,4 +71,3 @@ function [ simMat ] = createSimilarityMatrix( options )
         simMat = [];
     end
 end
-

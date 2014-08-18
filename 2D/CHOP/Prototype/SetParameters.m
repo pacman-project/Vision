@@ -50,14 +50,15 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)+2;
+    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
+    %options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
                                         % The inhibition radius basically 
                                         % defines the half of the cube's
                                         % size in which other weaker
                                         % responses than the seed node will
                                         % be surpressed.
     
-    options.autoFilterSize = 11;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 9;         % Size (one side) of a autodetected 
                                         % filter.
     options.autoFilterThr = 0.5;      % Min response threshold for convolved 
                                        % features, taken as the percentage 
@@ -107,12 +108,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % specific part pair is reduced
                                           % automatically to match this
                                           % number, if possible.
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.7;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
                                        % stays the same while images are 
-                                       % downsampled.
+                                       % downsampled. DEFAULT 0.5
     options.edgeType = 'centroid';      % If 'contour', the nodes in upper layers 
                                        % are linked if their leaf nodes are 
                                        % neighbors in the first layer.If
@@ -149,7 +150,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*5;
+    options.receptiveFieldSize = options.gaborFilterSize*4; % DEFAULT 5
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
@@ -188,7 +189,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 1200;           % Max. number of seconds 'self' 
+    options.subdue.maxTime = 3600;           % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -208,8 +209,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
-    options.subdue.beam = 20;   % Beam length in SUBDUE
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
+    options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
                                  % with this.
     

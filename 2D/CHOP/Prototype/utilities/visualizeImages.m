@@ -216,7 +216,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             if size(reconstructedMask,3)>1
                 assignedBands = 1:size(reconstructedMask,3);
             else
-                assignedBands = ones(size(reconstructedMask,3),1);
+                assignedBands = ones(size(rgbImg,3),1);
             end
             for bandItr = 1:size(rgbImg,3)
                 rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask(:,:,assignedBands(bandItr)))/255)) + ...
