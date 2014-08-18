@@ -53,7 +53,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
     
     %% Print first vocabulary and graph level.
     if options.debug
-        visualizeLevel( vocabulary{1}, 1, previousModes, 0, options, 0);
+        visualizeLevel( vocabulary{1}, [], [], [], 1, previousModes, 0, options, 0);
         imwrite(similarityMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_sim.png']);
   %      visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
     end
@@ -185,7 +185,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
                    imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
                end
                if ~isempty(modes)
-                    visualizeLevel( vocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 0);
+                    visualizeLevel( vocabLevel, graphLevel, leafNodes, similarityMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 0);
                     if ~isempty(redundantVocabLevel)
                         visualizeLevel( redundantVocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 1);
                     end

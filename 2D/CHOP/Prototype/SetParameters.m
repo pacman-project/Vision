@@ -143,6 +143,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % type image reconstruction is
                                          % used, all realizations are
                                          % written in a single image.
+    options.vis.nodeReconstructionChildren = 200;
     options.minIndividualReconstructionLevel = 4;   % Minimum image reconstruction 
                                          % level for individual part
                                          % printing. At least 1.
@@ -189,7 +190,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 3600;           % Max. number of seconds 'self' 
+    options.subdue.maxTime = 100;           % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -209,8 +210,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
-    options.subdue.beam = 200;   % Beam length in SUBDUE
+    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
+    options.subdue.beam = 20;   % Beam length in SUBDUE
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
                                  % with this.
     
