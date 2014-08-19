@@ -162,7 +162,8 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
                    (max(childrenCounts, repmat(childrenCounts(partItr), 1, numberOfRemainingComps)) * 2 - 1);
             end
         end
-        similarityMatrices{levelItr} = newSimilarityMatrix / max(max(newSimilarityMatrix));
+        newSimilarityMatrix = newSimilarityMatrix / max(max(newSimilarityMatrix));
+        similarityMatrices{levelItr} = newSimilarityMatrix;
         
         %% Calculate statistics from this graph.
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);

@@ -18,7 +18,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafSimilarityMatrix, levelId, ~, numberOfPrevNodes, options, isRedundant)
+function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceMatrix, levelId, ~, numberOfPrevNodes, options, isRedundant)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -32,6 +32,9 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafSimilarit
         % localization of children in general cases.
         return;
     end
+    
+    % Turn leaf distance matrix into leaf similarity matrix.
+    leafSimilarityMatrix = (max(max(leafDistanceMatrix)) - leafDistanceMatrix) / max(max(leafDistanceMatrix));
     
     %% Learn positions of leaf nodes.
     if levelId > 1
@@ -106,6 +109,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafSimilarit
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
+%        parfor setItr = 1:numberOfThreadsUsed
         parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
@@ -129,21 +133,23 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafSimilarit
                    children = children(1:childrenPerNode,:);
                    childrenCoords = childrenCoords(1:childrenPerNode,:);
                 end
-                numberOfChildren = numel(children);
+%                numberOfChildren = numel(children);
                 
                 %% Give weight the children to get a cleaner representation of the average image for the node.
                 % First, we learn base scores, which essentially describe
-                % how close each child is to each other. A child does not
+                % how close each child is to each other. A child does
                 % contribute to itself.
                 distMatrix = squareform(pdist(childrenCoords));
                 maxDist = max(max(distMatrix));
-                scoreMatrix = (maxDist - distMatrix) / maxDist;
-                diagIdx = 1:(numberOfChildren+1):numberOfChildren*numberOfChildren;
-                scoreMatrix( diagIdx ) = 0;
+                scoreMatrix = exp(maxDist - distMatrix);
+                maxDist = max(max(scoreMatrix));
+                scoreMatrix = scoreMatrix / maxDist;
+%                diagIdx = 1:(numberOfChildren+1):numberOfChildren*numberOfChildren;
+%                scoreMatrix( diagIdx ) = 0;
                 
                 % Now, weight the scores by the similarity matrix entries.
                 weightMatrix = leafSimilarityMatrix(children, children);
-                weightMatrix = max(max(weightMatrix)) - weightMatrix;
+%                weightMatrix = max(max(weightMatrix)) - weightMatrix;
                 
                 % Multiply score matrix by weight matrix to get weighted
                 % scores (element by element).
@@ -152,7 +158,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafSimilarit
                 scoreMatrix = scoreMatrix / max(scoreMatrix);
                 
                 % Take exponentials of score matrix.
-                scoreMatrix = scoreMatrix.^3;
+%                scoreMatrix = scoreMatrix.^6;
                 
                 %% At this point, we have the relative coordinates of all children. 
                 % All we will do is to create an empty mask large enough, and
