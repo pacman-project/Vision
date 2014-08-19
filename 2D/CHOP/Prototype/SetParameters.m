@@ -108,7 +108,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                           % specific part pair is reduced
                                           % automatically to match this
                                           % number, if possible.
-    options.scaling = 0.7;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Changes
                                        % formation of edges in upper
                                        % layers, since edge radius
@@ -151,7 +151,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*4; % DEFAULT 5
+    options.receptiveFieldSize = options.gaborFilterSize*5; % DEFAULT 5
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the
@@ -190,7 +190,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 100;           % Max. number of seconds 'self' 
+    options.subdue.maxTime = 1800;           % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).
@@ -205,13 +205,13 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.05; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.075; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition
-    options.subdue.nsubs = 100;  % Maximum number of nodes allowed in a level
-    options.subdue.beam = 20;   % Beam length in SUBDUE
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level
+    options.subdue.beam = 200;   % Beam length in SUBDUE
     options.subdue.winSep = '\'; % If windows, we replace '/' in command line
                                  % with this.
     

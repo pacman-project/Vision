@@ -106,7 +106,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafSimilarit
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-        for setItr = 1:numberOfThreadsUsed
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -206,14 +206,16 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafSimilarit
                          (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))), ...
                          double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
                 end
-                currentLabelImg = label2rgb(currentLabelMask, 'jet', 'k', 'noshuffle');
-                for bandItr = 1:3
-                    if filtBandCount>1
-                        currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask(:,:,bandItr));
-                    else
-                        currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask);
-                    end
-                end
+                currentMask = ( currentMask - min(min(min(currentMask)))) / (max(max(max(currentMask))) - min(min(min(currentMask))));
+%                currentLabelImg = label2rgb(currentLabelMask, 'jet', 'k', 'noshuffle');
+%                 for bandItr = 1:3
+%                     if filtBandCount>1
+%                         currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask(:,:,bandItr));
+%                     else
+%                         currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask);
+%                     end
+%                 end
+                currentLabelImg = currentMask;
                 
                 %% If the size of the current mask can be divided by two, pad sides to prevent this.
                 dimRems = rem(size(currentMask),2);

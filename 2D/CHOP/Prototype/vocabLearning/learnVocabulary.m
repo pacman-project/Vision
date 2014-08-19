@@ -187,7 +187,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
                if ~isempty(modes)
                     visualizeLevel( vocabLevel, graphLevel, leafNodes, similarityMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 0);
                     if ~isempty(redundantVocabLevel)
-                        visualizeLevel( redundantVocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 1);
+        %                visualizeLevel( redundantVocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 1);
                     end
                end
   %             visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
