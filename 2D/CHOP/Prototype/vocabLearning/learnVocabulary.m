@@ -151,9 +151,18 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         
         % Assign similarity matrix.
         if ~isempty(newSimilarityMatrix)
+            numberOfRemainingComps = numel(remainingComps);
             newSimilarityMatrix = newSimilarityMatrix(remainingComps, remainingComps);
+            
+            % Normalize distances by the size of compared parts.
+            childrenCounts = {vocabLevel.children};
+            childrenCounts = cellfun(@(x) numel(x), childrenCounts);
+            for partItr = 1:numel(vocabLevel);
+                newSimilarityMatrix(partItr,:) = newSimilarityMatrix(partItr,:) ./ ...
+                   (max(childrenCounts, repmat(childrenCounts(partItr), 1, numberOfRemainingComps)) * 2 - 1);
+            end
         end
-        similarityMatrices{levelItr} = newSimilarityMatrix;
+        similarityMatrices{levelItr} = newSimilarityMatrix / max(max(newSimilarityMatrix));
         
         %% Calculate statistics from this graph.
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);
@@ -185,7 +194,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
                    imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
                end
                if ~isempty(modes)
-                    visualizeLevel( vocabLevel, graphLevel, leafNodes, similarityMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 0);
+                    visualizeLevel( vocabLevel, graphLevel, leafNodes, similarityMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
                     if ~isempty(redundantVocabLevel)
         %                visualizeLevel( redundantVocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 1);
                     end
