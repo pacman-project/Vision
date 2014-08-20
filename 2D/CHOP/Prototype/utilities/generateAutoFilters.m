@@ -35,7 +35,9 @@ function [ ] = generateAutoFilters( datasetName )
         lowOffset = floor((options.autoFilterSize-1)/2);
         highOffset = floor(options.autoFilterSize/2);
 
+        
         %% Step 2: Collect random samples from each image to create our data samples.
+        display('Collecting samples...');
         samplesPerImg = ceil(options.autoFilterPatchCount / numel(fileNames));
         img = imread(fileNames{1});
         samples = zeros(samplesPerImg * numel(fileNames), (options.autoFilterSize^2) * size(img,3));
@@ -64,11 +66,13 @@ function [ ] = generateAutoFilters( datasetName )
             end
             sampleOffset = sampleOffset + samplesPerImg;
         end
-
+        
         %% Now, we'll apply ZCA whitening to all samples.
+        display('Applying whitening...');
         [Xwh, mu, invMat, whMat] = whiten(samples); %#ok<NASGU>
 
         %% Cluster whitened samples to get cluster centers.
+        display('Clustering features...');
         opts = statset('MaxIter', 300);
         [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', ...
             'EmptyAction', 'Singleton', 'Replicates', 3, 'Options', opts);
@@ -84,6 +88,7 @@ function [ ] = generateAutoFilters( datasetName )
     C = uint8(C);
     
     %% Visualize the centers as a grid image.
+    display('Visualizing features...');
     visX = ceil(sqrt(numberOfFilters));
     visY = ceil(numberOfFilters/visX);
     imageSize = [visX * options.autoFilterSize + (visX-1), ...

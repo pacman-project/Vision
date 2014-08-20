@@ -113,11 +113,12 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     smoothedImg = (smoothedImg - min(min(smoothedImg))) / (max(max(smoothedImg)) - min(min(smoothedImg)));
    
    %% Inhibit weak responses in vicinity of powerful peaks.
-   inhibitionHalfSize = options.gabor.inhibitionRadius;
    if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
-      filterSize = options.gaborFilterSize;
+        inhibitionHalfSize = options.gabor.inhibitionRadius;
+        filterSize = options.gaborFilterSize;
    else
-      filterSize = options.autoFilterSize; 
+        filterSize = options.autoFilterSize; 
+        inhibitionHalfSize = options.auto.inhibitionRadius;
    end
    halfSize=floor(filterSize/2);
    responseImgs([1:inhibitionHalfSize, (end-inhibitionHalfSize):end],:) = 0;
