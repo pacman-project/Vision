@@ -3,7 +3,7 @@
 
 % fieldCenter - position of the central subpart
 
-function [ positions, elements ] = partMeanReconstruction( layerID, partID, fieldCenter, triple8OutDepth, triple7OutDepth, triple6OutDepth, triple5OutDepth, triple4OutDepth, ...
+function [ positions, elements ] = partMeanReconstruction(layerID, partID, fieldCenter, triple8OutDepth, triple7OutDepth, triple6OutDepth, triple5OutDepth, triple4OutDepth, ...
                                                             triple3OutDepth, displ3, displ5, displ7, nClusters)
     
     offsetY4 = [-displ3, 0, displ3];

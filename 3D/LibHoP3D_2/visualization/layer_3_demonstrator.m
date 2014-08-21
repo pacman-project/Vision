@@ -3,18 +3,16 @@
 function [is_ok] = layer_3_demonstrator(triple3OutDepth, displ, nClusters, n3Clusters, str_folder, fieldSize, depthStep, cluster1Centres)
 
 
-    f = figure;
     fieldCenter = ceil(fieldSize / 2);
-
+    f = figure;
+    
     for i = 1: n3Clusters % for each third layer element
         
         [positions, elements] = partMeanReconstruction(3, i, fieldCenter, [], [], [], [], [], ...
-                                                            triple3OutDepth, displ, 0, 0, nClusters);
-                                                        
+                                                            triple3OutDepth, displ, 0, 0, nClusters);                                                      
         surfaceVisualizerT(fieldSize, positions, elements, nClusters, cluster1Centres, depthStep);
-
         A = exist(str_folder, 'dir');
-    
+        
         if A == 0
             mkdir(str_folder);
         end
@@ -26,8 +24,6 @@ function [is_ok] = layer_3_demonstrator(triple3OutDepth, displ, nClusters, n3Clu
 %         str = ['layer3_', num2str(i), '.fig'];
 %         str1 = [str_folder, str];
 %         savefig(str1);
-
-        a = 2;
     end
     
     is_ok = true;

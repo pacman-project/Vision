@@ -18,26 +18,46 @@ function [partsOut, coverageOut, lenOut] = partSelectionNew(nClusters, n2Cluster
     lenStat =  size(statistics, 1);
     lenCombs = size(X, 1);
    
+    load(fileForVisualizationPrevLayer);
+    downsamplingScheme = 3;
+
+    % apply conversion of parts to actuall surface descriptors
     
-    if layerID == 3  
-        
-        table2 = zeros(n2Clusters, 2);
-        for i = 1:n2Clusters
-            [clusterX, clusterY] = compute2derivatives(i, nClusters);
-            table2(i, 1) = clusterX;
-            table2(i, 2) = clusterY;
-        end
-        X_first = Convert3ToFirstLayer(X, lenCombs, table2);  % to express parts in terms of the first layer element
-        nPrevClusters = n2Clusters;
-        
-    elseif layerID == 4
-        [X_first, nPrevClusters] = Convert4ToFirstLayer(X, lenCombs, fileForVisualizationPrevLayer); %  'triple3OutDepth'
-    elseif layerID == 5
-        [X_first, nPrevClusters] = Convert5ToFirstLayer(X, lenCombs, fileForVisualizationPrevLayer); %  'triple3OutDepth', 'triple4OutDepth'
-    elseif layerID == 6
-        [X_first, nPrevClusters] = Convert6ToFirstLayer(X, lenCombs, fileForVisualizationPrevLayer); %  'triple3OutDepth', 'triple4OutDepth', 'triple5OutDepth'
+    if layerID < 9
+        triple8OutDepth = [];
+    elseif layerID < 8
+        triple7OutDepth = [];
+    elseif layerID < 7
+        triple6OutDepth = [];
+    elseif layerID < 6
+        triple5OutDepth = [];
+    elseif layerID < 5
+        triple4OutDepth = [];
+    elseif layerID < 4
+        triple3OutDepth = [];
     end
     
+    % now define nPrevClusters
+    if     layerID == 8
+        nPrevClusters = size(triple7OutDepth, 1);
+    elseif layerID == 7
+        nPrevClusters = size(triple6OutDepth, 1);
+    elseif layerID == 6
+        nPrevClusters = size(triple5OutDepth, 1);
+    elseif layerID == 5
+        nPrevClusters = size(triple4OutDepth, 1);
+    elseif layerID == 4
+        nPrevClusters = size(triple3OutDepth, 1);
+    end
+     
+
+    [positions, elements] = partMeanReconstruction(layerID, partID, fieldCenter, triple8OutDepth, triple7OutDepth, triple6OutDepth, triple5OutDepth, triple4OutDepth, ...
+                                                            triple3OutDepth, displ3, displ5, displ7, nClusters);
+                                                        
+    [X_first, d] = partToSurfaceDescriptor(elements, positions, nClusters, cluster1Centres, downsamplingScheme);
+    
+ 
+
     coverage = zeros(lenCombs, 1);   % just something to initialize
     coverage = double(coverage);
     
@@ -57,10 +77,6 @@ function [partsOut, coverageOut, lenOut] = partSelectionNew(nClusters, n2Cluster
         str = ['element - ', num2str(i)];
         disp(str);
         
-        if i == 19
-            a = 2;
-        end
-        
         if coverage(i) == 0
             return;  % all parts are selected
         end 
@@ -68,7 +84,7 @@ function [partsOut, coverageOut, lenOut] = partSelectionNew(nClusters, n2Cluster
         % merge the selected elements with all elements with distance
         % less than meargeThresh
 
-        distance = Isodata_distances(X_first, X_first(i,:), lenCombs, 1, false, false);          
+        distance = Integral_distances(X_first, X_first(i,:), lenCombs, 1, false, false);          
         similarInds = find(distance < meargeThresh);
         curPart = [];
         for j = 1:length(similarInds)

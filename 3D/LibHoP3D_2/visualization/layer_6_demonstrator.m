@@ -11,8 +11,6 @@ function [is_ok] = layer_6_demonstrator(triple6OutDepth, triple5OutDepth, triple
         [positions, elements] = partMeanReconstruction(6, j, fieldCenter, [], [], triple6OutDepth, triple5OutDepth, triple4OutDepth, ...
                                                     triple3OutDepth, displ3, displ5, 0, nClusters);
         surfaceVisualizerT(fieldSize, positions, elements, nClusters, cluster1Centres, depthStep);
-        
-        
         A = exist(str_folder, 'dir');
 
         if A == 0
@@ -23,11 +21,9 @@ function [is_ok] = layer_6_demonstrator(triple6OutDepth, triple5OutDepth, triple
         str1 = [str_folder, str];
         saveas(f, str1, 'png');
 
-        hold off
-
-    %         str = ['layer3_', num2str(i), '.fig'];
-    %         str1 = [str_folder, str];
-    %         savefig(str1);
+%         str = ['layer3_', num2str(i), '.fig'];
+%         str1 = [str_folder, str];
+%         savefig(str1);
     end
     
     is_ok = true;

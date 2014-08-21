@@ -137,6 +137,10 @@ elPath6 = [depthPath, '_layer6'];
 elPath7 = [depthPath, '_layer7'];
 elPath8 = [depthPath, '_layer8'];
 
+displ3 = 6;
+displ5 = 18;
+displ7 = 52;
+isFIG = false;
 
 %% define all parameters here
 
@@ -296,58 +300,27 @@ if is_third_layer  % here we learn the third layer of the hierarchy
         
         [outputStatistics, outputCoords, curTS] = CollectStats_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
                                                         displacements, numDisps, borderOffset34, 3, depthStep, dataSetNumber, ...
-                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth);
-                                                    
+                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth);                                              
         save(statistics3Layer, 'outputStatistics', 'outputCoords');
     end
     
     if ~is_statistics3_sieved 
     
         load(statistics3Layer);
-        statistics = outputStatistics;
-        clear('outputStatistics');
-        curTS = size(statistics, 1);
         numDisps = 2;
-
-        % for spead up reasons we sort statistics by the first column (central element)
-        [~, order] = sort(statistics(:,1));
-        statistics = statistics(order,:);
-        outputCoords = outputCoords(order,:);
-        clear('order');
-
-        % compute the most frequent pairs
         thresh3Pair = 0.01 * lenF;
-        [tablePairs, numPairs] = Learn3Pairs(statistics, curTS, n2Clusters, thresh3Pair, numDisps);
-        
-        % filter out rows with the least frequent pairs. those pairs with less than thresh3Pair occurrances will be filtered out
-        [ind, statistics, curTS] = Sieve3Pairs(statistics, curTS, tablePairs, numDisps);
-        outputCoords = outputCoords(ind, :);
-        
-
-        % now we have to measure depth and eliminate rows with depth discontinuities
-        [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, numDisps);
-        
-        % now we have to filter out the depths with discontinuity
-        [ind, statistics, curTS] = Sieve3PairsD(statistics, curTS, cluster3Depths, numDisps);
-        outputCoords = outputCoords(ind,:);
-        
-        save(statistics3LayerSieved, 'statistics', 'cluster3Depths', 'outputCoords');
-        
+        [statistics, outputCoords, cluster3Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh3Pair) 
+        save(statistics3LayerSieved, 'statistics', 'cluster3Depths', 'outputCoords');      
     else
-
+        
         load(statistics3LayerSieved);  %  variable statistics should be read
         curTS = size(statistics, 1);
     end
-    
-    % aggregate statistics and prepare it to be fed to the optimization
-    % function
     
     if ~is_statistics3_aggregated % aggregate statistics
         
         sieve_thresh = 6;
         [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, n2Clusters, curTS, sieve_thresh);
-        
-        % sieve 'statistics' and 'outputCoords' once again
         [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieve_thresh);
         outputCoords = outputCoords(ind, :); 
         
@@ -357,29 +330,11 @@ if is_third_layer  % here we learn the third layer of the hierarchy
     
     if ~is_partSelectionDone3
         if partSelectionMethod == 1
-
-            checkImages(list_depth, lenF); % makes images in the folder 3 channels ones
             
-%             partID = [4,4,4];
-%             [listDepthOut, listMaskOut] = ProjectPartToDataset(nClusters, n2Clusters, statistics3LayerSieved, statistics3LayerAggregated, ...
-%                              fieldSize, list_depth, list_mask, lenF, partID);
-                         
-%             save('settings/listDepthDefault.mat', 'listDepthOut', 'listMaskOut');
-%             localizationOut = computePartsLocalization(list_depth, statistics3LayerSieved, statistics3LayerAggregated, n2Clusters);
-
-            [triples3Out, coverageOut, n3Clusters] = partSelectionNew(nClusters, n2Clusters, statistics3LayerSieved, statistics3LayerAggregated, ...
-                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh3, ...
-                                     iterations, 3, []);
-            
-            [coverageOut, inds] = sort(coverageOut, 'descend');
-            triples3Out = triples3Out(inds, :);
-
-            % select only parts with large enough coverage
             lenSelected = 150;
-            idx = coverageOut(coverageOut > lenSelected);
-            n3Clusters = length(idx);
+            [triples3Out, coverageOut, n3Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics3LayerSieved, statistics3LayerAggregated, ...
+                    dataSetNumber, fieldSize, list_depth, lenF, meargeThresh3, iterations, 3, [], lenSelected);
             save(parts3Layer, 'triples3Out', 'coverageOut', 'n3Clusters');
-                         
 
         elseif partSelectionMethod == 2
 
@@ -387,10 +342,7 @@ if is_third_layer  % here we learn the third layer of the hierarchy
             load(statistics3LayerAggregated);
 
             [triples3Out] = Optimization_layer3(X, frequencies, triples, nClusters, alphaParam(3), betaParam(3), gammaParam(3), subset_len); % this is the main procedure
-            save('statistics/layer3.mat', 'triples3Out');
-
-            n3Clusters = size(triples3Out, 1);
-            
+            save('statistics/layer3.mat', 'triples3Out');  
         end
     end
     
@@ -401,22 +353,18 @@ if is_third_layer  % here we learn the third layer of the hierarchy
         load(parts3Layer);                 % 'triples3Out', 'coverageOut',    'n3Clusters'
         load(statistics3LayerSieved);      %  'statistics', 'cluster3Depths', 'outputCoords'
         
-        displ = 6;
         fieldSize = [17, 17, 71];
         % load(fileForVisualization3Layer);
 
         % prepare data for visualization (convert to the right format)
-        [triple3OutDepth] = store3Layer(triples3Out, cluster3Depths, n3Clusters, nClusters, partSelectionMethod);
+        triple3OutDepth = store3Layer(triples3Out, cluster3Depths, n3Clusters, nClusters, partSelectionMethod);
         save(fileForVisualization3Layer, 'triple3OutDepth');
 
-        [is_ok] = layer_3_demonstrator(triple3OutDepth, displ, nClusters, n3Clusters, folderFor3Layer, fieldSize, depthStep, cluster1Centres);
+        [is_ok] = layer_N_demonstrator(3, [], [], [], [], [], triple3OutDepth, displ3, 0, 0, ...
+                                            nClusters, n3Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG);
     end
     
 end
-
-
-
-
 
 
 
@@ -459,40 +407,17 @@ if is_4th_layer
         [outputStatistics, outputCoords, curTS] = CollectStats_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
                                 displacements, numDisps, borderOffset34, 4, depthStep, dataSetNumber, ...
                                 is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth);
-
         save(statistics4Layer, 'outputStatistics', 'outputCoords');
     end
 
     if ~is_statistics4_sieved 
     
         load(statistics4Layer);
-        statistics = outputStatistics;
-        clear('outputStatistics');
-        curTS = size(statistics, 1);
         numDisps = 2;
-
-        % for spead up reasons we sort statistics by t3he first column (central element)
-        [~, order] = sort(statistics(:,1));
-        statistics = statistics(order,:);
-        outputCoords = outputCoords(order,:);
-        clear('order');
-
-        % compute the most frequent pairs
         thresh4Pair = 0.01 * lenF;
-        [tablePairs, numPairs] = Learn3Pairs(statistics, curTS, n3Clusters, thresh4Pair, numDisps);
-
-        % filter out rows with the least frequent pairs. those pairs with less than thresh3Pair occurrances will be filtered out
-        [ind, statistics, curTS] = Sieve3Pairs(statistics, curTS, tablePairs, numDisps);
-        outputCoords = outputCoords(ind, :);
-
-        % now we have to measure depth and eliminate rows with depth discontinuities
-        [cluster4Depths] = compute3Depths(statistics, n3Clusters, quant, numDisps);
-
-        % now we have to filter out the depths with discontinuity
-        [ind, statistics, curTS] = Sieve3PairsD(statistics, curTS, cluster4Depths, numDisps);
-        outputCoords = outputCoords(ind,:);
+        [statistics, outputCoords, cluster4Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh4Pair) 
+        save(statistics4LayerSieved, 'statistics', 'cluster4Depths', 'outputCoords'); 
         
-        save(statistics4LayerSieved, 'statistics', 'cluster4Depths', 'outputCoords');       
     else
         load(statistics4LayerSieved);  %  variable statistics should be read
         curTS = size(statistics, 1);
@@ -514,23 +439,11 @@ if is_4th_layer
     if ~is_partSelectionDone4
         if partSelectionMethod == 1 % libhop-based style 
             
-            checkImages(list_depth, lenF); % makes images in the folder 3 channels ones
-
-            [triples4Out, coverageOut, n4Clusters] = partSelectionNew(nClusters, n2Clusters, statistics4LayerSieved, statistics4LayerAggregated, ...
-                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh4, ...
-                                     iterations, 4, fileForVisualization3Layer);
-                                 
-                                 
-            [coverageOut, inds] = sort(coverageOut, 'descend');
-            triples4Out = triples4Out(inds, :);
-
-            % select only parts with large enough coverage
             lenSelected = 250;
-            idx = coverageOut(coverageOut > lenSelected);
-            n4Clusters = length(idx);                   
-            save(parts4Layer, 'triples4Out', 'coverageOut', 'n4Clusters');
-            
-            
+            [triples4Out, coverageOut, n4Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics4LayerSieved, statistics4LayerAggregated, ...
+                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh4, ...
+                                     iterations, 4, fileForVisualization3Layer, lenSelected);
+                                 
         elseif partSelectionMethod == 2
             
             [triples4Out] = Optimization_layer4(X, frequencies, triples3Out, triples4, nClusters, n3Clusters, maxDist, subset_len, alphaParam(4), betaParam(4), gammaParam(4));
@@ -544,7 +457,6 @@ if is_4th_layer
         load(parts4Layer);                 % 'triples4Out', 'coverageOut',    'n4Clusters'
         load(statistics4LayerSieved);      %  'statistics', 'cluster4Depths', 'outputCoords'
         
-        
         % prepare data for visualization (convert to the right format)
         [triple4OutDepth] = store4Layer(triples4Out, cluster4Depths, n4Clusters, nClusters, partSelectionMethod);
         
@@ -552,19 +464,11 @@ if is_4th_layer
         save(fileForVisualization4Layer, 'triple3OutDepth', 'triple4OutDepth');
         
         fieldSize = [17, 17, 71];
-        displ = 6;
-
-        [is_ok] = layer_4_demonstrator(triple4OutDepth, triple3OutDepth, displ, nClusters, n4Clusters, folderFor4Layer, fieldSize, depthStep, cluster1Centres);
+        [is_ok] = layer_N_demonstrator(4, [], [], [], [], triple4OutDepth, triple3OutDepth, displ3, 0, 0, ...
+                                            nClusters, n4Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG);
     end
-  
-
-
-    a = 2;
-
 
 end   
-
-
 
 
 
@@ -613,32 +517,9 @@ if is_5th_layer
     if ~is_statistics5_sieved 
     
         load(statistics5Layer);
-        statistics = outputStatistics;
-        clear('outputStatistics');
-        curTS = size(statistics, 1);
         numDisps = 2;
-
-        % for spead up reasons we sort statistics by t3he first column (central element)
-        [~, order] = sort(statistics(:,1));
-        statistics = statistics(order,:);
-        outputCoords = outputCoords(order,:);
-        clear('order');
-
-        % compute the most frequent pairs
         thresh5Pair = 15;
-        [tablePairs, numPairs] = Learn3Pairs(statistics, curTS, n4Clusters, thresh5Pair, numDisps);
-
-        % filter out rows with the least frequent pairs. those pairs with less than thresh3Pair occurrances will be filtered out
-        [ind, statistics, curTS] = Sieve3Pairs(statistics, curTS, tablePairs, numDisps);
-        outputCoords = outputCoords(ind, :);
-
-        % now we have to measure depth and eliminate rows with depth discontinuities
-        [cluster5Depths] = compute3Depths(statistics, n4Clusters, quant, numDisps, maxRelDepth);
-
-        % now we have to filter out the depths with discontinuity
-        [ind, statistics, curTS] = Sieve3PairsD(statistics, curTS, cluster5Depths, numDisps);
-        outputCoords = outputCoords(ind,:);
-        
+        [statistics, outputCoords, cluster5Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh5Pair) 
         save(statistics5LayerSieved, 'statistics', 'cluster5Depths', 'outputCoords');       
     else
         load(statistics5LayerSieved);  %  variable statistics should be read
@@ -661,21 +542,11 @@ if is_5th_layer
     if ~is_partSelectionDone5
         if partSelectionMethod == 1 % libhop-based style 
             
-            checkImages(list_depth, lenF); % makes images in the folder 3 channels ones
-
-            [triples5Out, coverageOut, n5Clusters] = partSelectionNew(nClusters, n2Clusters, statistics5LayerSieved, statistics5LayerAggregated, ...
-                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh5, ...
-                                     iterations, 5, fileForVisualization4Layer);
-                                 
-            [coverageOut, inds] = sort(coverageOut, 'descend');
-            triples5Out = triples5Out(inds, :);
-
-            % select only parts with large enough coverage
             lenSelected = 240;
-            idx = coverageOut(coverageOut > lenSelected);
-            n5Clusters = length(idx);                   
+            [triples5Out, coverageOut, n5Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics5LayerSieved, statistics5LayerAggregated, ...
+                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh5, ...
+                                     iterations, 5, fileForVisualization4Layer, lenSelected);                    
             save(parts5Layer, 'triples5Out', 'coverageOut', 'n5Clusters');
-            
             
         elseif partSelectionMethod == 2  % to change
             
@@ -693,15 +564,12 @@ if is_5th_layer
         [triple5OutDepth] = store4Layer(triples5Out, cluster5Depths, n5Clusters, nClusters, partSelectionMethod);
         load(fileForVisualization4Layer);  % 'triple3OutDepth', 'triple4OutDepth'
         save(fileForVisualization5Layer, 'triple3OutDepth', 'triple4OutDepth', 'triple5OutDepth');
+        save(parts5Layer, 'triples5Out', 'coverageOut', 'n5Clusters');
         
         fieldSize = [53, 53, 251];
-        displ3 = 6;
-        displ5 = 18;
-
-        save(parts5Layer, 'triples5Out', 'coverageOut', 'n5Clusters');
-
-        [is_ok] = layer_5_demonstrator(triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, nClusters, n5Clusters, folderFor5Layer, fieldSize,...,
-                                        depthStep, cluster1Centres);
+                      
+        [is_ok] = layer_N_demonstrator(5, [], [], [], triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, 0, ...
+                                            nClusters, n5Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG);
     end
 end
 
@@ -753,32 +621,9 @@ if is_6th_layer
     if ~is_statistics6_sieved 
     
         load(statistics6Layer);
-        statistics = outputStatistics;
-        clear('outputStatistics');
-        curTS = size(statistics, 1);
         numDisps = 2;
-
-        % for spead up reasons we sort statistics by t3he first column (central element)
-        [~, order] = sort(statistics(:,1));
-        statistics = statistics(order,:);
-        outputCoords = outputCoords(order,:);
-        clear('order');
-
-        % compute the most frequent pairs
         thresh6Pair = 8;
-        [tablePairs, numPairs] = Learn3Pairs(statistics, curTS, n5Clusters, thresh6Pair, numDisps);
-
-        % filter out rows with the least frequent pairs. those pairs with less than thresh3Pair occurrances will be filtered out
-        [ind, statistics, curTS] = Sieve3Pairs(statistics, curTS, tablePairs, numDisps);
-        outputCoords = outputCoords(ind, :);
-
-        % now we have to measure depth and eliminate rows with depth discontinuities
-        [cluster6Depths] = compute3Depths(statistics, n5Clusters, quant, numDisps);
-
-        % now we have to filter out the depths with discontinuity
-        [ind, statistics, curTS] = Sieve3PairsD(statistics, curTS, cluster6Depths, numDisps);
-        outputCoords = outputCoords(ind,:);
-        
+        [statistics, outputCoords, cluster6Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh6Pair) 
         save(statistics6LayerSieved, 'statistics', 'cluster6Depths', 'outputCoords');       
     else
         load(statistics6LayerSieved);  %  variable statistics should be read
@@ -801,21 +646,11 @@ if is_6th_layer
     if ~is_partSelectionDone6
         if partSelectionMethod == 1 % libhop-based style 
             
-            checkImages(list_depth, lenF); % makes images in the folder 3 channels ones
-
-            [triples6Out, coverageOut, n6Clusters] = partSelectionNew(nClusters, n2Clusters, statistics6LayerSieved, statistics6LayerAggregated, ...
-                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh6, ...
-                                     iterations, 6, fileForVisualization5Layer);
-            
-            [coverageOut, inds] = sort(coverageOut, 'descend');
-            triples6Out = triples6Out(inds, :);
-
-            % select only parts with large enough coverage
             lenSelected = 400;
-            idx = coverageOut(coverageOut > lenSelected);
-            n6Clusters = length(idx);                   
+            [triples6Out, coverageOut, n6Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics6LayerSieved, statistics6LayerAggregated, ...
+                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh6, ...
+                                     iterations, 6, fileForVisualization5Layer, lenSelected);                 
             save(parts6Layer, 'triples6Out', 'coverageOut', 'n6Clusters');
-            
             
         elseif partSelectionMethod == 2  % to change
             
@@ -836,19 +671,14 @@ if is_6th_layer
         save(fileForVisualization6Layer, 'triple3OutDepth', 'triple4OutDepth', 'triple5OutDepth', 'triple6OutDepth');
         
         fieldSize = [53, 53, 301];
-        displ3 = 6;
-        displ5 = 18;
-
-        [is_ok] = layer_6_demonstrator(triple6OutDepth, triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, nClusters,...
-                                        n6Clusters, folderFor6Layer, fieldSize, depthStep, cluster1Centres);
+        
+        [is_ok] = layer_N_demonstrator(6, [], [], triple6OutDepth, triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, 0, ...
+                                            nClusters, n6Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG); 
     end
-  
-
-
-    a = 2;
-
 
 end 
+
+
 
 
 %% learn the 7th layer
@@ -894,33 +724,11 @@ if is_7th_layer
     if ~is_statistics7_sieved 
     
         load(statistics7Layer);
-        statistics = outputStatistics;
-        clear('outputStatistics');
-        curTS = size(statistics, 1);
         numDisps = 2;
-
-        % for spead up reasons we sort statistics by t3he first column (central element)
-        [~, order] = sort(statistics(:,1));
-        statistics = statistics(order,:);
-        outputCoords = outputCoords(order,:);
-        clear('order');
-
-        % compute the most frequent pairs
         thresh7Pair = 0.0005 * lenF;
-        [tablePairs, numPairs] = Learn3Pairs(statistics, curTS, n6Clusters, thresh7Pair, numDisps);
-
-        % filter out rows with the least frequent pairs. those pairs with less than thresh3Pair occurrances will be filtered out
-        [ind, statistics, curTS] = Sieve3Pairs(statistics, curTS, tablePairs, numDisps);
-        outputCoords = outputCoords(ind, :);
-
-        % now we have to measure depth and eliminate rows with depth discontinuities
-        [cluster7Depths] = compute3Depths(statistics, n6Clusters, quant, numDisps);
-
-        % now we have to filter out the depths with discontinuity
-        [ind, statistics, curTS] = Sieve3PairsD(statistics, curTS, cluster7Depths, numDisps);
-        outputCoords = outputCoords(ind,:);
+        [statistics, outputCoords, cluster7Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh7Pair);
+        save(statistics7LayerSieved, 'statistics', 'cluster7Depths', 'outputCoords');
         
-        save(statistics7LayerSieved, 'statistics', 'cluster7Depths', 'outputCoords');       
     else
         load(statistics7LayerSieved);  %  variable statistics should be read
         curTS = size(statistics, 1);
@@ -942,19 +750,15 @@ if is_7th_layer
     if ~is_partSelectionDone7
         if partSelectionMethod == 1 % libhop-based style 
             
-            checkImages(list_depth, lenF); % makes images in the folder 3 channels ones
-
-            [triples7Out, coverageOut, n7Clusters] = partSelectionNew(nClusters, n2Clusters, statistics7LayerSieved, statistics7LayerAggregated, ...
+            lenSelected = 600;
+            [triples7Out, coverageOut, n7Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics7LayerSieved, statistics7LayerAggregated, ...
                                      dataSetNumber, fieldSize, list_depth, lenF, meargeThresh7, ...
-                                     iterations, 7, fileForVisualization6Layer);
+                                     iterations, 7, fileForVisualization6Layer, lenSelected);
             save(parts7Layer, 'triples7Out', 'coverageOut', 'n7Clusters');
+             
+        elseif partSelectionMethod == 2  % to change 
             
-            
-        elseif partSelectionMethod == 2  % to change
-            
-            [triples4Out] = Optimization_layer4(X, frequencies, triples3Out, triples4, nClusters, n3Clusters, maxDist, subset_len, alphaParam(4), betaParam(4), gammaParam(4));
-            n4Clusters = size(triples4Out, 1);
-            save('statistics/layer4Wash1.mat', 'triples4Out');
+            disp('Not implemented!');
         end
     end
     
@@ -971,17 +775,10 @@ if is_7th_layer
         save(fileForVisualization7Layer, 'triple3OutDepth', 'triple4OutDepth', 'triple5OutDepth', 'triple6OutDepth', 'triple7OutDepth');
         
         fieldSize = [160, 160, 700];
-        displ3 = 6;
-        displ5 = 18;
-        displ7 = 52;
-
-        [is_ok] = layer_7_demonstrator(triple7OutDepth, triple6OutDepth, triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, displ7, nClusters,...
-                                        n6Clusters, folderFor6Layer, fieldSize, depthStep, cluster1Centres);
+                            
+        [is_ok] = layer_N_demonstrator(7, [], triple7OutDepth, triple6OutDepth, triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, displ7, ...
+                                    nClusters, n6Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG);                            
     end
-  
-
-
-
 
 end  
 
