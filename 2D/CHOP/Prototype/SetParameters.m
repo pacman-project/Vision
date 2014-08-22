@@ -51,7 +51,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
     options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
                                         % The inhibition radius basically 
                                         % defines the half of the cube's
                                         % size in which other weaker
@@ -207,7 +206,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.2; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.1; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
