@@ -20,6 +20,16 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
 
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName, false);
+    options.currentFolder = options.currentFolder;
+    
+    % Open threads for parallel processing.
+    if options.parallelProcessing
+        s = matlabpool('size');
+        if s>0
+           matlabpool close; 
+        end
+        matlabpool('open', options.numberOfThreads);
+    end
     
     if options.testImages
         %% Step 1.0: Read vocabulary if it exists.
@@ -58,9 +68,15 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         totalInferenceTime = 0;
-        for testImgItr = 1:size(testFileNames,1) 
+        for testImgItr = 328:size(testFileNames,1) 
             totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, options);
         end
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
     end
+    
+    % Close thread pool if opened.
+    if options.parallelProcessing
+        matlabpool close;
+    end
+    
 end

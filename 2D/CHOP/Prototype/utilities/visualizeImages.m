@@ -40,7 +40,8 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     
     %% Read vocabulary masks.
     vocabMaskList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*.png'], 1, 'detail');
-    numberOfMasks = numel(vocabMaskList);
+    minusList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*_comp.png'], 1, 'detail');
+    numberOfMasks = numel(vocabMaskList) - numel(minusList);
     vocabMasks = cell(numberOfMasks,1);
     for fileItr = 1:numberOfMasks
         vocabMasks{fileItr} = imread([options.currentFolder '/debug/' options.datasetName ...
