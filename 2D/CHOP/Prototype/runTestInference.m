@@ -68,7 +68,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         totalInferenceTime = 0;
-        for testImgItr = 328:size(testFileNames,1) 
+        for testImgItr = 1:size(testFileNames,1) 
             totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, options);
         end
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');

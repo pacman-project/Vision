@@ -58,11 +58,11 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                         % responses than the seed node will
                                         % be surpressed.
     
-    options.autoFilterSize = 7;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 11;         % Size (one side) of a autodetected 
                                         % filter.
                                         
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2);
-    options.autoFilterThr = 0.5;      % Min response threshold for convolved 
+    options.autoFilterThr = 0.2;      % Min response threshold for convolved 
                                        % features, taken as the percentage 
                                        % of max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
