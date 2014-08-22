@@ -14,11 +14,11 @@
 %>
 %> Updates
 %> Ver 1.0 on 13.01.2014
-function [ ] = generateAutoFilters( datasetName )
+function [ ] = generateAutoFilters( datasetName, fileType )
     %% Step 1: Get program options and initialize variables.
     options = SetParameters(datasetName, true);
     datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
-    fileNames = fuf([datasetFolder '*.png'], 1, 'detail');
+    fileNames = fuf([datasetFolder '*' fileType], 1, 'detail');
     img = imread(fileNames{1});
     if ~exist([options.currentFolder '/filters/auto'], 'dir')
         mkdir([options.currentFolder '/filters/auto']);

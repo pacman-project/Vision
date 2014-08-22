@@ -1,5 +1,5 @@
 function [] = Experiment(datasetName, fileType)
-    generateAutoFilters(datasetName);
+    generateAutoFilters(datasetName, fileType);
     runVocabularyLearning(datasetName, fileType, '');
     MarkCategoryLabels(datasetName);
     runTestInference(datasetName, fileType);
