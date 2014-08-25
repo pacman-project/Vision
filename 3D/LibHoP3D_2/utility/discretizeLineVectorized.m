@@ -17,11 +17,18 @@ function [nearestClusters, alternativeClusters] = discretizeLineVectorized(fx, n
     inds = nearestClusters > 0; % assigned to any bins
     curCentres(inds) = cluster1Centres(nearestClusters(inds));
     Shift = fx - curCentres;
+    
+    
     alternativeClusters(inds) = nearestClusters(inds) + sign(Shift(inds));
     alternativeClusters(alternativeClusters == nClusters + 1) = 0;
     
-    alternativeClusters(fx < cluster1Bounds(1)) = 1;
-    alternativeClusters(fx > cluster1Bounds(end)) = nClusters;
+    
+    alternativeClusters(fx < cluster1Centres(1)) = 1;
+    alternativeClusters(fx > cluster1Centres(end)) = nClusters;
+    
+    alternativeClusters(fx < cluster1Bounds(1)) = 0;
+    alternativeClusters(fx > cluster1Bounds(end)) = 0;
+
     
 end
 

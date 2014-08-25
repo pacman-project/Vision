@@ -3,15 +3,14 @@
 %values are: depthMin, depthMax, depthAvr
 
 % X - are combinations 
-function [] = performInference4(list_depths, list_El, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, nClusters, n2Clusters,...
-                n3Clusters, n4Clusters, X, partsOut, coverageOut, displacement, abstractionLevel,  ...
-                areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
+function [] = performInference4(list_depths, list_El, list_mask, lenF, sigma, sigmaKernelSize, dxKernel,...
+                n3Clusters, n4Clusters, X, partsOut, coverageOut, displacement,  ...
+                outRoot, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
                 is_downsampling, dowsample_rate, elPath, meargeThresh, isErrosion, discRadius, is_guided, r_guided, eps, ...
-                is_mask_extended, maxExtThresh1, maxExtThresh2, thresh, depthStep, cluster4Depths, fileForVisualization3Layer, dataSetNumber)
+                is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, cluster4Depths, fileForVisualization3Layer, dataSetNumber)
 
     
-    
-    hDispl = round(displacement/2);  % half displ
+    smallOffset = 2;
     lenDPW = length(elPath);
     lenCombs = size(X, 1);
     
@@ -75,20 +74,15 @@ function [] = performInference4(list_depths, list_El, list_mask, lenF, sigma, si
         table4Abst(X(j,1), X(j,2), X(j,3)) = table4(partsOut(idx,1), partsOut(idx,2), partsOut(idx,3));
     end 
     
-    if dataSetNumber == 1 || dataSetNumber == 3
+    if dataSetNumber == 1 || dataSetNumber == 3  % without it parfor loo de not work :(
         list_mask = zeros(1, lenF);
     end
     
     
     parfor i = 1:lenF 
         
-        I    = imread(list_depths{i});        
-        if dataSetNumber == 2
-            mask = imread(list_mask{i});
-        else
-            mask = [];
-        end
-        
+        I    = imread(list_depths{i});
+        I = I(:,:,1);
         I = double(I);
         
         if is_downsampling
@@ -97,9 +91,14 @@ function [] = performInference4(list_depths, list_El, list_mask, lenF, sigma, si
 
         marks3 = imread(list_El{i});
         
-        % preliminary processing of the image I
-        [I, ~, ~, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY, isTrim, dxKernel, sigmaKernelSize, sigma, ...
-                                                                    is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2);
+        if dataSetNumber == 1 || dataSetNumber == 3     % Aim@Shape dataset
+            [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, [], isErrosion, discRadius, isX, isY, ...
+                                isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);
+        elseif dataSetNumber == 2                       % Washington data set
+            mask = imread(list_mask{i});
+            [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY,...
+                                isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);          
+        end                                                         
                                                                 
         [rEl, cEl] = size(mask);  % all three images should be of the same size!
         if r~=rEl || c ~= cEl
@@ -130,12 +129,12 @@ function [] = performInference4(list_depths, list_El, list_mask, lenF, sigma, si
                 depthCentral =  I(rows(j), cols(j));
                 
                 
-                % check what are left and right neighbours
+                % check what are bottom and top neighbours (notated as left and right)
                 
-                lefts =  [marks3(rows(j) - displacement, cols(j)), marks3(rows(j) - displacement, cols(j) - hDispl), marks3(rows(j) - displacement, cols(j) + hDispl)];
-                rights = [marks3(rows(j) + displacement, cols(j)), marks3(rows(j) + displacement, cols(j) - hDispl), marks3(rows(j) + displacement, cols(j) + hDispl)];
-                depthsLeft =  [I(rows(j) - displacement, cols(j)), I(rows(j) - displacement, cols(j) - hDispl), I(rows(j) - displacement, cols(j) + hDispl)];
-                depthsRight = [I(rows(j) + displacement, cols(j)), I(rows(j) + displacement, cols(j) - hDispl), I(rows(j) + displacement, cols(j) + hDispl)];
+                lefts =  [marks3(rows(j) - displacement, cols(j)), marks3(rows(j) - displacement, cols(j) - smallOffset), marks3(rows(j) - displacement, cols(j) + smallOffset)];
+                rights = [marks3(rows(j) + displacement, cols(j)), marks3(rows(j) + displacement, cols(j) - smallOffset), marks3(rows(j) + displacement, cols(j) + smallOffset)];
+                depthsLeft =  [I(rows(j) - displacement, cols(j)),      I(rows(j) - displacement, cols(j) - smallOffset),      I(rows(j) - displacement, cols(j) + smallOffset)];
+                depthsRight = [I(rows(j) + displacement, cols(j)),      I(rows(j) + displacement, cols(j) - smallOffset),      I(rows(j) + displacement, cols(j) + smallOffset)];
                 
                 indsL = find(lefts > 0);
                 indsR = find(rights > 0);

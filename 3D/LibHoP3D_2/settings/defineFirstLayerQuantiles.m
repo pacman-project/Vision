@@ -14,7 +14,7 @@ function [quantilesFirst] = defineFirstLayerQuantiles(nClusters, dataSetNumber, 
             if dataSetNumber == 1
                 quantilesFirst = [0.01 0.054 0.13 0.26];  
             elseif dataSetNumber == 2
-                quantilesFirst = [0.01 0.05 0.12 0.26];
+                quantilesFirst = [0.02 0.06 0.16 0.40];
             elseif dataSetNumber == 3
                 quantilesFirst = [0.01 0.060 0.13 0.26];
             end
@@ -35,7 +35,7 @@ function [quantilesFirst] = defineFirstLayerQuantiles(nClusters, dataSetNumber, 
             if dataSetNumber == 1
                 quantilesFirst = [0.01 0.064 0.13 0.26];  
             elseif dataSetNumber == 2
-                quantilesFirst = [0.01 0.06 0.16 0.40];
+                quantilesFirst = [0.02 0.06 0.16 0.40];
             elseif dataSetNumber == 3
                 quantilesFirst = [0.01 0.060 0.13 0.26];
             end

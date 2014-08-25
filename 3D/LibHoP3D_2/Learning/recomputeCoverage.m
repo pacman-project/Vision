@@ -7,14 +7,22 @@
 % numRecompute - shows how many elements we need to recompute
 
 function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, startX, dx, dy,...
-                                        list_depth, lenF, nPrevClusters, numRecompute)
+                                        list_depth, lenF, nPrevClusters, numRecompute, layerID)
 
     disp('recomputing parts coverage...');
+    
+    X = uint32(X);
+    statistics = uint32(statistics);
     
     lenStat = size(statistics, 1);
     lenCombs = length(coverage);
     coverage(startX:startX+numRecompute-1) = coverage(startX:startX+numRecompute-1) * 0;
-    triples = zeros(nPrevClusters,nPrevClusters,nPrevClusters);
+    
+    if layerID >= 6
+        triples = sparse(zeros(nPrevClusters * nPrevClusters *nPrevClusters, 1));
+    else
+        triples = zeros(nPrevClusters, nPrevClusters, nPrevClusters);
+    end
     
     % define parts which need to be re-computed: indsR
     inds3 = [2,1,4]; % to extract columns of statistics
@@ -22,20 +30,37 @@ function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, s
         
     % fill a table triples
     
-    for i = startX:startX+numRecompute-1  % lenCombs
-        triples(X(i, 1), X(i, 2), X(i, 3)) = i;
+    tic;
+    
+    if layerID >= 6
+        for i = startX:startX+numRecompute-1  % lenCombs
+            triples((X(i, 1) - 1) * (nPrevClusters^2) +  (X(i, 2) - 1) * nPrevClusters + X(i, 3), 1) = i;
+    %       triples(X(i, 1), X(i,2), X(i,3)) = i;
+        end
+    else
+        for i = startX:startX+numRecompute-1  % lenCombs
+            triples(X(i, 1), X(i,2), X(i,3)) = i;
+        end
     end
     
     % create a table of format [el, Im, x,y]
     outputCoords = [zeros(lenStat, 1), outputCoords];
     
-    parfor i = 1:lenStat
+    if layerID >= 6
+        parfor i = 1:lenStat      
+            outputCoords(i,1) = 0 + triples((statistics(i,1) - 1) * (nPrevClusters^2) + (statistics(i,2)-1) * nPrevClusters + statistics(i,3));
+            %outputCoords(i,1) = triples(statistics(i,1), statistics(i,2), statistics(i,3));  
+        end
+    else
+        parfor i = 1:lenStat      
+
+            %outputCoords(i,1) = 0 + triples((statistics(i,1) - 1) * (nPrevClusters^2) + (statistics(i,2)-1) * nPrevClusters + statistics(i,3));
+            outputCoords(i,1) = triples(statistics(i,1), statistics(i,2), statistics(i,3));  
+        end
         
-       % look for the same element in the table X and write the elId
-       outputCoords(i,1) = triples(statistics(i,1), statistics(i,2), statistics(i,3));     
     end
     
-    
+    toc;
     % to exclude already selected parts (and those which do not need to be recomputed)
     firstCol = outputCoords(:,1);
     indEx = firstCol ~= 0;

@@ -23,30 +23,47 @@ function [nearestClusters, errors] = discretizeY(yMarks, yErrors, yMarks_alt, yE
         start = 3;
     end
     
-    
     for i = start:2:strLen-1
         central = yMarks(i, middle);
         
-        tops =    yMarks(i-offset, middle - offset :2: middle + offset);
-        bottoms = yMarks(i+offset, middle - offset :2: middle + offset);
+        if central == 0
+            continue;
+        end
+        
+        indsTop = middle - offset :2: middle + offset;
+        indsBottom = middle - offset :2: middle + offset;
+        
+        tops =    yMarks(i-offset, indsTop);
+        bottoms = yMarks(i+offset, indsBottom);
         
         indsT = find(tops == central);
         lenT = length(indsT);
         indsB = find(bottoms == central);
         lenB = length(indsB);
         
-        if lenT > 0 && lenB> 0
+
+        % check the alternative hypotheses if necessary
+        if lenT == 0  && lenB == 0
+            continue;
+        elseif lenT > 0  && lenB == 0
+            bottoms = yMarks_alt(i+offset, indsBottom);
+            indsB = find(bottoms == central);
+            lenB = length(indsB);
+        elseif lenB > 0  && lenT == 0
+            tops = yMarks_alt(i-offset, indsTop);
+            indsT = find(tops == central);
+            lenT = length(indsT);
+        end
+        
+        if lenT > 0 && lenB > 0
             nearestClusters(i) = central;
             errors(i) = (yErrors(i, middle) + yErrors(i-offset, indsT(1)) + yErrors(i+offset, indsB(1))) / 3;
         end
-
+        
     end
 
 
-
 end
-
-
 
 
 %     for i = start:2:strLen-1
@@ -98,6 +115,8 @@ end
 %             errors(i) = (lineErr(inds(1)) + lineErr(inds(2)) + lineErr(inds(3))) / 3;
 %         end
 %     end
+
+
 
 
 

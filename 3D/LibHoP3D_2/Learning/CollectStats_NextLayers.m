@@ -9,17 +9,10 @@
 % fieldSize is [sizeX, sizeY, sizeZ]
 
 function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLayers(list_elements, list_depths, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
-                                                        displacements, lenDisp, displacement34, layerID, fieldSize, depthStep, dataSetNumber, ...
+                                                        displacements, lenDisp, displacement34, layerID, depthStep, dataSetNumber, ...
                                                         is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth)
+                                                    
     disp('collecting co-occurrence statistics...');
-    % field can be non-squared.
-    halfFieldSize = floor(fieldSize/2); % for example fieldSize = [17, 5, 71];
-    
-    if min(halfFieldSize) < 1
-        disp('Field size must be larger...');
-    end
-    
-    
     %  for example displacements = [0 0; 0 -6; 0 6]; or displacements = [0 0; -6, 0; 6, 0];
     %      2 1 3  or
     %     2
@@ -110,11 +103,11 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
 
                 for j = 1: nEl
 
-                    if layerID == 4 || layerID == 6
+                    if layerID == 4 || layerID == 6 || layerID == 8
                         if rows(j) < displacement34 + 1  || rows(j) > r - displacement34  || cols(j) < displacement34 + 1 || cols(j) > c - displacement34
                             continue;
                         end
-                    elseif layerID == 3 || layerID == 5  
+                    elseif layerID == 3 || layerID == 5 || layerID == 7 
                         if cols(j) < displacement34 + 1 || cols(j) > c - displacement34
                             continue;
                         end

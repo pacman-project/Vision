@@ -21,7 +21,7 @@ function [dxKernel, combs, largestLine, sigma, sigmaKernelSize, isErrosion, disc
     elseif dataSetNumber == 2
 
         % parameters for guided
-        is_guided = true;
+        is_guided = false;
         r_guided = 10;
         eps = 0.05^2;
         % ----------------------
@@ -30,12 +30,12 @@ function [dxKernel, combs, largestLine, sigma, sigmaKernelSize, isErrosion, disc
         maxExtThresh2 = 900;
 
         % parameters for gaussian
-        sigma = 6;
+        sigma = 5;
         sigmaKernelSize = round(2*sigma+1);
         % -----------------------
 
         isErrosion = true;
-        discRadius = 2;
+        discRadius = 6;
     end
 
     % parameters for prelimiminary processing functions

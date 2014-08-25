@@ -5,7 +5,11 @@
 % output is the following cluster3Depths = zeros(n2Clusters, n2Clusters, numDisps, 3);
 % last parameters are min and max
 
-function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, numDisps)
+function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, numDisps, maxRelDepth)
+    
+    if (nargin == 4)
+        maxRelDepth = 127;
+    end 
     
     disp('Analizing depth distribution of pairs ...');
     % initialize the output matrix;
@@ -13,8 +17,10 @@ function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, numDis
     % the fourth parameter is min(1) max(2) avg(3)
     cluster3Depths = zeros(n2Clusters, n2Clusters, numDisps, 3); 
     
-    % [-127 .. 127] -> [] + 128;
-    adder = 128;
+    %          [-127 .. 127]       -> [] + 128;
+    % becomes: [- dThresh, dThresh] = [] + addder;
+    adder = maxRelDepth + 1;
+    dThresh = maxRelDepth;
 
     
     firstColumn = statistics(:,1);
@@ -45,20 +51,16 @@ function [cluster3Depths] = compute3Depths(statistics, n2Clusters, quant, numDis
                 depths = smallStat(:, nextCol);
                 
                 depths = double(depths);
-                depths(depths < -127) = -127;
-                depths(depths > 127)  = 127;
+                depths(depths < -dThresh) = -dThresh;
+                depths(depths > dThresh)  =  dThresh;
                 
                 r = length(depths);
-                X = zeros(1, 255); 
+                X = zeros(1, 2 * dThresh + 1); 
                 for jj = 1:r
                     X(depths(jj)+adder) = X(depths(jj)+adder) + 1;
                 end
             
                 [depthMin, depthMax, depthAvr] = quantileMy(X, quant, 1-quant, 0.5);
-                
-%                 if i == 41 && k == 5 && j == 1
-%                     a = 2;
-%                 end
 
                 cluster3Depths(i,k,j,1) = depthMin - adder;
                 cluster3Depths(i,k,j,2) = depthMax - adder;

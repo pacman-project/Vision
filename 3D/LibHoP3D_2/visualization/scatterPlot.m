@@ -1,3 +1,5 @@
+% this function is to visualize the raw statistical maps
+
 clear all;
 
 

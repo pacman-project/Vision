@@ -66,8 +66,9 @@ function [list_depth, list_mask, list_RGB, lenF] = extractFileListWashington(fil
         
         
     else
-        list_depth = load(depthPathDefault);
-        list_depth = list_depth.list_depth;
+        list_DM = load(depthPathDefault);
+        list_depth = list_DM.listDepthOut;
+        list_mask = list_DM.listMaskOut;     
     end
 
     

@@ -12,20 +12,20 @@ if select_depths
 %     depthPath = 'D:\Input Data\AimShape\4T';
 %     outputFolder = 'D:\Input Data\AimShape\4T_600';
 
-    depthPath = 'D:\Input Data\Washington\Wash-rgbd-dataset';
-    outputFolder = 'D:\Input Data\Washington\Wash-rgbd-dataset_002';
+    depthPath = 'D:\Input Data\Washington\Washington3Categories';
+    outputFolder = 'D:\Input Data\Washington\Washington3Categories_008';
    
 end
 
 if select_elements
     elPath = '/home/vvk201/Input Data/Washington/Wash-rgbd-dataset_layer4';
-    outputFolderE = '/home/vvk201/Input Data/Washington/Wash-rgbd-dataset_layer4_001';
+    outputFolderE = '/home/vvk201/Input Data/Washington/Wash-rgbd-dataset_layer4_008';
 end
 
 fileListPrecomputed = false;
 is_subset = true;
 subset_len = 600;
-subsetPercent = 0.02;
+subsetPercent = 0.08;
 
 strFolderLen = length(depthPath);
 

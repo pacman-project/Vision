@@ -2,7 +2,7 @@
 % the folder
 
 function [] = performInference2(list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discSize, nClusters, ...
-                            vocabulary1Layer, areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
+                            areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
                             is_downsampling, dowsample_rate, dataSetNumber, depthPath, cluster1Centres, cluster1Bounds, thresh, ...
                             is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, isReconstructionErrorRequired)
             
@@ -104,9 +104,20 @@ parfor i = 1:lenF  % To use later for models
             altErrors = zeros(1,strLen);
             inds = 1:2:strLen-1;
             fxQuant = fx(inds);
-            strLen = length(fx);
+            strLen = length(fxQuant);
             
             [nearestClusters,  alternativeClusters] = discretizeLineVectorized(fxQuant, nClusters, cluster1Centres, cluster1Bounds);
+            
+            % this is done just to check
+            nearestClustersA = zeros(1, strLen);
+            for iii = 1:strLen
+                nearestClustersA(iii) = define1Cluster(fxQuant(iii), cluster1Bounds, nClusters);
+            end
+            
+            if ~isequal(nearestClustersA, nearestClusters)
+                disp('ERROR');
+            end
+            
             [errors, alternativeErrors] = computeLineReconstructionErrors(nearestClusters, alternativeClusters, cluster1Centres, fx, inds, thresh);
             
             if is_inhibition_1_layer
@@ -135,7 +146,7 @@ parfor i = 1:lenF  % To use later for models
     
     if is_first_layer  % write the outcome somewhere
 %           imtool(marks1, [0,nClusters]);
-%          imtool(I, [min(min(I)), max(max(I))]);
+%           imtool(I, [min(min(I)), max(max(I))]);
 %         imtool(errors1);
 %         imtool(marks1_alt, [0,9]);
 %         imtool(errors1_alt);
@@ -203,6 +214,8 @@ parfor i = 1:lenF  % To use later for models
                     newInd = compute2elementIndex(clusterX, clusterY, nClusters);
                     nearestClusters(indsL(jj)) = newInd;
                     errors(indsL(jj)) = (errors(indsL(jj)) + errorY)/2;  % controversal
+                else
+                    nearestClusters(indsL(jj)) = 0;
                 end
             end
             
@@ -231,7 +244,7 @@ parfor i = 1:lenF  % To use later for models
 %         imtool(I, [min(min(I)), max(max(I))]);
 %         imtool(Ix, [min(min(Ix)), max(max(Ix))]);
 %         imtool(Iy, [min(min(Iy)), max(max(Iy))]);
-%          imtool(marks2, [0, nClusters^2]);    % GIVES NICE PICTURES
+%         imtool(marks2, [0, nClusters^2]);    % GIVES NICE PICTURES
 
         marks2 = uint8(marks2);
         curStr = list_depth{i};
@@ -251,9 +264,6 @@ parfor i = 1:lenF  % To use later for models
         end
         imwrite(marks2, outFile, 'png');
         
-%         IG = uint16(IG);
-%         outFile = [strOutput, strOutTI, str, '.png'];
-%         imwrite(IG, outFile, 'png');
     end
     
     if isReconstructionError_2_Required

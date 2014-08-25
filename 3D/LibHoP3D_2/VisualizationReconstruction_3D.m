@@ -76,8 +76,10 @@ is_6th_layer = false;
 
 depthStep = thresh/4;
 offsetD = 20;    
+partColor = [0,0,1];
+surfColor = [1,0,0];
 
-for i = 1:1 % lenF
+for i = 1:30 % lenF
     I = imread(list_depth{i});
     marks = imread(list_els{i});
     
@@ -105,22 +107,19 @@ for i = 1:1 % lenF
     
     fieldSize = [maxRC, maxRC, depthRange];
     
+    elements = zeros(numEl,1);
+    positions = zeros(numEl,3);
+    
     for j = 1:numEl
-        elements = marks(rows(j), cols(j));
+        elements(j) =  marks(rows(j), cols(j));
         curDepth = floor((I(rows(j), cols(j)) - minD ) / depthStep) + offsetD;
-        positions = [cols(j),rows(j),curDepth];
-        
-        
-        % surfaceVisualizer(fieldSize, positions, elements, nClusters, cluster1Centres, depthStep, faceColor);
-        [out] = surfaceVisualizer(fieldSize, positions, elements, nClusters, cluster1Centres, depthStep);
-        hold on
+        positions(j,:) = [cols(j), rows(j), curDepth];
     end
 
- 
-%     surfaceVisualizer(fieldSize, positions, 1, nClusters, cluster1Centres, depthStep);
-
+    [out] = surfaceVisualizerT(fieldSize, positions, elements, nClusters, cluster1Centres, depthStep, partColor, true);
+    hold on
     
-    hold off
+
 end
 
 

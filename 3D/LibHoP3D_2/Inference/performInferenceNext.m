@@ -6,7 +6,7 @@
 
 % X - are combinations 
 function [] = performInferenceNext(list_depths, list_El, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
-                n4Clusters, n5Clusters, X, partsOut, coverageOut, displ3, displ5, displ7, abstractionLevel,  ...
+                nPrevClusters, nCurClusters, X, partsOut, coverageOut, displ3, displ5, displ7, ...
                 areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
                 is_downsampling, dowsample_rate, elPath, meargeThresh, isErrosion, discRadius, is_guided, r_guided, eps, ...
                 is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, cluster5Depths, fileForVisualization4Layer, ...
@@ -15,11 +15,15 @@ function [] = performInferenceNext(list_depths, list_El, list_mask, lenF, sigma,
 
     is_5_layer = areLayersRequired(5);
     is_6_layer = areLayersRequired(6);
+    is_7_layer = areLayersRequired(7);
+    is_8_layer = areLayersRequired(8);
     is_inhibition_5_layer = isInhibitionRequired(5);
     is_inhibition_6_layer = isInhibitionRequired(6);
+    is_inhibition_7_layer = isInhibitionRequired(7);
+    is_inhibition_8_layer = isInhibitionRequired(8);
     
     
-    hDispl = round(displ3/2);  % half displ
+    smallOffset = 2;  % half displ
     lenDPW = length(elPath);
     lenCombs = size(X, 1);
     
@@ -28,67 +32,76 @@ function [] = performInferenceNext(list_depths, list_El, list_mask, lenF, sigma,
     isY = false;
     
     
-    table5 = uint16(zeros(n4Clusters,n4Clusters,n4Clusters));
+    table5 = zeros(nPrevClusters,nPrevClusters,nPrevClusters);
+    
+%   table5 = sparse(zeros(1, nPrevClusters^3));
 
-    for i = 1:n5Clusters
+    tic
+    for i = 1:nCurClusters
         cur = partsOut(i,:);  % left centre right    or  top centre bottom
-        table5(cur(1),cur(2),cur(3)) = i;   
+        table5(cur(1),cur(2),cur(3)) = i; 
+%         table5((partsOut(i,1) - 1) * (nPrevClusters^2) +  (partsOut(i,2) - 1) * nPrevClusters + partsOut(i,3)) = i;  
+%         i
     end
+    toc;
     
     table5Abst = table5;  % assume elements refer to themselve
     
-    if abstractionLevel == 1 || abstractionLevel == 2
-        disp('Error. This abstraction level is not defined!')
-    
-    elseif abstractionLevel == 3  
-        % merge the selected elements with all elements with distance
-        % less than meargeThresh
+    % merge the selected elements with all elements with distance
+    % less than meargeThresh
 
-        % distances has size (lenCombs x n4Clusters)
+    % distances has size (lenCombs x nPrevClusters)
+    if layerID == 5
         [XX] = Convert5ToFirstLayer(X, lenCombs, fileForVisualization4Layer);
-        [partsOutXX] = Convert5ToFirstLayer(partsOut, n5Clusters, fileForVisualization4Layer);
-        
-        distances = Isodata_distances(XX, partsOutXX, lenCombs, n5Clusters, false, false);
-        
-        for j = 1:lenCombs
-            % for each X(j,:) we find the closest element from partsOut
-            % table
-            
-            if table5(X(j,1), X(j,2), X(j,3)) > 1  % part is selected, no abstraction needed
-                continue;
-            end
-            
-            curDistances = distances(j,:);
-            curDistances(curDistances == 0) = 100;  % similarity to itself
-            minD = min(curDistances);
-            if minD > meargeThresh
-                continue;
-            end
-            idx = find(curDistances == minD);
-            
-            if length(idx) > 1
-                % Assumption: we have to find the most frequent part
-                % according to coverageOut:   WHICH DOES NOT MAKE TOO MUCH
-                % SENCE!
-                coverages = coverageOut(idx);               
-                mCoverage = max(coverages);
-                idxCov = find(coverages == mCoverage);  % index in the small array
-                idx = idx(idxCov(1));
-            end
-            
-            % element X(j,:) should refer to element partsOut(idx)
-            
-            table5Abst(X(j,1), X(j,2), X(j,3)) = table5(partsOut(idx,1), partsOut(idx,2), partsOut(idx,3));
-        end 
+        [partsOutXX] = Convert5ToFirstLayer(partsOut, nCurClusters, fileForVisualization4Layer);
+    elseif layerID == 6
+        [XX] = Convert6ToFirstLayer(X, lenCombs, fileForVisualization4Layer);
+        [partsOutXX] = Convert6ToFirstLayer(partsOut, nCurClusters, fileForVisualization4Layer);
     end
+
+    distances = Isodata_distances(XX, partsOutXX, lenCombs, nCurClusters, false, false);
+
+    for j = 1:lenCombs
+        % for each X(j,:) we find the closest element from partsOut
+        % table
+
+        if table5(X(j,1), X(j,2), X(j,3)) > 1  % part is selected, no abstraction needed
+%         if table5((X(j, 1) - 1) * (nPrevClusters^2) +  (X(j, 2) - 1) * nPrevClusters + X(j, 3)) + 0 > 1
+            continue;
+        end
+
+        curDistances = distances(j,:);
+        curDistances(curDistances == 0) = 100;  % similarity to itself
+        minD = min(curDistances);
+        if minD > meargeThresh
+            continue;
+        end
+        idx = find(curDistances == minD);
+
+        if length(idx) > 1
+            % Assumption: we have to find the most frequent part
+            % according to coverageOut:   WHICH DOES NOT MAKE TOO MUCH
+            % SENCE!
+            coverages = coverageOut(idx);               
+            mCoverage = max(coverages);
+            idxCov = find(coverages == mCoverage);  % index in the small array
+            idx = idx(idxCov(1));
+        end
+
+        % element X(j,:) should refer to element partsOut(idx)
+        table5Abst(X(j,1), X(j,2), X(j,3)) = table5(partsOut(idx,1), partsOut(idx,2), partsOut(idx,3));
+        
+%         table5Abst((X(j, 1) - 1) * (nPrevClusters^2) +  (X(j, 2) - 1) * nPrevClusters + X(j, 3)) = ...
+%             0 + table5((partsOut(idx,1) - 1) * (nPrevClusters^2) +  (partsOut(idx,2) - 1) * nPrevClusters + partsOut(idx,3));
+    end 
+
     
     if dataSetNumber == 1 || dataSetNumber == 3
         list_mask = zeros(1, lenF);
     end
     
     
-    for i = 620:620 
-        
+    for i = 1:lenF   
         
         I = imread(list_depths{i});
         I = I(:,:,1);
@@ -107,9 +120,9 @@ function [] = performInferenceNext(list_depths, list_El, list_mask, lenF, sigma,
 
         marks4 = imread(list_El{i});
         
-        marks44 = marks4 + 100;
-        marks44(marks44 == 100) = 0;
-        imtool(marks44, [0, n5Clusters + 100]);
+%         marks44 = marks4 + 100;
+%         marks44(marks44 == 100) = 0;
+%         imtool(marks44, [0, nCurClusters + 100]);
         
         % preliminary processing of the image I
         [I, ~, ~, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY, isTrim, dxKernel, sigmaKernelSize, sigma, ...
@@ -135,10 +148,10 @@ function [] = performInferenceNext(list_depths, list_El, list_mask, lenF, sigma,
         for j = 1: nEl
 
             
-            % Wierd: TO BE CHANGED!!!
+            % TO BE CHANGED!!!
             
             % check whether it is close to the boundary
-            if rows(j) < displ5 + hDispl + 1  || rows(j) > r - displ5 - hDispl  || cols(j) < displ5 + hDispl + 1 || cols(j) > c - displ5 - hDispl
+            if rows(j) < displ5 + smallOffset + 1  || rows(j) > r - displ5 - smallOffset  || cols(j) < displ5 + smallOffset + 1 || cols(j) > c - displ5 - smallOffset
                 continue;
             else
                 % otherwise try to match something around this object
@@ -149,7 +162,7 @@ function [] = performInferenceNext(list_depths, list_El, list_mask, lenF, sigma,
                 
                 % check what are left and right neighbours
                 
-                [indsXLeft, indsYLeft, indsXRight, indsYRight] = getDisplacements(layerID, cols(j), rows(j), displ7, displ5, displ3, hDispl);
+                [indsXLeft, indsYLeft, indsXRight, indsYRight] = getDisplacements(layerID, cols(j), rows(j), displ7, displ5, displ3, smallOffset);
                 
                 % these are two examples of usage of these function:
                 % sub2ind(size(A), [3 2 3 1 2], [3 4 1 3 4], [2 1 2 2 1]);
@@ -206,6 +219,7 @@ function [] = performInferenceNext(list_depths, list_El, list_mask, lenF, sigma,
                     if is_ok  % both pairs are valid, try to match a triple
                     
                     curEl = table5Abst(el(1), el(2), el(3));  % all or nodes are already in this table
+%                   curEl = table5Abst((el(1) - 1) * (nPrevClusters^2) +  (el(2) - 1) * nPrevClusters + el(3));
 
                         if curEl ~= 0
                             marks5(rows(j), cols(j)) = curEl;
@@ -226,11 +240,11 @@ function [] = performInferenceNext(list_depths, list_El, list_mask, lenF, sigma,
         
         marks5 = marks5 + 100;
         marks5(marks5 == 100) = 0;
-        imtool(marks5, [0, n5Clusters + 100]);
+        imtool(marks5, [0, nCurClusters + 100]);
         
         
 %         imtool(I, [min(min(I)), max(max(I))]);
-%         imtool(marks5, [0, n4Clusters + 100]);
+%         imtool(marks5, [0, nPrevClusters + 100]);
 
         
         % save the image
