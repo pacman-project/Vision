@@ -28,7 +28,6 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         end
     else
         whMat = options.auto.whMat;
-        invMat = options.auto.invMat;
         mu = options.auto.mu;
     end
     filterCount = numel(options.filters);
@@ -57,13 +56,10 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     
     %% Get response by applying each filter to the image.
     responseImgs = zeros(size(img,1), size(img,2), filterCount);
-    tempImgs = zeros(size(img,1), size(img,2), size(img,3));
-  %  filterBand = [];
     imgCols = zeros((size(img,1)-filterSize(1)+1) * (size(img,2)-filterSize(1)+1), prod(filterSize));
     startIdx = 1;
     iterator = prod(filterBandSize)-1;
     for bandItr = 1:size(img,3)
-%         filterBand = currentFilter(:,:,bandItr);
         imgCols(:,startIdx:(startIdx+iterator)) = im2col(img(:,:,bandItr), filterBandSize)';
         startIdx = startIdx + iterator + 1;
     end
@@ -76,7 +72,6 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
             responseImg = conv2(img, currentFilter, 'same');
         else
-%            responseImg = mean(convn(img, currentFilter, 'same'), 3);
             imgCols2 = imgCols - muArr;
             imgCols2 = imgCols2 * whMat;
             imgCols2 = imgCols2 * currentFilter(:);

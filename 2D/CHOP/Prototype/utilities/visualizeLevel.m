@@ -142,6 +142,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 distMatrix = squareform(pdist(childrenCoords));
                 maxDist = max(max(distMatrix));
                 scoreMatrix = exp(maxDist - distMatrix);
+                scoreMatrix = exp(scoreMatrix);     % Another exponential here for less blur.
                 maxDist = max(max(scoreMatrix));
                 scoreMatrix = scoreMatrix / maxDist;
 %                diagIdx = 1:(numberOfChildren+1):numberOfChildren*numberOfChildren;
@@ -259,7 +260,6 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         end
 
         %% Show the set of compositions in a single image and save it.
-
         % Read all masks into an array, and get the extreme dimensions.
         allCompMasks = cell(numberOfNodes,1);
         compMaskSize = [1, 1];
