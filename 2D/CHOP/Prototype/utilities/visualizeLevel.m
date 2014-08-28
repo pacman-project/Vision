@@ -109,8 +109,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-%        parfor setItr = 1:numberOfThreadsUsed
         parfor setItr = 1:numberOfThreadsUsed
+%        for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -142,7 +142,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 distMatrix = squareform(pdist(childrenCoords));
                 maxDist = max(max(distMatrix));
                 scoreMatrix = exp(maxDist - distMatrix);
-                scoreMatrix = exp(scoreMatrix);     % Another exponential here for less blur.
+  %              scoreMatrix = exp(scoreMatrix);     % Another exponential here for less blur.
                 maxDist = max(max(scoreMatrix));
                 scoreMatrix = scoreMatrix / maxDist;
 %                diagIdx = 1:(numberOfChildren+1):numberOfChildren*numberOfChildren;

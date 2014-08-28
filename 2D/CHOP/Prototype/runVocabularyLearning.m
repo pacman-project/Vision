@@ -149,7 +149,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             end
         end
         categoryArr = categoryArr(sortedImageIdx);
-        poseArr = poseArr(sortedImageIdx);
+        poseArr = poseArr(sortedImageIdx); %#ok<NASGU>
 
         % Set image ids for each node.
         imageIds = cell(size(allNodes,1),1);
@@ -173,17 +173,17 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
         [vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, highLevelModes, similarityMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, ...
-                                        options, trainingFileNames);
-        tr_stop_time=toc(tr_s_time);
+                                        options, trainingFileNames); %#ok<NASGU,ASGLU>
+        tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
         % Export realizations into easily-readable arrays.
-        exportArr = exportRealizations(mainGraph);
+        exportArr = exportRealizations(mainGraph); %#ok<NASGU>
         
         % Transform category array into an index-based one (having numbers
         % instead of category strings). The category string labels is saved
         % in categoryNames.
-        [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable');
-        categoryNames = categoryArr(categoryNames);
+        [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); %#ok<NASGU>
+        categoryNames = categoryArr(categoryNames); %#ok<NASGU>
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');

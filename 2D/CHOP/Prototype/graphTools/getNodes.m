@@ -27,6 +27,8 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
             img = rgb2gray(img(:,:,1:3));
         end
     else
+        filterMatrix = options.filterMatrix;
+        stride = options.auto.stride;
         whMat = options.auto.whMat;
         mu = options.auto.mu;
     end
@@ -56,41 +58,79 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     
     %% Get response by applying each filter to the image.
     responseImgs = zeros(size(img,1), size(img,2), filterCount);
-    imgCols = zeros((size(img,1)-filterSize(1)+1) * (size(img,2)-filterSize(1)+1), prod(filterSize));
-    startIdx = 1;
-    iterator = prod(filterBandSize)-1;
-    for bandItr = 1:size(img,3)
-        imgCols(:,startIdx:(startIdx+iterator)) = im2col(img(:,:,bandItr), filterBandSize)';
-        startIdx = startIdx + iterator + 1;
+    if strcmp(options.filterType, 'auto')
+        dim1 = (size(img,1)-filterSize(1)+1);
+        dim2 = (size(img,2)-filterSize(2)+1);
+
+        % Implementing stride here. Some blocks will be skipped. 
+        imgCols = zeros( ceil(dim1/stride) * ceil(dim2/stride), prod(filterSize));
+        startIdx = 1;
+        iterator = prod(filterBandSize)-1;
+        
+        % Get linear indices of correct columns, since not all blocks (each
+        % corresponds a column) may be used, depending on the stride parameter.
+        idx1 = 1:stride:dim1;
+        idx2 = 1:stride:dim2;
+        [p,q] = meshgrid(idx1, idx2);
+        pairs = [p(:) q(:)];
+        pairs = sortrows(pairs,2);
+        validCols = sub2ind([dim1, dim2], pairs(:,1), pairs(:,2));
+        
+        for bandItr = 1:size(img,3)
+            tempCols = im2col(img(:,:,bandItr), filterBandSize)';
+            imgCols(:,startIdx:(startIdx+iterator)) = tempCols(validCols,:);
+            startIdx = startIdx + iterator + 1;
+        end
+        muArr = repmat(mu, [size(imgCols,1), 1]);
+    
     end
-    muArr = repmat(mu, [size(imgCols,1), 1]);
     halfSize = ceil(filterSize(1)/2);
   
-    for filtItr = 1:filterCount
-        currentFilter = double(options.filters{filtItr});
-  
-        if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
-            responseImg = conv2(img, currentFilter, 'same');
-        else
-            imgCols2 = imgCols - muArr;
-            imgCols2 = imgCols2 * whMat;
-            imgCols2 = imgCols2 * currentFilter(:);
-            responses = (imgCols2-min(imgCols2)) / (max(imgCols2) - min(imgCols2));
-            responseImg = zeros(size(img,1), size(img,2));
-            responseImg(halfSize:(end-halfSize+1), halfSize:(end-halfSize+1)) = reshape(responses, ...
-                [size(responseImg,1)-filterSize(1)+1, size(responseImg,2)-filterSize(1)+1]);
+    %% Low-level feature extraction.
+    if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
+        for filtItr = 1:filterCount
+            currentFilter = double(options.filters{filtItr});
+
+                responseImg = conv2(img, currentFilter, 'same');
+
+            % Save response for future processing
+            responseImgs(:,:,filtItr) = responseImg;
         end
-            
-        % Save response for future processing
-        responseImgs(:,:,filtItr) = responseImg;
+    else
+        % Pre-process the image blocks by whitening them.
+        imgCols2 = imgCols - muArr;
+        imgCols2 = imgCols2 * whMat;
+
+        % Instead of convolving imgCols2 with the filter, we simply
+        % assign a label(filter id) to each row in imgCols2 by
+        % finding the cluster with minimum distance to each sample, 
+        % given in every row. We also allow a soft-competition of
+        % filters by removing roughly half of them, based on the
+        % average distance of cluster centers from each sample.
+        numberOfCols = size(imgCols2,1);
+        imgCols2 = imgCols2(floor((0:((numberOfCols^2)-1)) / numberOfCols) + 1, :);
+        repFilterMatrix = repmat(filterMatrix, numberOfCols, 1);
+        
+        % Subtract repFilterMatrix from imgCols2.
+        colFiltDistances = sum((imgCols2 - repFilterMatrix).^2,2);
+        distancesPerCol = reshape(colFiltDistances, numberOfCols, filterCount)';
+        
+        % Find average of every row, and subtract its mean from every row.
+        colMeans = repmat(mean(distancesPerCol,2), 1, filterCount);
+        
+        % Suppress distances for every row which is more than its average
+        % distance to every filter.
+        distancesPerCol(distancesPerCol > colMeans) = max(max(distancesPerCol));
+        
+        % Find responses by reversing distances into normalized similarities.
+        responses = (max(max(distancesPerCol)) - distancesPerCol) / ...
+            max(max(distancesPerCol));
+        
+        % Assign responses to the actual image.
+        realCoordIdx1 = idx1 + halfSize - 1;
+        realCoordIdx2 = idx2 + halfSize - 1;
+        responseImgs(realCoordIdx1, realCoordIdx2, :) = reshape(responses, [numel(idx1), numel(idx2), filterCount]);
     end
-    
-%     function x = myConv(x)
-%         x = x - mu;
-%         x = x * whMat;
-%         x = sum(x*currentFilter);
-%     end
-    
     %% In Gabor-based features, we apply a minimum response threshold over response image.
     if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
        gaborFilterThr = options.gaborFilterThr * max(max(max(responseImgs)));
@@ -103,7 +143,6 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     end
     
    %% Write smooth object boundaries to an image based on responseImgs.
-%   smoothedImg = getSmoothedImage(responseImgs, options.filters);
     smoothedImg = mean(responseImgs,3);
     smoothedImg = (smoothedImg - min(min(smoothedImg))) / (max(max(smoothedImg)) - min(min(smoothedImg)));
    
@@ -121,7 +160,6 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
    
    %% Here, we will run a loop till we clear all weak responses.
    peaks = find(responseImgs);
-%   prevPeakCount = inf;
    peakCount = numel(peaks);
    [~, orderedPeakIdx] = sort(responseImgs(peaks), 'descend');
    orderedPeaks = peaks(orderedPeakIdx);
@@ -136,30 +174,6 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
        end
    end
    responseImgs(orderedPeaks(~validPeaks)) = 0;
-%   peaks = find(validPeaks);
-%   peakCount = numel(peaks);
-%    
-%    while prevPeakCount ~= peakCount
-%        [xInd, yInd, ~] = ind2sub(size(responseImgs), peaks);
-%        for peakItr = 1:size(peaks,1)
-%           % If this peak has not yet been eliminated, go check nearby peaks
-%           if responseImgs(peaks(peakItr)) > 0 
-%               nearbyPeakIdx = xInd >= (xInd(peakItr) - inhibitionHalfSize) & xInd <= (xInd(peakItr) + inhibitionHalfSize) & ...
-%                   yInd >= (yInd(peakItr) - inhibitionHalfSize) & yInd <= (yInd(peakItr) + inhibitionHalfSize);
-% 
-%               maxPeak = max(responseImgs(peaks(nearbyPeakIdx)));
-%               if responseImgs(peaks(peakItr)) > (maxPeak-0.0001)
-%                  nearbyPeakIdx(peakItr) = 0;
-%                  responseImgs(peaks(nearbyPeakIdx)) = 0; 
-%               else
-%        %          responseImgs(peaks(peakItr)) = 0;
-%               end
-%           end
-%        end
-%        prevPeakCount = peakCount;
-%        peaks = find(responseImgs);
-%        peakCount = numel(peaks);
-%    end
    
    % Write the responses in the final image.
    responseImgs = double(responseImgs>0);

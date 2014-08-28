@@ -76,11 +76,20 @@ function [ options ] = SetParameters( datasetName, isTraining )
         display('"co-occurence" property and "true" reconstruction is incompatible. Switching to "leaf" type reconstruction.');
     end
     
+    %% Get relevant matrices for auto-type feature processing.
     if strcmp(options.filterType, 'auto') && exist([options.outputFolder '/C.mat'], 'file') 
         load([options.outputFolder '/C.mat'], 'whMat', 'mu', 'invMat');
         options.auto.whMat = whMat;
         options.auto.invMat = invMat;
         options.auto.mu = mu;
+        
+        % We create a feature matrix out of these filters for fast
+        % processing.
+        filterMatrix = zeros(options.numberOfFilters, numel(filters{1}));
+        for filtItr = 1:options.numberOfFilters
+            filterMatrix(filtItr,:) = filters{filtItr}(:);
+        end
+        options.filterMatrix = filterMatrix;
     end
 end
 
