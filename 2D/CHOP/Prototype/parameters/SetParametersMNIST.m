@@ -51,11 +51,11 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                         % responses than the seed node will
                                         % be surpressed.
     
-    options.autoFilterSize = 11;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 9;         % Size (one side) of a autodetected 
                                         % filter.
                                         
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2);
-    options.autoFilterThr = 0.2;      % Min response threshold for convolved 
+    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
+    options.autoFilterThr = 0.5;      % Min response threshold for convolved 
                                        % features, taken as the percentage 
                                        % of max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
@@ -200,7 +200,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                 % format is changed. They are not
                                 % parameters, and should not be changed
                                 % unless SUBDUE output format is changed.
-    options.subdue.threshold = 0.1; % Theshold for elasticity-based matching 
+    options.subdue.threshold = 0.05; % Theshold for elasticity-based matching 
                                     % in SUBDUE. Can be in [0,1]. 0: Strict
                                     % matching, (-> 1) Matching gets looser.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition 
