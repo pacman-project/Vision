@@ -82,6 +82,7 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
             imgCols(:,startIdx:(startIdx+iterator)) = tempCols(validCols,:);
             startIdx = startIdx + iterator + 1;
         end
+        clear tempCols;
         muArr = repmat(mu, [size(imgCols,1), 1]);
     
     end
@@ -109,23 +110,56 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         % filters by removing roughly half of them, based on the
         % average distance of cluster centers from each sample.
         numberOfCols = size(imgCols2,1);
-        imgCols2 = imgCols2(floor((0:((numberOfCols^2)-1)) / numberOfCols) + 1, :);
-        repFilterMatrix = repmat(filterMatrix, numberOfCols, 1);
+        % If number of cols is more than 1000, we divide and conquer
+        % imgCols2 array into fixed-size bins. Otherwise, it's hell of a
+        % memory problem.
+        if numberOfCols>1000 % Depends on feature dimension, but 1000 should 
+                             % be reasonable for features smaller than 15x15x3)
+            numberOfSets = ceil(numberOfCols/1000);
+            smallRepFilterMatrix = repmat(filterMatrix, 1000, 1);
+            colFiltDistances = zeros(numberOfCols * filterCount,1);
+            for setItr = 1:numberOfSets
+                colsInSet = min(1000, (numberOfCols-((setItr-1)*1000)));
+                setCols = imgCols2((((setItr-1) * 1000) + 1):min(setItr*1000, numberOfCols),:);
+                setCols = setCols(floor((0:((colsInSet * filterCount)-1)) / filterCount) + 1, :);
+                if colsInSet ~= 1000
+                    smallRepFilterMatrix = smallRepFilterMatrix(1:(colsInSet * filterCount),:);
+                end
+
+                % Subtract repFilterMatrix from imgCols2.
+                totalAssgnCount = colsInSet * filterCount;
+                assgnStartIdx = (1000 * filterCount * (setItr-1)) + 1;
+                colFiltDistances(assgnStartIdx:...
+                    (assgnStartIdx+totalAssgnCount-1)) = ...
+                    sqrt(sum((setCols - smallRepFilterMatrix).^2,2));
+            end
+            clear smallRepFilterMatrix imgCols2 setCols;
+        else
+            % No need to divide, just find the distances.
+            imgCols2 = imgCols2(floor((0:((numberOfCols * filterCount)-1)) / filterCount) + 1, :);
+            repFilterMatrix = repmat(filterMatrix, numberOfCols, 1);
+
+            % Subtract repFilterMatrix from imgCols2.
+            colFiltDistances = sqrt(sum((imgCols2 - repFilterMatrix).^2,2));
+            clear repFilterMatrix imgCols2;
+        end
+        clear imgCols;
+        % Reshape distances into a NxD array, where N is number of columns (blocks),
+        % and D is number of filters.
+        distancesPerCol = reshape(colFiltDistances, filterCount, numberOfCols).';
         
-        % Subtract repFilterMatrix from imgCols2.
-        colFiltDistances = sum((imgCols2 - repFilterMatrix).^2,2);
-        distancesPerCol = reshape(colFiltDistances, numberOfCols, filterCount)';
-        
-        % Find average of every row, and subtract its mean from every row.
+        % Find average of every row.
         colMeans = repmat(mean(distancesPerCol,2), 1, filterCount);
         
         % Suppress distances for every row which is more than its average
         % distance to every filter.
-        distancesPerCol(distancesPerCol > colMeans) = max(max(distancesPerCol));
+        meanAssgnIdx = distancesPerCol > colMeans;
+        distancesPerCol(meanAssgnIdx) = colMeans(meanAssgnIdx);
         
         % Find responses by reversing distances into normalized similarities.
-        responses = (max(max(distancesPerCol)) - distancesPerCol) / ...
-            max(max(distancesPerCol));
+%         responses = (colMeans - distancesPerCol) ./ ...
+%             colMeans;
+        responses = (colMeans - distancesPerCol);
         
         % Assign responses to the actual image.
         realCoordIdx1 = idx1 + halfSize - 1;
