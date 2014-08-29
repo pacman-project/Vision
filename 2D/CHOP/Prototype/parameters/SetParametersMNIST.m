@@ -181,6 +181,10 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true;
+    options.favorParam = 5;     % Between 1:100, if it increases, category 
+                                 % nodes with peaks towards a certain category 
+                                 % will be favoured more, rather than those 
+                                 % with relatively uniform distribution.
     
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
                                            % The following metric is valid
