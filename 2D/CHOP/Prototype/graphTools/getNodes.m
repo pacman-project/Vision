@@ -27,11 +27,11 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
             img = rgb2gray(img(:,:,1:3));
         end
     else
-        filterMatrix = options.filterMatrix;
-        deadFeatureStd = options.auto.deadFeatureStd;
         stride = options.auto.stride;
         whMat = options.auto.whMat;
         mu = options.auto.mu;
+        deadFeatures = options.auto.deadFeatures;
+        filterMatrix = options.filterMatrix;
     end
     filterCount = numel(options.filters);
     filterSize = size(options.filters{1});
@@ -134,7 +134,6 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         
         % Remove responses resulting from dead features. (Will be replaced 
         % by a better method in the future)
-        deadFeatures = find(std(filterMatrix, 0, 2) < deadFeatureStd );
         for deadFeature = deadFeatures
             responseImgs(:,:,deadFeature) = 0;
         end

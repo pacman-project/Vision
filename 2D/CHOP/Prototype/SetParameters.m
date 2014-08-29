@@ -90,6 +90,11 @@ function [ options ] = SetParameters( datasetName, isTraining )
             filterMatrix(filtItr,:) = filters{filtItr}(:);
         end
         options.filterMatrix = filterMatrix;
+        
+        % Mark dead features.
+        options.auto.deadFeatures = find(std(filterMatrix, 0, 2) < options.auto.deadFeatureStd );
+    elseif strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
+        options.auto.deadFeatures = [];
     end
 end
 
