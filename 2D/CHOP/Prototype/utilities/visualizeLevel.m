@@ -112,7 +112,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
 %       for setItr = 1:numberOfThreadsUsed
-        parfor setItr = 1:numberOfThreadsUsed
+        for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -199,7 +199,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 childrenCoords = round(childrenCoords - [ones(numel(children),1) * maskMinX, ones(numel(children),1) * maskMinY]);
 
                 %% Write the children's masks to the current mask.
-                currentMask = NaN((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
+                currentMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
+                currentFilledMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
                 currentLabelMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
                 for childItr = 1:numel(children)
                     % Write the child's mask to the output.
@@ -208,6 +209,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                           prevNodeMasks{children(childItr)}.*scoreMatrix(childItr) + ...
                               currentMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
                                   (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2))),:);
+                    currentFilledMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
+                          (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))) = 1;
                     
                     % Mark label image for the child.
                     currentLabelMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
@@ -216,40 +219,40 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                          (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2)))), ...
                          double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
                 end
-                validValues = currentMask(~isnan(currentMask));
+                
+                % Learn valid 
+                validValues = currentMask(currentFilledMask>0);
+                filledValue = median(validValues);
+                
+                % Assign filling value to each band.
+                for bandItr = 1:size(currentMask,3)
+                    bandMask = currentMask(:,:,bandItr);
+                    bandMask(~currentFilledMask) = filledValue;
+                    currentMask(:,:,bandItr) = bandMask;
+                end
+                
+                % Normalize current mask to [0,1].
                 currentMask = ( currentMask - min(validValues)) / (max(validValues) - min(validValues));
-%                currentLabelImg = label2rgb(currentLabelMask, 'jet', 'k', 'noshuffle');
-%                 for bandItr = 1:3
-%                     if filtBandCount>1
-%                         currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask(:,:,bandItr));
-%                     else
-%                         currentLabelImg(:, :, bandItr) = uint8(double(currentLabelImg(:, :, bandItr)) .* currentMask);
-%                     end
-%                 end
-
-                % Fill in empty areas with the median value (will be gray).
-                printedCurrentMask = currentMask;
-                printedCurrentMask(isnan(printedCurrentMask)) = median(validValues);
-
-                % Assign currentMask to the label image.
-                currentLabelImg = printedCurrentMask;
                 
                 %% If the size of the current mask can be divided by two, pad sides to prevent this.
                 dimRems = rem(size(currentMask),2);
                 if dimRems(1) == 0
-                    currentMask = [currentMask; NaN(1, size(currentMask,2), size(currentMask,3))];
+                    currentMask = [currentMask; ones(1, size(currentMask,2), size(currentMask,3)) * filledValue];
                 end
                 if dimRems(2) == 0
-                    currentMask = [currentMask, NaN(size(currentMask, 1), 1, size(currentMask,3))];
+                    currentMask = [currentMask, ones(size(currentMask, 1), 1, size(currentMask,3)) * filledValue];
                 end
+                
+                % Assign currentMask to the label image.
+                currentLabelImg = currentMask;
                 
                 %% Print the files to output folders.
                 if isRedundant
                     realLabel = labelIds(nodeSet(nodeItr));
                     optionOrder = nnz(labelIds(1:nodeSet(nodeItr))==realLabel);
-                    imwrite(printedCurrentMask, [reconstructionDir num2str(realLabel) '_option' num2str(optionOrder) '.png']);
+                    imwrite(currentMask, [reconstructionDir num2str(realLabel) '_option' num2str(optionOrder) '.png']);
                 else
-                    imwrite(printedCurrentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                    imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
                     imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
                 end
             end
