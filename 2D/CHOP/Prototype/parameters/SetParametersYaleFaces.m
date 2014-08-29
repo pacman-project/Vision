@@ -66,7 +66,7 @@ function [ options ] = SetParametersYaleFaces( datasetName, options )
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    options.auto.deadFeatureStd = 0.1; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.5; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
