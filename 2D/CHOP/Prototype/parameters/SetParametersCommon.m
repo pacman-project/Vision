@@ -49,11 +49,11 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                         % responses than the seed node will
                                         % be surpressed.
     
-    options.autoFilterSize = 11;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 15;         % Size (one side) of a autodetected 
                                         % filter.
                                         
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2);
-    options.autoFilterThr = 0.2;      % Min response threshold for convolved 
+    options.autoFilterThr = 0.7;      % Min response threshold for convolved 
                                        % features, taken as the percentage 
                                        % of max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
@@ -64,7 +64,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    options.auto.deadFeatureStd = 0.5; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.4; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform

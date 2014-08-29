@@ -54,8 +54,8 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.autoFilterSize = 9;         % Size (one side) of a autodetected 
                                         % filter.
                                         
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
-    options.autoFilterThr = 0.5;      % Min response threshold for convolved 
+    options.auto.inhibitionRadius = floor(options.autoFilterSize/2);
+    options.autoFilterThr = 0.7;      % Min response threshold for convolved 
                                        % features, taken as the percentage 
                                        % of max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
@@ -66,7 +66,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    options.auto.deadFeatureStd = 0.5; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.4; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
@@ -134,7 +134,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                        % here. 'multiview' and 'category'
                                        % are considered to be implemented,
                                        % among others.
-    options.reconstructionType = 'true'; % 'true': Actual reconstruction at each 
+    options.reconstructionType = 'leaf'; % 'true': Actual reconstruction at each 
                                          % level with compositions' masks on 
                                          % that specific level
                                          % 'leaf': Detected leaf nodes will

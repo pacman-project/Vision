@@ -55,7 +55,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
     if options.debug
         visualizeLevel( vocabulary{1}, [], [], [], 1, previousModes, 0, options, 0);
         imwrite(similarityMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_sim.png']);
-  %      visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
+        visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
     end
     
     %% Calculate statistics from this graph.
@@ -200,7 +200,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         %                visualizeLevel( redundantVocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 1);
                     end
                end
-  %             visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
+               visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
            end
         end
         

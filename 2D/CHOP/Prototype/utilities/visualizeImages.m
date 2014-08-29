@@ -19,7 +19,7 @@
 %> Ver 1.0 on 09.12.2013
 function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, type )
     outputTempDir = [options.outputFolder '/reconstruction/' type];
-    smoothedDir = options.smoothedFolder;
+    processedFolder = options.processedFolder;   
     reconstructionType = options.reconstructionType;
     imageReconstructionType = options.imageReconstructionType;
     
@@ -76,7 +76,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
         if ~exist(outputDir, 'dir')
            mkdir(outputDir); 
         end
-        img = imread([smoothedDir '/' fileName '.png']);
+        img = imread([processedFolder '/' fileName '.png']);
         actualImg = img;
         
         % If original image's band count is less than 3, duplicate
@@ -91,7 +91,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
               actualImg(:,:,bandItr) = oldOriginalImg; 
            end
         end
-            
+        
         originalImg = actualImg;
         reconstructedMask = zeros(size(img,1), size(img,2), filtBandCount, 'uint8');
         labeledReconstructedMask = zeros(size(img,1), size(img,2));
@@ -189,8 +189,8 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             %% Mark the center of each realization with its label id.
             labeledReconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
                 (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1)) = nodes(nodeItr).labelId;
-            reconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
-                (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1),:) = 255;
+%            reconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
+%                (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1),:) = 255;
             
             %% Print this sub to a separate mask, if needed.
             if strcmp(imageReconstructionType, 'individual')
