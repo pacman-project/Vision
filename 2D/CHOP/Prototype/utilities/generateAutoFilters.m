@@ -69,7 +69,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         
         %% Now, we'll apply ZCA whitening to all samples.
         display('Applying whitening...');
-        [Xwh, mu, invMat, whMat] = whiten(samples); %#ok<NASGU>
+        [Xwh, mu, invMat, whMat] = whiten(samples); %#ok<ASGLU,NASGU>
 
         %% Cluster whitened samples to get cluster centers.
         display('Clustering features...');
@@ -84,8 +84,8 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         load([options.currentFolder '/output/' datasetName '/C.mat']);
     end
     numberOfFilters = size(C,1);
-    C = C*invMat + repmat(mu, [numberOfFilters,1]);
-    C = uint8(C);
+%    C = C*invMat + repmat(mu, [numberOfFilters,1]);
+%    C = uint8(C);
     
     %% Visualize the centers as a grid image.
     display('Visualizing features...');
@@ -100,12 +100,15 @@ function [ ] = generateAutoFilters( datasetName, fileType )
             gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, size(img,3)]);
             finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
                 ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = gaborFilt;
-            imwrite(gaborFilt, [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
-            gaborFilt = double(gaborFilt)./double(max(gaborFilt(:)));
+            printedGaborFilt = (gaborFilt - min(min(min(gaborFilt)))) / (max(max(max(gaborFilt))) - min(min(min(gaborFilt))));
+            imwrite(printedGaborFilt, [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
+%            gaborFilt = double(gaborFilt)./double(max(gaborFilt(:)));
             save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
             filterItr = filterItr+1;
         end
     end
-    imwrite(uint8(finalImage), [options.currentFolder '/output/' datasetName '/C.png']);
+    finalImage = (finalImage - min(min(min(finalImage)))) / (max(max(max(finalImage))) - min(min(min(finalImage))));
+    imwrite(finalImage, [options.currentFolder '/output/' datasetName '/C.png']);
+    close(gcf);
 end
 

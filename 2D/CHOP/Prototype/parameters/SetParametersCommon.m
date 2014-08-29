@@ -64,7 +64,11 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    
+    options.auto.deadFeatureStd = 0.1; % In case of auto-learned features, 
+                                       % some dead features may come up.
+                                       % The standard deviation check is
+                                       % used to eliminate uniform
+                                       % features.
     %% ========== GT Parameters ==========
     options.useGT = true;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under

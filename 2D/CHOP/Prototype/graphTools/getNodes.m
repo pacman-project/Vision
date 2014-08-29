@@ -28,6 +28,7 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         end
     else
         filterMatrix = options.filterMatrix;
+        deadFeatureStd = options.auto.deadFeatureStd;
         stride = options.auto.stride;
         whMat = options.auto.whMat;
         mu = options.auto.mu;
@@ -130,20 +131,26 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         realCoordIdx1 = idx1 + halfSize - 1;
         realCoordIdx2 = idx2 + halfSize - 1;
         responseImgs(realCoordIdx1, realCoordIdx2, :) = reshape(responses, [numel(idx1), numel(idx2), filterCount]);
+        
+        % Remove responses resulting from dead features. (Will be replaced 
+        % by a better method in the future)
+        deadFeatures = find(std(filterMatrix, 0, 2) < deadFeatureStd );
+        for deadFeature = deadFeatures
+            responseImgs(:,:,deadFeature) = 0;
+        end
     end
+    
     %% In Gabor-based features, we apply a minimum response threshold over response image.
     if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
        gaborFilterThr = options.gaborFilterThr * max(max(max(responseImgs)));
-    %    gaborFilterThr = 150;
        responseImgs(responseImgs<max(gaborFilterThr, options.absGaborFilterThr)) = 0;
-    %     responseImgs(responseImgs<gaborFilterThr) = 0;
     elseif strcmp(options.filterType, 'auto')
        filterThr = options.autoFilterThr * max(max(max(responseImgs)));
        responseImgs(responseImgs<filterThr) = 0;
     end
     
    %% Write smooth object boundaries to an image based on responseImgs.
-    smoothedImg = mean(responseImgs,3);
+    smoothedImg = max(responseImgs,[],3);
     smoothedImg = (smoothedImg - min(min(smoothedImg))) / (max(max(smoothedImg)) - min(min(smoothedImg)));
    
    %% Inhibit weak responses in vicinity of powerful peaks.
