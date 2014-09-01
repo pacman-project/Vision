@@ -72,7 +72,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
             currentModes = modes{levelItr-1};
             numberOfModes = size(currentModes,1);
             oppositeModes = zeros(numberOfModes,1);
-            for modeItr = 1:numberOfModes
+            parfor modeItr = 1:numberOfModes
                oppositeMode = currentModes(modeItr,:);
                oppositeMode(1:2) = oppositeMode(2:-1:1);
                oppositeMode(3:4) = oppositeMode(3:4) * -1;

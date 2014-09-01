@@ -58,6 +58,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
+    beam = options.subdue.beam;
+    nsubs = options.subdue.nsubs;
+    maxTime = options.subdue.maxTime;
+    maxSize = options.subdue.maxSize;
     
     %% Initialize data structures.
     % Helper data structures.
@@ -86,56 +90,67 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     
     %% Step 2: Main loop
     startTime = tic;
-    endFlag = 0;
+    
     while ~isempty(parentSubs)
-        extendedSubs = [];
-        while ~isempty(parentSubs)
-            %% Step 2.1: Get head of parentSubs.
-            [parentSub, parentSubs] = getTopQueue(parentSubs);
-            
-            % Check time. If it took too long, end processing. 
-            % Check parent's size. If it is too large, end processing.
+        % Check time. If it took too long, end processing. 
+        % Check parent's size. If it is too large, end processing.
+        elapsedTime = toc(startTime);
+        if elapsedTime > maxTime || ...
+                size(parentSubs(1).edges,1) >= (maxSize-1)
+            break;
+        end
+        
+        %% All good, execution.
+        childSubArr = cell(numel(parentSubs),1);
+        parfor parentItr = 1:numel(parentSubs)
+            %% Step 2.1: If it has been too long, we need to finish execution.
             elapsedTime = toc(startTime);
-            if elapsedTime > options.subdue.maxTime || ...
-                    size(parentSub.edges,1) >= (options.subdue.maxSize-1)
-                endFlag = 1;
-                break;
+            if elapsedTime > maxTime
+                continue;
             end
+            
             %% Step 2.2: Extend head in all possible directions into childSubs.
-            childSubs = extendSub(parentSub, allEdges);
-            
-            % If no children are generated or time is up, return.
-            if endFlag || numel(childSubs) < 1
-               break; 
+            childSubs = extendSub(parentSubs(parentItr), allEdges);
+            if isempty(childSubs) 
+                continue;
             end
-            
             %% Step 2.3: Remove duplicates from childSubs.
             % Here, we check if childSubs has duplicates in extendedSubs.
-            childSubs = removeDuplicateSubs([extendedSubs, childSubs]);
+%            childSubs = removeDuplicateSubs([extendedSubs, childSubs]);
             childSubs = childSubs([childSubs.mdlScore] == 0);
             
             %% Step 2.4: Evaluate childSubs, find their instances.
             childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allSigns, graphSize);
-            
             if isempty(childSubs)
                 continue;
             end
+            
+            %% Save childSubs
+            childSubArr(parentItr) = {childSubs};
+        end
+        
+        %% Add each children group in childGroupArr into extendedSubs.
+        extendedSubs = [];
+        for childGroupItr = 1:numel(childSubArr)
             %% Step 2.5: Add childSubs to extendedSubs and bestSubs.
-            extendedSubs = addToQueue(childSubs, extendedSubs, options.subdue.beam);
-            if numel(childSubs(1).edges) >= (options.subdue.minSize-1)
-                % Here, a check ensures that the subs to put in bestSubs
-                % are distinct. Simply, an instance of any sub in bestSubs
-                % should not have the exact same node list (children) as
-                % any other sub in the list.
-                [~,sortedIdx]=sort([childSubs.mdlScore]);
-                childSubs=childSubs(sortedIdx);
-                childSubs = removeEncodedSubs(childSubs, bestSubs, oppositeModes);
-                
-                % Add remaining child subs to best subs.
-                bestSubs = addToQueue(childSubs, bestSubs, options.subdue.nsubs);    
+            childSubs = childSubArr{childGroupItr};
+            if ~isempty(childSubs)
+                extendedSubs = addToQueue(childSubs, extendedSubs, beam);
+                if numel(childSubs(1).edges) >= (options.subdue.minSize-1)
+                    % Here, a check ensures that the subs to put in bestSubs
+                    % are distinct. Simply, an instance of any sub in bestSubs
+                    % should not have the exact same node list (children) as
+                    % any other sub in the list.
+                    [~,sortedIdx]=sort([childSubs.mdlScore]);
+                    childSubs=childSubs(sortedIdx);
+                    childSubs = removeEncodedSubs(childSubs, bestSubs, oppositeModes);
+
+                    % Add remaining child subs to best subs.
+                    bestSubs = addToQueue(childSubs, bestSubs, nsubs);    
+                end 
             end
         end
-            
+        
         %% Step 2.6: Swap expandedSubs with parentSubs.
         parentSubs = extendedSubs;
     end
