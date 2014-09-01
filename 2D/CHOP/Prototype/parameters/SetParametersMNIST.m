@@ -23,19 +23,19 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'lhop': Steerable Gabor filters in LHOP 
                                   % are used as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.075; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.2; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
                                    % responses. ~80 for natural images.
-    options.gaborFilterSize = 9;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 6;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -53,7 +53,6 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     
     options.autoFilterSize = 9;         % Size (one side) of a autodetected 
                                         % filter.
-                                        
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2);
     options.autoFilterThr = 0.4;      % Min response threshold for convolved 
                                        % features, taken as the percentage 

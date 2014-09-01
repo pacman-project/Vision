@@ -25,9 +25,9 @@
 %> 'self' type search added on 05.02.2014
 function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, oppositeModes, options, preDefinedSearch, levelItr)
     % Close parallel threads as they consume memory.
-    if ~preDefinedSearch && options.parallelProcessing
-        matlabpool close;
-    end
+%     if ~preDefinedSearch && options.parallelProcessing
+%         matlabpool close;
+%     end
     
     startTime = tic;
     if ~preDefinedSearch
@@ -61,8 +61,8 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, opposi
     display(['.... Found ' ...
         num2str(numel(graphLevel)) ' instances of ' num2str(numel(vocabLevel)) ' compositions.']);
     
-    % Reopen threads.
-    if ~preDefinedSearch && options.parallelProcessing
-        matlabpool('open', options.numberOfThreads);
-    end
+%     % Reopen threads.
+%     if ~preDefinedSearch && options.parallelProcessing
+%         matlabpool('open', options.numberOfThreads);
+%     end
 end

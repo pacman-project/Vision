@@ -149,17 +149,15 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                 nodeMask = vocabMasks{reconstructedNodes{reconNodeItr,1}};
                 position = reconstructedNodes{reconNodeItr,2};
                 
-                % If the part has already been added, move on.
-%                  if reconstructedMask(position(1), position(2))>0
-%                     continue; 
-%                  end
-
-                halfSize = (size(nodeMask)-1)/2;
+                % Learn printed dimensions.
+                halfSize = ceil((size(nodeMask)-1)/2);
+                halfSize = halfSize(1:2);
+                otherHalfSize = ([size(nodeMask,1), size(nodeMask,2)] - halfSize) -1; 
                 imageSize = size(reconstructedMask);
 
                 %% If patch is out of bounds, do nothing.
                 if imageSize(1) < position(1)+halfSize(1) || ...
-                        1 > position(1)-halfSize(1) || ...
+                        1 > (position(1)-halfSize(1)) || ...
                         imageSize(2) < (position(2)+halfSize(2)) ||...
                         1 > (position(2)-halfSize(2))
                     continue;
@@ -173,16 +171,16 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                      writtenMask = nodeMask;
                  end
                  
-                 reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-halfSize(2)):(position(2)+halfSize(2)),:) = ... 
-                     max(reconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-halfSize(2)):(position(2)+halfSize(2)),:), ...
+                 reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) = ... 
+                     max(reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:), ...
                      writtenMask);
      
  %               end
                  % First, write the node label to the labeled mask.
-                 reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-halfSize(2)):(position(2)+halfSize(2)));
+                 reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)));
                  
                  avgNodeMask = mean(nodeMask,3);
                  if strcmp(imageReconstructionType, 'all')
@@ -191,8 +189,8 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                      reconstructedPatch(avgNodeMask > 10) = round(255*(mdlScore/maxMdlScore));
                  end
                     
-                 labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+halfSize(1)), ...
-                     (position(2)-halfSize(2)):(position(2)+halfSize(2))) = reconstructedPatch;
+                 labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+otherHalfSize(2))) = reconstructedPatch;
             end
             
             %% Mark the center of each realization with its label id.

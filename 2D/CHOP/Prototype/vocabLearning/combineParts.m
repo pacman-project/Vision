@@ -24,9 +24,7 @@
 %> Updates
 %> Ver 1.0 on 05.05.2014
 function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, similarityMatrix, options)
-    global simMat;
     setSize = 20; % Parallelization parameter.
-    simMat = similarityMatrix;
     regularizationParam = options.subdue.maxSize * 2;
     threshold = options.subdue.threshold * regularizationParam;
     %% First inhibition is done via structural evaluation. 
@@ -94,13 +92,13 @@ function [vocabLevel, graphLevel, newSimilarityMatrix, subClasses] = combinePart
             % comparison is over, the data structures are updated, and a
             % new set of parts are selected from remaining list.
             partStartIdx = 1;
-            oldSimMat = simMat;
+            oldSimMat = similarityMatrix;
  %           newSimilarityMatrix = newSimilarityMatrix(:);
             
             while partStartIdx < numberOfSubs
                 % Select first numberOfThreads parts.
                 [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
-                    matchedSubs, setSize, maxDistance, threshold);
+                    matchedSubs, setSize, maxDistance, similarityMatrix, threshold);
                 similarityMatrixEntries = cell(numberOfSubs-partStartIdx,1);
                 
                 % If set is empty, we're at the end of the list.
@@ -174,8 +172,7 @@ end
 %> Updates
 %> Ver 1.0 on 10.07.2014
 function [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
-                    matchedSubs, numberOfThreads, maxDistance, threshold)
-    global simMat;
+                    matchedSubs, numberOfThreads, maxDistance, similarityMatrix, threshold)
     selectedPartCount = 1;
     partEndIdx = partStartIdx + 1;
     selectedParts = zeros(numberOfThreads,1);
@@ -197,7 +194,7 @@ function [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStart
 
             for partItr = 1:selectedPartCount
                 description2 = vocabDescriptions{selectedParts(partItr)};
-                matchingCost = InexactMatch(description, description2, maxDistance, simMat);
+                matchingCost = InexactMatch(description, description2, maxDistance, similarityMatrix);
                 if matchingCost <= threshold
                     matchFlag = true;
                     break;
@@ -235,7 +232,7 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 06.05.2014
-function [lowestCost] = InexactMatch(description, description2, maxDistance, simMat)
+function [lowestCost] = InexactMatch(description, description2, maxDistance, similarityMatrix)
     % Get both descriptions to the same size.
     firstDesSize = size(description,1);
     secDesSize = size(description2,1);
@@ -264,7 +261,7 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, sim
         % Estimate node-node distances.
         for nodeItr = 1:numberOfChildren
             if validEdges(nodeItr)
-                currentCost = currentCost + simMat(comparedDescription(nodeItr,1), ...
+                currentCost = currentCost + similarityMatrix(comparedDescription(nodeItr,1), ...
                                             description2(nodeItr,1));
             end
         end

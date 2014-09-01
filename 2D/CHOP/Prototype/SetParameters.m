@@ -41,7 +41,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     end
     options = fh(datasetName, options);
     cd(currentPath);
-    %% ========== FOLDER STRUCTURE INITIALIZATION & GENERATION ==========
+    %% ========== FOLDER STRUCTURE INITIALIZATION ==========
     % Set folder parameters.
     options.currentFolder = currentPath;
     options.debugFolder = [currentPath '/debug/' datasetName];
@@ -50,9 +50,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.outputFolder = [currentPath '/output/' datasetName];
     options.testOutputFolder = [options.outputFolder '/test'];
     options.testInferenceFolder = [options.outputFolder '/test/inference'];
-    options.preDefinedFolder = [currentPath '/output/' datasetName '/preDefined'];
-    options.testGraphFolder = [currentPath '/graphs/' datasetName '/test'];
-    options.trainGraphFolder = [currentPath '/graphs/' datasetName '/train'];
     options.smoothedFolder = [currentPath '/output/' datasetName '/smoothed'];
     
     %% ========== PATH FOLDER ADDITION ==========

@@ -19,17 +19,16 @@ function [ ] = generateAutoFilters( datasetName, fileType )
     options = SetParameters(datasetName, true);
     datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
     fileNames = fuf([datasetFolder '*' fileType], 1, 'detail');
-    img = imread(fileNames{1});
+    
     if ~exist([options.currentFolder '/filters/auto'], 'dir')
         mkdir([options.currentFolder '/filters/auto']);
     else
         rmdir([options.currentFolder '/filters/auto'], 's');
         mkdir([options.currentFolder '/filters/auto']);
     end
-    
-    if ~exist([options.currentFolder '/output/' datasetName '/C.mat'], 'file')
-        if ~exist([options.currentFolder '/output/' datasetName], 'dir')
-            mkdir([options.currentFolder '/output/' datasetName]);
+    if ~exist([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'file')
+        if ~exist([options.currentFolder '/filters/vis/' datasetName], 'dir')
+            mkdir([options.currentFolder '/filters/vis/' datasetName]);
         end
         %% Set initial variables for collecting data.
         lowOffset = floor((options.autoFilterSize-1)/2);
@@ -76,16 +75,13 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         opts = statset('MaxIter', 300);
         [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', ...
             'EmptyAction', 'Singleton', 'Replicates', 3, 'Options', opts);
- %       [XwhLabeled] = mec(Xwh, 'c', options.autoFilterCount);
 
         %% Save cluster centers, along with other info.
-        save([options.currentFolder '/output/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');
+        save([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');
     else
-        load([options.currentFolder '/output/' datasetName '/C.mat']);
+        return;
     end
     numberOfFilters = size(C,1);
-%    C = C*invMat + repmat(mu, [numberOfFilters,1]);
-%    C = uint8(C);
     
     %% Visualize the centers as a grid image.
     display('Visualizing features...');
@@ -102,13 +98,12 @@ function [ ] = generateAutoFilters( datasetName, fileType )
                 ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = gaborFilt;
             printedGaborFilt = (gaborFilt - min(min(min(gaborFilt)))) / (max(max(max(gaborFilt))) - min(min(min(gaborFilt))));
             imwrite(printedGaborFilt, [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
-%            gaborFilt = double(gaborFilt)./double(max(gaborFilt(:)));
             save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
             filterItr = filterItr+1;
         end
     end
     finalImage = (finalImage - min(min(min(finalImage)))) / (max(max(max(finalImage))) - min(min(min(finalImage))));
-    imwrite(finalImage, [options.currentFolder '/output/' datasetName '/C.png']);
+    imwrite(finalImage, [options.currentFolder '/filters/vis/' datasetName '/C.png']);
     close(gcf);
 end
 

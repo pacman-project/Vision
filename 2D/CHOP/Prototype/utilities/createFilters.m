@@ -34,7 +34,7 @@ function [ filters ] = createFilters( options )
         if dimSize(2) >= options.gaborFilterSize
            leftPad = ceil((dimSize(2)-options.gaborFilterSize)/2);
            rightPad = (dimSize(2) - leftPad) - options.gaborFilterSize;
-           refGaborFilt = refGaborFilt((leftPad+1):(end-rightPad), :);
+           refGaborFilt = refGaborFilt(:, (leftPad+1):(end-rightPad));
         end
         dimSize = size(refGaborFilt);
         lowerPad = ceil((options.gaborFilterSize - dimSize(1))/2);
@@ -57,6 +57,7 @@ function [ filters ] = createFilters( options )
                curConst = sum(sum(gaborFilt));
                gaborFilt = gaborFilt - curConst/(numel(refGaborFilt));
                filters{filtItr+1} = gaborFilt;
+               gaborFilt = gaborFilt - min(min(gaborFilt));
 
                % Save filters
                save([options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) '.mat'], 'gaborFilt');

@@ -59,7 +59,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
     
-    
     %% Initialize data structures.
     % Helper data structures.
     allEdges = {graphLevel.adjInfo}';

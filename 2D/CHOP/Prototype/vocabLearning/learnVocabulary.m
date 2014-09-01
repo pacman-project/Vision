@@ -46,7 +46,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
     previousModes = [];
     
     %% Create similarity matrices of the first level.
-    similarityMatrices(1) = {createSimilarityMatrix(options)};
+    similarityMatrices(1) = {createSimilarityMatrix(options.filters)};
     
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));

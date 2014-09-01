@@ -93,7 +93,7 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         for filtItr = 1:filterCount
             currentFilter = double(options.filters{filtItr});
 
-                responseImg = conv2(img, currentFilter, 'same');
+            responseImg = conv2(img, currentFilter, 'same');
 
             % Save response for future processing
             responseImgs(:,:,filtItr) = responseImg;
