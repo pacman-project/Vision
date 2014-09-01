@@ -154,7 +154,11 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*5; % DEFAULT 5
+    if strcmp(options.filterType, 'auto')
+        options.receptiveFieldSize = options.autoFilterSize*5; % DEFAULT 5
+    else
+        options.receptiveFieldSize = options.gaborFilterSize*5; % DEFAULT 5
+    end
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the

@@ -21,7 +21,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
     options.numberOfLHOPFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'lhop': Steerable Gabor filters in LHOP 
                                   % are used as feature detectors.
@@ -53,7 +53,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                         % filter.
                                         
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2);
-    options.autoFilterThr = 0.4;      % Min response threshold for convolved 
+    options.autoFilterThr = 0.3;      % Min response threshold for convolved 
                                        % features, taken as the percentage 
                                        % of max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
@@ -153,7 +153,11 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                          % takes place. If 1, receptive
                                          % fields are enforced during
                                          % learning.
-    options.receptiveFieldSize = options.gaborFilterSize*5; % DEFAULT 5
+    if strcmp(options.filterType, 'auto')
+        options.receptiveFieldSize = options.autoFilterSize*5; % DEFAULT 5
+    else
+        options.receptiveFieldSize = options.gaborFilterSize*5; % DEFAULT 5
+    end
                                          % Size (one side) of the receptive field at
                                          % each level. Please note that in
                                          % each level of the hierarchy, the

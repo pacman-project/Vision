@@ -1,8 +1,8 @@
 function [] = Experiment(datasetName, fileType)
     addpath([pwd '/utilities']);
-%    generateAutoFilters(datasetName, fileType);
+    generateAutoFilters(datasetName, fileType);
     runVocabularyLearning(datasetName, fileType, '');
-%    MarkCategoryLabels(datasetName);
+    MarkCategoryLabels(datasetName);
 %    runTestInference(datasetName, fileType);
 %    EvaluateCategorization(datasetName);
 end
