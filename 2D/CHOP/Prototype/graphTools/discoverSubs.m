@@ -39,6 +39,19 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, opposi
         graphLevel = inferSubs(vocabLevel, graphLevel, options);
     else
         [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options);
+        
+        % We eliminate the parts which are mostly found in negative images.
+        % This is a design choice, since we do not want to compress
+        % negative graphs However, realizations of valid graphs in negative 
+        % images are preserved. 
+        mdlScores = [vocabLevel.mdlScore];
+        validParts = mdlScores>0;
+        vocabLevel = vocabLevel(validParts);
+        
+        % Get valid realizations only.
+        labelIds = [graphLevel.labelId];
+        validRealizations = ismember(labelIds, find(validParts));
+        graphLevel = graphLevel(validRealizations);
     end
     
     % Show time elapsed.

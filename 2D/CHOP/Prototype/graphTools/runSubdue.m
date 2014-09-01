@@ -45,46 +45,44 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
+%> Ver 1.1 on 01.09.2014 Removal of global parameters.
 function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
-    
-    % Some variables are global since they are accessed often in sub-functions.
-    % Copying into function spaces and back is inefficient for this case.
-    % They will be removed at the end of this function.
-    global globalEdges globalLabels globalNeighbors globalSigns globalGraphSize
     
     bestSubs = [];
     parentSubs = [];
     nextVocabLevel = [];
     nextGraphLevel = [];
     
+    %% Get the parameters.
+    evalMetric = options.subdue.evalMetric;
+    
+    
+    %% Initialize data structures.
     % Helper data structures.
-    globalEdges = {graphLevel.adjInfo}';
+    allEdges = {graphLevel.adjInfo}';
     
     % If no edges are present, time to return.
-    if isempty(globalEdges)
+    if isempty(allEdges)
         return;
     end
-    globalNeighbors = globalEdges;
-    nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), globalEdges);
-    globalNeighbors(nonemptyEdgeIdx) = cellfun(@(x) x(:,2), ...
-        globalEdges(nonemptyEdgeIdx), 'UniformOutput', false);
-    globalLabels = cat(1, graphLevel.labelId);
-    globalEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), globalLabels(x(:,2))], ...
-        globalEdges(nonemptyEdgeIdx), 'UniformOutput', false);
-    globalSigns = cat(1, graphLevel.sign);
+    nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), allEdges);
+    allLabels = cat(1, graphLevel.labelId);
+    allEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
+        allEdges(nonemptyEdgeIdx), 'UniformOutput', false);
+    allSigns = cat(1, graphLevel.sign);
     
     % Graph size formulation is very simple: 2 * #edges + #nodes. edges are
     % linked to their node1, so only need to keep node2 and edgeLabel
     % (2xint). Nodes only keep nodeLabel (1xint). We assume nearly all
     % edges are doubly linked, therefore leading to an approximate yet fast
     % calculation of graph size.
-    globalGraphSize = sum(cellfun(@(x) numel(x), globalEdges)) + numel(graphLevel);
+    graphSize = sum(cellfun(@(x) size(x,1), allEdges)) * 2 + numel(graphLevel);
     
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
-    singleNodeSubs = getSingleNodeSubs(options);
+    singleNodeSubs = getSingleNodeSubs(allLabels, allSigns);
     parentSubs = addToQueue(singleNodeSubs, parentSubs, options.subdue.beam);
     
     %% Step 2: Main loop
@@ -105,7 +103,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
                 break;
             end
             %% Step 2.2: Extend head in all possible directions into childSubs.
-            childSubs = extendSub(parentSub);
+            childSubs = extendSub(parentSub, allEdges);
             
             % If no children are generated or time is up, return.
             if endFlag || numel(childSubs) < 1
@@ -118,7 +116,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
             childSubs = childSubs([childSubs.mdlScore] == 0);
             
             %% Step 2.4: Evaluate childSubs, find their instances.
-            childSubs = evaluateSubs(childSubs, options);
+            childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allSigns, graphSize);
             
             if isempty(childSubs)
                 continue;
@@ -189,11 +187,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
        centerIdxCellArr = num2cell(centerIdx');
        numberOfInstances = numel(centerIdx);
        instanceEndOffset = instanceOffset + numberOfInstances - 1;
-       edges = globalEdges(centerIdx);
+       edges = allEdges(centerIdx);
        edgeIdx = {instances.edges}';
        instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
        instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
-       instanceSigns = num2cell(globalSigns(centerIdx));
+       instanceSigns = num2cell(allSigns(centerIdx));
        
        % Assign fields to graphs.
        [graphLevel(instanceOffset:instanceEndOffset).labelId] = deal(labelIds{:});
@@ -207,17 +205,17 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     
    nextVocabLevel = vocabLevel;
    nextGraphLevel = graphLevel;
-   clearvars -global
 end
 
 
 %> Name: getSingleNodeSubs
 %>
 %> Description: getSingleNodeSubs is used to obtain single-node subs from
-%> labels of all instances in globalLabels. The result is a number of
+%> labels of all instances in allLabels. The result is a number of
 %> subs representing compositions each having their instances.
 %> 
-%> @param options Program options.
+%> @param allLabels Labels for every graph node.
+%> @param allSigns Signs for every graph node.
 %>
 %> @retval singleNodeSubs Substructure list of single-node subs.
 %> 
@@ -225,15 +223,15 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 24.02.2014
-function singleNodeSubs = getSingleNodeSubs(~)
-    global globalLabels globalSigns
-    numberOfSubs = max(globalLabels);
+%> Ver 1.1 on 01.09.2014 Removal of global parameters.
+function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns)
+    numberOfSubs = max(allLabels);
     singleNodeSubs(numberOfSubs) = Substructure();
     validSubs = ones(numberOfSubs,1)>0;
     
     %% For each center node label type, we create a substructure.
     for subItr = 1:numberOfSubs
-        subCenterIdx = globalLabels == subItr;
+        subCenterIdx = allLabels == subItr;
         instances = find(subCenterIdx);
         numberOfInstances = numel(instances);
         
@@ -246,8 +244,8 @@ function singleNodeSubs = getSingleNodeSubs(~)
             singleNodeInstances(numberOfInstances) = Instance(); %#ok<AGROW>
 
             % Fill in instance information. 
-            instanceIdx = globalLabels == subItr;
-            subNodeAssgnArr = num2cell([find(instanceIdx), globalSigns(instanceIdx,1)]);
+            instanceIdx = allLabels == subItr;
+            subNodeAssgnArr = num2cell([find(instanceIdx), allSigns(instanceIdx,1)]);
             [singleNodeInstances.centerIdx, singleNodeInstances.sign] = deal(subNodeAssgnArr{:});
 
             singleNodeSubs(subItr).instances = singleNodeInstances;
@@ -268,6 +266,7 @@ end
 %> along with instances of each sub in returned list.
 %> 
 %> @param sub Sub to be extended.
+%> @param allEdges List of all edges in the graph.
 %>
 %> @retval extendedSubs Extended sub list.
 %> 
@@ -275,11 +274,10 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 24.02.2014
-function [extendedSubs] = extendSub(sub)
-    global globalEdges
-    
+%> Ver 1.1 on 01.09.2014 Removal of global parameters.
+function [extendedSubs] = extendSub(sub, allEdges)
     centerIdx = cat(1,sub.instances.centerIdx);
-    subAllEdges = globalEdges(centerIdx);
+    subAllEdges = allEdges(centerIdx);
     % Get unused edges from sub's instances.
     allUsedEdgeIdx = {sub.instances.edges}';
     allUnusedEdges = cellfun(@(x,y) x(setdiff(1:size(x,1),y),:), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
@@ -356,7 +354,10 @@ end
 %> calculated, and saved within subs. The MDL calculation takes place here.
 %> 
 %> @param subs Sub list which will be evaluated.
-%> @param options Program options.
+%> @param evalMetric Evaluation metric.
+%> @param allEdges List of all edges in the graph.
+%> @param allEdges List of all signs of the nodes in the graph.
+%> @param allEdges Size of the graph.
 %>
 %> @retval subs Evaluated sub list.
 %> 
@@ -364,11 +365,10 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 24.02.2014
-function [subs] = evaluateSubs(subs, options)
-    global globalSigns globalEdges globalGraphSize
-    
+%> Ver 1.1 on 01.09.2014 Removal of global parameters.
+function [subs] = evaluateSubs(subs, evalMetric, allEdges, allSigns, graphSize)
     numberOfSubs = numel(subs);
-    if strcmp(options.subdue.evalMetric, 'mdl')
+    if strcmp(evalMetric, 'mdl')
         
         % This part is crucial! Essentially vbits + ebits + rbits defined for 
         % each neighbor node pair. The simplified graph structure allows for
@@ -385,15 +385,15 @@ function [subs] = evaluateSubs(subs, options)
         for subItr = 1:numberOfSubs
             % Read signs and edges of the instances.
             centerIdx = cat(1, subs(subItr).instances.centerIdx);
-            instanceEdges = globalEdges(centerIdx);
-            instanceSigns = globalSigns(cat(1, subs(subItr).instances.centerIdx));
+            instanceEdges = allEdges(centerIdx);
+            instanceSigns = allSigns(cat(1, subs(subItr).instances.centerIdx));
             instanceUsedEdgeIdx = {subs(subItr).instances.edges}';
             
             % Calculate direct neighbors and neighbors of neighbors for mdl
             % calculation.
             instanceAllNeighbors = cellfun(@(x) x(:,2), instanceEdges, 'UniformOutput', false);
             instanceNeighbors = cellfun(@(x,y) x(y,2), instanceEdges, instanceUsedEdgeIdx, 'UniformOutput', false);
-            instanceNeighborEdges = cellfun(@(x) cat(1, globalEdges{x}), instanceNeighbors, 'UniformOutput', false);
+            instanceNeighborEdges = cellfun(@(x) cat(1, allEdges{x}), instanceNeighbors, 'UniformOutput', false);
             nonemptyNeighborIdx = ~cellfun(@(x) isempty(x), instanceNeighborEdges);
             instanceSecondaryNeighbors = cell(size(nonemptyNeighborIdx,1),1);
             instanceSecondaryNeighbors(nonemptyNeighborIdx) = cellfun(@(x) x(:,2), instanceNeighborEdges(nonemptyNeighborIdx), 'UniformOutput', false);
@@ -416,18 +416,18 @@ function [subs] = evaluateSubs(subs, options)
             
             % 2) Calculate edge-based DL reduction amount due to the removal
             % of edges with each instance. 
-            % amount = (nPos - (nIns - nPos)) * edgePerSub.
+            % amount = (nPos - (nNeg - nPos)) * edgePerSub = (2 * nPos - nNeg) * edgePerSub.
             selfEdgeDLReductionAmount = (2*numberOfPositiveInstances-numberOfInstances) * numberOfEdgesInSub;
             
             % 3) Calculate # of nodes to be removed from the graph.
             selfNodeDLReductionAmount = numel(unique([instanceNeighbors{positiveInstanceIdx}])) - ...
                 numel(unique([instanceNeighbors{negativeInstanceIdx}]));
             
-            %% Estimate DL reduction.
+            %% Estimate DL reduction. (CHECK AGAIN FOR CORRECTNESS!)
             dlDiff = 2*(sum(edgeDLReductions(positiveInstanceIdx)) - sum(edgeDLReductions(negativeInstanceIdx)) + ...
                 selfEdgeDLReductionAmount) + selfNodeDLReductionAmount - (numberOfEdgesInSub * 3);
             subs(subItr).mdlScore = dlDiff;
-            subs(subItr).normMdlScore = 1 - (dlDiff / globalGraphSize);
+            subs(subItr).normMdlScore = 1 - (dlDiff / graphSize);
         end
     else
         for subItr = 1:numberOfSubs

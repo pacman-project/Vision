@@ -18,6 +18,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
+    options.backgroundClass = 'Background'; % The string that identifies 
+                                            % background class. Images from
+                                            % this set will be used as
+                                            % negative examples in
+                                            % training.
+                                 
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;
     options.numberOfThreads = feature('NumCores') * 2 - 1;
@@ -76,7 +82,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
         display('"co-occurence" property and "true" reconstruction is incompatible. Switching to "leaf" type reconstruction.');
     end
     
-    %% Get relevant matrices for auto-type feature processing.
+    %% ========== FILTER MATRIX & DATA STRUCTURES GENERATION ==========
     if strcmp(options.filterType, 'auto') && exist([options.outputFolder '/C.mat'], 'file') 
         load([options.outputFolder '/C.mat'], 'whMat', 'mu', 'invMat');
         options.auto.whMat = whMat;

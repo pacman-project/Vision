@@ -114,13 +114,13 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         end
 
         % Reorder images based on their node count. This helps in
-        % parallelization. 
+        % efficient parallelization. 
         nodeCounts = cellfun(@(x) size(x,1), allNodes);
         [~, sortedImageIdx] = sort(nodeCounts, 'descend');
         trainingFileNames = trainingFileNames(sortedImageIdx);
         allNodes = allNodes(sortedImageIdx);
 
-        % Learn category/pose of each image and and correct their order 
+        %% Learn category/pose of each image and and correct their order 
         % based on the sort order of the images.
         categoryArr = cell(numel(trainingFileNames),1);
         poseArr = zeros(numel(trainingFileNames),1);
@@ -150,20 +150,28 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         end
         categoryArr = categoryArr(sortedImageIdx);
         poseArr = poseArr(sortedImageIdx); %#ok<NASGU>
-
+       
         % Set image ids for each node.
         imageIds = cell(size(allNodes,1),1);
         for fileItr = 1:size(allNodes,1)
             imageIds(fileItr) = {num2cell(repmat(fileItr, size(allNodes{fileItr},1), 1))};
         end
-
+        
         % Convert all node data into a single matrix.
         allNodes = cat(1, allNodes{:});
         imageIds = cat(1, imageIds{:});
         leafNodes = [allNodes, imageIds];
         
+        % Learn node signs based on whether or not they are from the
+        % background class. The ones which are from the background class
+        % will have negative signs, while all others have positive signs.
+        % The effect is that in Subdue, subgraphs that compress positive
+        % graphs but not negative ones will be favoured.
+        imageSigns = ~strcmp(categoryArr, options.backgroundClass);
+        leafNodeSigns = imageSigns(cell2mat(imageIds));
+        
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        [vocabLevel, graphLevel] = generateLevels(leafNodes, options);
+        [vocabLevel, graphLevel] = generateLevels(leafNodes, leafNodeSigns, options);
         
         %% Step 2.1: Get first-level object graph edges.
         mainGraph = {graphLevel};

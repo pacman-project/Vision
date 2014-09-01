@@ -33,7 +33,14 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     
     if options.testImages
         %% Step 1.0: Read vocabulary if it exists.
-        testFileNames = fuf([options.currentFolder '/input/' datasetName '/test/*' ext], 1, 'detail');
+        try
+            testFileNames = fuf([options.currentFolder '/input/' datasetName '/test/*' ext], 1, 'detail');
+        catch
+           display('No files under /input/test folder. Please put your test images under this folder.'); 
+           totalInferenceTime = 0;
+           return;
+        end
+    
         if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
             load([options.currentFolder '/output/' datasetName '/vb.mat']);
             load([options.currentFolder '/output/' datasetName '/export.mat']);

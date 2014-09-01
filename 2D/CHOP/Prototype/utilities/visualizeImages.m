@@ -19,6 +19,7 @@
 %> Ver 1.0 on 09.12.2013
 function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, type )
     outputTempDir = [options.outputFolder '/reconstruction/' type];
+    backgroundDir = [options.outputFolder '/reconstruction/' type '/' options.backgroundClass];
     processedFolder = options.processedFolder;   
     reconstructionType = options.reconstructionType;
     imageReconstructionType = options.imageReconstructionType;
@@ -72,10 +73,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
         nodeOffset = numel(find(imageIds<fileItr));
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
-        outputDir = [outputTempDir '/' fileName];
-        if ~exist(outputDir, 'dir')
-           mkdir(outputDir); 
-        end
         img = imread([processedFolder '/' fileName '.png']);
         actualImg = img;
         
@@ -103,6 +100,18 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
         % If no nodes exist, do nothing.
         if isempty(nodes)
            continue; 
+        end
+        
+        % Learn if this image is a background image.
+        isBackground = ~nodes(1).sign;
+        
+        if isBackground
+            outputDir = [backgroundDir '/' fileName];
+        else 
+            outputDir = [outputTempDir '/' fileName];
+        end
+        if ~exist(outputDir, 'dir')
+           mkdir(outputDir); 
         end
         
         % Get the correct node set to reconstruct.
@@ -204,7 +213,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                 % Write to output file.
                 imwrite(rgbImg, ...
                     [outputDir, '/' fileName '_level' num2str(levelItr) '_realization_' num2str(nodeItr) ...
-                    '_mdl_' num2str(mdlScore) '_' reconstructionType '.png']);
+                    '_mdl_' num2str(mdlScore) '_' reconstructionType '.png']); 
             end
         end
         
@@ -250,7 +259,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                 end
             end
         
-            %% Print the images.
             if levelItr>1
                 imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);

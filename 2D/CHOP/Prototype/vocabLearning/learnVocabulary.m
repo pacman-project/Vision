@@ -173,10 +173,6 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([IC{:}])) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
-        % Set the sign of all nodes to 1. When negative graphs are introduced,
-        % this part should CHANGE.
-        [graphLevel.sign] = deal(1);
-        
         %% Step 2.4: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
         redundantVocabulary(levelItr) = {redundantVocabLevel};
