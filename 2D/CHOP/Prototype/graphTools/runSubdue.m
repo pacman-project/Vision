@@ -64,6 +64,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     maxSize = options.subdue.maxSize;
     
     %% Initialize data structures.
+    display('[SUBDUE] Initializing data structures for internal use..');
     % Helper data structures.
     allEdges = {graphLevel.adjInfo}';
     
@@ -85,6 +86,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     graphSize = sum(cellfun(@(x) size(x,1), allEdges)) * 2 + numel(graphLevel);
     
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
+    display('[SUBDUE] Creating single node subs..');
     singleNodeSubs = getSingleNodeSubs(allLabels, allSigns);
     parentSubs = addToQueue(singleNodeSubs, parentSubs, options.subdue.beam);
     
@@ -95,17 +97,26 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
         % Check time. If it took too long, end processing. 
         % Check parent's size. If it is too large, end processing.
         elapsedTime = toc(startTime);
-        if elapsedTime > maxTime || ...
-                size(parentSubs(1).edges,1) >= (maxSize-1)
+        if elapsedTime > maxTime 
+            display(['[SUBDUE] Time is up! Breaking from process just before extending subs of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
+            break;
+        end
+        if size(parentSubs(1).edges,1) >= (maxSize-1)
+            display(['[SUBDUE] Maximum size of ' num2str(maxSize) ' nodes reached, terminating search.']);
             break;
         end
         
         %% All good, execution.
+        display(['[SUBDUE/Parallel] Expanding subs of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
         childSubArr = cell(numel(parentSubs),1);
+        endFlag = 0;
+        endParent = inf;
         parfor parentItr = 1:numel(parentSubs)
             %% Step 2.1: If it has been too long, we need to finish execution.
             elapsedTime = toc(startTime);
             if elapsedTime > maxTime
+                endFlag = 1; %#ok<PFTUS>
+                endParent = min(endParent, parentItr);
                 continue;
             end
             
@@ -128,8 +139,13 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
             %% Save childSubs
             childSubArr(parentItr) = {childSubs};
         end
+        if endFlag
+            display(['[SUBDUE] Time is up! Breaking from process before ' ...
+                'extending parent ' num2str(endParent) ' of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
+        end
         
         %% Add each children group in childGroupArr into extendedSubs.
+        display('[SUBDUE] Merging all children and putting them into bestSubs if they match final criteria.');
         extendedSubs = [];
         for childGroupItr = 1:numel(childSubArr)
             %% Step 2.5: Add childSubs to extendedSubs and bestSubs.
@@ -152,9 +168,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
         end
         
         %% Step 2.6: Swap expandedSubs with parentSubs.
+        display('[SUBDUE] Swapping children with parents and going on..');
         parentSubs = extendedSubs;
     end
     
+    display('[SUBDUE] Processing has finished. Writing all to output and quitting.');
     %% Step 3: Create nextVocabLevel and nextGraphLevel from bestSubs.
     numberOfBestSubs = numel(bestSubs);
     

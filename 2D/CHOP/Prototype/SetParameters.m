@@ -80,8 +80,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
     end
     
     %% ========== FILTER MATRIX & DATA STRUCTURES GENERATION ==========
-    if strcmp(options.filterType, 'auto') && exist([options.outputFolder '/C.mat'], 'file') 
-        load([options.outputFolder '/C.mat'], 'whMat', 'mu', 'invMat');
+    if strcmp(options.filterType, 'auto') && exist([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'file') 
+        load([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'whMat', 'mu', 'invMat');
         options.auto.whMat = whMat;
         options.auto.invMat = invMat;
         options.auto.mu = mu;
