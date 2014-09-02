@@ -1,7 +1,6 @@
 %> Name: SetParametersCommon
 %>
-%> Description: Common parameters for CHOP. This file is called when the
-%> dataset we are working on does not have its own parameter set.
+%> Description: Parameters for Swans dataset (ETHZ). 
 %>
 %> @param datasetName Name of the dataset to work on. 
 %> @param options Program options.
@@ -12,7 +11,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersCommon( datasetName, options )
+function [ options ] = SetParametersSwans( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -168,8 +167,8 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
-%    options.maxImageDim = options.gaborFilterSize*40;
-    options.maxImageDim = options.gaborFilterSize*1000;
+    options.maxImageDim = floor(options.receptiveFieldSize*40;
+%    options.maxImageDim = options.gaborFilterSize*1000;
     options.maximumModes = 50;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 
@@ -200,7 +199,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                            % subs based on (size x
                                            % frequency).
                                            
-    options.subdue.maxTime = 3600;           % Max. number of seconds 'self' 
+    options.subdue.maxTime = 1800;           % Max. number of seconds 'self' 
                                             % type implemented subdue is
                                             % run over data. Typically
                                             % around 100 (secs).

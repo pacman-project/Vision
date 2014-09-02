@@ -34,7 +34,6 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         lowOffset = floor((options.autoFilterSize-1)/2);
         highOffset = floor(options.autoFilterSize/2);
 
-        
         %% Step 2: Collect random samples from each image to create our data samples.
         display('Collecting samples...');
         samplesPerImg = ceil(options.autoFilterPatchCount / numel(fileNames));
@@ -44,11 +43,17 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         sampleOffset = 0;
         for fileItr = 1:numel(fileNames)
             img = imread(fileNames{fileItr});
+            
+            %% Downsample the image if it will be processed that way.
+            if max(size(img)) > options.maxImageDim
+               img = imresize(img, options.maxImageDim/max(size(img)), 'bilinear'); 
+            end
 
             %% Get a pre-defined number of random centers from this image.
             validXInterval = (lowOffset+1):(size(img,1)-highOffset);
             validYInterval = (lowOffset+1):(size(img,2)-highOffset);
             centers = [datasample(validXInterval, samplesPerImg)', datasample(validYInterval, samplesPerImg)']; 
+            invalidSampleCount = 0;
             for sampleItr = 1:samplesPerImg
                 sample = img((centers(sampleItr,1)-lowOffset):(centers(sampleItr,1)+highOffset), ...
                     (centers(sampleItr,2)-lowOffset):(centers(sampleItr,2)+highOffset), :);
@@ -61,9 +66,13 @@ function [ ] = generateAutoFilters( datasetName, fileType )
                    newSample(sampleStartItr:(sampleStartItr+pixelsPerBand)) = sampleInd;
                    sampleStartItr = sampleStartItr + pixelsPerBand + 1;
                 end
-                samples(sampleItr+sampleOffset, :) = newSample;
+                if size(samples,2) == numel(newSample)
+                    samples(sampleItr+sampleOffset, :) = newSample;
+                else
+                    invalidSampleCount = invalidSampleCount + 1;
+                end
             end
-            sampleOffset = sampleOffset + samplesPerImg;
+            sampleOffset = sampleOffset + samplesPerImg - invalidSampleCount;
         end
         
         %% Now, we'll apply ZCA whitening to all samples.
