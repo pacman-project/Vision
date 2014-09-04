@@ -5,6 +5,7 @@
 %> each word in the vocabulary level.
 %>
 %> @param currentLevel Current vocabulary level.
+%> @param graphLevel Previous graph level.
 %> @param graphLevel Current graph level.
 %> @param levelId Identifier of the current level.
 %> @param modes Modes of the previous level to reconstruct the features.
@@ -18,7 +19,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceMatrix, levelId, ~, numberOfPrevNodes, options, isRedundant)
+function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leafNodes, leafDistanceMatrix, levelId, ~, numberOfPrevNodes, options, isRedundant)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -114,7 +115,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
 %       for setItr = 1:numberOfThreadsUsed
-       parfor setItr = 1:numberOfThreadsUsed
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -124,7 +125,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
                 labelId = vocabNodeSet(nodeItr);
                 nodeInstances = find(nodeLabelIds==labelId);
-%                nodeInstances = nodeInstances(1);   % CHANGE: Print only the first realization.
+                nodeInstances = nodeInstances(1);   % CHANGE: Print only the first realization.
                 instancePos = mat2cell(centerPos(nodeInstances,:), ones(1, numel(nodeInstances)), 2);
                 instanceLeafNodeSets = leafNodeSets(nodeInstances,:);
                 instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
@@ -138,7 +139,6 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                    children = children(1:childrenPerNode,:);
                    childrenCoords = childrenCoords(1:childrenPerNode,:);
                 end
-%                numberOfChildren = numel(children);
 
                 %% Give weight the children to get a cleaner representation of the average image for the node.
                 % First, we learn base scores, which essentially describe
@@ -147,24 +147,17 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 distMatrix = squareform(pdist(childrenCoords));
                 maxDist = max(max(distMatrix));
                 scoreMatrix = exp(maxDist - distMatrix);
-  %              scoreMatrix = exp(scoreMatrix);     % Another exponential here for less blur.
                 maxDist = max(max(scoreMatrix));
                 scoreMatrix = scoreMatrix / maxDist;
-%                diagIdx = 1:(numberOfChildren+1):numberOfChildren*numberOfChildren;
-%                scoreMatrix( diagIdx ) = 0;
 
                 % Now, weight the scores by the similarity matrix entries.
                 weightMatrix = leafSimilarityMatrix(children, children);
-%                weightMatrix = max(max(weightMatrix)) - weightMatrix;
 
                 % Multiply score matrix by weight matrix to get weighted
                 % scores (element by element).
                 scoreMatrix = scoreMatrix .* weightMatrix;
                 scoreMatrix = sum(scoreMatrix,1);
                 scoreMatrix = scoreMatrix / max(scoreMatrix);
-
-                % Take exponentials of score matrix.
-%                scoreMatrix = scoreMatrix.^6;
 
                 %% At this point, we have the relative coordinates of all children. 
                 % All we will do is to create an empty mask large enough, and
@@ -206,12 +199,6 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 currentLabelMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
                 for childItr = 1:numel(children)
                     % Write the child's mask to the output.
-%                     currentMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
-%                           (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2))),:) = ...
-%                           prevNodeMasks{children(childItr)}.*scoreMatrix(childItr) + ...
-%                               currentMask((childrenCoords(childItr,1)-floor(patchHalfDims(children(childItr),1))):(childrenCoords(childItr,1)+floor(patchHalfDims(children(childItr),1))), ...
-%                                   (childrenCoords(childItr,2)-floor(patchHalfDims(children(childItr),2))):(childrenCoords(childItr,2)+floor(patchHalfDims(children(childItr),2))),:);
-
                     currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                       (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:) = ...
                       max(prevNodeMasks{children(childItr)}.*scoreMatrix(childItr), ...
@@ -228,8 +215,40 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                          (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))), ...
                          double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
                 end
-
-                % Learn valid 
+                
+                %% Temporary printing of nodes/edged over the composition mask..
+                printedParent = graphLevel(nodeInstances(1));
+                printedChildren = previousGraphLevel(printedParent.children);
+                printedChildrenPos = cat(1, printedChildren.position) - repmat(instancePos{1}, numel(printedChildren),1);
+                printedChildrenPos = round(printedChildrenPos - [ones(numel(printedChildren),1) * maskMinX, ones(numel(printedChildren),1) * maskMinY]);
+                edgeImg = zeros(size(currentFilledMask));
+                for printedNode = 1:numel(printedChildren)
+                    edgeImg((printedChildrenPos(printedNode,1)-2):(printedChildrenPos(printedNode,1)+2), ...
+                        (printedChildrenPos(printedNode,2)-2):(printedChildrenPos(printedNode,2)+2)) = printedChildren(printedNode).labelId;
+                end
+                for edgeItr = 2:numel(printedChildren)
+                   edgeIdx = drawline(printedChildrenPos(1,:), printedChildrenPos(edgeItr,:), size(edgeImg));
+                   edgeImg(edgeIdx) = edgeItr;
+                end
+                edgeZeroMask = edgeImg==0;
+                edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
+                % Add currentMask to edgeImg
+                for edgeBandItr = 1:size(edgeImg,3)
+                   if size(currentMask,3)>1
+                       curMaskBand = edgeBandItr;
+                   else
+                       curMaskBand = 1;
+                   end
+                   edgeBandImg = edgeImg(:,:,edgeBandItr);
+                   currentMaskBandImg = uint8(round(currentMask(:,:,curMaskBand) * 255));
+                   edgeBandImg(edgeZeroMask) = currentMaskBandImg(edgeZeroMask);
+                   edgeImg(:,:,edgeBandItr) = edgeBandImg;
+                end
+                
+                imwrite(edgeImg, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                
+                %% Add background to currentMask, and normalize it.
+                % Learn the median color to use as background..
                 validValues = currentMask(currentFilledMask>0);
                 filledValue = median(validValues);
 
@@ -261,7 +280,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                     optionOrder = nnz(labelIds(1:nodeSet(nodeItr))==realLabel);
                     imwrite(currentMask, [reconstructionDir num2str(realLabel) '_option' num2str(optionOrder) '.png']);
                 else
-                    imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+%                    imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
                     imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
                 end
             end
@@ -269,7 +288,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         end
     end
     
-    %% Combine all compositions and show them within a single image.
+    %% Combine all compositions and show them wit`hin a single image.
     if ~isRedundant
         % Learn number of rows/columns.
         colImgCount = ceil(sqrt(numberOfNodes));
@@ -288,6 +307,18 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
             end
             compMaskSize = max(compMaskSize, [size(tempMask,1), size(tempMask,2)]);
             allCompMasks(nodeItr) = {tempMask};
+        end
+        
+        % Make mask sizes uniform and write them all back.
+        if levelId>1
+            for nodeItr = 1:numberOfNodes
+                tempMask2 = imread([reconstructionDir num2str(nodeItr) '.png']);
+                finalTempMask = zeros([compMaskSize, size(tempMask2,3)], 'uint8');
+                margins = (compMaskSize - [size(tempMask2,1), size(tempMask2,2)])/2;
+                finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
+                    (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
+                imwrite(finalTempMask, [reconstructionDir num2str(nodeItr) '.png']);
+            end
         end
         
         % Using the maximum dimensions, transform each composition image to the

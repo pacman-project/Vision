@@ -62,6 +62,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     nsubs = options.subdue.nsubs;
     maxTime = options.subdue.maxTime;
     maxSize = options.subdue.maxSize;
+    numberOfThreads = options.numberOfThreads;
     
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
@@ -97,51 +98,53 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
         % Check time. If it took too long, end processing. 
         % Check parent's size. If it is too large, end processing.
         elapsedTime = toc(startTime);
-        if elapsedTime > maxTime 
-            display(['[SUBDUE] Time is up! Breaking from process just before extending subs of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
-            break;
-        end
         if size(parentSubs(1).edges,1) >= (maxSize-1)
             display(['[SUBDUE] Maximum size of ' num2str(maxSize) ' nodes reached, terminating search.']);
+            break;
+        end
+        if elapsedTime > maxTime 
+            display(['[SUBDUE] Time is up! Breaking from process just before extending subs of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
             break;
         end
         
         %% All good, execution.
         display(['[SUBDUE/Parallel] Expanding subs of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
         childSubArr = cell(numel(parentSubs),1);
-        endFlag = 0;
-        endParent = inf;
-        parfor parentItr = 1:numel(parentSubs)
+        setDistributions = ones(floor(numel(parentSubs)/numberOfThreads),1) * numberOfThreads;
+        if rem(numel(parentSubs), numberOfThreads) > 0
+            setDistributions = [setDistributions;rem(numel(parentSubs), numberOfThreads)]; %#ok<AGROW>
+        end
+        parentSubSets = cell(mat2cell(1:numel(parentSubs), 1, setDistributions));
+        for setItr = 1:numel(parentSubSets)
             %% Step 2.1: If it has been too long, we need to finish execution.
             elapsedTime = toc(startTime);
+            haltedParent = -1;
             if elapsedTime > maxTime
-                endFlag = 1; %#ok<PFTUS>
-                endParent = min(endParent, parentItr);
-                continue;
+                haltedParent = parentSubSets{setItr}(1);
+                display(['[SUBDUE] Time is up! Breaking from process before ' ...
+                    'extending parent ' num2str(haltedParent) ' of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
+                break;
             end
             
-            %% Step 2.2: Extend head in all possible directions into childSubs.
-            childSubs = extendSub(parentSubs(parentItr), allEdges);
-            if isempty(childSubs) 
-                continue;
+            % All good, continue.
+            processedSet = parentSubSets{setItr};
+            parfor parentItr = processedSet
+                %% Step 2.2: Extend head in all possible directions into childSubs.
+                childSubs = extendSub(parentSubs(parentItr), allEdges);
+                if isempty(childSubs) 
+                    continue;
+                end
+                %% Step 2.3: Remove duplicates from childSubs.
+                % Here, we check if childSubs has duplicates in extendedSubs.
+    %            childSubs = removeDuplicateSubs([extendedSubs, childSubs]);
+                childSubs = childSubs([childSubs.mdlScore] == 0);
+
+                %% Step 2.4: Evaluate childSubs, find their instances.
+                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allSigns, graphSize);
+
+                %% Save childSubs
+                childSubArr(parentItr) = {childSubs};
             end
-            %% Step 2.3: Remove duplicates from childSubs.
-            % Here, we check if childSubs has duplicates in extendedSubs.
-%            childSubs = removeDuplicateSubs([extendedSubs, childSubs]);
-            childSubs = childSubs([childSubs.mdlScore] == 0);
-            
-            %% Step 2.4: Evaluate childSubs, find their instances.
-            childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allSigns, graphSize);
-            if isempty(childSubs)
-                continue;
-            end
-            
-            %% Save childSubs
-            childSubArr(parentItr) = {childSubs};
-        end
-        if endFlag
-            display(['[SUBDUE] Time is up! Breaking from process before ' ...
-                'extending parent ' num2str(endParent) ' of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
         end
         
         %% Add each children group in childGroupArr into extendedSubs.
@@ -168,8 +171,12 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
         end
         
         %% Step 2.6: Swap expandedSubs with parentSubs.
-        display('[SUBDUE] Swapping children with parents and going on..');
-        parentSubs = extendedSubs;
+        if haltedParent == -1
+            display('[SUBDUE] Swapping children with parents and going on..');
+            parentSubs = extendedSubs;
+        else
+            break;
+        end
     end
     
     display('[SUBDUE] Processing has finished. Writing all to output and quitting.');

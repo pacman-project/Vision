@@ -163,7 +163,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                     continue;
                 end
                 
-                %% Write to reconstructin mask.
+                %% Write to reconstruction mask.
                  %               if strcmp(imageReconstructionType, 'all')
                  if strcmp(imageReconstructionType, 'individual')
                      writtenMask = uint8(nodeMask>10)*255;
@@ -235,27 +235,31 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             edgeImg = zeros(sizeOfImage);
             edgeRgbImg = rgbImg;
             for nodeItr = 1:numel(nodes)
+                edgeImg((nodes(nodeItr).position(1)-2):(nodes(nodeItr).position(1)+2), ...
+                    (nodes(nodeItr).position(2)-2):(nodes(nodeItr).position(2)+2)) = nodes(nodeItr).labelId;
                 edges = nodes(nodeItr).adjInfo;
                 if isempty(edges)
                    continue;
                 end
-                edges = edges(:,1:2) - nodeOffset;
+                edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
                 if ~isempty(edges)
                     for edgeItr = 1:size(edges,1)
                        edgeIdx = drawline(nodes(edges(edgeItr,1)).position, nodes(edges(edgeItr,2)).position, sizeOfImage);
-                       edgeImg(edgeIdx) = 1;
+                       edgeImg(edgeIdx) = edges(edgeItr,3);
                     end
                 end
             end
-            edgeImg = edgeImg > 0;
+            edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
+%            edgeImg = edgeImg > 0;
 
-            for bandItr = 1:3
-                if bandItr == 1
-                    edgeRgbImg(:,:,bandItr) = max(rgbImg(:,:,bandItr), uint8(edgeImg * 255));
-                else
-                    edgeRgbImg(:,:,bandItr) = min(rgbImg(:,:,bandItr), uint8((~edgeImg) * 255));
-                end
-            end
+%             for bandItr = 1:3
+%                 if bandItr == 1
+%                     edgeRgbImg(:,:,bandItr) = max(rgbImg(:,:,bandItr), uint8(edgeImg * 255));
+%                 else
+%                     edgeRgbImg(:,:,bandItr) = min(rgbImg(:,:,bandItr), uint8((~edgeImg) * 255));
+%                 end
+%             end
+            edgeRgbImg = max(edgeRgbImg, edgeImg);
         
             if levelItr>1
                 imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);

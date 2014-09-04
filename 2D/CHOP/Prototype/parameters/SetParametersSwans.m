@@ -56,7 +56,7 @@ function [ options ] = SetParametersSwans( datasetName, options )
                                        % features, taken as the percentage 
                                        % of max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 100000; % Number of random patches used 
+    options.autoFilterPatchCount = 150000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;                % Stride to use when extracting first-
                                        % level features. Only works in
