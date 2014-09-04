@@ -17,6 +17,10 @@
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
 function [ filters ] = createFilters( options )
     %% Gabor filters: A reference Gabor filter is rotated options.numberOfGaborFilters times to obtain steerable feature filters.
+    filterFolder = [options.currentFolder '/filters/'];
+    if ~exist([filterFolder options.filterType], 'dir')
+       mkdir([filterFolder options.filterType]); 
+    end
     if strcmp(options.filterType, 'gabor')
         %% Create reference filter.
         refGaborFilt = gabor_fn(options.gabor.sigma, options.gabor.theta, ...
@@ -60,11 +64,11 @@ function [ filters ] = createFilters( options )
                gaborFilt = gaborFilt - min(min(gaborFilt));
 
                % Save filters
-               save([options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) '.mat'], 'gaborFilt');
-               imwrite(gaborFilt, [options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) '.png']);
-               imwrite(gaborFilt>0, [options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) 'Mask.png']);
+               save([filterFolder options.filterType '/filt' num2str(filtItr+1) '.mat'], 'gaborFilt');
+               imwrite(gaborFilt, [filterFolder options.filterType '/filt' num2str(filtItr+1) '.png']);
+               imwrite(gaborFilt>0, [filterFolder options.filterType '/filt' num2str(filtItr+1) 'Mask.png']);
           else
-               load([options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) '.mat']);
+               load([filterFolder options.filterType '/filt' num2str(filtItr+1) '.mat']);
                filters{filtItr+1} = gaborFilt;
           end
         end
@@ -72,14 +76,14 @@ function [ filters ] = createFilters( options )
     elseif strcmp(options.filterType, 'lhop')
         filters = cell(options.numberOfLHOPFilters,1);
         for filtItr = 0:(options.numberOfLHOPFilters-1)
-           load([options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) '.mat'], 'gaborFilt');
+           load([filterFolder options.filterType '/filt' num2str(filtItr+1) '.mat'], 'gaborFilt');
            filters{filtItr+1} = gaborFilt;
         end
     %% Auto-generated filters are basically clustered ZCA-whitened random patches. 
     elseif strcmp(options.filterType, 'auto')
         filters = cell(options.autoFilterCount,1);
         for filtItr = 0:(options.autoFilterCount-1)
-            fileName = [options.currentFolder '/filters/' options.filterType '/filt' num2str(filtItr+1) '.mat'];
+            fileName = [filterFolder options.filterType '/filt' num2str(filtItr+1) '.mat'];
             if exist(fileName, 'file')
                load(fileName, 'gaborFilt');
                filters{filtItr+1} = gaborFilt;

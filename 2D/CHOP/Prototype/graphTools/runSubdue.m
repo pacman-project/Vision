@@ -8,7 +8,6 @@
 %> graphLevel.
 %> @param graphLevel The current object graphs' level. The graphLevel's
 %> nodes should be sorted by their image id. 
-%> @param oppositeModes List of the form [oppMode1; oppMode2; ...].
 %> label1 encodes exact opposite geometric information of each mode in its 
 %> index, and same applies to every row of this list. If empty, simply ignored.
 %> @param options Program options.
@@ -46,7 +45,7 @@
 %> Updates
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, ~, options)
+function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.

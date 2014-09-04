@@ -29,7 +29,7 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, highLevelModes, similarityMatrices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, highLevelModes, ...
+function [ vocabulary, redundantVocabulary, mainGraph, modes, highLevelModes, similarityMatrices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, highLevelModes, ...
                                                             options, fileList)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
@@ -37,7 +37,6 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
     redundantVocabulary = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     similarityMatrices = cell(options.maxLevels,1);
-    allOppositeModes = cell(options.maxLevels,1);
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
@@ -68,26 +67,13 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
     for levelItr = 2:options.maxLevels
         %% Step 2.0: Get opposite edge information, if there is any.
         display('........ Calculating reverse modes.');
-        oppositeModes = [];
         currentModes = [];
-%         if ~isempty(modes) && numel(modes)>=(levelItr-1)
-%             currentModes = modes{levelItr-1};
-%             numberOfModes = size(currentModes,1);
-%             oppositeModes = zeros(numberOfModes,1);
-%             parfor modeItr = 1:numberOfModes
-%                oppositeMode = currentModes(modeItr,:);
-%                oppositeMode(1:2) = oppositeMode(2:-1:1);
-%                oppositeMode(3:4) = oppositeMode(3:4) * -1;
-%                [~, oppositeModeIdx] = ismember(oppositeMode, currentModes, 'rows' );
-%                oppositeModes(modeItr) = oppositeModeIdx;
-%             end
-%         else
-%             currentModes = [];
-%         end
-        allOppositeModes(levelItr-1) = {oppositeModes};
+        if ~isempty(modes) && numel(modes)>=(levelItr-1)
+            currentModes = modes{levelItr-1};
+        end
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-        [vocabLevel, graphLevel] = discoverSubs(vocabLevel, graphLevel, oppositeModes, ...
+        [vocabLevel, graphLevel] = discoverSubs(vocabLevel, graphLevel, ...
             options, false, levelItr-1);
         
         %% If no new subs have been found, finish processing.
@@ -97,7 +83,6 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
            redundantVocabulary = redundantVocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            similarityMatrices = similarityMatrices(1:(levelItr-1),:);
-           allOppositeModes = allOppositeModes(1:(levelItr-1),:);
            break; 
         end
         
@@ -188,7 +173,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         %% Print vocabulary and graph level to output images (reconstruction).
         if ~isempty(modes)
             display('........ Visualizing previous level...');
-            visualizeLevel( vocabLevel, graphLevel, leafNodes, similarityMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
+            visualizeLevel( vocabLevel, mainGraph{levelItr-1}, graphLevel, leafNodes, similarityMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
         end
         if options.debug
            display('........ Visualizing realizations on images...');
@@ -207,7 +192,6 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
             redundantVocabulary = redundantVocabulary(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             similarityMatrices = similarityMatrices(1:(levelItr),:);
-            allOppositeModes = allOppositeModes(1:(levelItr-1),:);
         end
     end
 end

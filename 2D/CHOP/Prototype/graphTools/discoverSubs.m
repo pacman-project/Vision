@@ -23,7 +23,7 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, oppositeModes, options, preDefinedSearch, levelItr)
+function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, options, preDefinedSearch, levelItr)
     % Close parallel threads as they consume memory.
 %     if ~preDefinedSearch && options.parallelProcessing
 %         matlabpool close;
@@ -38,7 +38,7 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, opposi
     if preDefinedSearch
         graphLevel = inferSubs(vocabLevel, graphLevel, options);
     else
-        [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options);
+        [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, options);
         
         % We eliminate the parts which are mostly found in negative images.
         % This is a design choice, since we do not want to compress

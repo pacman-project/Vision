@@ -50,7 +50,12 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         createFolders(options);
 
         %% Step 0.1: Create initial data structures.
-        fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
+        try
+            fileNames = fuf([datasetFolder '*', imageExtension], 1, 'detail');
+        catch
+            display(['Unable to find training images. Possibly you forgot to put the images under ./input/' datasetName '/vocab/ or defined the extension wrong.']); 
+            return;
+        end
         trainingFileNames = fileNames;
 
         %% Step 0.2: Allocate space to keep names of corresponding gt files.
@@ -180,7 +185,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
-        [vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, highLevelModes, similarityMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, ...
+        [vocabulary, redundantVocabulary, mainGraph, modes, highLevelModes, similarityMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, ...
                                         options, trainingFileNames); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
@@ -195,7 +200,6 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
-%        save([options.currentFolder '/output/' datasetName '/graph.mat'], 'mainGraph', 'allOppositeModes', 'leafNodes', '-v7.3');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes', 'trainingFileNames', 'categoryNames');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
