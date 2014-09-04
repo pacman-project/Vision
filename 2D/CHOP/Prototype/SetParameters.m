@@ -89,7 +89,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
         % We create a feature matrix out of these filters for fast
         % processing.
         filterMatrix = zeros(options.numberOfFilters, numel(filters{1}));
-        if size(filterMatrix,2) >0 0
+        if size(filterMatrix,2) >0
             for filtItr = 1:options.numberOfFilters
                 filterMatrix(filtItr,:) = filters{filtItr}(:);
             end
