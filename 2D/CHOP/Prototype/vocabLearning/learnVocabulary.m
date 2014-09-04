@@ -52,8 +52,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
     numberOfImages = numel(unique([graphLevel.imageId]));
     
     %% Print first vocabulary and graph level.
+    visualizeLevel( vocabulary{1}, [], [], [], [], 1, previousModes, 0, options, 0);
     if options.debug
-        visualizeLevel( vocabulary{1}, [], [], [], [], 1, previousModes, 0, options, 0);
+        display('........ Visualizing the realizations in the first level...');
         imwrite(similarityMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_sim.png']);
         visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
     end
@@ -68,20 +69,21 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         %% Step 2.0: Get opposite edge information, if there is any.
         display('........ Calculating reverse modes.');
         oppositeModes = [];
-        if ~isempty(modes) && numel(modes)>=(levelItr-1)
-            currentModes = modes{levelItr-1};
-            numberOfModes = size(currentModes,1);
-            oppositeModes = zeros(numberOfModes,1);
-            parfor modeItr = 1:numberOfModes
-               oppositeMode = currentModes(modeItr,:);
-               oppositeMode(1:2) = oppositeMode(2:-1:1);
-               oppositeMode(3:4) = oppositeMode(3:4) * -1;
-               [~, oppositeModeIdx] = ismember(oppositeMode, currentModes, 'rows' );
-               oppositeModes(modeItr) = oppositeModeIdx;
-            end
-        else
-            currentModes = [];
-        end
+        currentModes = [];
+%         if ~isempty(modes) && numel(modes)>=(levelItr-1)
+%             currentModes = modes{levelItr-1};
+%             numberOfModes = size(currentModes,1);
+%             oppositeModes = zeros(numberOfModes,1);
+%             parfor modeItr = 1:numberOfModes
+%                oppositeMode = currentModes(modeItr,:);
+%                oppositeMode(1:2) = oppositeMode(2:-1:1);
+%                oppositeMode(3:4) = oppositeMode(3:4) * -1;
+%                [~, oppositeModeIdx] = ismember(oppositeMode, currentModes, 'rows' );
+%                oppositeModes(modeItr) = oppositeModeIdx;
+%             end
+%         else
+%             currentModes = [];
+%         end
         allOppositeModes(levelItr-1) = {oppositeModes};
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
@@ -184,17 +186,15 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, allOppositeModes, 
         graphLevel = mainGraph{levelItr};
         
         %% Print vocabulary and graph level to output images (reconstruction).
+        if ~isempty(modes)
+            display('........ Visualizing previous level...');
+            visualizeLevel( vocabLevel, graphLevel, leafNodes, similarityMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
+        end
         if options.debug
-           display('........ Visualizing previous level...');
+           display('........ Visualizing realizations on images...');
            if ~isempty(vocabLevel)
                if ~isempty(newSimilarityMatrix)
                    imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
-               end
-               if ~isempty(modes)
-                    visualizeLevel( vocabLevel, mainGraph{levelItr-1}, graphLevel, leafNodes, similarityMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
-                    if ~isempty(redundantVocabLevel)
-        %                visualizeLevel( redundantVocabLevel, levelItr, modes{levelItr-1}, numel(vocabulary{levelItr-1}), options, 1);
-                    end
                end
                visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
            end

@@ -169,7 +169,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                        % level 1-l, to link nodes via edges.
                                        % UPDATE: If receptive fields are
                                        % used, no max degree is applied.
-    options.maxImageDim = options.gaborFilterSize*1000;
+    options.maxImageDim = options.receptiveFieldSize * 200;
     options.maximumModes = 50;          % Maximum number of modes allowed for 
                                        % a node pair.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius for two subs to be 

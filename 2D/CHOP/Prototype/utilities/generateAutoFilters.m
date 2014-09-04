@@ -18,7 +18,6 @@ function [ ] = generateAutoFilters( datasetName, fileType )
     %% Step 1: Get program options and initialize variables.
     options = SetParameters(datasetName, true);
     datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
-    fileNames = fuf([datasetFolder '*' fileType], 1, 'detail');
     
     if ~exist([options.currentFolder '/filters/auto'], 'dir')
         mkdir([options.currentFolder '/filters/auto']);
@@ -27,6 +26,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         mkdir([options.currentFolder '/filters/auto']);
     end
     if ~exist([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'file')
+        fileNames = fuf([datasetFolder '*' fileType], 1, 'detail');
         if ~exist([options.currentFolder '/filters/vis/' datasetName], 'dir')
             mkdir([options.currentFolder '/filters/vis/' datasetName]);
         end
@@ -88,7 +88,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         %% Save cluster centers, along with other info.
         save([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');
     else
-        return;
+        load([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');
     end
     numberOfFilters = size(C,1);
     
@@ -97,12 +97,12 @@ function [ ] = generateAutoFilters( datasetName, fileType )
     visX = ceil(sqrt(numberOfFilters));
     visY = ceil(numberOfFilters/visX);
     imageSize = [visX * options.autoFilterSize + (visX-1), ...
-        visY * options.autoFilterSize + (visY-1), size(img,3)];
+        visY * options.autoFilterSize + (visY-1), round(size(Xwh,2)/(options.autoFilterSize^2))];
     finalImage = zeros(imageSize);
     filterItr = 1;
     for xItr = 1:visX
         for yItr = 1:visY
-            gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, size(img,3)]);
+            gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]);
             finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
                 ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = gaborFilt;
             printedGaborFilt = (gaborFilt - min(min(min(gaborFilt)))) / (max(max(max(gaborFilt))) - min(min(min(gaborFilt))));

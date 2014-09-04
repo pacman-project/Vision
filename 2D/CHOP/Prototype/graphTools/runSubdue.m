@@ -46,7 +46,7 @@
 %> Updates
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, oppositeModes, options)
+function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, ~, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -162,7 +162,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
                     % any other sub in the list.
                     [~,sortedIdx]=sort([childSubs.mdlScore]);
                     childSubs=childSubs(sortedIdx);
-                    childSubs = removeEncodedSubs(childSubs, bestSubs, oppositeModes);
+%                    childSubs = removeEncodedSubs(childSubs, bestSubs, oppositeModes);
 
                     % Add remaining child subs to best subs.
                     bestSubs = addToQueue(childSubs, bestSubs, nsubs);    
@@ -475,116 +475,116 @@ function [subs] = evaluateSubs(subs, evalMetric, allEdges, allSigns, graphSize)
     end
 end
 
-%> Name: removeDuplicateSubs
-%>
-%> Description: Given a substructure list, this function removes duplicates
-%> from it by calculating a unique description for each sub, and then
-%> checking for redundant descriptions (a.k.a. duplicate subs).
-%> 
-%> @param childSubs The substructure list from which duplicates will be
-%> removed.
-%>
-%> @retval childSubs Unique substructures.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 24.02.2014
-function childSubs = removeDuplicateSubs(childSubs)
-    if isempty(childSubs)
-       return; 
-    end
-    edges = {childSubs.edges};
-    edges = cellfun(@(x) sortrows(x), edges, 'UniformOutput', false);
-    edges = cellfun(@(x) (x(:)), edges, 'UniformOutput', false);
-    edges = cell2mat(edges)';
-    subIdentifiers = [cat(1, childSubs.centerId), edges];
-    [~, uniqueSubIdentifiers, ~] = unique(subIdentifiers, 'rows', 'stable');
-    childSubs = childSubs(uniqueSubIdentifiers);
-end
+% %> Name: removeDuplicateSubs
+% %>
+% %> Description: Given a substructure list, this function removes duplicates
+% %> from it by calculating a unique description for each sub, and then
+% %> checking for redundant descriptions (a.k.a. duplicate subs).
+% %> 
+% %> @param childSubs The substructure list from which duplicates will be
+% %> removed.
+% %>
+% %> @retval childSubs Unique substructures.
+% %> 
+% %> Author: Rusen
+% %>
+% %> Updates
+% %> Ver 1.0 on 24.02.2014
+% function childSubs = removeDuplicateSubs(childSubs)
+%     if isempty(childSubs)
+%        return; 
+%     end
+%     edges = {childSubs.edges};
+%     edges = cellfun(@(x) sortrows(x), edges, 'UniformOutput', false);
+%     edges = cellfun(@(x) (x(:)), edges, 'UniformOutput', false);
+%     edges = cell2mat(edges)';
+%     subIdentifiers = [cat(1, childSubs.centerId), edges];
+%     [~, uniqueSubIdentifiers, ~] = unique(subIdentifiers, 'rows', 'stable');
+%     childSubs = childSubs(uniqueSubIdentifiers);
+% end
 
-%> Name: removeEncodedSubs
-%>
-%> Description: Given subs to check (subs2Check) and already considered
-%> subs (encodedSubs), this function removes the subs from subs2Check and
-%> returns remaining subs in validSubs.
-%> 
-%> @param subs2Check Subs each of which is considered for elimination if
-%> they already exist either in encodedSubs, or subs2Check as duplicates.
-%> @param encodedSubs Subs already encoded.
-%> @param oppositeEdgeLabelList nx1 array indicating an edge type's reverse
-%> geometric information if it is encoded by another edge. 
-%> oppositeEdgeLabels(x)=y => oppositeEdgeLabels(y)=x.
-%>
-%> @retval validSubs Unique subs from subs2Check.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 15.02.2014
-function validSubs = removeEncodedSubs(subs2Check, encodedSubs, oppositeEdgeLabelList)
-    if isempty(subs2Check) || isempty(oppositeEdgeLabelList) 
-        validSubs = subs2Check;
-        return;
-    end
-    %% First, eliminate duplicate subs in subs2Check.
-    % Check number of nodes in subs2Check. It is assumed that all subs in
-    % subs2Check have the same size. If size ~= 2, there is no ambiguity in
-    % the geometry, and each sub encodes a different structure. No need to
-    % check.
-    numberOfNodes = size(subs2Check(1).edges,1) + 1;
-    
-    if numberOfNodes == 2
-        % First, we check for duplicate subs in subs2Check.
-        centerIds = cat(1, subs2Check.centerId);
-        edges = {subs2Check.edges};
-        descriptions = [centerIds, cat(1, edges{:})];
-        reverseDescriptions = [descriptions(:,3), oppositeEdgeLabelList(descriptions(:,2)), descriptions(:,1)];
-
-        % Get description matches.
-        [~, reverseIdx] = ismember(reverseDescriptions, descriptions, 'rows');
-
-        % Eliminate half of the matches, since one of the two matching subs
-        % will be left in the sub list.
-        reverseCheckArr = (1:numel(reverseIdx))';
-        remainingSubIdx = reverseIdx <= reverseCheckArr;
-        subs2Check = subs2Check(remainingSubIdx);
-    else
-        remainingSubIdx = ones(numel(subs2Check),1) > 0;
-    end
-    validSubs = subs2Check;
-    
-    if isempty(encodedSubs)
-        return;
-    end
-    %% Second task involves checking subs2Check against encodedSubs.
-    encodedSubsNodeCountArr = {encodedSubs.edges};
-    encodedSubsNodeCountArr = cellfun(@(x) size(x,1), encodedSubsNodeCountArr)' + 1;
-    encodedSubs = encodedSubs(encodedSubsNodeCountArr == numberOfNodes);
-    
-    if numberOfNodes == 2
-        % Eliminated those not having exact same number of nodes. If empty,
-        % return.
-        if isempty(encodedSubs)
-            return
-        end
-        
-        % Get reverse descriptions of each sub in subs2Check.
-        reverseDescriptions = reverseDescriptions(remainingSubIdx, :);
-
-        % Get descriptions of each sub in encodedSubs.
-        encodedCenterIds = cat(1, encodedSubs.centerId);
-        encodedEdges = {encodedSubs.edges};
-        encodedDescriptions = [encodedCenterIds, cat(1, encodedEdges{:})];
-
-        % Eliminate those in subs2Check that match already encoded structure in
-        % encodedSubs.
-        remainingSubIdx = ~ismember(reverseDescriptions, encodedDescriptions, 'rows');
-        subs2Check = subs2Check(remainingSubIdx);
-    end
-    validSubs = subs2Check;
-    
-end
+% %> Name: removeEncodedSubs
+% %>
+% %> Description: Given subs to check (subs2Check) and already considered
+% %> subs (encodedSubs), this function removes the subs from subs2Check and
+% %> returns remaining subs in validSubs.
+% %> 
+% %> @param subs2Check Subs each of which is considered for elimination if
+% %> they already exist either in encodedSubs, or subs2Check as duplicates.
+% %> @param encodedSubs Subs already encoded.
+% %> @param oppositeEdgeLabelList nx1 array indicating an edge type's reverse
+% %> geometric information if it is encoded by another edge. 
+% %> oppositeEdgeLabels(x)=y => oppositeEdgeLabels(y)=x.
+% %>
+% %> @retval validSubs Unique subs from subs2Check.
+% %> 
+% %> Author: Rusen
+% %>
+% %> Updates
+% %> Ver 1.0 on 15.02.2014
+% function validSubs = removeEncodedSubs(subs2Check, encodedSubs, oppositeEdgeLabelList)
+%     if isempty(subs2Check) || isempty(oppositeEdgeLabelList) 
+%         validSubs = subs2Check;
+%         return;
+%     end
+%     %% First, eliminate duplicate subs in subs2Check.
+%     % Check number of nodes in subs2Check. It is assumed that all subs in
+%     % subs2Check have the same size. If size ~= 2, there is no ambiguity in
+%     % the geometry, and each sub encodes a different structure. No need to
+%     % check.
+%     numberOfNodes = size(subs2Check(1).edges,1) + 1;
+%     
+%     if numberOfNodes == 2
+%         % First, we check for duplicate subs in subs2Check.
+%         centerIds = cat(1, subs2Check.centerId);
+%         edges = {subs2Check.edges};
+%         descriptions = [centerIds, cat(1, edges{:})];
+%         reverseDescriptions = [descriptions(:,3), oppositeEdgeLabelList(descriptions(:,2)), descriptions(:,1)];
+% 
+%         % Get description matches.
+%         [~, reverseIdx] = ismember(reverseDescriptions, descriptions, 'rows');
+% 
+%         % Eliminate half of the matches, since one of the two matching subs
+%         % will be left in the sub list.
+%         reverseCheckArr = (1:numel(reverseIdx))';
+%         remainingSubIdx = reverseIdx <= reverseCheckArr;
+%         subs2Check = subs2Check(remainingSubIdx);
+%     else
+%         remainingSubIdx = ones(numel(subs2Check),1) > 0;
+%     end
+%     validSubs = subs2Check;
+%     
+%     if isempty(encodedSubs)
+%         return;
+%     end
+%     %% Second task involves checking subs2Check against encodedSubs.
+%     encodedSubsNodeCountArr = {encodedSubs.edges};
+%     encodedSubsNodeCountArr = cellfun(@(x) size(x,1), encodedSubsNodeCountArr)' + 1;
+%     encodedSubs = encodedSubs(encodedSubsNodeCountArr == numberOfNodes);
+%     
+%     if numberOfNodes == 2
+%         % Eliminated those not having exact same number of nodes. If empty,
+%         % return.
+%         if isempty(encodedSubs)
+%             return
+%         end
+%         
+%         % Get reverse descriptions of each sub in subs2Check.
+%         reverseDescriptions = reverseDescriptions(remainingSubIdx, :);
+% 
+%         % Get descriptions of each sub in encodedSubs.
+%         encodedCenterIds = cat(1, encodedSubs.centerId);
+%         encodedEdges = {encodedSubs.edges};
+%         encodedDescriptions = [encodedCenterIds, cat(1, encodedEdges{:})];
+% 
+%         % Eliminate those in subs2Check that match already encoded structure in
+%         % encodedSubs.
+%         remainingSubIdx = ~ismember(reverseDescriptions, encodedDescriptions, 'rows');
+%         subs2Check = subs2Check(remainingSubIdx);
+%     end
+%     validSubs = subs2Check;
+%     
+% end
 
 %> Name: addToQueue
 %>
