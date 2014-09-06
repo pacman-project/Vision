@@ -51,7 +51,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
     end
     
     % Generate first level object graph.
-    [~, graphLevel] = generateLevels(nodes, options);
+    [~, graphLevel] = generateLevels(nodes, ones(size(nodes,1),1), options);
 
     %% Step 2.1: Get first-level object graph edges.
     mainGraph = {graphLevel};
@@ -74,7 +74,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
            display(['Working on level ' num2str(levelItr) '.']);
         end
         startTime = tic;
-        newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, [], options, levelItr);
+        newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, options, levelItr);
         duration = toc(startTime);
         totalInferenceTime = totalInferenceTime + duration;
         

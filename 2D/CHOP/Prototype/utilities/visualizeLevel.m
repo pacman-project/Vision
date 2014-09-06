@@ -125,7 +125,7 @@ function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leaf
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
                 labelId = vocabNodeSet(nodeItr);
                 nodeInstances = find(nodeLabelIds==labelId);
-                nodeInstances = nodeInstances(1);   % CHANGE: Print only the first realization.
+%                nodeInstances = nodeInstances(1);   % CHANGE: Print only the first realization.
                 instancePos = mat2cell(centerPos(nodeInstances,:), ones(1, numel(nodeInstances)), 2);
                 instanceLeafNodeSets = leafNodeSets(nodeInstances,:);
                 instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
@@ -216,36 +216,36 @@ function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leaf
                          double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
                 end
                 
-                %% Temporary printing of nodes/edged over the composition mask..
-                printedParent = graphLevel(nodeInstances(1));
-                printedChildren = previousGraphLevel(printedParent.children);
-                printedChildrenPos = cat(1, printedChildren.position) - repmat(instancePos{1}, numel(printedChildren),1);
-                printedChildrenPos = round(printedChildrenPos - [ones(numel(printedChildren),1) * maskMinX, ones(numel(printedChildren),1) * maskMinY]);
-                edgeImg = zeros(size(currentFilledMask));
-                for printedNode = 1:numel(printedChildren)
-                    edgeImg((printedChildrenPos(printedNode,1)-2):(printedChildrenPos(printedNode,1)+2), ...
-                        (printedChildrenPos(printedNode,2)-2):(printedChildrenPos(printedNode,2)+2)) = printedChildren(printedNode).labelId;
-                end
-                for edgeItr = 2:numel(printedChildren)
-                   edgeIdx = drawline(printedChildrenPos(1,:), printedChildrenPos(edgeItr,:), size(edgeImg));
-                   edgeImg(edgeIdx) = edgeItr;
-                end
-                edgeZeroMask = edgeImg==0;
-                edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
-                % Add currentMask to edgeImg
-                for edgeBandItr = 1:size(edgeImg,3)
-                   if size(currentMask,3)>1
-                       curMaskBand = edgeBandItr;
-                   else
-                       curMaskBand = 1;
-                   end
-                   edgeBandImg = edgeImg(:,:,edgeBandItr);
-                   currentMaskBandImg = uint8(round(currentMask(:,:,curMaskBand) * 255));
-                   edgeBandImg(edgeZeroMask) = currentMaskBandImg(edgeZeroMask);
-                   edgeImg(:,:,edgeBandItr) = edgeBandImg;
-                end
-                
-                imwrite(edgeImg, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+%                 %% Temporary printing of nodes/edged over the composition mask..
+%                 printedParent = graphLevel(nodeInstances(1));
+%                 printedChildren = previousGraphLevel(printedParent.children);
+%                 printedChildrenPos = cat(1, printedChildren.position) - repmat(instancePos{1}, numel(printedChildren),1);
+%                 printedChildrenPos = round(printedChildrenPos - [ones(numel(printedChildren),1) * maskMinX, ones(numel(printedChildren),1) * maskMinY]);
+%                 edgeImg = zeros(size(currentFilledMask));
+%                 for printedNode = 1:numel(printedChildren)
+%                     edgeImg((printedChildrenPos(printedNode,1)-2):(printedChildrenPos(printedNode,1)+2), ...
+%                         (printedChildrenPos(printedNode,2)-2):(printedChildrenPos(printedNode,2)+2)) = printedChildren(printedNode).labelId;
+%                 end
+%                 for edgeItr = 2:numel(printedChildren)
+%                    edgeIdx = drawline(printedChildrenPos(1,:), printedChildrenPos(edgeItr,:), size(edgeImg));
+%                    edgeImg(edgeIdx) = edgeItr;
+%                 end
+%                 edgeZeroMask = edgeImg==0;
+%                 edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
+%                 % Add currentMask to edgeImg
+%                 for edgeBandItr = 1:size(edgeImg,3)
+%                    if size(currentMask,3)>1
+%                        curMaskBand = edgeBandItr;
+%                    else
+%                        curMaskBand = 1;
+%                    end
+%                    edgeBandImg = edgeImg(:,:,edgeBandItr);
+%                    currentMaskBandImg = uint8(round(currentMask(:,:,curMaskBand) * 255));
+%                    edgeBandImg(edgeZeroMask) = currentMaskBandImg(edgeZeroMask);
+%                    edgeImg(:,:,edgeBandItr) = edgeBandImg;
+%                 end
+%                 
+%                 imwrite(edgeImg, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
                 
                 %% Add background to currentMask, and normalize it.
                 % Learn the median color to use as background..
@@ -280,7 +280,7 @@ function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leaf
                     optionOrder = nnz(labelIds(1:nodeSet(nodeItr))==realLabel);
                     imwrite(currentMask, [reconstructionDir num2str(realLabel) '_option' num2str(optionOrder) '.png']);
                 else
-%                    imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                    imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
                     imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
                 end
             end
