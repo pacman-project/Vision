@@ -135,7 +135,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
             
             % All good, continue.
             processedSet = parentSubSets{setItr};
-            parfor parentItr = processedSet
+            for parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 childSubs = extendSub(parentSubs(parentItr), allEdges);
                 if isempty(childSubs) 
@@ -487,7 +487,9 @@ function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, all
             dlReductions = (cellfun(@(x) numel(x), instanceChildren) * mdlNodeWeight + ...    % Deleting all children in the instance.
                 numberOfEdgeReductions * mdlEdgeWeight) .* multiplicationConstant;            % Deleting all edges going in and out of the instance.
             dlReductions = dlReductions - multiplicationConstant * mdlNodeWeight;        % Adding a node to replace each instance's nodes.
-            subs(subItr).mdlScore = sum(dlReductions);
+            subs(subItr).mdlScore = sum(dlReductions) - ...
+                (mdlNodeWeight * (size(subs(subItr).edges,1) + 1) + ...
+                mdlEdgeWeight * size(subs(subItr).edges,1));   % Adding a graph description for the sub.
             subs(subItr).normMdlScore = 1 - (subs(subItr).mdlScore / graphSize);
             dlReductionsCell = num2cell(dlReductions);
             [subs(subItr).instances.dlReduction] = deal(dlReductionsCell{:});
