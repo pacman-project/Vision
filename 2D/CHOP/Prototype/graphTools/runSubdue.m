@@ -135,7 +135,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
             
             % All good, continue.
             processedSet = parentSubSets{setItr};
-            for parentItr = processedSet
+            parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 childSubs = extendSub(parentSubs(parentItr), allEdges);
                 if isempty(childSubs) 
