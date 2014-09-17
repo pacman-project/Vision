@@ -84,34 +84,13 @@ function [ models ] = TrainCategoryPose( datasetName, exportArr, categoryArr, po
     end
     feature_params.avgRelativePoints = avgRelativePoints;
     
-    %% Find contribution of each part to the categories.
-    % Learning category level nodes.
-%     categoryLevels = unique(exportArr(:,4));
-%     categoryLevels = categoryLevels(categoryLevels>=feature_params.categoryLevel)';
-%     contributions = cell(numel(categoryLevels),1);
-%     for levelItr = 1:numel(categoryLevels)
-%         realizations = exportArr(exportArr(:,4) == categoryLevels(levelItr),:);
-%         partIds = unique(realizations(:,1));
-%         
-%         partContributions = zeros(numel(partIds), 6);
-%         for partItr = 1:numel(partIds)
-%             imageIds = realizations(realizations(:,1) == partIds(partItr), 5);
-%             imageCategories = categoryArrIdx(imageIds);
-%             probs = hist(imageCategories, 1:4);
-%             probs = probs / sum(probs);
-%             partContributions(partItr,:) = [partIds(partItr), categoryLevels(levelItr), probs/numel(partIds)];
-%         end
-%         contributions(levelItr) = {partContributions};
-%     end
-%     contributions = cat(1, contributions{:});
-%     feature_params.contributions = contributions;
-    
     %% Feature extraction.
     [features]=featureExtractionDemo(exportArr, categoryArrIdx, poseArr, feature_params, []);
   
     %% Learn models.
     [models] = CategoryPoseLearningDemo( features, categoryArrIdx, poseArr);
-%    [models] = CategoryPoseLearningDemo( features, categoryArrIdx, poseArr, feature_params.integration_levels);
+    
+    %% Save models.
     save([pwd '/Category_Pose/models/' datasetName '_models.mat'], 'models', 'feature_params');
 end
 

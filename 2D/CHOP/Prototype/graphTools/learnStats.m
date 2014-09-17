@@ -16,11 +16,11 @@
 %>
 %> Updates
 %> Ver 1.0 on 28.01.2014
-function [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevel)
+function [currentModes] = learnStats(mainGraph, options, currentLevel)
     %% Step 1: Learn geometric relations between nodes belonging to a single object.
     if strcmp(options.property, 'mode')
         %% Learn modes from the data.
-        [currentModes] = learnModes(mainGraph, options, currentLevel, options.datasetName); 
+        [currentModes] = learnModes(mainGraph, options, currentLevel); 
     elseif strcmp(options.property, 'hist')
         %% In 'hist' type geometric property, we assign region centers in hMatrix as modes.
         % Please note that the output modes do not include any composition
@@ -46,19 +46,4 @@ function [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, 
         %% In co-occurence type property, there is no mode info.
         currentModes = [];
     end
-    
-    %% Step 2: Learn high level relations between nodes belonging to DIFFERENT objects.
-    % These relations may correspond to high-level edges representing
-    % view-related or category-related relations.
-    % TODO: Explain format of these modes here.
-    if strcmp(options.highLevelProperty, 'multiview')
-        % TODO: Multi-view related modes will be formed.
-        currentHighLevelModes = [];
-    elseif strcmp(options.highLevelProperty, 'category')
-        % TODO: Add category-wise modes. 
-        currentHighLevelModes = [];
-    else
-        % 'none' option: Do not learn any high-level modes here.
-        currentHighLevelModes = [];
-    end 
 end

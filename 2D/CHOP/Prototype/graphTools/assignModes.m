@@ -32,4 +32,3 @@ function [ classes ] = assignModes( samples, minSamplesPerMode, maximumModes )
        classes = mec(samples, 'c', maximumModes, 'kmeans_i', 3);
    end
 end
-

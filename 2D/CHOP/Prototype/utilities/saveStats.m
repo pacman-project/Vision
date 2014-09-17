@@ -18,15 +18,8 @@
 %> Ver 1.0 on 11.02.2014
 function [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, state, levelItr)
     %% Calculate shareability of each composition in vocabulary.
-    % This is done by simply assessing number of images this composition is
+    % This is done by simply estimating number of images this composition is
     % seen in. 
-%     if levelItr > 1
-%         realLabelIds = [vocabLevel.realLabelId];
-%         if ~isempty(realLabelIds)
-%             vocabLevel = vocabLevel(1, ((1:numel(realLabelIds)) == realLabelIds));
-%         end
-%     end
-%     
     labelIds = [graphLevel.labelId]';
     imageIds = [graphLevel.imageId]';
     compositionImageCountArr = zeros(numel(vocabLevel),1);

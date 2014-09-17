@@ -1,0 +1,118 @@
+README FOR CHOP - Compositional Hierarchy of Parts
+
+This file is meant to help the developer who will use CHOP base
+algorithm in order to learn visual hierarchical vocabularies.
+
+// Only minimal descriptions are given for now, they will be 
+// improved over time.
+
+Important notice: Some parts of the code are now hidden, since 
+they contain some modifications over the ECCV code which have 
+not been documented in a paper yet. We sincerely apologize 
+for any inconvenience caused. We will try our best to make these
+parts and more improvements available really soon.
+
+The algorithm is implemented entirely in Matlab. It has been
+tested with 2012a and up. If you have any problems, please ping 
+rusenaktas <at> gmail <dot> com. You can also use the Issues section
+on our Github page.
+
+
+
+%% *************** Running the Code *************** %%
+
+
+
+1) In order to run the code and learn a hierarchy of parts in an 
+unsupervised manner, place all of your images under 
+<CHOP_PATH>/input/<DATASET_NAME>/vocab . They can be in sub-folders.
+If there are ground truth masks (either in form of boundary box 
+or binary mask of segments), they can be placed under 
+<CHOP_PATH>/input/<DATASET_NAME>/gt . All program specific parameters are in 
+<CHOP_PATH/parameters/SetParametersCommon.m file. If you wish to have a separate parameter
+file for a dataset, feel free to make a copy of SetParametersCommon.m
+under the same folder with the name SetParameters<DATASET_NAME>.m and
+change any parameters you wish. The program will use a dataset-specific
+parameter file whenever it can, reverting back to the common version
+in case no parameter file is set for the dataset.
+
+The routine for training vocabulary is :
+
+>> runVocabularyLearning(<DATASET_NAME>, <FILE_EXT>) 
+
+where <DATASET_NAME> is the name of the dataset, and 
+      <FILE_EXT> is the extension of every file in the dataset.
+    Examples of <FILE_EXT> can be: '.png', '.jpg', '.gif', ... 
+
+2) In order to run inference in test images, place all of your test
+images under <CHOP_PATH>/input/<DATASET_NAME>/test .
+Similarly, test inference over all images under the test folder 
+can be initiated with:
+
+>> runTestInference(<DATASET_NAME>, <FILE_EXT>);
+
+3) An additional script that keeps logs and calls both training and
+inference is provided in Experiment.m. It can be called as:
+
+>> Experiment(<DATASET_NAME>, <FILE_EXT>);
+
+
+
+ %% *************** Understanding the Output *************** %%
+
+
+
+1) The output of the program is put under 
+    ./debug/<DATASET_NAME>
+    ./output/<DATASET_NAME> 
+folders. debug folder includes the visualizations of the vocabulary 
+elements across all layers. For the output folder:
+    ./output/<DATASET_NAME>/vb.mat includes the 'vocabulary'. Explanation
+    of a vocabNode (basic building block) is given in its class file. 
+    The vocabulary includes all learned parts across all levels.
+
+    ./output/<DATASET_NAME>/trtime.mat Total time spent on training.
+    ./output/<DATASET_NAME>/tetime.mat Total time spent on inference 
+    (only graphical inference).
+    
+    ./output/<DATASET_NAME>/preInhibition_l.mat Statistics in lth level
+    before inhibition.
+
+    ./output/<DATASET_NAME>/postInhibition_l.mat Statistics in lth level
+    after inhibition.
+
+    ./output/<DATASET_NAME>/export.mat Exported realizations of TRAINING
+    images. It is of the form (exportArr): 
+        [labelId, node1, node2, levelId, imageId;
+        [labelId2, node21, node22, levelId2, imageId2;
+        [labelId3, node31, node32, levelId3, imageId3;
+        ...]
+
+        labelId can be used to index in 'vocabulary'.
+        levelId is the id of the level. They start from 1, and may go up to 20.
+        imageId is the id of the image the realization is seen in. It can be
+        used to index into categoryArr, categoryArrIdx, poseArr, trainingFileNames
+        to learn various information regarding the image.
+    
+    ./output/<DATASET_NAME>/smoothed Mean response image for level 1 Gabors.
+
+    ./output/<DATASET_NAME>/original Original images, downsampled if they are 
+    too big.
+
+    ./output/<DATASET_NAME>/test/inference includes 'exportArr's of the given
+    format for each test image. The learned parts are hierarchically searched 
+    for in every test image. 
+
+    ./output/<DATASET_NAME>/reconstruction includes visualizations of realizations
+    in both training and test images across all levels.
+
+
+
+%% *************** PAPER *************** %%
+
+
+
+If you use the code, please cite the following paper:
+Umit Rusen Aktas, Mete Ozay, Aleš Leonardis, Jeremy L. Wyatt: A Graph Theoretic Approach for Object Shape Representation in Compositional Hierarchies Using a Hybrid Generative-Descriptive Model. ECCV (3) 2012: 566-581
+
+Sept. 8, 2014 Umit Rusen Aktas

@@ -9,6 +9,7 @@
 %> formed correctly.
 %>
 %> @param vocabLevel The vocabulary level to search for.
+%> @param vocabLevel The redundant vocabulary level to search for.
 %> @param previousGraphLevel The input graph's path.
 %> @param options Program options.
 %>
@@ -18,7 +19,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 18.12.2013
-function [newLevel] = collectInstances(vocabLevel, previousGraphLevel, options, levelItr)
+function [newLevel] = collectInstances(vocabLevel, redundantVocabLevel, previousGraphLevel, options, levelItr)
     %% Discover new level's subs.
-    [~, newLevel] = discoverSubs(vocabLevel, previousGraphLevel, options, true, levelItr);
+    [~, newLevel] = discoverSubs(vocabLevel, redundantVocabLevel, previousGraphLevel, options, true, levelItr);
 end

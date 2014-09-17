@@ -1,9 +1,7 @@
 %> Name: createFilters
 %>
-%> Description: Depending on the filter type, it creates basic
-%> filters to detect low-level features in the input images. Possible
-%> filter types include 'gabor' and 'auto'. 'gabor' is used to utilize
-%> steerable Gabor filters as feature detectors. 'auto' filters are useful 
+%> Description: This function extract basic Gabor/auto filter responses to 
+%> detect low-level features in the input images. 
 %>
 %> @param options Program options.
 %>
@@ -21,6 +19,7 @@ function [ filters ] = createFilters( options )
     if ~exist([filterFolder options.filterType], 'dir')
        mkdir([filterFolder options.filterType]); 
     end
+    
     if strcmp(options.filterType, 'gabor')
         %% Create reference filter.
         refGaborFilt = gabor_fn(options.gabor.sigma, options.gabor.theta, ...
@@ -72,23 +71,18 @@ function [ filters ] = createFilters( options )
                filters{filtItr+1} = gaborFilt;
           end
         end
-    %% LHOP features are basically Gabor filters. They are not generated, but obtained from LHOP.
-    elseif strcmp(options.filterType, 'lhop')
-        filters = cell(options.numberOfLHOPFilters,1);
-        for filtItr = 0:(options.numberOfLHOPFilters-1)
-           load([filterFolder options.filterType '/filt' num2str(filtItr+1) '.mat'], 'gaborFilt');
-           filters{filtItr+1} = gaborFilt;
-        end
-    %% Auto-generated filters are basically clustered ZCA-whitened random patches. 
     elseif strcmp(options.filterType, 'auto')
         filters = cell(options.autoFilterCount,1);
         for filtItr = 0:(options.autoFilterCount-1)
             fileName = [filterFolder options.filterType '/filt' num2str(filtItr+1) '.mat'];
             if exist(fileName, 'file')
                load(fileName, 'gaborFilt');
-               filters{filtItr+1} = gaborFilt;
+               filters{filtItr+1} = gaborFilt; %#ok<NODEF>
             end
         end
+    else
+        display('Error: Filter type not implemented (in createFilters.m).');
+        filters = [];
     end
 end
 

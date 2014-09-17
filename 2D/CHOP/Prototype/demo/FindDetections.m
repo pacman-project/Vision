@@ -91,10 +91,6 @@ function [ finalPredictions, windowSizes, finalGroupMask] = FindDetections( expo
             end
             
             % Check if center is not too close to the sides.
-%             if center(1) < halfSize(1) || center(2) < halfSize(2) || ...
-%                 center(1) >= (inputImgSize(1) - halfSize(1)) || center(2) >= (inputImgSize(2) - halfSize(2))
-%                 continue;
-%             end
              if center(1) < 100 || center(2) < 100 || ...
                  center(1) >= (inputImgSize(1) - 100) || center(2) >= (inputImgSize(2) - 100)
                  continue;

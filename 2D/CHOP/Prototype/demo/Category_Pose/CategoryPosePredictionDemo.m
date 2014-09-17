@@ -56,39 +56,3 @@ cmd = '-b 1';
  predictions.category_prediction=category_prediction;
  predictions.pose_prediction=pose_prediction;
 end
-%  
-% function [predictions] = CategoryPosePredictionDemo( features, LearnedModels, labels, integration_levels)
-% %% Integrate features
-% % 
-% % features=[];
-% % for level_id=1:size(integration_levels,2)   
-% %     features=[features feature_set{1,integration_levels(level_id)}];   
-% % end
-% %% Prediction for classification
-% cmd = '-b 1';
-% %  [predicted_category_label, accuracy, prob_estimates] = svmpredict(labels_sub, features, LearnedModels.category_model, cmd);
-% [predicted_category_label,~, prob_estimates] = svmpredict(labels, features, LearnedModels.category_model,cmd);
-%  category_prediction.labels=predicted_category_label;
-%  category_prediction.prob_estimates = prob_estimates;
-%  
-% %% Prediction for pose estimation
-%  cmd = '-b 1';
-% 
-%  [predicted_pose_label, ~, prob_estimates] = svmpredict(rand(size(features,1),1), features, LearnedModels.pose_model{1,predicted_category_label},cmd);
-%  pose_prediction.labels=predicted_pose_label;
-%  pose_prediction.prob=prob_estimates;
-% 
-%  %% Predict pose interval
-% 
-% 
-% %   [pose_interval_predictions] = predict(LearnedModels.pose_model_interval{1,predicted_category_label},features);
-%     
-% %   predictions.pose_interval_predictions=pose_interval_predictions;
-% %   predictions.pose_interval_confidence=pose_interval_confidence;
-% 
-%  %%
-%  
-%  predictions.category_prediction=category_prediction;
-%  predictions.pose_prediction=pose_prediction;
-% end
-

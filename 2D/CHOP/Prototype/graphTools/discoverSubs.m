@@ -6,6 +6,8 @@
 %>
 %> @param vocabLevel If preDefinedSearch is 1, the compositions in this
 %> vocabulary level are searched in graphLevel. If 0, simply ignored.
+%> @param vocabLevel If preDefinedSearch is 1, the compositions in this
+%> redundant vocabulary level are searched in graphLevel. If 0, simply ignored.
 %> @param graphLevel The current object graphs' level.
 %> @param options Program options.
 %> @param currentFolder Path to the workspace folder.
@@ -23,12 +25,7 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, options, preDefinedSearch, levelItr)
-    % Close parallel threads as they consume memory.
-%     if ~preDefinedSearch && options.parallelProcessing
-%         matlabpool close;
-%     end
-    
+function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, redundantVocabLevel, graphLevel, options, preDefinedSearch, levelItr)
     startTime = tic;
     if ~preDefinedSearch
         display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
@@ -36,7 +33,11 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, option
     
     % Search for substructures.
     if preDefinedSearch
-        graphLevel = inferSubs(vocabLevel, graphLevel, options);
+        % Inference on the test image with learned vocabularies.
+        % This part is again related to combining parts. 
+        % The status of this section is debatable. Please wait for updates.
+        % It'll be unhid as soon as possible.
+        graphLevel = inferSubs(vocabLevel, redundantVocabLevel, graphLevel, options);
     else
         [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, options);
         
@@ -60,9 +61,4 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, option
     display(['.... Time elapsed: ' num2str(toc(startTime)) ' secs.']);
     display(['.... Found ' ...
         num2str(numel(graphLevel)) ' instances of ' num2str(numel(vocabLevel)) ' compositions.']);
-    
-%     % Reopen threads.
-%     if ~preDefinedSearch && options.parallelProcessing
-%         matlabpool('open', options.numberOfThreads);
-%     end
 end

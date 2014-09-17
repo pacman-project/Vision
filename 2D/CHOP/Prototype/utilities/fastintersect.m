@@ -1,7 +1,7 @@
 %> Name: fastintersect
 %>
 %> Description: Provides a fast intersection function between two sets of
-%> positive integers.
+%> positive integers. (Code found on the internet)
 %>
 %> @param A First set to intersect.
 %> @param B Second set to intersect.

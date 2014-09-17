@@ -16,8 +16,6 @@
 %> Ver 1.0 on 01.02.2014
 %> Ver 1.1 on 12.01.2014 Timing is added by Mete
 function [ totalInferenceTime ] = runTestInference( datasetName, ext )
-    global vocabulary, global redundantVocabulary, global modes, global highLevelModes, global categoryNames;
-
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
     options = SetParameters(datasetName, false);
     options.currentFolder = options.currentFolder;
@@ -42,10 +40,12 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         end
     
         if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
-            load([options.currentFolder '/output/' datasetName '/vb.mat']);
+            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'modes', 'vocabulary', 'redundantVocabulary', 'categoryNames');
             load([options.currentFolder '/output/' datasetName '/export.mat']);
         else
             display('No vocabulary exists!');
+            totalInferenceTime = 0;
+            return;
         end
         
         % Create the folder structure required.
@@ -53,7 +53,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         % Learn the category of the images, if they are structured in
         % manner that allows measuring performance.
-        
         for fileItr = 1:numel(testFileNames)
             categoryLabel = -1; %#ok<NASGU>
             fullName = testFileNames{fileItr};
@@ -76,7 +75,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         %% Step 1.2: Run inference on each test image.
         totalInferenceTime = 0;
         for testImgItr = 1:size(testFileNames,1) 
-            totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, options);
+            totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, vocabulary, redundantVocabulary, modes, options);
         end
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
     end
@@ -85,5 +84,4 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     if options.parallelProcessing
         matlabpool close;
     end
-    
 end

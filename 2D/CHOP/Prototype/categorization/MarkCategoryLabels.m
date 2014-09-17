@@ -31,7 +31,7 @@ function [ ] = MarkCategoryLabels( datasetName )
         % Put exported realizations in different cells in a cell array 
         % (for fast parallel processing).
         realizations = exportArr(exportArr(:,4) == levelItr, :); 
-        numberOfParts = max(realizations(:,1));
+        numberOfParts = numel(vocabLevel);
         numberOfCategories = numel(categoryNames);
         realArr = cell(numberOfParts,1);
         
@@ -48,7 +48,11 @@ function [ ] = MarkCategoryLabels( datasetName )
         % Process each node in the vocabulary.
         probArr = cell(numberOfParts,1);
         for partItr = 1:numel(vocabLevel)
-            assgnArr = (hist(realArr{partItr}, 1:numberOfCategories) / numel(realArr{partItr}));
+            if isempty(realArr{partItr})
+                assgnArr = (hist(realArr{partItr}, 1:numberOfCategories) / numel(realArr{partItr}));
+            else
+                assgnArr = zeros(1, numberOfCategories);
+            end
             assgnArr = assgnArr .* normConstants;
             assgnArr = exp(assgnArr * favorParam);     % Favouring assgnArrs with peaks.
             assgnArr = assgnArr / sum(assgnArr);
@@ -57,7 +61,7 @@ function [ ] = MarkCategoryLabels( datasetName )
         
         % Save probabilities.
         [vocabLevel.categoryArr] = deal(probArr{:});
-        vocabulary{levelItr} = vocabLevel;
+        vocabulary{levelItr} = vocabLevel; %#ok<AGROW>
     end
     
     % Save vocabulary.

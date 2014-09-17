@@ -7,8 +7,6 @@
 %> within a single object graph. Inter-object edges correspond to
 %> high-level relations between realizations in different objects' graphs. 
 %>
-%> @param nodes The node list including label ids, positions and image ids
-%> of each node.
 %> @param mainGraph The object graphs' data structure.
 %> @param options Program options.
 %> @param currentLevelId The current scene graph level id.
@@ -19,8 +17,6 @@
 %> 
 %>
 %> @retval modes The mode list representing edge categories.
-%> @retval highLevelModes The high-level mode list representing inter-object-graph
-%>      edge categories.
 %> @retval edges Edges are of the form: [ node1, node2, label, directed;
 %>                                        node1, node2, label, directed;
 %>                                      ...]
@@ -30,28 +26,17 @@
 %> Updates
 %> Ver 1.0 on 06.12.2013
 %> Addition of inter-image edges on 28.01.2014
-function [modes, highLevelModes, mainGraph] = extractEdges(mainGraph, options, currentLevelId, modes, highLevelModes)
+function [modes, mainGraph] = extractEdges(mainGraph, options, currentLevelId, modes)
     %% Step 1: Learn low-level (within object) and high-level (between objects) modes.
     if options.isTraining
-        [currentModes, currentHighLevelModes] = learnStats(mainGraph, options, currentLevelId);
+        [currentModes] = learnStats(mainGraph, options, currentLevelId);
         if ~isempty(currentModes)
             modes = [modes, {currentModes}];
         end
-        if ~isempty(currentHighLevelModes)
-            highLevelModes = [highLevelModes, {currentHighLevelModes}];
-        end
     end
-    
     load('hMatrix.mat', 'hMatrix'); 
-
-    display('Extracting edges...');
     %% Create within-object-graph edges.
+    display('Extracting edges...');
     [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, modes, hMatrix);
-    
-    %% Here, we create inter-object-graph edges. Nodes belonging to different object graphs are linked here.
-    % CAUTION: Please note that no nodes within the SAME object graph should be
-    % linked in this function. It ruins the inference process and causes it
-    % to be unstable and inefficient.
-    [mainGraph] = createHighLevelEdgesWithLabels(mainGraph, options, currentLevelId, highLevelModes);
 end
 

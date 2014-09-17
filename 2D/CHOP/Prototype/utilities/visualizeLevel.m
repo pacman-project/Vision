@@ -5,7 +5,6 @@
 %> each word in the vocabulary level.
 %>
 %> @param currentLevel Current vocabulary level.
-%> @param graphLevel Previous graph level.
 %> @param graphLevel Current graph level.
 %> @param levelId Identifier of the current level.
 %> @param modes Modes of the previous level to reconstruct the features.
@@ -19,21 +18,19 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leafNodes, leafDistanceMatrix, levelId, ~, numberOfPrevNodes, options, isRedundant)
+function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceMatrix, levelId, ~, numberOfPrevNodes, options, isRedundant)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
-    useReceptiveField = options.useReceptiveField;
     filtBandCount = size(options.filters{1},3);
     numberOfThreads = options.numberOfThreads;
     childrenPerNode = options.vis.nodeReconstructionChildren;
-    deadFeatures = options.auto.deadFeatures;
-    
-    if ~useReceptiveField
-        % Changed on 18.08.2014 to remove cases where we do not use
-        % receptive field. Earlier versions of this file includes code for
-        % localization of children in general cases.
-        return;
+    filterType = options.filterType;
+    if strcmp(filterType, 'auto') && levelId == 1
+        isAutoFilter = true;
+        deadFeatures = options.auto.deadFeatures;
+    else
+        isAutoFilter = false;
     end
     
     % Turn leaf distance matrix into leaf similarity matrix.
@@ -102,12 +99,10 @@ function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leaf
             parallelNodeSetIdx = parallelNodeSetIdx(2:end)-parallelNodeSetIdx(1:(end-1));
             parallelNodeSetIdx(end) = parallelNodeSetIdx(end) + 1;
             parallelNodeSets = mat2cell(nodeSet, 1, parallelNodeSetIdx);
-%            parallelVocabNodeSets = cellfun(@(x) currentLevel(x), parallelNodeSets, 'UniformOutput', false);
             parallelVocabNodeSets = parallelNodeSets;
             numberOfThreadsUsed = numberOfThreads;
         else
             parallelNodeSets = {nodeSet};
-%            parallelVocabNodeSets = {currentLevel};
             parallelVocabNodeSets = {1:numberOfNodes};
         end
         
@@ -125,7 +120,7 @@ function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leaf
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
                 labelId = vocabNodeSet(nodeItr);
                 nodeInstances = find(nodeLabelIds==labelId);
-%                nodeInstances = nodeInstances(1);   % CHANGE: Print only the first realization.
+                nodeInstances = nodeInstances(1);   % CHANGE: Print only the first realization.
                 instancePos = mat2cell(centerPos(nodeInstances,:), ones(1, numel(nodeInstances)), 2);
                 instanceLeafNodeSets = leafNodeSets(nodeInstances,:);
                 instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
@@ -216,37 +211,6 @@ function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leaf
                          double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
                 end
                 
-%                 %% Temporary printing of nodes/edged over the composition mask..
-%                 printedParent = graphLevel(nodeInstances(1));
-%                 printedChildren = previousGraphLevel(printedParent.children);
-%                 printedChildrenPos = cat(1, printedChildren.position) - repmat(instancePos{1}, numel(printedChildren),1);
-%                 printedChildrenPos = round(printedChildrenPos - [ones(numel(printedChildren),1) * maskMinX, ones(numel(printedChildren),1) * maskMinY]);
-%                 edgeImg = zeros(size(currentFilledMask));
-%                 for printedNode = 1:numel(printedChildren)
-%                     edgeImg((printedChildrenPos(printedNode,1)-2):(printedChildrenPos(printedNode,1)+2), ...
-%                         (printedChildrenPos(printedNode,2)-2):(printedChildrenPos(printedNode,2)+2)) = printedChildren(printedNode).labelId;
-%                 end
-%                 for edgeItr = 2:numel(printedChildren)
-%                    edgeIdx = drawline(printedChildrenPos(1,:), printedChildrenPos(edgeItr,:), size(edgeImg));
-%                    edgeImg(edgeIdx) = edgeItr;
-%                 end
-%                 edgeZeroMask = edgeImg==0;
-%                 edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
-%                 % Add currentMask to edgeImg
-%                 for edgeBandItr = 1:size(edgeImg,3)
-%                    if size(currentMask,3)>1
-%                        curMaskBand = edgeBandItr;
-%                    else
-%                        curMaskBand = 1;
-%                    end
-%                    edgeBandImg = edgeImg(:,:,edgeBandItr);
-%                    currentMaskBandImg = uint8(round(currentMask(:,:,curMaskBand) * 255));
-%                    edgeBandImg(edgeZeroMask) = currentMaskBandImg(edgeZeroMask);
-%                    edgeImg(:,:,edgeBandItr) = edgeBandImg;
-%                 end
-%                 
-%                 imwrite(edgeImg, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
-                
                 %% Add background to currentMask, and normalize it.
                 % Learn the median color to use as background..
                 validValues = currentMask(currentFilledMask>0);
@@ -255,7 +219,7 @@ function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leaf
                 % Assign filling value to each band.
                 for bandItr = 1:size(currentMask,3)
                     bandMask = currentMask(:,:,bandItr);
-                    bandMask(~currentFilledMask) = filledValue;
+                    bandMask(~currentLabelMask) = filledValue;
                     currentMask(:,:,bandItr) = bandMask;
                 end
 
@@ -333,7 +297,7 @@ function [] = visualizeLevel( currentLevel, previousGraphLevel, graphLevel, leaf
                 (floor(margins(2))+1):(end-ceil(margins(2))), :) = compRealMask;
 
             % If this feature is a dead one, reduce illumination by three.
-            if levelId == 1 && ismember(nodeItr, deadFeatures)
+            if isAutoFilter && ismember(nodeItr, deadFeatures)
                 compFinalMask = round(compFinalMask * 0.33);
             end
             

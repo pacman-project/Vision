@@ -102,6 +102,9 @@ function [ ] = generateAutoFilters( datasetName, fileType )
     filterItr = 1;
     for xItr = 1:visX
         for yItr = 1:visY
+            if ((xItr-1)*visY)+yItr > numberOfFilters
+                continue;
+            end
             gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]);
             finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
                 ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = gaborFilt;

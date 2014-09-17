@@ -17,15 +17,11 @@
 %>
 %> Updates
 %> Ver 1.0 on 21.01.2014
-function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
+function [modes] = learnModes(mainGraph, options, currentLevelId)
     display(['Learning modes for level ' num2str(currentLevelId) '...']);
-    useReceptiveField = options.useReceptiveField;
     maxSamplesPerMode = options.mode.maxSamplesPerMode;
     minSamplesPerMode = options.mode.minSamplesPerMode;
-    maxImageDim = options.maxImageDim;
     maximumModes = options.maximumModes;
-    currentFolder = options.currentFolder;
-    debug = options.debug;
     %% Step 0: Create initial data structures and initialize them.
     
     % Calculate edge radius.
@@ -33,11 +29,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     neighborhood = fix(options.edgeRadius * scale);    
     
     % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
-    if currentLevelId == 1
-       averageNodeDegree = options.maxNodeDegreeLevel1;
-    else
-       averageNodeDegree = options.maxNodeDegree;
-    end
+    averageNodeDegree = options.maxNodeDegree;
     
     % Set initial data structures for processing 
     currentLevel = mainGraph{currentLevelId};
@@ -117,32 +109,6 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
         node1Coords = curNodeCoords(allEdges(:,1),:);
         node2Coords = curNodeCoords(allEdges(:,2),:);
         edgeCoords = node1Coords - node2Coords;
-        
-        if ~useReceptiveField
-            % 1- eliminate if node1<node2
-            validEdges = node1Labels <= node2Labels;
-            
-            % 2- if node1 == node2, eliminate if this edge is on the wrong side
-            % of the road (sorry, separating line).
-            % Additionally, eliminate overlapping (same id) nodes.
-            % To remove this effect, add '=' the inequalities on one side of or (|).
-            sumCoords = sum(edgeCoords,2);
-            validEdges2 = node1Labels == node2Labels & ...
-                ((edgeCoords(:,1) > 0 & sumCoords>0) | (edgeCoords(:,1) < 0 & sumCoords > 0));
-            
-            % 3- if edge coordinates are [0,0] (same center position), get those with smaller indices.
-            validEdges3 = edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0 & ...
-                allEdges(:,2) > allEdges(:,1);
-            
-            % Combine all three rules.
-            validEdges = validEdges & validEdges2 & validEdges3;
-            
-            % Get labels and coordinates.
-            edgeCoords = edgeCoords(validEdges,:);
-            node1Labels = node1Labels(validEdges,:);
-            node2Labels = node2Labels(validEdges,:);
-        end
-        
         allSamples(imageItr) = {[node1Labels, node2Labels, edgeCoords]};
     end
     
@@ -163,14 +129,12 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
     [uniqueEdgeTypes, ~, IA] = unique(allEdges(:,1:2), 'rows');
     numberOfUniqueEdges = size(uniqueEdgeTypes,1);
     modes = cell(numberOfUniqueEdges,1);
-%    covMats = cell(numberOfUniqueEdges,1);
     uniqueEdgeSamples = cell(numberOfUniqueEdges,1);
     for uniqueEdgeItr = 1:numberOfUniqueEdges
         uniqueEdgeSamples(uniqueEdgeItr) = {allEdges(IA==uniqueEdgeItr,3:4)};
     end
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
-%    uniqueEdgeEntropyArr = zeros(numberOfUniqueEdges,1);
     parfor uniqueEdgeItr = 1:numberOfUniqueEdges
   %      display(num2str(uniqueEdgeItr));
         w = warning('off', 'all');
@@ -193,76 +157,27 @@ function [modes] = learnModes(mainGraph, options, currentLevelId, datasetName)
         numberOfClusters = max(classes);
         centers = zeros(numberOfClusters,4);
         centers(:,1:2) = repmat(edgeType, numberOfClusters, 1);
-%        covArr = zeros(numberOfClusters,2,2);
         
         for centerItr = 1:numberOfClusters
           clusterSamples = samples(classes==centerItr,:);
           centers(centerItr,3:4) = mean(clusterSamples,1);
-          
-%           % Calculate other statistics too.
-%           % Covariance
-%           covMat = cov(clusterSamples);
-%           covArr(centerItr,:,:) = covMat;
-%           
-%           % Calculate cluster's entropy.
-%           entropyMatr = hist3(clusterSamples);
-%           entropyMatr = entropyMatr / sum(sum(entropyMatr));
-%           logEntropyMatr = log(entropyMatr);
-%           logEntropyMatr(isinf(logEntropyMatr)) = 0;
-%           entropyMatr = entropyMatr .* logEntropyMatr;
-%           uniqueEdgeEntropyArr(uniqueEdgeItr) = uniqueEdgeEntropyArr(uniqueEdgeItr) + ...
-%               -sum(sum(entropyMatr));
         end
         
         modes(uniqueEdgeItr) = {centers};
-%        covMats(uniqueEdgeItr) = {covArr};
-        
-        %% In debug mode, write classes to the output as images.
-%         if debug
-%            distributionImg = zeros(maxImageDim*2+1);
-%            samplesToWrite = floor(samples + maxImageDim + 1);
-% 
-%            % If no samples are to be written, move on.
-%            if numel(samplesToWrite) < 1
-%                continue;
-%            end
-% 
-%            samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
-%            distributionImg(samplesInd) = classes;
-% 
-%            % Resize the distribution image so it is of the smallest
-%            % possible size.
-%            bound = max(max(abs(samples)));
-%            midPoint = maxImageDim + 1;
-%            distributionImg = distributionImg((midPoint-bound):(midPoint+bound), (midPoint-bound):(midPoint+bound));
-%            if ~exist([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/'], 'dir')
-%                mkdir([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/pairwise/']);
-%            end
-%            if ~isempty(distributionImg)
-%                imwrite(label2rgb(distributionImg, 'jet', 'k', 'shuffle'), ...
-%                    [currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) ...
-%                    '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '.png']);
-%            end
-%         end
            
-       warning(w);
+        warning(w);
     end
     modes = fix(cat(1, modes{:}));
-%    covMats = cat(1, covMats{:});
-%     totalEntropy = sum(uniqueEdgeEntropyArr);
-    % Save statistics to debug folder.
-%     save([currentFolder '/debug/' datasetName '/level' num2str(currentLevelId) '/cov.mat'], 'modes', 'covMats', 'uniqueEdgeEntropyArr', 'totalEntropy');
         
-    %% If receptive fields are used, add reverse modes to the modes array.
-    if options.useReceptiveField
-        reversedModes = modes(modes(:,1) ~= modes(:,2),:);
-        tempArr = reversedModes(:,1);
-        reversedModes(:,1) = reversedModes(:,2);
-        reversedModes(:,2) = tempArr;
-        reversedModes(:,3:4) = reversedModes(:,3:4) * -1;
-        modes = [modes; reversedModes];
-        
-        % Sort array.
-        modes = sortrows(modes);
-    end
+    %% Add reverse modes to the modes array.
+    reversedModes = modes(modes(:,1) ~= modes(:,2),:);
+    tempArr = reversedModes(:,1);
+    reversedModes(:,1) = reversedModes(:,2);
+    reversedModes(:,2) = tempArr;
+    reversedModes(:,3:4) = reversedModes(:,3:4) * -1;
+    modes = [modes; reversedModes];
+
+    % Sort array.
+    modes = sortrows(modes);
+    
 end

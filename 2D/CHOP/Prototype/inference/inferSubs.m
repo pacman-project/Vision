@@ -5,6 +5,8 @@
 %>
 %> @param vocabLevel Input vocabulary level. Compositions in this vocabulary 
 %> level are detected in graphLevel.
+%> @param vocabLevel Input redundant vocabulary level. Compositions in this 
+%> vocabulary level are detected in graphLevel.
 %> @param graphLevel The current object graphs' level. The graphLevel's
 %> nodes are sorted first by their imageId, then labelId.
 %> @param options Program options.
@@ -15,8 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [graphLevel] = inferSubs(vocabLevel, graphLevel, options)
-    global redundantVocabLevel;
+function [graphLevel] = inferSubs(vocabLevel, redundantVocabLevel, graphLevel, options)
     % Combine vocabLevel with redundant compositions.
     validVocabLevel = [ones(numel(vocabLevel),1); zeros(numel(redundantVocabLevel),1)];
     realVocabIds = [1:numel(vocabLevel), [redundantVocabLevel.label]];

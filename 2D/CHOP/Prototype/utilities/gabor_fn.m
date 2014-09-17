@@ -8,7 +8,6 @@
 %>
 %> Updates
 %> Ver 1.0 on 18.11.2013
-
 function gb=gabor_fn(sigma,theta,lambda,psi,gamma)
 
     sigma_x = sigma;

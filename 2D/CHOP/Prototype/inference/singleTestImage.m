@@ -1,10 +1,12 @@
 %> Name: singleTestImages
 %>
 %> Description: Process each image, run discovery with vocabulary at each
-%> level, and find the class each image belongs to. The difference from
-%testImages is that each image is processed separately.
+%> level, and find the class each image belongs to. 
 %>
 %> @param testFileImages The test image names to work on.
+%> @param vocabulary
+%> @param redundantVocabulary
+%> @param modes
 %> @param options Program options.
 %>
 %> @retval totalInferenceTime The amount of time spent in inference.
@@ -13,16 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [totalInferenceTime] = singleTestImage(testFileName, options)
-    global vocabulary;
-    global redundantVocabulary;
-    global modes;
-    global highLevelModes;
-    global redundantVocabLevel;
-    % Here, we will run the inference process by compressing the test
-    % images' graphs with the compositions in the vocabulary.
-    % Allocate space for current graph level.
-%    load([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes');
+function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, redundantVocabulary, modes, options)
     totalInferenceTime = 0;
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
@@ -50,14 +43,14 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
         return;
     end
     
-    % Generate first level object graph.
+    %% Generate first level object graph.
     [~, graphLevel] = generateLevels(nodes, ones(size(nodes,1),1), options);
 
     %% Step 2.1: Get first-level object graph edges.
     mainGraph = {graphLevel};
     
     %% Get edges depending on the property to be embedded in the graph.
-    [~, ~, mainGraph] = extractEdges(mainGraph, options, 1, modes, highLevelModes);
+    [~, mainGraph] = extractEdges(mainGraph, options, 1, modes);
     
     %% Visualize level 1 test image.
     if options.debug
@@ -67,14 +60,13 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
     %% Iteratively process each level to parse the object.
     numberOfLevels = min(options.maxInferenceLevels, numel(vocabulary));
     for levelItr = 2:numberOfLevels
-        redundantVocabLevel = redundantVocabulary{levelItr};
         %% Here, we run SUBDUE over the input graph(s) to find pre-defined compositions within the graph.
         % Each pre-defined sub is searched separately.
         if options.debug
            display(['Working on level ' num2str(levelItr) '.']);
         end
         startTime = tic;
-        newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, options, levelItr);
+        newLevel = collectInstances(vocabulary{levelItr}, redundantVocabulary{levelItr}, mainGraph{levelItr-1}, options, levelItr);
         duration = toc(startTime);
         totalInferenceTime = totalInferenceTime + duration;
         
@@ -95,6 +87,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
             display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
             display(['........ Remaining: ' num2str(numel(newLevel)) ' realizations belonging to ' num2str(numel(unique([newLevel.labelId]))) ' compositions.']);
         end
+        
         %% If new level is empty, break.
         if isempty(newLevel)
             if options.debug
@@ -108,7 +101,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
         
         %% Extract the edges to form the new graph.
         if levelItr ~= numberOfLevels
-            [~, ~, mainGraph] = extractEdges(mainGraph, options, levelItr, modes, highLevelModes);
+            [~, mainGraph] = extractEdges(mainGraph, options, levelItr, modes);
         end
         
         %% Visualize the test images with previous layer's subs.
@@ -116,17 +109,12 @@ function [totalInferenceTime] = singleTestImage(testFileName, options)
             visualizeImages( {testFileName}, vocabulary{levelItr}, mainGraph{levelItr}, leafNodes, levelItr, options, 'test' );
         end
     end
-%    save([options.testInferenceFolder '/' fileName '_test.mat'], 'mainGraph');
     
     %% Process mainGraph to export realizations in the desired format for inte2D/3D integration.
-    exportArr = exportRealizations(mainGraph);
-    
-    % Determine the category of the image using category probabilities of
-    % highest-valued realizations.
-    estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr); %#ok<NASGU>
+    exportArr = exportRealizations(mainGraph); %#ok<NASGU>
     if exist([options.testInferenceFolder '/' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' fileName '_test.mat'], 'estimatedCategoryLabel', 'exportArr', '-append');
+        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr');
     else
-        save([options.testInferenceFolder '/' fileName '_test.mat'], 'estimatedCategoryLabel', 'exportArr');
+        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr');
     end
 end

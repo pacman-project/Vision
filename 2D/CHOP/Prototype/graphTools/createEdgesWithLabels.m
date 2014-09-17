@@ -35,15 +35,9 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     
     %% Program options into variables.
     edgeNoveltyThr = 1-options.edgeNoveltyThr;
-    useReceptiveField = options.useReceptiveField;
-    maxNodeDegreeLevel1 = options.maxNodeDegreeLevel1;
     maxNodeDegree = options.maxNodeDegree;
     % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
-    if currentLevelId == 1
-       averageNodeDegree = maxNodeDegreeLevel1;
-    else
-       averageNodeDegree = maxNodeDegree;
-    end
+    averageNodeDegree = maxNodeDegree;
     
     property = options.property;
     %% Calculate size of the histogram matrix.
@@ -138,45 +132,18 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
            continue;
         end
         
-        %% In case we do not use receptive fields, redundant edges should be eliminated.
-        % Redundant edges are defined as duplicate edges between nodes of
-        % the graph. Bidirectional edges are reduced to single-linked ones,
-        % based on the rules below. node1 and node2 are the labels of first
-        % node and second node of an edge, respectively.
         node1Labels = curNodeIds(allEdges(:,1));
         node2Labels = curNodeIds(allEdges(:,2));
         node1Coords = curNodeCoords(allEdges(:,1),:);
         node2Coords = curNodeCoords(allEdges(:,2),:);
         edgeCoords = node1Coords - node2Coords;
-        if ~useReceptiveField
-            labelEqualityArr = node1Labels == node2Labels;
-            % 1- eliminate if node1<node2
-            validEdges = node1Labels <= node2Labels;
-            
-            % 2- if node1 == node2, eliminate if this edge is on the wrong side
-            % of the road (sorry, separating line).
-            sumCoords = sum(edgeCoords,2);
-            validEdges2 = node1Labels == node2Labels & ...
-                ((edgeCoords(:,1) >= 0 & sumCoords>=0) | (edgeCoords(:,1) < 0 & sumCoords > 0));
-            
-            % 3- if edge coordinates are [0,0] (same center position), get those with smaller indices.
-            validEdges3 = edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0 & ...
-                allEdges(:,2) > allEdges(:,1);
-            
-            % Combine all three rules.
-            validEdges = validEdges & validEdges2 & validEdges3;
-            labelEqualityArr = labelEqualityArr(validEdges);
-            
-            %% Set isDirected property of each edge.
-            directedArr = labelEqualityArr;
-        else
-            % Remove edges between overlapping (same position) nodes having same id.
-            labelEqualityArr = node1Labels == node2Labels;
-            validEdges = ~(labelEqualityArr & (edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0));
-            
-            % If receptive fields are used, every edge is directed.
-            directedArr = ones(nnz(validEdges),1);
-        end
+        
+        % Remove edges between overlapping (same position) nodes having same id.
+        labelEqualityArr = node1Labels == node2Labels;
+        validEdges = ~(labelEqualityArr & (edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0));
+
+        % If receptive fields are used, every edge is directed.
+        directedArr = ones(nnz(validEdges),1);
         
         % Update data structures based on removed edges.
         allEdges = allEdges(validEdges,:);

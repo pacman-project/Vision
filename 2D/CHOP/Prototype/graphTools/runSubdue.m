@@ -45,6 +45,7 @@
 %> Updates
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
+%> Ver 1.2 on 02.09.2014 Adding display commentary.
 function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
@@ -57,6 +58,9 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
+    mdlNodeWeight = options.subdue.mdlNodeWeight;
+    mdlEdgeWeight = options.subdue.mdlEdgeWeight;
+    isMDLExact = options.subdue.isMDLExact;
     beam = options.subdue.beam;
     nsubs = options.subdue.nsubs;
     maxTime = options.subdue.maxTime;
@@ -69,21 +73,25 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     allEdges = {graphLevel.adjInfo}';
     
     % If no edges are present, time to return.
-    if isempty(allEdges)
+    if isempty(allEdges) 
         return;
+    else
+        allEdgeNodePairs = cat(1,allEdges{:});
+        if isempty(allEdgeNodePairs)
+            return;
+        end
     end
+    
+    allEdgeNodePairs = allEdgeNodePairs(:,1:2);
     nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), allEdges);
     allLabels = cat(1, graphLevel.labelId);
     allEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
         allEdges(nonemptyEdgeIdx), 'UniformOutput', false);
     allSigns = cat(1, graphLevel.sign);
     
-    % Graph size formulation is very simple: 2 * #edges + #nodes. edges are
-    % linked to their node1, so only need to keep node2 and edgeLabel
-    % (2xint). Nodes only keep nodeLabel (1xint). We assume nearly all
-    % edges are doubly linked, therefore leading to an approximate yet fast
-    % calculation of graph size.
-    graphSize = sum(cellfun(@(x) size(x,1), allEdges)) * 2 + numel(graphLevel);
+    % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
+    graphSize = sum(cellfun(@(x) size(x,1), allEdges)) * mdlEdgeWeight + ...
+        numel(graphLevel) * mdlNodeWeight;
     
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
     display('[SUBDUE] Creating single node subs..');
@@ -133,13 +141,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
                 if isempty(childSubs) 
                     continue;
                 end
-                %% Step 2.3: Remove duplicates from childSubs.
-                % Here, we check if childSubs has duplicates in extendedSubs.
-    %            childSubs = removeDuplicateSubs([extendedSubs, childSubs]);
-                childSubs = childSubs([childSubs.mdlScore] == 0);
 
-                %% Step 2.4: Evaluate childSubs, find their instances.
-                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allSigns, graphSize);
+                %% Step 2.3: Evaluate childSubs, find their instances.
+                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
+                    allSigns, graphSize, mdlNodeWeight, mdlEdgeWeight, isMDLExact);
 
                 %% Save childSubs
                 childSubArr(parentItr) = {childSubs};
@@ -150,7 +155,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
         display('[SUBDUE] Merging all children and putting them into bestSubs if they match final criteria.');
         extendedSubs = [];
         for childGroupItr = 1:numel(childSubArr)
-            %% Step 2.5: Add childSubs to extendedSubs and bestSubs.
+            %% Step 2.4: Add childSubs to extendedSubs and bestSubs.
             childSubs = childSubArr{childGroupItr};
             if ~isempty(childSubs)
                 extendedSubs = addToQueue(childSubs, extendedSubs, beam);
@@ -161,7 +166,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
                     % any other sub in the list.
                     [~,sortedIdx]=sort([childSubs.mdlScore]);
                     childSubs=childSubs(sortedIdx);
-%                    childSubs = removeEncodedSubs(childSubs, bestSubs, oppositeModes);
 
                     % Add remaining child subs to best subs.
                     bestSubs = addToQueue(childSubs, bestSubs, nsubs);    
@@ -230,11 +234,13 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
        instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
        instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
        instanceSigns = num2cell(allSigns(centerIdx));
+       instanceDLReductions = {instances.dlReduction};
        
        % Assign fields to graphs.
        [graphLevel(instanceOffset:instanceEndOffset).labelId] = deal(labelIds{:});
        [graphLevel(instanceOffset:instanceEndOffset).children] = deal(instanceChildren{:});
        [graphLevel(instanceOffset:instanceEndOffset).sign] = deal(instanceSigns{:});
+       [graphLevel(instanceOffset:instanceEndOffset).dlReduction] = deal(instanceDLReductions{:});
        instanceOffset = instanceOffset + numberOfInstances;
        
        % Clear variables.
@@ -244,7 +250,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
    nextVocabLevel = vocabLevel;
    nextGraphLevel = graphLevel;
 end
-
 
 %> Name: getSingleNodeSubs
 %>
@@ -304,7 +309,10 @@ end
 %> along with instances of each sub in returned list.
 %> 
 %> @param sub Sub to be extended.
-%> @param allEdges List of all edges in the graph.
+%> @param allEdges List of all edges in the graph (cell array).
+%> @param allEdgeNodePairs All node pairs which share an edge. Ordered, 
+%> which means the presence of (x,y) does not exclude (y,x). Format: (x,y;
+%> x2, y2; ...]
 %>
 %> @retval extendedSubs Extended sub list.
 %> 
@@ -390,12 +398,25 @@ end
 %> Description: The evaluation function of SUBDUE. Based on the
 %> evaluation metric, the value of each substructure in subs list is
 %> calculated, and saved within subs. The MDL calculation takes place here.
+%> Key points:
+%>  1) DL estimation not rigorous. It is considered that 
+%>        each node needs a label (int) and a pointer to its edges (int)
+%>        each edge needs a node label (int) for its destination node, an
+%>        edge label(int) and a binary isDirected label (bit)
+%>     in the final graph description. Node and edge weights in DL
+%>     calculation is stored in options.
 %> 
 %> @param subs Sub list which will be evaluated.
 %> @param evalMetric Evaluation metric.
 %> @param allEdges List of all edges in the graph.
-%> @param allEdges List of all signs of the nodes in the graph.
-%> @param allEdges Size of the graph.
+%> @param allEdgeNodePairs All node pairs which share an edge. Ordered, 
+%> which means the presence of (x,y) does not exclude (y,x). Format: (x,y;
+%> x2, y2; ...]
+%> @param allSigns List of all signs of the nodes in the graph.
+%> @param graphSize Size of the graph.
+%> @param mdlNodeWeight Node weight in DL calculations (MDL).
+%> @param mdlEdgeWeight Edge weight in DL calculations (MDL).
+%> @param isMDLExact If true, exact MDL calculation. Approximate otherwise.
 %>
 %> @retval subs Evaluated sub list.
 %> 
@@ -404,7 +425,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs] = evaluateSubs(subs, evalMetric, allEdges, allSigns, graphSize)
+function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, mdlNodeWeight, mdlEdgeWeight, isMDLExact)
     numberOfSubs = numel(subs);
     if strcmp(evalMetric, 'mdl')
         
@@ -418,54 +439,58 @@ function [subs] = evaluateSubs(subs, evalMetric, allEdges, allSigns, graphSize)
         % edge linking first node to second node is removed, this brings
         % further compression in the main graph.
         % Hint: Storage for different types of information is considered as
-        % same for efficiency purposes (integer for all types, no compression
-        % in label representation, or any other point).
+        % same for easy calculation of mdl value (all types are integers 
+        % except sign, no compression in the label representation, or any 
+        % other point).
         for subItr = 1:numberOfSubs
             % Read signs and edges of the instances.
             centerIdx = cat(1, subs(subItr).instances.centerIdx);
             instanceEdges = allEdges(centerIdx);
+            centerCellIdx = num2cell(centerIdx);
             instanceSigns = allSigns(cat(1, subs(subItr).instances.centerIdx));
             instanceUsedEdgeIdx = {subs(subItr).instances.edges}';
             
-            % Calculate direct neighbors and neighbors of neighbors for mdl
-            % calculation.
-            instanceAllNeighbors = cellfun(@(x) x(:,2), instanceEdges, 'UniformOutput', false);
-            instanceNeighbors = cellfun(@(x,y) x(y,2), instanceEdges, instanceUsedEdgeIdx, 'UniformOutput', false);
-            instanceNeighborEdges = cellfun(@(x) cat(1, allEdges{x}), instanceNeighbors, 'UniformOutput', false);
+            % Calculate outgoing nodes (destinations of edges where
+            % instance's children are the source).
+            instanceChildren = cellfun(@(x,y,z) [z; x(y,2)], instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
+            instanceNeighborEdges = cellfun(@(x) cat(1, allEdges{x}), instanceChildren, 'UniformOutput', false);
             nonemptyNeighborIdx = ~cellfun(@(x) isempty(x), instanceNeighborEdges);
-            instanceSecondaryNeighbors = cell(size(nonemptyNeighborIdx,1),1);
-            instanceSecondaryNeighbors(nonemptyNeighborIdx) = cellfun(@(x) x(:,2), instanceNeighborEdges(nonemptyNeighborIdx), 'UniformOutput', false);
+            instanceOutNeighbors = cell(size(nonemptyNeighborIdx,1),1);
+            instanceOutNeighbors(nonemptyNeighborIdx) = cellfun(@(x) x(:,2), instanceNeighborEdges(nonemptyNeighborIdx), 'UniformOutput', false);
             
+            if isMDLExact
+                % Calculate incoming nodes, where an incoming node is the 
+                % source of an edge whose destination is one of the instance's 
+                % children.            
+                instanceInNeighbors = cellfun(@(x) allEdgeNodePairs(ismember(allEdgeNodePairs(:,2), x),1), instanceChildren, 'UniformOutput', false); 
+            else
+                % Approximate MDL calculation. We assign incoming 
+                % nodes the list of outgoing nodes, assuming the object graph 
+                % is *generally* doubly-linked.
+                instanceInNeighbors = instanceOutNeighbors;
+            end
+            
+            % Find the reduction in the number of edges.
+            numberOfEdgeReductions = cellfun(@(x,y,z) numel(x) + numel(y) - ... % Deletion of all edges. (own nodes deleted twice)
+                (numel(find(ismember(x, z))) + numel(setdiff(x, z)) + numel(setdiff(y, z))) , ... % (compensating for doubly deleted own nodes, plus addition of new nodes in/out
+                instanceInNeighbors, instanceOutNeighbors, instanceChildren);
+                
             % Learn number of instances/edges in each instance.
             numberOfInstances = size(instanceSigns,1);
-            numberOfEdgesInSub = size(subs(subItr).edges,1);
-            positiveInstanceIdx = instanceSigns == 1;
-            negativeInstanceIdx = instanceSigns == 0;
-            numberOfPositiveInstances = numel(find(positiveInstanceIdx));
+            multiplicationConstant = ones(numberOfInstances,1);
+            multiplicationConstant(instanceSigns==0) = -1;
             
-            % 1) Calculate edge-based DL reduction for each instance. 
-            % (numel(fastintersect(x,y)) : Number of edges to be removed to
-            % represent edges from neighbors to secondary neighbors, since 
-            % we connect them directly to the center node.
-            % (numel(y) - numel(unique(y))) : Number of duplicates within
-            % y. Each secondary neighbor (neighbor of neighbor) needs to be
-            % represented only once. 
-            edgeDLReductions = cellfun(@(x,y) numel(fastintersect(x,y)) + (numel(y) - numel(unique(y))), instanceAllNeighbors, instanceSecondaryNeighbors);
-            
-            % 2) Calculate edge-based DL reduction amount due to the removal
-            % of edges with each instance. 
-            % amount = (nPos - (nNeg - nPos)) * edgePerSub = (2 * nPos - nNeg) * edgePerSub.
-            selfEdgeDLReductionAmount = (2*numberOfPositiveInstances-numberOfInstances) * numberOfEdgesInSub;
-            
-            % 3) Calculate # of nodes to be removed from the graph.
-            selfNodeDLReductionAmount = numel(unique([instanceNeighbors{positiveInstanceIdx}])) - ...
-                numel(unique([instanceNeighbors{negativeInstanceIdx}]));
-            
-            %% Estimate DL reduction. (CHECK AGAIN FOR CORRECTNESS!)
-            dlDiff = 2*(sum(edgeDLReductions(positiveInstanceIdx)) - sum(edgeDLReductions(negativeInstanceIdx)) + ...
-                selfEdgeDLReductionAmount) + selfNodeDLReductionAmount - (numberOfEdgesInSub * 3);
-            subs(subItr).mdlScore = dlDiff;
-            subs(subItr).normMdlScore = 1 - (dlDiff / graphSize);
+            %% Estimate DL REDUCTION.
+            % Please note that each number is multiplied by either 1 or -1.
+            % Negative instances have a constant of -1 since their
+            % existence does not decrease DL, but increases it.
+            dlReductions = (cellfun(@(x) numel(x), instanceChildren) * mdlNodeWeight + ...    % Deleting all children in the instance.
+                numberOfEdgeReductions * mdlEdgeWeight) .* multiplicationConstant;            % Deleting all edges going in and out of the instance.
+            dlReductions = dlReductions - multiplicationConstant * mdlNodeWeight;        % Adding a node to replace each instance's nodes.
+            subs(subItr).mdlScore = sum(dlReductions);
+            subs(subItr).normMdlScore = 1 - (subs(subItr).mdlScore / graphSize);
+            dlReductionsCell = num2cell(dlReductions);
+            [subs(subItr).instances.dlReduction] = deal(dlReductionsCell{:});
         end
     else
         for subItr = 1:numberOfSubs
@@ -473,117 +498,6 @@ function [subs] = evaluateSubs(subs, evalMetric, allEdges, allSigns, graphSize)
         end
     end
 end
-
-% %> Name: removeDuplicateSubs
-% %>
-% %> Description: Given a substructure list, this function removes duplicates
-% %> from it by calculating a unique description for each sub, and then
-% %> checking for redundant descriptions (a.k.a. duplicate subs).
-% %> 
-% %> @param childSubs The substructure list from which duplicates will be
-% %> removed.
-% %>
-% %> @retval childSubs Unique substructures.
-% %> 
-% %> Author: Rusen
-% %>
-% %> Updates
-% %> Ver 1.0 on 24.02.2014
-% function childSubs = removeDuplicateSubs(childSubs)
-%     if isempty(childSubs)
-%        return; 
-%     end
-%     edges = {childSubs.edges};
-%     edges = cellfun(@(x) sortrows(x), edges, 'UniformOutput', false);
-%     edges = cellfun(@(x) (x(:)), edges, 'UniformOutput', false);
-%     edges = cell2mat(edges)';
-%     subIdentifiers = [cat(1, childSubs.centerId), edges];
-%     [~, uniqueSubIdentifiers, ~] = unique(subIdentifiers, 'rows', 'stable');
-%     childSubs = childSubs(uniqueSubIdentifiers);
-% end
-
-% %> Name: removeEncodedSubs
-% %>
-% %> Description: Given subs to check (subs2Check) and already considered
-% %> subs (encodedSubs), this function removes the subs from subs2Check and
-% %> returns remaining subs in validSubs.
-% %> 
-% %> @param subs2Check Subs each of which is considered for elimination if
-% %> they already exist either in encodedSubs, or subs2Check as duplicates.
-% %> @param encodedSubs Subs already encoded.
-% %> @param oppositeEdgeLabelList nx1 array indicating an edge type's reverse
-% %> geometric information if it is encoded by another edge. 
-% %> oppositeEdgeLabels(x)=y => oppositeEdgeLabels(y)=x.
-% %>
-% %> @retval validSubs Unique subs from subs2Check.
-% %> 
-% %> Author: Rusen
-% %>
-% %> Updates
-% %> Ver 1.0 on 15.02.2014
-% function validSubs = removeEncodedSubs(subs2Check, encodedSubs, oppositeEdgeLabelList)
-%     if isempty(subs2Check) || isempty(oppositeEdgeLabelList) 
-%         validSubs = subs2Check;
-%         return;
-%     end
-%     %% First, eliminate duplicate subs in subs2Check.
-%     % Check number of nodes in subs2Check. It is assumed that all subs in
-%     % subs2Check have the same size. If size ~= 2, there is no ambiguity in
-%     % the geometry, and each sub encodes a different structure. No need to
-%     % check.
-%     numberOfNodes = size(subs2Check(1).edges,1) + 1;
-%     
-%     if numberOfNodes == 2
-%         % First, we check for duplicate subs in subs2Check.
-%         centerIds = cat(1, subs2Check.centerId);
-%         edges = {subs2Check.edges};
-%         descriptions = [centerIds, cat(1, edges{:})];
-%         reverseDescriptions = [descriptions(:,3), oppositeEdgeLabelList(descriptions(:,2)), descriptions(:,1)];
-% 
-%         % Get description matches.
-%         [~, reverseIdx] = ismember(reverseDescriptions, descriptions, 'rows');
-% 
-%         % Eliminate half of the matches, since one of the two matching subs
-%         % will be left in the sub list.
-%         reverseCheckArr = (1:numel(reverseIdx))';
-%         remainingSubIdx = reverseIdx <= reverseCheckArr;
-%         subs2Check = subs2Check(remainingSubIdx);
-%     else
-%         remainingSubIdx = ones(numel(subs2Check),1) > 0;
-%     end
-%     validSubs = subs2Check;
-%     
-%     if isempty(encodedSubs)
-%         return;
-%     end
-%     %% Second task involves checking subs2Check against encodedSubs.
-%     encodedSubsNodeCountArr = {encodedSubs.edges};
-%     encodedSubsNodeCountArr = cellfun(@(x) size(x,1), encodedSubsNodeCountArr)' + 1;
-%     encodedSubs = encodedSubs(encodedSubsNodeCountArr == numberOfNodes);
-%     
-%     if numberOfNodes == 2
-%         % Eliminated those not having exact same number of nodes. If empty,
-%         % return.
-%         if isempty(encodedSubs)
-%             return
-%         end
-%         
-%         % Get reverse descriptions of each sub in subs2Check.
-%         reverseDescriptions = reverseDescriptions(remainingSubIdx, :);
-% 
-%         % Get descriptions of each sub in encodedSubs.
-%         encodedCenterIds = cat(1, encodedSubs.centerId);
-%         encodedEdges = {encodedSubs.edges};
-%         encodedDescriptions = [encodedCenterIds, cat(1, encodedEdges{:})];
-% 
-%         % Eliminate those in subs2Check that match already encoded structure in
-%         % encodedSubs.
-%         remainingSubIdx = ~ismember(reverseDescriptions, encodedDescriptions, 'rows');
-%         subs2Check = subs2Check(remainingSubIdx);
-%     end
-%     validSubs = subs2Check;
-%     
-% end
 
 %> Name: addToQueue
 %>
@@ -615,32 +529,3 @@ function [queue] = addToQueue(subs, queue, maxSize)
     sortedQueue=addedQueue(sortedIdx);
     queue = sortedQueue(1:maxSize);
 end
-
-%> Name: getTopQueue
-%>
-%> Description: Get top sub from queue, and delete it from queue.
-%> 
-%> @param queue Priority queue sorted by mdlScore.
-%>
-%> @retval topSub Best sub in restOfQueue.
-%> @retval restOfQueue Rest of queue, minus topSub.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 06.02.2014
-function [topSub, restOfQueue] = getTopQueue(queue)
-    if isempty(queue)
-        restOfQueue = [];
-        topSub = [];
-    else
-        topSub = queue(1);
-        if numel(queue)>1
-            restOfQueue = queue(2:end);
-        else
-            restOfQueue = [];
-        end
-    end
-end
-
-

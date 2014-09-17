@@ -1,7 +1,6 @@
 %> Name: getNumberOfFilters
 %>
-%> Description: Depending on the low-level feature type, return the correct
-%> number of filters.
+%> Description: Return the correct number of filters.
 %>
 %> @param options Program options
 %>
@@ -14,9 +13,10 @@
 function [numberOfFilters] = getNumberOfFilters(options)
     if strcmp(options.filterType, 'gabor')
         numberOfFilters = options.numberOfGaborFilters;
-    elseif strcmp(options.filterType, 'lhop')
-        numberOfFilters = options.numberOfLHOPFilters;
     elseif strcmp(options.filterType, 'auto')
-        numberOfFilters = options.numberOfAutoFilters;
+        numberOfFilters = options.autoFilterCount;
+    else
+        display('Error: Filter type not implemented (in getNumberOfFilters.m).');
+        numberOfFilters = 0;
     end
 end

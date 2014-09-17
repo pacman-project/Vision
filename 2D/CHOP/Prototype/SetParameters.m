@@ -41,6 +41,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     end
     options = fh(datasetName, options);
     cd(currentPath);
+    
     %% ========== FOLDER STRUCTURE INITIALIZATION ==========
     % Set folder parameters.
     options.currentFolder = currentPath;
@@ -80,26 +81,28 @@ function [ options ] = SetParameters( datasetName, isTraining )
     end
     
     %% ========== FILTER MATRIX & DATA STRUCTURES GENERATION ==========
-    if strcmp(options.filterType, 'auto') && exist([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'file') 
-        load([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'whMat', 'mu', 'invMat');
-        options.auto.whMat = whMat;
-        options.auto.invMat = invMat;
-        options.auto.mu = mu;
-        
-        % We create a feature matrix out of these filters for fast
-        % processing.
-        filterMatrix = zeros(options.numberOfFilters, numel(filters{1}));
-        if size(filterMatrix,2) >0
-            for filtItr = 1:options.numberOfFilters
-                filterMatrix(filtItr,:) = filters{filtItr}(:);
+    if strcmp(options.filterType, 'auto') 
+        if exist([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'file') 
+            load([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'whMat', 'mu', 'invMat');
+            options.auto.whMat = whMat;
+            options.auto.invMat = invMat;
+            options.auto.mu = mu;
+
+            % We create a feature matrix out of these filters for fast
+            % processing.
+            filterMatrix = zeros(options.numberOfFilters, numel(filters{1}));
+            if size(filterMatrix,2) >0
+                for filtItr = 1:options.numberOfFilters
+                    filterMatrix(filtItr,:) = filters{filtItr}(:);
+                end
             end
+            options.filterMatrix = filterMatrix;
+
+            % Mark dead features.
+            options.auto.deadFeatures = find(std(filterMatrix, 0, 2) < options.auto.deadFeatureStd );
+        else
+            display('Auto-features not learned. Please run automatic feature learning before running CHOP. You can disregard this message if you are running that already.');
         end
-        options.filterMatrix = filterMatrix;
-        
-        % Mark dead features.
-        options.auto.deadFeatures = find(std(filterMatrix, 0, 2) < options.auto.deadFeatureStd );
-    elseif strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
-        options.auto.deadFeatures = [];
     end
 end
 

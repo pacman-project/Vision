@@ -180,12 +180,12 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         %% Step 2.1: Get first-level object graph edges.
         mainGraph = {graphLevel};
-        [modes, highLevelModes, mainGraph] = extractEdges(mainGraph, options, 1, [], []);
+        [modes, mainGraph] = extractEdges(mainGraph, options, 1, []);
         graphLevel = mainGraph{1};
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
-        [vocabulary, redundantVocabulary, mainGraph, modes, highLevelModes, similarityMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, highLevelModes, ...
+        [vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, ...
                                         options, trainingFileNames); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
@@ -200,7 +200,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'highLevelModes', 'trainingFileNames', 'categoryNames');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'trainingFileNames', 'categoryNames');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'categoryArrIdx', 'poseArr'); 
