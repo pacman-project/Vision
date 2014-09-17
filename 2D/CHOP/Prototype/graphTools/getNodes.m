@@ -39,14 +39,14 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         mu = options.auto.mu;
         deadFeatures = options.auto.deadFeatures;
         filterMatrix = options.filterMatrix;
-        filterSize = size(options.filters{1});
-        filterBandSize = filterSize(1:2);
     else
         nodes = [];
         smoothedImg = [];
         display('Feature type not implemented (in getNodes.m).');
         return;
     end
+    filterSize = size(options.filters{1});
+    filterBandSize = filterSize(1:2);
     img = double(img);
     filterCount = numel(options.filters);
     
