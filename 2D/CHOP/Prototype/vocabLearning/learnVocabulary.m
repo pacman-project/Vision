@@ -80,7 +80,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         end
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-        [vocabLevel, graphLevel] = discoverSubs(vocabLevel, redundantVocabulary{levelItr-1}, graphLevel, ...
+        [vocabLevel, graphLevel, prevGraphData] = discoverSubs(vocabLevel, redundantVocabulary{levelItr-1}, graphLevel, ...
             options, false, levelItr-1);
         
         %% If no new subs have been found, finish processing.
@@ -92,6 +92,12 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
            break; 
         end
+        
+        %% Remove duplicate subs in order to speed up inhibition.
+        display('........ Removing duplicate nodes from the new object graph..');
+        [vocabLevel, graphLevel, bestSubs] = removeDuplicateNodes(vocabLevel, graphLevel, prevGraphData.bestSubs); 
+        prevGraphData.bestSubs = bestSubs;
+        clear bestSubs;
         
         %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
         previousLevel = mainGraph{levelItr-1};
@@ -105,7 +111,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         %% Combining parts to have more generic parts. 
         % Apologies for this section to be 'hidden' for now. It'll be unhid as soon as possible.
         display('........ Combining parts..');
-        [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, distanceMatrices{levelItr-1}, graphSize, options);
+        [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, distanceMatrices{levelItr-1}, graphSize, prevGraphData, options);
         
         %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
         % The rules here are explained in the paper. Basically, each node

@@ -6,7 +6,7 @@
 %>
 %> @param vocabLevel If preDefinedSearch is 1, the compositions in this
 %> vocabulary level are searched in graphLevel. If 0, simply ignored.
-%> @param vocabLevel If preDefinedSearch is 1, the compositions in this
+%> @param redundantVocabLevel If preDefinedSearch is 1, the compositions in this
 %> redundant vocabulary level are searched in graphLevel. If 0, simply ignored.
 %> @param graphLevel The current object graphs' level.
 %> @param options Program options.
@@ -25,8 +25,9 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, redundantVocabLevel, graphLevel, options, preDefinedSearch, levelItr)
+function [vocabLevel, graphLevel, prevGraphData] = discoverSubs( vocabLevel, redundantVocabLevel, graphLevel, options, preDefinedSearch, levelItr)
     startTime = tic;
+    prevGraphData = [];
     if ~preDefinedSearch
         display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
     end
@@ -39,22 +40,7 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, redundantVocabLeve
         % It'll be unhid as soon as possible.
         graphLevel = inferSubs(vocabLevel, redundantVocabLevel, graphLevel, options);
     else
-        [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, options);
-        
-        % We eliminate the parts which are mostly found in negative images.
-        % This is a design choice, since we do not want to compress
-        % negative graphs However, realizations of valid graphs in negative 
-        % images are preserved. 
-        if ~isempty(vocabLevel)
-            mdlScores = [vocabLevel.mdlScore];
-            validParts = mdlScores>0;
-            vocabLevel = vocabLevel(validParts);
-
-            % Get valid realizations only.
-            labelIds = [graphLevel.labelId];
-            validRealizations = ismember(labelIds, find(validParts));
-            graphLevel = graphLevel(validRealizations);
-        end
+        [vocabLevel, graphLevel, prevGraphData] = runSubdue(vocabLevel, graphLevel, options);
     end
     
     % Show time elapsed.

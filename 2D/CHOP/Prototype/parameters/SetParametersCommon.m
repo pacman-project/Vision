@@ -184,10 +184,10 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
-                                           % 'size': size x frequency.
+                                           % 'size': size times frequency.
                                            % 'freq': only takes frequency of
                                            % a node into account.
-    options.subdue.isMDLExact = false;     % If true, exact mdl is calculated.
+    options.subdue.isMDLExact = true;     % If true, exact mdl is calculated.
                                            % Otherwise, approximate mdl is
                                            % calculated (faster).
     options.subdue.mdlNodeWeight = 8;      % Weight of a node in DL calculations 
@@ -201,7 +201,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 30;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 100;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -221,5 +221,14 @@ function [ options ] = SetParametersCommon( datasetName, options )
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.overlap = false;   % If true, overlaps between a substructure's 
+                                     % instances are considered in the
+                                     % evaluation of the sub. Otherwise,
+                                     % unique (in terms of node sets) instances 
+                                     % are taken into account.
+                                     % However, all possible instances are
+                                     % returned anyway in order to
+                                     % introduce redundancy in the final
+                                     % object graphs.
 end
 

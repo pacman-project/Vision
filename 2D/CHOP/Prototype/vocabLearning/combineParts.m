@@ -24,12 +24,20 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.05.2014
-function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, distanceMatrix, prevGraphSize, options)
+function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, distanceMatrix, prevGraphSize, prevGraphData, options)
     setSize = 20; % Parallelization parameter.
     regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
     threshold = options.subdue.threshold * regularizationParam; % Hard threshold for cost of matching two subs.
     subClasses = [];
     newDistanceMatrix = [];
+    
+    % Get program params.
+    evalMetric = options.subdue.evalMetric;
+    mdlNodeWeight = options.subdue.mdlNodeWeight;
+    mdlEdgeWeight = options.subdue.mdlEdgeWeight;
+    isMDLExact = options.subdue.isMDLExact;
+    overlap = options.subdue.overlap;
+    
     %% First inhibition is done via structural evaluation. 
     % If the structures of two different subs match, it is very likely that
     % they have same node sets. We must eliminate such cases.
@@ -130,31 +138,91 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
 
         % Create new distance matrix.
         newDistanceMatrix = newDistanceMatrix/max(max(newDistanceMatrix));
-
-        % Update graph level's ids, and sort them based on labelIds.
-        labelIds = subClasses(cat(1, graphLevel.labelId));
-        imageIds = cat(1, graphLevel.imageId);
-        arrayToSort = [imageIds, labelIds];
-        [~, sortedIdx] = sortrows(arrayToSort);
-        IC = num2cell(labelIds);
-        [graphLevel.labelId] = deal(IC{:});
-        graphLevel = graphLevel(sortedIdx);
         
-%         %% Calculate MDL scores of each vocabulary node by its instances and re-order them again.
-%         labelIds = cat(1, graphLevel.labelId);
-%         instanceMDLScores = [graphLevel.dlReduction];
-%         uniqueInstanceMDLScores = zeros(1, numel(graphLevel));
-%         nodeChildren = {graphLevel.children};
-%         sortedNodeChildren = cellfun(@(x) mat2str(sort(x)), nodeChildren, 'UniformOutput', false);
-%         [~, uniqueInstances, ~] = unique(sortedNodeChildren);
-%         uniqueInstanceMDLScores(uniqueInstances) = instanceMDLScores(uniqueInstances);
-%         
-%         for subItr = 1:numel(vocabLevel)
-%             vocabLevel(subItr).mdlScore = sum(uniqueInstanceMDLScores(labelIds == subItr));
-%             vocabLevel(subItr).normMdlScore = newMDLScore / prevGraphSize;
-%         end       
-%         
-%         % Reorder nodes again.
+        %% We calculate scores for each vocabulary node and re-order them again after combining parts.
+        % Calculate scores for each node.
+        allEdges = prevGraphData.allEdges;
+        allEdgeNodePairs = prevGraphData.allEdgeNodePairs;
+        allSigns = prevGraphData.allSigns;
+        bestSubs = prevGraphData.bestSubs;
+        bestSubs = bestSubs(1:numel(matchedSubs));
+        for subItr = 1:numel(matchedSubs)
+            if ~matchedSubs(subItr)
+                bestSubs(subItr).instances = cat(2, bestSubs(subClasses == subItr).instances);
+                newMDLScore = getSubScore(bestSubs(subItr), allEdges, evalMetric, ...
+                allEdgeNodePairs, allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact);
+                vocabLevel(subItr).mdlScore = newMDLScore;
+                if strcmp(evalMetric, 'mdl')
+                    vocabLevel(subItr).normMdlScore = 1 - (newMDLScore / prevGraphSize);
+                end
+            else
+                vocabLevel(subItr).mdlScore = -inf;
+                vocabLevel(subItr).normMdlScore = inf;
+            end
+        end
+        
+        % Sort the new parts based on their mdl scores.
+        mdlScores = [vocabLevel.mdlScore];
+        [~, sortedIdx] = sort(mdlScores, 'descend');
+        vocabLevel = vocabLevel(sortedIdx);
+        sortedAssgnArr = 1:numel(vocabLevel);
+        sortedAssgnArr(sortedIdx) = sortedAssgnArr;
+        
+        % Assign labels to each vocabulary node.
+        for subItr = 1:numel(vocabLevel)
+            vocabLevel(subItr).label = num2str(subItr);
+        end
+        
+        % Link each node in the redundant vocabulary to the updated nodes, 
+        % too.
+        subClasses = subClasses(sortedIdx);
+        subClasses = sortedAssgnArr(subClasses)';
+        
+        % Update remaining data structures for output.
+        newDistanceMatrix = newDistanceMatrix(sortedIdx, sortedIdx);
+        graphLabelIds = [graphLevel.labelId];
+        updatedGraphLabelIds = sortedAssgnArr(graphLabelIds);
+        updatedGraphLabelIds = num2cell(updatedGraphLabelIds);
+        [graphLevel.labelId] = deal(updatedGraphLabelIds{:});
+        clear updatedGraphLabelIds;
+        
+        %% Eliminate parts which have negative mdl values. This design
+        % choice helps us to get rid of parts which actually do not
+        % compress the object graphs, but rather increase its size.
+        mdlScores = [vocabLevel.mdlScore];
+        validMDLScoreIdx = mdlScores >= 0 | mdlScores == -inf;
+        invalidMDLScoreIdx = subClasses(~validMDLScoreIdx);
+        validMDLScoreIdx = ~ismember(subClasses, invalidMDLScoreIdx);
+        % Update relevant data structures.
+        vocabLevel = vocabLevel(validMDLScoreIdx);
+        % Assign labels to each vocabulary node.
+        for subItr = 1:numel(vocabLevel)
+            vocabLevel(subItr).label = num2str(subItr);
+        end
+        subClasses = subClasses(validMDLScoreIdx);
+        newDistanceMatrix = newDistanceMatrix(validMDLScoreIdx,validMDLScoreIdx);
+        
+        % Update graph label ids so that the remaining ids are consecutive 
+        % and they do not contain any gaps (deleted parts). Redundant part
+        % ids are also removed from the object graph (graphLevel), replaced
+        % with real labels.
+        graphLabelIds = [graphLevel.labelId];
+        remainingComps = find(validMDLScoreIdx);
+        validGraphLevelIdx = ismember(graphLabelIds, remainingComps);
+        graphLevel = graphLevel(validGraphLevelIdx);
+        graphLabelIds = graphLabelIds(validGraphLevelIdx);
+        sortedAssgnArr = zeros(max(remainingComps),1);
+        sortedAssgnArr(remainingComps) = 1:numel(remainingComps);
+        graphLabelIds = subClasses(sortedAssgnArr(graphLabelIds));
+        graphLabelIdsCell = num2cell(graphLabelIds);
+        [graphLevel.labelId] = deal(graphLabelIdsCell{:});
+        
+        %% Update graph level's ids, and sort them based on labelIds.
+        graphLabelIds = cat(1, graphLevel.labelId);
+        imageIds = cat(1, graphLevel.imageId);
+        arrayToSort = [imageIds, graphLabelIds];
+        [~, sortedIdx2] = sortrows(arrayToSort);
+        graphLevel = graphLevel(sortedIdx2);
     end    
 end
 

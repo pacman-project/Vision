@@ -46,7 +46,7 @@
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
-function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, options)
+function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel, graphLevel, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -55,12 +55,14 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     parentSubs = [];
     nextVocabLevel = [];
     nextGraphLevel = [];
+    prevGraphData = [];
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
     mdlNodeWeight = options.subdue.mdlNodeWeight;
     mdlEdgeWeight = options.subdue.mdlEdgeWeight;
     isMDLExact = options.subdue.isMDLExact;
+    overlap = options.subdue.overlap;
     beam = options.subdue.beam;
     nsubs = options.subdue.nsubs;
     maxTime = options.subdue.maxTime;
@@ -144,7 +146,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
 
                 %% Step 2.3: Evaluate childSubs, find their instances.
                 childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, mdlNodeWeight, mdlEdgeWeight, isMDLExact);
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact);
 
                 %% Save childSubs
                 childSubArr(parentItr) = {childSubs};
@@ -190,6 +192,12 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, op
     if numberOfBestSubs < 1
        return;
     end
+    
+    %% Previous graph data is returned.
+    prevGraphData.allEdges = allEdges;
+    prevGraphData.allEdgeNodePairs = allEdgeNodePairs;
+    prevGraphData.allSigns = allSigns;
+    prevGraphData.bestSubs = bestSubs;
     
     %% Allocate space for new graphLevel and vocabLevel.
     instances = {bestSubs.instances};
@@ -414,6 +422,8 @@ end
 %> x2, y2; ...]
 %> @param allSigns List of all signs of the nodes in the graph.
 %> @param graphSize Size of the graph.
+%> @param overlap If true, overlapping instances are considered in
+%> evaluation of a sub.
 %> @param mdlNodeWeight Node weight in DL calculations (MDL).
 %> @param mdlEdgeWeight Edge weight in DL calculations (MDL).
 %> @param isMDLExact If true, exact MDL calculation. Approximate otherwise.
@@ -425,78 +435,19 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, mdlNodeWeight, mdlEdgeWeight, isMDLExact)
+function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact)
     numberOfSubs = numel(subs);
-    if strcmp(evalMetric, 'mdl')
-        
-        % This part is crucial! Essentially vbits + ebits + rbits defined for 
-        % each neighbor node pair. The simplified graph structure allows for
-        % easy calculation of mdl score. We calculate a score of combining
-        % centerNode(n,1) with centerNode(n,2) by estimating compression amount
-        % of removing centerNode(n,2) and adding its edges to centerNode(n,1).
-        % Common neighbors need not be linked twice, and this is where
-        % compression comes from. In addition, because the second node and the
-        % edge linking first node to second node is removed, this brings
-        % further compression in the main graph.
-        % Hint: Storage for different types of information is considered as
-        % same for easy calculation of mdl value (all types are integers 
-        % except sign, no compression in the label representation, or any 
-        % other point).
-        for subItr = 1:numberOfSubs
-            % Read signs and edges of the instances.
-            centerIdx = cat(1, subs(subItr).instances.centerIdx);
-            instanceEdges = allEdges(centerIdx);
-            centerCellIdx = num2cell(centerIdx);
-            instanceSigns = allSigns(cat(1, subs(subItr).instances.centerIdx));
-            instanceUsedEdgeIdx = {subs(subItr).instances.edges}';
-            
-            % Calculate outgoing nodes (destinations of edges where
-            % instance's children are the source).
-            instanceChildren = cellfun(@(x,y,z) [z; x(y,2)], instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
-            instanceNeighborEdges = cellfun(@(x) cat(1, allEdges{x}), instanceChildren, 'UniformOutput', false);
-            nonemptyNeighborIdx = ~cellfun(@(x) isempty(x), instanceNeighborEdges);
-            instanceOutNeighbors = cell(size(nonemptyNeighborIdx,1),1);
-            instanceOutNeighbors(nonemptyNeighborIdx) = cellfun(@(x) x(:,2), instanceNeighborEdges(nonemptyNeighborIdx), 'UniformOutput', false);
-            
-            if isMDLExact
-                % Calculate incoming nodes, where an incoming node is the 
-                % source of an edge whose destination is one of the instance's 
-                % children.            
-                instanceInNeighbors = cellfun(@(x) allEdgeNodePairs(ismember(allEdgeNodePairs(:,2), x),1), instanceChildren, 'UniformOutput', false); 
-            else
-                % Approximate MDL calculation. We assign incoming 
-                % nodes the list of outgoing nodes, assuming the object graph 
-                % is *generally* doubly-linked.
-                instanceInNeighbors = instanceOutNeighbors;
-            end
-            
-            % Find the reduction in the number of edges.
-            numberOfEdgeReductions = cellfun(@(x,y,z) numel(x) + numel(y) - ... % Deletion of all edges. (own nodes deleted twice)
-                (numel(find(ismember(x, z))) + numel(setdiff(x, z)) + numel(setdiff(y, z))) , ... % (compensating for doubly deleted own nodes, plus addition of new nodes in/out
-                instanceInNeighbors, instanceOutNeighbors, instanceChildren);
-                
-            % Learn number of instances/edges in each instance.
-            numberOfInstances = size(instanceSigns,1);
-            multiplicationConstant = ones(numberOfInstances,1);
-            multiplicationConstant(instanceSigns==0) = -1;
-            
-            %% Estimate DL REDUCTION.
-            % Please note that each number is multiplied by either 1 or -1.
-            % Negative instances have a constant of -1 since their
-            % existence does not decrease DL, but increases it.
-            dlReductions = (cellfun(@(x) numel(x), instanceChildren) * mdlNodeWeight + ...    % Deleting all children in the instance.
-                numberOfEdgeReductions * mdlEdgeWeight) .* multiplicationConstant;            % Deleting all edges going in and out of the instance.
-            dlReductions = dlReductions - multiplicationConstant * mdlNodeWeight;        % Adding a node to replace each instance's nodes.
-            subs(subItr).mdlScore = sum(dlReductions) - ...
-                (mdlNodeWeight * (size(subs(subItr).edges,1) + 1) + ...
-                mdlEdgeWeight * size(subs(subItr).edges,1));   % Adding a graph description for the sub.
-            subs(subItr).normMdlScore = 1 - (subs(subItr).mdlScore / graphSize);
-            dlReductionsCell = num2cell(dlReductions);
-            [subs(subItr).instances.dlReduction] = deal(dlReductionsCell{:});
-        end
-    else
-        for subItr = 1:numberOfSubs
-            subs(subItr).mdlScore = size(subs(subItr).edges,1) * (numel(subs(subItr).instances)-1);
+    for subItr = 1:numberOfSubs
+        % We compress the object graph using the children, and the
+        % edges they are involved. 
+        subScore = getSubScore(subs(subItr), allEdges, evalMetric, ...
+            allEdgeNodePairs, allSigns, mdlNodeWeight, mdlEdgeWeight, ....
+            overlap, isMDLExact);
+
+        %% Assign the score of the sub, as well as its normalized mdl score if applicable.
+        subs(subItr).mdlScore = subScore;
+        if strcmp(evalMetric, 'mdl')
+            subs(subItr).normMdlScore = 1 - (subScore / graphSize);
         end
     end
 end
