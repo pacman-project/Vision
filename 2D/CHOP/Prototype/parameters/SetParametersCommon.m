@@ -225,7 +225,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
                                      % unique (in terms of node sets) instances 
-                                     % are taken into account.
+                                     % are taken into account (DEFAULT).
                                      % However, all possible instances are
                                      % returned anyway in order to
                                      % introduce redundancy in the final

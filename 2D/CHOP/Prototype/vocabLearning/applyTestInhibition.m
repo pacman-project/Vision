@@ -23,10 +23,18 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     scale = (1/options.scaling)^(levelItr-1);
     neighborhood = fix(options.edgeRadius * scale);
     noveltyThr = 1 - options.noveltyThr;
+    
+    if numel(graphLevel) == 0
+        return;
+    end
 
     % Fill in necessary internal structures.
     imageIds = [graphLevel.imageId];
     numberOfImages = max(imageIds);
+    
+    if isempty(numberOfImages) || numberOfImages < 1
+       return; 
+    end
     
     % Get node coordinates.
     nodeCoords = cat(1, graphLevel.position);

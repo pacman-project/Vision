@@ -10,7 +10,8 @@
 %> @param graphLevel The current graph level, ASSUMED ordered by labelIds.
 %> @param currentModes Current modes representing geometric relationships.
 %> @param distanceMatrix Part similarity matrix of the previous layer.
-%> @param prevGraphSize Size of the previous graph (in terms of MDL score).
+%> @param prevGraphSize Size of the previous graph (DL).
+%> @param prevGraphData Data related to the previuos level's object graph.
 %> @param options Program options.
 %> 
 %> @retval vocabLevel Modified vocab level.
@@ -38,10 +39,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
     isMDLExact = options.subdue.isMDLExact;
     overlap = options.subdue.overlap;
     
-    %% First inhibition is done via structural evaluation. 
-    % If the structures of two different subs match, it is very likely that
-    % they have same node sets. We must eliminate such cases.
-    % We only need mode positions.
     %% If no current modes exist, we eliminate them based on their children only.
     if isempty(currentModes)
         vocabDescriptions = {vocabLevel.children};
@@ -145,7 +142,15 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         allEdgeNodePairs = prevGraphData.allEdgeNodePairs;
         allSigns = prevGraphData.allSigns;
         bestSubs = prevGraphData.bestSubs;
-        bestSubs = bestSubs(1:numel(matchedSubs));
+        bestSubs = bestSubs(1:numel(matchedSubs));        
+        % Make the instance lists uniform so that they can be concatenated
+        % easily.
+        for subItr = 1:numel(bestSubs)
+            if size(bestSubs(subItr).instances,1) ~= 1
+                bestSubs(subItr).instances = bestSubs(subItr).instances';
+            end
+        end
+        
         for subItr = 1:numel(matchedSubs)
             if ~matchedSubs(subItr)
                 bestSubs(subItr).instances = cat(2, bestSubs(subClasses == subItr).instances);
@@ -206,6 +211,9 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         % and they do not contain any gaps (deleted parts). Redundant part
         % ids are also removed from the object graph (graphLevel), replaced
         % with real labels.
+        if isempty(graphLevel)
+           return; 
+        end
         graphLabelIds = [graphLevel.labelId];
         remainingComps = find(validMDLScoreIdx);
         validGraphLevelIdx = ismember(graphLabelIds, remainingComps);
@@ -215,7 +223,11 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         sortedAssgnArr(remainingComps) = 1:numel(remainingComps);
         graphLabelIds = subClasses(sortedAssgnArr(graphLabelIds));
         graphLabelIdsCell = num2cell(graphLabelIds);
-        [graphLevel.labelId] = deal(graphLabelIdsCell{:});
+        if ~isempty(graphLevel)
+            [graphLevel.labelId] = deal(graphLabelIdsCell{:});
+        else
+            return;
+        end
         
         %% Update graph level's ids, and sort them based on labelIds.
         graphLabelIds = cat(1, graphLevel.labelId);

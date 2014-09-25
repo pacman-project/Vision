@@ -1,9 +1,9 @@
 %> Name: removeDuplicateSubs
 %>
 %> Description: This function eliminates duplicate realizations from
-%> graphLevel by checking whether the set of children of each part is unique.
-%> Parts in vocabLevel which do not have any realizations after this
-%> elimination are also deleted.
+%> graphLevel by checking whether the graph descriptions of two subs are
+%> essentially the same. If so, only one such part is kept in the
+%> vocabulary.
 %>
 %> @param vocabLevel Input set of parts.
 %> @param graphLevel Input set of realizations.
@@ -18,25 +18,38 @@
 %> Updates
 %> Ver 1.0 on 19.09.2014
 function [vocabLevel, graphLevel, bestSubs] = removeDuplicateNodes(vocabLevel, graphLevel, bestSubs)
-    graphNodeChildren = {graphLevel.children};
-    sortedGraphNodeChildren = cellfun(@(x) mat2str(sort(x)), graphNodeChildren, 'UniformOutput', false);
-    [~, validIdx, ~] = unique(sortedGraphNodeChildren, 'stable');
-    graphLevel = graphLevel(validIdx);
+    % Sanity check on params.
+    if isempty(graphLevel) || isempty(vocabLevel) || isempty(bestSubs)
+       return; 
+    end
+    
+    % Re-order edges of bestSubs in order to get a unique description that
+    % is invariant of the inner ordering of edges.
+    subEdges = cell(1, numel(bestSubs));
+    for subItr = 1:numel(bestSubs)
+        subEdges(subItr) = {sortrows(bestSubs(subItr).edges)};
+    end
+    subCenters = {bestSubs.centerId};
+    vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, subEdges, 'UniformOutput', false);
+    [~, validVocabLevelIdx, ~] = unique(vocabDescriptors, 'stable');
+    
+    % Eliminate duplicate parts and their realizations.
+    vocabLevel = vocabLevel(validVocabLevelIdx);
+    validGraphLevelIdx = ismember(cat(1,graphLevel.labelId), validVocabLevelIdx); 
+    graphLevel = graphLevel(validGraphLevelIdx);
 
     % After the realizations are removed, delete vocabulary nodes which
     % do not have any children left.
     allGraphLabelIds = [graphLevel.labelId];
-    graphLabelIds = unique(allGraphLabelIds);
-    bestSubs = bestSubs(graphLabelIds);
-    vocabLevel = vocabLevel(graphLabelIds);
+    bestSubs = bestSubs(validVocabLevelIdx);
     for vocabNodeItr = 1:numel(vocabLevel)
         vocabLevel(vocabNodeItr).label = num2str(vocabNodeItr);
     end
 
     % Update graphLevel so that labelId of each node links to the
     % correct vocabulary part (now that some are deleted)
-    graphLabelAssgnArr = zeros(max(graphLabelIds),1);
-    graphLabelAssgnArr(graphLabelIds) = 1:numel(graphLabelIds);
+    graphLabelAssgnArr = zeros(max(validVocabLevelIdx),1);
+    graphLabelAssgnArr(validVocabLevelIdx) = 1:numel(validVocabLevelIdx);
     graphLabelAssgnArr = num2cell(graphLabelAssgnArr(allGraphLabelIds));
     [graphLevel.labelId] = deal(graphLabelAssgnArr{:});
 end
