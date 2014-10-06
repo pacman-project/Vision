@@ -13,12 +13,15 @@
 %> Updates
 %> Ver 1.0 on 08.09.2014
 function [] = Experiment(datasetName, fileType)
+    if exist([pwd '/logs/' datasetName '_log.txt'], 'file')
+        delete([pwd '/logs/' datasetName '_log.txt']);
+    end
     diary([pwd '/logs/' datasetName '_log.txt']);
     addpath([pwd '/utilities']);
     generateAutoFilters(datasetName, fileType);
     runVocabularyLearning(datasetName, fileType, '');
-    MarkCategoryLabels(datasetName);
+%    MarkCategoryLabels(datasetName);
     runTestInference(datasetName, fileType);
-    EvaluateCategorization(datasetName);
+%    EvaluateCategorization(datasetName);
     diary off;
 end
