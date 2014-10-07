@@ -53,7 +53,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
     
     %% Process each image separately (and in parallel)
     allSamples = cell(numberOfImages,1);
-    for imageItr = 1:numberOfImages
+    parfor imageItr = 1:numberOfImages
         imageNodeIdx = imageIds == imageItr;
 
         % If there are no nodes in this image, move on.
@@ -66,44 +66,32 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
         curNodeCoords = imageNodeCoordArr{imageItr};
         imageNodeIdx = find(imageNodeIdx)';
         numberOfNodes = numel(imageNodeIdx);
-        curAdjacentNodes = cell(numberOfNodes,1);
         
         %% Find all edges within this image.
-        for nodeItr = 1:numberOfNodes
-           centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
-           distances = sqrt(sum((centerArr - curNodeCoords).^2, 2));
-           adjacentNodes = find(distances <= neighborhood);
-           adjacentNodes = adjacentNodes(adjacentNodes~=nodeItr);
-           
-           %% Eliminate adjacent which are far away, if the node has too many neighbors.
-           % Calculate scores (distances).
-           scores = distances(adjacentNodes);
-           
-           % Eliminate nodes having lower scores.
-           if numel(adjacentNodes)>averageNodeDegree
-                [idx] = getSmallestNElements(scores, averageNodeDegree);
-                adjacentNodes = adjacentNodes(idx);
-           end
-           
-           %% Assign final adjacent nodes.
-           curAdjacentNodes(nodeItr) = {[repmat(nodeItr, numel(adjacentNodes),1), adjacentNodes]}; 
-        end
+        D = squareform(pdist(curNodeCoords));
+        D(logical(eye(size(D)))) = inf;
+        D = D <= neighborhood;
+        nodeStartIdx = 1;
+        numberOfAllEdges = nnz(D);
         
-        % Get rid of empty entries in curAdjacentNodes.
-        nonemptyCurAdjacentNodeIdx = cellfun(@(x) ~isempty(x), curAdjacentNodes);
-        curAdjacentNodes = curAdjacentNodes(nonemptyCurAdjacentNodeIdx);
-        allEdges = cat(1, curAdjacentNodes{:});
-        numberOfAllEdges = size(allEdges,1);
-        
+        % If no edges exist, finish processing for this image.
         if numberOfAllEdges == 0
            continue;
         end
         
-        %% In case we do not use receptive fields, redundant edges should be eliminated.
-        % Redundant edges are defined as duplicate edges between nodes of
-        % the graph. Bidirectional edges are reduced to single-linked ones,
-        % based on the rules below. node1 and node2 are the labels of first
-        % node and second node of an edge, respectively.
+        % Assign the edges with the adjacency info.
+        allEdges = zeros(nnz(D),2);
+        for nodeItr = 1:numberOfNodes
+           adjacentNodes = find(D(:,nodeItr));
+           numberOfAdjacentNodes = numel(adjacentNodes);
+           if numberOfAdjacentNodes==0
+              continue; 
+           end
+           allEdges(nodeStartIdx:(nodeStartIdx+(numberOfAdjacentNodes-1)),:) = [repmat(nodeItr, numberOfAdjacentNodes,1), adjacentNodes];
+           nodeStartIdx = nodeStartIdx + numberOfAdjacentNodes;
+        end
+        
+        %% Fill in edge info With the labels of endpoints and their relative positions.
         node1Labels = curNodeIds(allEdges(:,1));
         node2Labels = curNodeIds(allEdges(:,2));
         node1Coords = curNodeCoords(allEdges(:,1),:);
@@ -121,7 +109,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
        modes = [];
        return; 
     end
-    
+
     % Eliminate edges for which second node's labels are smaller than first.
     allEdges = allEdges(allEdges(:,1) <= allEdges(:,2),:);
     
