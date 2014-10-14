@@ -113,7 +113,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, redund
     %% Process mainGraph to export realizations in the desired format for inte2D/3D integration.
     exportArr = exportRealizations(mainGraph); %#ok<NASGU>
     if exist([options.testInferenceFolder '/' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr');
+        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr', '-append');
     else
         save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr');
     end

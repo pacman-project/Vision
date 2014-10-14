@@ -80,6 +80,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         end
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
+        if levelItr == 3
+           1 
+        end
         [vocabLevel, graphLevel, prevGraphData] = discoverSubs(vocabLevel, redundantVocabulary{levelItr-1}, graphLevel, ...
             options, false, levelItr-1);
         

@@ -53,8 +53,9 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         % Learn the category of the images, if they are structured in
         % manner that allows measuring performance.
+        categoryArrIdx = zeros(numel(testFileNames),1);
         for fileItr = 1:numel(testFileNames)
-            categoryLabel = -1; %#ok<NASGU>
+            categoryLabel = -1;
             fullName = testFileNames{fileItr};
             [~, fileName, ext] = fileparts(testFileNames{fileItr});
             strLength = numel([options.currentFolder '/input/' options.datasetName '/test/']);
@@ -65,16 +66,18 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
                 if ~isempty(categoryStrSepIdx)
                     categoryStr = categoryStr(:, 1:(categoryStrSepIdx(1)-1));
                 end
-                chosenCategoryArr = strfind(categoryNames, categoryStr);
-                chosenCategoryArr = cellfun(@(x) ~isempty(x), chosenCategoryArr);
-                [categoryLabel] = find(chosenCategoryArr, 1, 'first'); %#ok<NASGU>
+                chosenCategoryArr = cellfun(@(x) strcmp(x, categoryStr), categoryNames);
+                categoryLabel = find(chosenCategoryArr, 1, 'first');
             end
+            categoryArrIdx(fileItr) = categoryLabel;
             save([options.testInferenceFolder '/' fileName '_test.mat'], 'categoryLabel');
         end
         
         %% Step 1.2: Run inference on each test image.
         totalInferenceTime = 0;
         for testImgItr = 1:size(testFileNames,1) 
+            [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
+            display(['Processing ' testFileName '...']);
             totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, vocabulary, redundantVocabulary, modes, options);
         end
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
