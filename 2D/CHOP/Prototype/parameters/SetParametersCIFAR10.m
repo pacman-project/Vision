@@ -12,7 +12,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersCommon( datasetName, options )
+function [ options ] = SetParametersCIFAR10( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -201,7 +201,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 9000;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 2000;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -218,7 +218,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                     % generalization ability of detected
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

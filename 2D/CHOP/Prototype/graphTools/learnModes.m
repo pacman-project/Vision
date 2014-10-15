@@ -28,9 +28,6 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
     scale = (1/options.scaling)^(currentLevelId-1);
     neighborhood = fix(options.edgeRadius * scale);    
     
-    % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
-    averageNodeDegree = options.maxNodeDegree;
-    
     % Set initial data structures for processing 
     currentLevel = mainGraph{currentLevelId};
     nodeIds = [currentLevel.labelId]';
@@ -68,7 +65,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
         numberOfNodes = numel(imageNodeIdx);
         
         %% Find all edges within this image.
-        D = squareform(pdist(curNodeCoords));
+        D = squareform(pdist(double(curNodeCoords)));
         D(logical(eye(size(D)))) = inf;
         D = D <= neighborhood;
         nodeStartIdx = 1;
@@ -126,7 +123,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
     parfor uniqueEdgeItr = 1:numberOfUniqueEdges
   %      display(num2str(uniqueEdgeItr));
         w = warning('off', 'all');
-        samples = uniqueEdgeSamples{uniqueEdgeItr};
+        samples = double(uniqueEdgeSamples{uniqueEdgeItr});
         edgeType = uniqueEdgeTypes(uniqueEdgeItr,:);
         
         %% If there are too many samples, get random samples.

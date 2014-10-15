@@ -13,9 +13,6 @@
 %>
 %> @param sub Substructure which will be evaluated.
 %> @param allEdges List of all edges in the graph.
-%> @param allEdgeNodePairs All node pairs which share an edge. Ordered, 
-%> which means the presence of (x,y) does not exclude (y,x). Format: (x,y;
-%> x2, y2; ...]
 %> @param allSigns List of all signs of the nodes in the graph.
 %> @param mdlNodeWeight Node weight in DL calculations (MDL).
 %> @param mdlEdgeWeight Edge weight in DL calculations (MDL).
@@ -29,30 +26,31 @@
 %> Updates
 %> Ver 1.0 on 18.09.2014
 function subScore = getSubScore(sub, allEdges, evalMetric, ...
-                allEdgeNodePairs, allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact)
+                allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact)
             
+    edgeCenterNodes = allEdges(:,1);
     % Read signs and edges of the instances.
     centerIdx = cat(1, sub.instances.centerIdx);
-    instanceEdges = allEdges(centerIdx);
+    instanceEdges = arrayfun(@(x) allEdges(edgeCenterNodes == x,:), centerIdx, 'Uniformoutput', false);
     centerCellIdx = num2cell(centerIdx);
     instanceSigns = allSigns(cat(1, sub.instances.centerIdx));
     instanceUsedEdgeIdx = {sub.instances.edges}';
-    numberOfNodes = numel(allEdges);
+    numberOfNodes = max(edgeCenterNodes);
     numberOfInstances = numel(instanceSigns);   % Beware: Changes if overlap not allowed!
 
     % Calculate outgoing nodes (destinations of edges where
     % instance's children are the source).
-    instanceChildren = cellfun(@(x,y,z) [z; x(y,2)], instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
-    instanceNeighborEdges = cellfun(@(x) cat(1, allEdges{x}), instanceChildren, 'UniformOutput', false);
+    instanceChildren = cellfun(@(x,y,z) sort([z; x(y,2)]), instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
+    instanceNeighborEdges = cellfun(@(x) allEdges(ismembc(edgeCenterNodes, x),:), instanceChildren, 'UniformOutput', false);
     
     % If overlaps are not allowed, filter out overlapping instances.
     if ~overlap
         % Find overlapping instances and remove them by marking as invalid.
-        matchedNodes = zeros(numberOfNodes,1);
+        matchedNodes = zeros(numberOfNodes,1)>0;
         validInstances = zeros(numberOfInstances,1) > 0;
         for instItr = 1:numberOfInstances
             children = instanceChildren{instItr};
-            if sum(matchedNodes(instanceChildren{instItr})) == 0
+            if nnz(matchedNodes(instanceChildren{instItr})) == 0
                 matchedNodes(children) = 1;
                 validInstances(instItr) = 1;
             end
@@ -62,8 +60,8 @@ function subScore = getSubScore(sub, allEdges, evalMetric, ...
         centerCellIdx = centerCellIdx(validInstances);
         instanceSigns = instanceSigns(validInstances);
         instanceUsedEdgeIdx = instanceUsedEdgeIdx(validInstances);
-        instanceChildren = cellfun(@(x,y,z) [z; x(y,2)], instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
-        instanceNeighborEdges = cellfun(@(x) cat(1, allEdges{x}), instanceChildren, 'UniformOutput', false);
+        instanceChildren = cellfun(@(x,y,z) sort([z; x(y,2)]), instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
+        instanceNeighborEdges = cellfun(@(x) allEdges(ismembc(edgeCenterNodes, x),:), instanceChildren, 'UniformOutput', false);
     end
     
     % Set constants for each instance. 1 if positive, -1 if negative.
@@ -79,7 +77,7 @@ function subScore = getSubScore(sub, allEdges, evalMetric, ...
         case 'mdl'
           % Get average degree of children.
             uniqueNodes = unique(cat(1, instanceChildren{:}));
-            avgDegree = mean(cellfun(@(x) size(x,1), allEdges(uniqueNodes)));
+            avgDegree = size(allEdges(ismembc(edgeCenterNodes, uniqueNodes)),1) / numel(uniqueNodes);
 
             %% DL calculation for compressed object graph takes place.
             % We only take the modified parts of the new graph into account. It
@@ -94,8 +92,8 @@ function subScore = getSubScore(sub, allEdges, evalMetric, ...
 
             % 2) Remove unique edges connecting instance nodes to external nodes
             % and in between instances of this sub.
-            deletedEdges = ismembc(allEdgeNodePairs(:,1), uniqueNodes) | ismember(allEdgeNodePairs(:,2), uniqueNodes);
-            subScore = subScore + sum(multConstants(allEdgeNodePairs(deletedEdges,1))) * mdlEdgeWeight;
+            deletedEdges = ismembc(allEdges(:,1), uniqueNodes) | ismember(allEdges(:,2), uniqueNodes);
+            subScore = subScore + sum(multConstants(allEdges(deletedEdges,1))) * mdlEdgeWeight;
 
             % 3) Add new nodes, one per each new instance.
             subScore = subScore - sum(instanceConstants) * mdlNodeWeight;
@@ -119,7 +117,7 @@ function subScore = getSubScore(sub, allEdges, evalMetric, ...
                 nonemptyNeighborIdx = ~cellfun(@(x) isempty(x), instanceNeighborEdges);
                 instanceOutNeighbors = cellfun(@(x,y) numel(setdiff(x(:,2), y)), ...
                     instanceNeighborEdges(nonemptyNeighborIdx), instanceChildren(nonemptyNeighborIdx));
-                instanceInNeighbors = cellfun(@(x) numel(setdiff(allEdgeNodePairs(ismember(allEdgeNodePairs(:,2), x),1), x)), instanceChildren);
+                instanceInNeighbors = cellfun(@(x) numel(setdiff(allEdges(ismember(allEdges(:,2), x),1), x)), instanceChildren);
                 subScore = subScore - round(sum((instanceOutNeighbors + instanceInNeighbors) .* instanceConstants) * mdlEdgeWeight);
             else
                 %% Approximate MDL calculation

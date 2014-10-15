@@ -143,7 +143,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
         validEdges = ~(labelEqualityArr & (edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0));
 
         % If receptive fields are used, every edge is directed.
-        directedArr = ones(nnz(validEdges),1);
+        directedArr = ones(nnz(validEdges),1, 'uint32');
         
         % Update data structures based on removed edges.
         allEdges = allEdges(validEdges,:);
@@ -165,7 +165,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 applicableModeIdx = find(currentModesFirstNodes == node1Labels(edgeItr) & ...
                 currentModesSecNodes == node2Labels(edgeItr));
                 applicableModes = currentModesPos(applicableModeIdx,:);
-                centerArr2 = repmat(edgeCoords(edgeItr,:), size(applicableModes,1),1);
+                centerArr2 = double(repmat(edgeCoords(edgeItr,:), size(applicableModes,1),1));
                 distances = sqrt(sum((centerArr2 - applicableModes).^2, 2));
                 [~, minDist] = min(distances);
 
@@ -177,7 +177,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 end
            end
         else
-            edgeIds = ones(numberOfAllEdges,1);
+            edgeIds = ones(numberOfAllEdges,1, 'uint32');
         end
         
         edges = [allEdges(:,1:2) + imageNodeOffset, edgeIds, directedArr];

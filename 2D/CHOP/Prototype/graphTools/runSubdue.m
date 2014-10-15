@@ -72,27 +72,17 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
     % Helper data structures.
-    allEdges = {graphLevel.adjInfo}';
+    allEdges = cat(1, graphLevel.adjInfo);
     
     % If no edges are present, time to return.
     if isempty(allEdges) 
         return;
-    else
-        allEdgeNodePairs = cat(1,allEdges{:});
-        if isempty(allEdgeNodePairs)
-            return;
-        end
     end
-    
-    allEdgeNodePairs = allEdgeNodePairs(:,1:2);
-    nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), allEdges);
     allLabels = cat(1, graphLevel.labelId);
-    allEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
-        allEdges(nonemptyEdgeIdx), 'UniformOutput', false);
     allSigns = cat(1, graphLevel.sign);
     
     % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
-    graphSize = sum(cellfun(@(x) size(x,1), allEdges)) * mdlEdgeWeight + ...
+    graphSize = size(allEdges,1) * mdlEdgeWeight + ...
         numel(graphLevel) * mdlNodeWeight;
     
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
@@ -145,7 +135,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
                 end
 
                 %% Step 2.3: Evaluate childSubs, find their instances.
-                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
+                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, ...
                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact);
 
                 %% Save childSubs
@@ -174,6 +164,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
                 end 
             end
         end
+        clear childSubArr;
         
         %% Step 2.6: Swap expandedSubs with parentSubs.
         if haltedParent == -1
@@ -195,13 +186,14 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     
     %% Previous graph data is returned.
     prevGraphData.allEdges = allEdges;
-    prevGraphData.allEdgeNodePairs = allEdgeNodePairs;
     prevGraphData.allSigns = allSigns;
     prevGraphData.bestSubs = bestSubs;
     
     %% Allocate space for new graphLevel and vocabLevel.
-    instances = {bestSubs.instances};
-    numberOfInstances = sum(cellfun(@(x) numel(x), instances));
+    numberOfInstances = 1;
+    for bestSubItr = 1:numberOfBestSubs
+        numberOfInstances = numberOfInstances + numel(bestSubs(bestSubItr).instances);
+    end
     clear vocabLevel graphLevel
     vocabLevel(numberOfBestSubs) = options.vocabNode;
     graphLevel(numberOfInstances) = options.graphNode;
@@ -211,7 +203,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     instanceOffset = 1;
     for bestSubItr = 1:numberOfBestSubs
        % Assign label of sub.
-       vocabLevel(bestSubItr).label = num2str(bestSubItr);
+       vocabLevel(bestSubItr).label = uint32(bestSubItr);
        
        % Assign mdl score.
        vocabLevel(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore;
@@ -230,29 +222,27 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
        %% Assign instances to this sub.
        instances = bestSubs(bestSubItr).instances;
        numberOfInstances = numel(bestSubs(bestSubItr).instances);
-       labelIds = num2cell(repmat(bestSubItr, numberOfInstances,1));
+       labelIds = num2cell(repmat(uint32(bestSubItr), numberOfInstances,1));
        
        %% Create required fields such as centerIdx, edges, children and sign array to assign to instances.
        centerIdx = [instances.centerIdx];
-       centerIdxCellArr = num2cell(centerIdx');
+       centerIdxCellArr = num2cell(centerIdx);
        numberOfInstances = numel(centerIdx);
        instanceEndOffset = instanceOffset + numberOfInstances - 1;
-       edges = allEdges(centerIdx);
-       edgeIdx = {instances.edges}';
+       edges = arrayfun(@(x) allEdges(allEdges(:,1) == x,:), centerIdx, 'Uniformoutput', false);
+       edgeIdx = {instances.edges};
        instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
        instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
        instanceSigns = num2cell(allSigns(centerIdx));
-       instanceDLReductions = {instances.dlReduction};
        
        % Assign fields to graphs.
        [graphLevel(instanceOffset:instanceEndOffset).labelId] = deal(labelIds{:});
        [graphLevel(instanceOffset:instanceEndOffset).children] = deal(instanceChildren{:});
        [graphLevel(instanceOffset:instanceEndOffset).sign] = deal(instanceSigns{:});
-       [graphLevel(instanceOffset:instanceEndOffset).dlReduction] = deal(instanceDLReductions{:});
        instanceOffset = instanceOffset + numberOfInstances;
        
        % Clear variables.
-       clear centerIdx centerIdxCellArr edges instanceEdges instanceChildren instanceSigns
+       clear centerIdx centerIdxCellArr edges instanceEdges instanceChildren instanceSigns labelIds edgeIdx
     end
     
    nextVocabLevel = vocabLevel;
@@ -296,7 +286,7 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns)
 
             % Fill in instance information. 
             instanceIdx = allLabels == subItr;
-            subNodeAssgnArr = num2cell([find(instanceIdx), allSigns(instanceIdx,1)]);
+            subNodeAssgnArr = num2cell([uint32(find(instanceIdx)), allSigns(instanceIdx,1)]);
             [singleNodeInstances.centerIdx, singleNodeInstances.sign] = deal(subNodeAssgnArr{:});
 
             singleNodeSubs(subItr).instances = singleNodeInstances;
@@ -317,10 +307,7 @@ end
 %> along with instances of each sub in returned list.
 %> 
 %> @param sub Sub to be extended.
-%> @param allEdges List of all edges in the graph (cell array).
-%> @param allEdgeNodePairs All node pairs which share an edge. Ordered, 
-%> which means the presence of (x,y) does not exclude (y,x). Format: (x,y;
-%> x2, y2; ...]
+%> @param allEdges List of all edges in the graph (Nx4).
 %>
 %> @retval extendedSubs Extended sub list.
 %> 
@@ -331,7 +318,7 @@ end
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 function [extendedSubs] = extendSub(sub, allEdges)
     centerIdx = cat(1,sub.instances.centerIdx);
-    subAllEdges = allEdges(centerIdx);
+    subAllEdges = arrayfun(@(x) allEdges(allEdges(:,1) == x,:), centerIdx, 'Uniformoutput', false);
     % Get unused edges from sub's instances.
     allUsedEdgeIdx = {sub.instances.edges}';
     allUnusedEdges = cellfun(@(x,y) x(setdiff(1:size(x,1),y),:), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
@@ -417,9 +404,6 @@ end
 %> @param subs Sub list which will be evaluated.
 %> @param evalMetric Evaluation metric.
 %> @param allEdges List of all edges in the graph.
-%> @param allEdgeNodePairs All node pairs which share an edge. Ordered, 
-%> which means the presence of (x,y) does not exclude (y,x). Format: (x,y;
-%> x2, y2; ...]
 %> @param allSigns List of all signs of the nodes in the graph.
 %> @param graphSize Size of the graph.
 %> @param overlap If true, overlapping instances are considered in
@@ -435,13 +419,13 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact)
+function [subs] = evaluateSubs(subs, evalMetric, allEdges, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact)
     numberOfSubs = numel(subs);
     for subItr = 1:numberOfSubs
         % We compress the object graph using the children, and the
         % edges they are involved. 
         subScore = getSubScore(subs(subItr), allEdges, evalMetric, ...
-            allEdgeNodePairs, allSigns, mdlNodeWeight, mdlEdgeWeight, ....
+           allSigns, mdlNodeWeight, mdlEdgeWeight, ....
             overlap, isMDLExact);
 
         %% Assign the score of the sub, as well as its normalized mdl score if applicable.

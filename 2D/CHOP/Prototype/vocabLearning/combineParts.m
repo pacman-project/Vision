@@ -139,7 +139,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         %% We calculate scores for each vocabulary node and re-order them again after combining parts.
         % Calculate scores for each node.
         allEdges = prevGraphData.allEdges;
-        allEdgeNodePairs = prevGraphData.allEdgeNodePairs;
         allSigns = prevGraphData.allSigns;
         bestSubs = prevGraphData.bestSubs;
         bestSubs = bestSubs(1:numel(matchedSubs));        
@@ -155,7 +154,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
             if ~matchedSubs(subItr)
                 bestSubs(subItr).instances = cat(2, bestSubs(subClasses == subItr).instances);
                 newMDLScore = getSubScore(bestSubs(subItr), allEdges, evalMetric, ...
-                allEdgeNodePairs, allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact);
+                allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact);
                 vocabLevel(subItr).mdlScore = newMDLScore;
                 if strcmp(evalMetric, 'mdl')
                     vocabLevel(subItr).normMdlScore = 1 - (newMDLScore / prevGraphSize);

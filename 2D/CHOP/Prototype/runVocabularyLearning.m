@@ -166,6 +166,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         allNodes = cat(1, allNodes{:});
         imageIds = cat(1, imageIds{:});
         leafNodes = [allNodes, imageIds];
+        leafNodes = uint32(cell2mat(leafNodes));
+        clear allNodes; 
+        clear fileNames;
         
         % Learn node signs based on whether or not they are from the
         % background class. The ones which are from the background class
@@ -174,6 +177,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % graphs but not negative ones will be favoured.
         imageSigns = ~strcmp(categoryArr, options.backgroundClass);
         leafNodeSigns = imageSigns(cell2mat(imageIds));
+        clear imageIds;
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
         [vocabLevel, graphLevel] = generateLevels(leafNodes, leafNodeSigns, options);
@@ -185,7 +189,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
-        [vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes(:,1:3), modes, ...
+        [vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes, modes, ...
                                         options, trainingFileNames); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
