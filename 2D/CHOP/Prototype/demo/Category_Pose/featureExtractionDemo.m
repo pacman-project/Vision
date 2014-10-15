@@ -19,21 +19,10 @@
 %> Updates
 %> Ver 1.0 on 13.04.2014
 %> Ver 1.1 on 14.04.2014 (input/output changes)
-function [features]=featureExtractionDemo(exportArr, categoryArrIdx, poseArr, feature_params, testImageSize)
-    features = cell(size(poseArr,1),1);
-    for sample_itr=1:size(poseArr,1)
+function [features]=featureExtractionDemo(exportArr, categoryArrIdx, testImageSize)
+    features = cell(size(categoryArrIdx,1),1);
+    for sample_itr=1:size(categoryArrIdx,1)
         locations = exportArr(exportArr(:,5) == sample_itr,2:3);
-        
-        if ~feature_params.isTesting
-            testImageSize = feature_params.imageSizes{categoryArrIdx(sample_itr)};
-        end
-        
-        % Change here. We'll make all windows the same to extract features
-        % correctly.
-        if (~feature_params.isTesting && (categoryArrIdx(sample_itr)) < 3) || (feature_params.isTesting && ismember(180, testImageSize))
-            testImageSize = feature_params.imageSizes{4};
-            locations = locations + repmat([53, 70], size(locations,1), 1);
-        end
         
         % Extract features.
         maskImg2=zeros(testImageSize);

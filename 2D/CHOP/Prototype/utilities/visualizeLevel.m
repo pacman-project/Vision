@@ -120,7 +120,9 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
                 labelId = vocabNodeSet(nodeItr);
                 nodeInstances = find(nodeLabelIds==labelId);
-                nodeInstances = nodeInstances(1);   % CHANGE: Print only the first realization.
+                if numel(nodeInstances)>5
+		     nodeInstances = nodeInstances(1:5);   % CHANGE: Print only the first realization.
+		end
                 instancePos = mat2cell(centerPos(nodeInstances,:), ones(1, numel(nodeInstances)), 2);
                 instanceLeafNodeSets = leafNodeSets(nodeInstances,:);
                 instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...

@@ -9,11 +9,11 @@
 %> Ver 1.0 on 19.11.2013
 classdef Substructure
     properties
-        centerId % The label id of the center node. For fast access.
-        edges % Connectivity information of the children in this part's 
+        centerId@uint32 % The label id of the center node. For fast access.
+        edges@uint32 % Connectivity information of the children in this part's 
               % graph description.
-        mdlScore % The MDL score of this node.
-        normMdlScore % The normalized MDL score of this node. 
+        mdlScore@double % The MDL score of this node.
+        normMdlScore@double % The normalized MDL score of this node. 
                      % (mdlScore/graphSize).
         instances % An array of instances (realizations of the part).
     end

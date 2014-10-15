@@ -91,7 +91,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         load([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');
     end
     numberOfFilters = size(C,1);
-    
+ 
     %% Visualize the centers as a grid image.
     display('Visualizing features...');
     visX = ceil(sqrt(numberOfFilters));
@@ -100,20 +100,22 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         visY * options.autoFilterSize + (visY-1), round(size(Xwh,2)/(options.autoFilterSize^2))];
     finalImage = zeros(imageSize);
     filterItr = 1;
+    visC = C * invMat + repmat(mu, size(C,1), 1);
     for xItr = 1:visX
         for yItr = 1:visY
             if ((xItr-1)*visY)+yItr > numberOfFilters
                 continue;
             end
-            gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]);
+            gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]); %#ok<NASGU>
+            printedGaborFilt = uint8(round(reshape(visC(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)])));                                             
             finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
-                ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = gaborFilt;
-            printedGaborFilt = (gaborFilt - min(min(min(gaborFilt)))) / (max(max(max(gaborFilt))) - min(min(min(gaborFilt))));
+                 ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = printedGaborFilt;
             imwrite(printedGaborFilt, [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
             save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
             filterItr = filterItr+1;
         end
     end
+    finalImage = double(finalImage);
     finalImage = (finalImage - min(min(min(finalImage)))) / (max(max(max(finalImage))) - min(min(min(finalImage))));
     imwrite(finalImage, [options.currentFolder '/filters/vis/' datasetName '/C.png']);
     close(gcf);
