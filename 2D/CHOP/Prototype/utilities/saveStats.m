@@ -35,7 +35,7 @@ function [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leaf
     avgShareability = mean(compositionImageCountArr(~isnan(compositionImageCountArr))) * 100;
     
     %% Calculate coverage of each image's leaf nodes in detected realizations.
-    leafNodeIds = uint32(1:size(leafNodes,1));
+    leafNodeIds = int32(1:size(leafNodes,1));
     leafImageIds = leafNodes(:,4);
     imageCoverageArr = zeros(numberOfImages,1);
     for imageItr = 1:numberOfImages

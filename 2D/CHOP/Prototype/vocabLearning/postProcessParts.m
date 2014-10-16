@@ -1,7 +1,7 @@
 function [vocabLevel, redundantVocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, subClasses, newDistanceMatrix, graphLevel)
     % Assign new labels of the remaining realizations.
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);
-    IC = num2cell(IC);
+    IC = num2cell(int32(IC));
     [graphLevel.labelId] = deal(IC{:});
 
     % Get the redundant compositions to help inference process.
@@ -15,7 +15,7 @@ function [vocabLevel, redundantVocabLevel, graphLevel, newDistanceMatrix] = post
     % Assign correct labels to the redundant compositions.
     if ~isempty(redundantVocabLevel)
         maxRemaining = max(remainingComps);
-        remainingMatchArr = zeros(maxRemaining,1);
+        remainingMatchArr = zeros(maxRemaining,1, 'int32');
         remainingMatchArr(remainingComps) = 1:numel(remainingComps);
         VIC = num2cell(remainingMatchArr(subClasses(redundantComps)));
         [redundantVocabLevel.label] = deal(VIC{:});
@@ -23,7 +23,7 @@ function [vocabLevel, redundantVocabLevel, graphLevel, newDistanceMatrix] = post
     
     % Eliminate unused compositions from vocabulary.
     vocabLevel = vocabLevel(1, remainingComps);
-    newLabelArr = num2cell(1:numel(vocabLevel));
+    newLabelArr = num2cell(int32(1:numel(vocabLevel)));
     [vocabLevel.label] = deal(newLabelArr{:});
     
     % Assign distance matrix.

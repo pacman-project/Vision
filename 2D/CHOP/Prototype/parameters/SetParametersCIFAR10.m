@@ -201,7 +201,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 2000;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values

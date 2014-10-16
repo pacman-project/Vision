@@ -99,9 +99,9 @@ function [ ] = visualizeImages( fileList, ~, graphLevel, leafNodes, levelItr, op
         
         % Get the correct node set to reconstruct.
         if strcmp(reconstructionType, 'true')
-            nodeReconInfo = [{nodes.labelId}', {nodes.position}'];
+            nodeReconInfo = [cat(1,nodes.labelId), cat(1,nodes.position)];
         else
-            nodeReconInfo = leafNodes(:,1:2); %#ok<PFBNS>
+            nodeReconInfo = leafNodes(:,1:3); %#ok<PFBNS>
         end
         
         %% Reconstruct each node.
@@ -117,8 +117,8 @@ function [ ] = visualizeImages( fileList, ~, graphLevel, leafNodes, levelItr, op
             reconstructedNodes = nodeReconInfo(reconstructedNodes,:);
             for reconNodeItr = 1:size(reconstructedNodes,1)
                 % Read the mask here, and crop it if necessary.
-                nodeMask = vocabMasks{reconstructedNodes{reconNodeItr,1}}; %#ok<PFBNS>
-                position = reconstructedNodes{reconNodeItr,2};
+                nodeMask = vocabMasks{reconstructedNodes(reconNodeItr,1)}; %#ok<PFBNS>
+                position = reconstructedNodes(reconNodeItr,2:3);
                 
                 % Learn printed dimensions.
                 halfSize = ceil((size(nodeMask)-1)/2);
@@ -185,7 +185,7 @@ function [ ] = visualizeImages( fileList, ~, graphLevel, leafNodes, levelItr, op
             edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
             if ~isempty(edges)
                 for edgeItr = 1:size(edges,1)
-                   edgeIdx = drawline(nodes(edges(edgeItr,1)).position, nodes(edges(edgeItr,2)).position, sizeOfImage);
+                   edgeIdx = drawline(double(nodes(edges(edgeItr,1)).position), double(nodes(edges(edgeItr,2)).position), sizeOfImage);
                    edgeImg(edgeIdx) = edges(edgeItr,3);
                 end
             end

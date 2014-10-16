@@ -26,7 +26,7 @@
 %> Updates
 %> Ver 1.0 on 05.05.2014
 function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, distanceMatrix, prevGraphSize, prevGraphData, options)
-    setSize = 20; % Parallelization parameter.
+    setSize = 20; % Parallelization parameter. Probably sole hard coded parameter in the system. It is a thing of beauty.
     regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
     threshold = options.subdue.threshold * regularizationParam; % Hard threshold for cost of matching two subs.
     subClasses = [];
@@ -48,7 +48,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
 
         % Update graph level.
         labelIds = cat(1, graphLevel.labelId);
-        IC = num2cell(IC(labelIds));
+        IC = num2cell(int32(IC(labelIds)));
         [graphLevel.labelId] = deal(IC{:});
     else
         %% If current modes do exist, we can use the positioning information to eliminate parts further.
@@ -58,7 +58,9 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         % Get unique sub descriptions independent of the center node. Each
         % description is a string that encodes coarse structure of the sub.
         vocabNodeLabels = {vocabLevel.children};
+        vocabNodeLabels = cellfun(@(x) double(x), vocabNodeLabels, 'UniformOutput', false);
         vocabEdges = {vocabLevel.adjInfo};
+        vocabEdges = cellfun(@(x) double(x), vocabEdges, 'UniformOutput', false);
         newMode = size(currentModes,1);
         vocabNeighborModes = cellfun(@(x) [newMode; x(:,3)], vocabEdges, 'UniformOutput', false);
         vocabNodePositions = cellfun(@(x) currentModes(x,:) - repmat(min(currentModes(x,:)), numel(x), 1), vocabNeighborModes, 'UniformOutput', false);
@@ -74,7 +76,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         %% For each sub, we will find matching ones with a cost.
         numberOfSubs = numel(vocabDescriptions);
         matchedSubs = zeros(1, numberOfSubs)>0;
-        subClasses = (1:numberOfSubs)';
+        subClasses = int32((1:numberOfSubs)');
         newDistanceMatrix = zeros(numberOfSubs);
 
         % Here, we parallelize the part comparison process. In order to
@@ -169,12 +171,12 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         mdlScores = [vocabLevel.mdlScore];
         [~, sortedIdx] = sort(mdlScores, 'descend');
         vocabLevel = vocabLevel(sortedIdx);
-        sortedAssgnArr = 1:numel(vocabLevel);
+        sortedAssgnArr = int32(1:numel(vocabLevel));
         sortedAssgnArr(sortedIdx) = sortedAssgnArr;
         
         % Assign labels to each vocabulary node.
         for subItr = 1:numel(vocabLevel)
-            vocabLevel(subItr).label = num2str(subItr);
+            vocabLevel(subItr).label = int32(subItr);
         end
         
         % Link each node in the redundant vocabulary to the updated nodes, 
@@ -201,7 +203,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         vocabLevel = vocabLevel(validMDLScoreIdx);
         % Assign labels to each vocabulary node.
         for subItr = 1:numel(vocabLevel)
-            vocabLevel(subItr).label = num2str(subItr);
+            vocabLevel(subItr).label = int32(subItr);
         end
         subClasses = subClasses(validMDLScoreIdx);
         newDistanceMatrix = newDistanceMatrix(validMDLScoreIdx,validMDLScoreIdx);

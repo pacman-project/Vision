@@ -41,8 +41,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         leafNodeSets = {graphLevel.leafNodes}';
         centerPos = cat(1, graphLevel.position);
         nodeLabelIds = cat(1, graphLevel.labelId);
-        leafNodeLabelIds = cat(1, leafNodes{:, 1});
-        leafNodePos = cat(1,leafNodes{:,2});
+        leafNodeLabelIds = cat(1, leafNodes(:, 1));
+        leafNodePos = cat(1,leafNodes(:,2:3));
     end
     
     %% Create output folder structure.
@@ -110,7 +110,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
 %       for setItr = 1:numberOfThreadsUsed
-        parfor setItr = 1:numberOfThreadsUsed
+        for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -121,8 +121,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 labelId = vocabNodeSet(nodeItr);
                 nodeInstances = find(nodeLabelIds==labelId);
                 if numel(nodeInstances)>5
-		     nodeInstances = nodeInstances(1:5);   % CHANGE: Print only the first realization.
-		end
+                     nodeInstances = nodeInstances(1:5);   % CHANGE: Print only the first realization.
+                end
                 instancePos = mat2cell(centerPos(nodeInstances,:), ones(1, numel(nodeInstances)), 2);
                 instanceLeafNodeSets = leafNodeSets(nodeInstances,:);
                 instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
@@ -184,11 +184,11 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                         maskMaxY = maxY;
                     end
                 end
-                maskMinX = floor(maskMinX)-1;
-                maskMinY = floor(maskMinY)-1;
-                maskMaxX = ceil(maskMaxX)+1;
-                maskMaxY = ceil(maskMaxY)+1;
-                childrenCoords = round(childrenCoords - [ones(numel(children),1) * maskMinX, ones(numel(children),1) * maskMinY]);
+                maskMinX = double(floor(maskMinX)-1);
+                maskMinY = double(floor(maskMinY)-1);
+                maskMaxX = double(ceil(maskMaxX)+1);
+                maskMaxY = double(ceil(maskMaxY)+1);
+                childrenCoords = int32(round(double(childrenCoords) - [ones(numel(children),1) * maskMinX, ones(numel(children),1) * maskMinY]));
 
                 %% Write the children's masks to the current mask.
                 currentMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
@@ -214,7 +214,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 end
                 
                 %% Add background to currentMask, and normalize it.
-                % Learn the median color to use as background..
+                % Learn the median color to use as background.
                 validValues = currentMask(currentFilledMask>0);
                 filledValue = median(validValues);
 

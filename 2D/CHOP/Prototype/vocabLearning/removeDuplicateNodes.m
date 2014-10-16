@@ -43,13 +43,15 @@ function [vocabLevel, graphLevel, bestSubs] = removeDuplicateNodes(vocabLevel, g
     allGraphLabelIds = [graphLevel.labelId];
     bestSubs = bestSubs(validVocabLevelIdx);
     for vocabNodeItr = 1:numel(vocabLevel)
-        vocabLevel(vocabNodeItr).label = num2str(vocabNodeItr);
+        vocabLevel(vocabNodeItr).label = int32(vocabNodeItr);
     end
 
     % Update graphLevel so that labelId of each node links to the
     % correct vocabulary part (now that some are deleted)
-    graphLabelAssgnArr = zeros(max(validVocabLevelIdx),1);
+    graphLabelAssgnArr = zeros(max(validVocabLevelIdx),1, 'int32');
     graphLabelAssgnArr(validVocabLevelIdx) = 1:numel(validVocabLevelIdx);
-    graphLabelAssgnArr = num2cell(graphLabelAssgnArr(allGraphLabelIds));
-    [graphLevel.labelId] = deal(graphLabelAssgnArr{:});
+    graphLabelAssgnArr = graphLabelAssgnArr(allGraphLabelIds);
+    for graphNodeItr = 1:numel(graphLevel)
+        graphLevel(graphNodeItr).labelId = graphLabelAssgnArr(graphNodeItr);
+    end
 end

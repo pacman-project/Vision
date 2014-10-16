@@ -32,5 +32,5 @@ function [ classes ] = assignModes( samples, minSamplesPerMode, maximumModes )
        % Enough samples, process data.
        classes = mec(samples, 'c', maximumModes, 'kmeans_i', 3);
    end
-   classes = uint32(classes);
+   classes = int32(classes);
 end

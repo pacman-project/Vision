@@ -29,7 +29,7 @@ function [graph] = mergeIntoGraph(graph, level, ~, levelItr, position)
             for childItr = 1:numel(children)
                if ~ismember(newInstItr, previousLevel(children(childItr)).parents)
                     previousLevel(children(childItr)).parents = ...
-                        [previousLevel(children(childItr)).parents, newInstItr];
+                        [previousLevel(children(childItr)).parents, int32(newInstItr)];
                end
             end 
         end

@@ -23,7 +23,7 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, signs, options)
     graphLevel(size(nodes,1)) = options.graphNode;
     
     % Fill vocabulary level with labels.
-    labelArr = num2cell(uint32(1:options.numberOfFilters));
+    labelArr = num2cell(int32(1:options.numberOfFilters));
     [vocabLevel.label] = deal(labelArr{:});
     clear labelArr;
     
@@ -37,6 +37,6 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, signs, options)
     [graphLevel.sign] = deal(signArr{:});
     
     % Add leaf nodes.
-    leafNodes = num2cell(uint32(1:size(nodes,1)));
+    leafNodes = num2cell(int32(1:size(nodes,1)));
     [graphLevel.leafNodes] = deal(leafNodes{:});
 end

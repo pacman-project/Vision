@@ -110,13 +110,18 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
     % Eliminate edges for which second node's labels are smaller than first.
     allEdges = allEdges(allEdges(:,1) <= allEdges(:,2),:);
     
-    % Get unique edge types
+    %% Learn unique edge types and put them in cells for fast processing using parfor.
     [uniqueEdgeTypes, ~, IA] = unique(allEdges(:,1:2), 'rows');
     numberOfUniqueEdges = size(uniqueEdgeTypes,1);
     modes = cell(numberOfUniqueEdges,1);
     uniqueEdgeSamples = cell(numberOfUniqueEdges,1);
-    for uniqueEdgeItr = 1:numberOfUniqueEdges
-        uniqueEdgeSamples(uniqueEdgeItr) = {allEdges(IA==uniqueEdgeItr,3:4)};
+    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
+        samplesForEdge = allEdges(IA==uniqueEdgeItr,3:4); %#ok<PFBNS>
+        %% If there are too many samples, get random samples.
+        if size(samplesForEdge,1)>maxSamplesPerMode
+            samplesForEdge = datasample(samplesForEdge, maxSamplesPerMode, 'Replace', false);
+        end
+        uniqueEdgeSamples(uniqueEdgeItr) = {samplesForEdge};
     end
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
@@ -126,11 +131,6 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
         samples = double(uniqueEdgeSamples{uniqueEdgeItr});
         edgeType = uniqueEdgeTypes(uniqueEdgeItr,:);
         
-        %% If there are too many samples, get random samples.
-        if size(samples,1)>maxSamplesPerMode
-            samples = datasample(samples, maxSamplesPerMode, 'Replace', false);
-        end
-
         %% Assign a label to each sample.
         if maximumModes == 1
             classes = ones(size(samples,1),1);
@@ -152,7 +152,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
            
         warning(w);
     end
-    modes = fix(cat(1, modes{:}));
+    modes = round(cat(1, modes{:}));
         
     %% Add reverse modes to the modes array.
     reversedModes = modes(modes(:,1) ~= modes(:,2),:);

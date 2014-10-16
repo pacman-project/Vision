@@ -9,12 +9,12 @@
 %> Ver 1.0 on 19.11.2013
 classdef Instance
     properties
-        centerIdx@uint32; % Center index (not label id!) of the center node 
+        centerIdx@int32; % Center index (not label id!) of the center node 
                         % in this realization. The graph structure encoded
                         % in an Instance is isomorphic to the graph
                         % description of the Substructure this Instance
                         % belongs to. 
-        edges@uint32; % Edges connecting the center node to the other nodes 
+        edges@int32; % Edges connecting the center node to the other nodes 
                     % in its receptive graph. Please note that this array
                     % does not encode all connections in the center node's
                     % receptive graph. It only retains the ones that are

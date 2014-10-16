@@ -166,7 +166,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         allNodes = cat(1, allNodes{:});
         imageIds = cat(1, imageIds{:});
         leafNodes = [allNodes, imageIds];
-        leafNodes = uint32(cell2mat(leafNodes));
+        leafNodes = int32(cell2mat(leafNodes));
         clear allNodes; 
         clear fileNames;
         

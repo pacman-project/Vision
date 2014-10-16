@@ -72,17 +72,30 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
     % Helper data structures.
-    allEdges = cat(1, graphLevel.adjInfo);
+    assignedEdges = {graphLevel.adjInfo};    
+    if isempty(assignedEdges) 
+        return;
+    else
+        allEdgeNodePairs = cat(1,assignedEdges{:});
+        if isempty(allEdgeNodePairs)
+            return;
+        end
+        numberOfAllEdges = size(allEdgeNodePairs,1);
+        clear allEdgeNodePairs;
+    end
+    nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), assignedEdges);
+    allLabels = cat(1, graphLevel.labelId);
+    assignedEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
+        assignedEdges(nonemptyEdgeIdx), 'UniformOutput', false);
+    allEdges(numel(graphLevel)) = AdjInfo();
+    [allEdges.adjInfo] = deal(assignedEdges{:});
+    clear assignedEdges;
     
     % If no edges are present, time to return.
-    if isempty(allEdges) 
-        return;
-    end
-    allLabels = cat(1, graphLevel.labelId);
     allSigns = cat(1, graphLevel.sign);
     
     % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
-    graphSize = size(allEdges,1) * mdlEdgeWeight + ...
+    graphSize = numberOfAllEdges * mdlEdgeWeight + ...
         numel(graphLevel) * mdlNodeWeight;
     
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
@@ -203,7 +216,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     instanceOffset = 1;
     for bestSubItr = 1:numberOfBestSubs
        % Assign label of sub.
-       vocabLevel(bestSubItr).label = uint32(bestSubItr);
+       vocabLevel(bestSubItr).label = int32(bestSubItr);
        
        % Assign mdl score.
        vocabLevel(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore;
@@ -222,15 +235,15 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
        %% Assign instances to this sub.
        instances = bestSubs(bestSubItr).instances;
        numberOfInstances = numel(bestSubs(bestSubItr).instances);
-       labelIds = num2cell(repmat(uint32(bestSubItr), numberOfInstances,1));
+       labelIds = num2cell(repmat(int32(bestSubItr), numberOfInstances,1));
        
        %% Create required fields such as centerIdx, edges, children and sign array to assign to instances.
        centerIdx = [instances.centerIdx];
-       centerIdxCellArr = num2cell(centerIdx);
+       centerIdxCellArr = num2cell(centerIdx');
        numberOfInstances = numel(centerIdx);
        instanceEndOffset = instanceOffset + numberOfInstances - 1;
-       edges = arrayfun(@(x) allEdges(allEdges(:,1) == x,:), centerIdx, 'Uniformoutput', false);
-       edgeIdx = {instances.edges};
+       edges = {allEdges(centerIdx).adjInfo}';
+       edgeIdx = {instances.edges}';
        instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
        instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
        instanceSigns = num2cell(allSigns(centerIdx));
@@ -286,7 +299,7 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns)
 
             % Fill in instance information. 
             instanceIdx = allLabels == subItr;
-            subNodeAssgnArr = num2cell([uint32(find(instanceIdx)), allSigns(instanceIdx,1)]);
+            subNodeAssgnArr = num2cell([int32(find(instanceIdx)), allSigns(instanceIdx,1)]);
             [singleNodeInstances.centerIdx, singleNodeInstances.sign] = deal(subNodeAssgnArr{:});
 
             singleNodeSubs(subItr).instances = singleNodeInstances;
@@ -318,7 +331,7 @@ end
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 function [extendedSubs] = extendSub(sub, allEdges)
     centerIdx = cat(1,sub.instances.centerIdx);
-    subAllEdges = arrayfun(@(x) allEdges(allEdges(:,1) == x,:), centerIdx, 'Uniformoutput', false);
+    subAllEdges = {allEdges(centerIdx).adjInfo}';
     % Get unused edges from sub's instances.
     allUsedEdgeIdx = {sub.instances.edges}';
     allUnusedEdges = cellfun(@(x,y) x(setdiff(1:size(x,1),y),:), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);

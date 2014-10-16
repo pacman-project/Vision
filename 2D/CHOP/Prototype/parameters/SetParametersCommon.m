@@ -32,7 +32,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 10;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
