@@ -32,17 +32,18 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, redund
 
     %% Form the first level nodes.
     [cellNodes, smoothedImg] = getNodes(img, [], options);
-    imwrite(smoothedImg, [options.smoothedFolder '/' fileName '.png']);
-    if isempty(cellNodes)
-        return;
-    end
     % Save smoothed image.
+    imwrite(smoothedImg, [options.smoothedFolder '/' fileName '.png']);
     % Assign nodes their image ids.
     imageIds = ones(size(cellNodes,1), 1, 'int32');
     nodes = zeros(size(cellNodes,1), 4, 'int32');
-    nodes(:,1:3) = cell2mat(cellNodes);
+    nodes(:,1:3) = cell2num(cellNod
     nodes(:, 4) = imageIds;
     leafNodes = nodes;
+    
+    if isempty(nodes)
+        return;
+    end
     
     %% Generate first level object graph.
     [~, graphLevel] = generateLevels(nodes, ones(size(nodes,1),1), options);

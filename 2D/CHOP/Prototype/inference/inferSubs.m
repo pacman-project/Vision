@@ -139,13 +139,13 @@ function [graphLevel] = inferSubs(vocabLevel, redundantVocabLevel, graphLevel, o
     graphLevel(numberOfInstances) = options.graphNode;
     
     % Collect label ids, children and signs to assign to instances.
-    labelIds = zeros(numberOfInstances,1);
+    labelIds = zeros(numberOfInstances,1, 'int32');
     instanceOffset = 1;
     for vocabItr = 1:numel(vocabLevel)
        if numberOfInstanceArr(vocabItr) > 0
             instanceEndOffset = instanceOffset + (numberOfInstanceArr(vocabItr)-1);
             if validVocabLevel(vocabItr)
-                labelIds(instanceOffset:instanceEndOffset) = vocabItr;
+                labelIds(instanceOffset:instanceEndOffset) = int32(vocabItr);
             else
                 labelIds(instanceOffset:instanceEndOffset) = realVocabIds(vocabItr);
             end
