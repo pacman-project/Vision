@@ -39,7 +39,7 @@ function [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leaf
     leafImageIds = leafNodes(:,4);
     imageCoverageArr = zeros(numberOfImages,1);
     for imageItr = 1:numberOfImages
-        detectedLeafNodes = unique([graphLevel(imageIds == imageItr).leafNodes]);
+        detectedLeafNodes = int32(unique([graphLevel(imageIds == imageItr).leafNodes]));
         imageCoverageArr(imageItr) = numel(ismembc(detectedLeafNodes, leafNodeIds(leafImageIds == imageItr))) / ...
             numel(leafNodeIds(leafImageIds == imageItr));
     end
