@@ -47,14 +47,14 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 5;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2);
+    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
     options.autoFilterThr = 0.3;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
-    options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 100000; % Number of random patches used 
+    options.autoFilterCount = 256;      % Number of auto-detected filters.
+    options.autoFilterPatchCount = 200000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
@@ -111,7 +111,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                           % specific part pair is reduced
                                           % automatically to match this
                                           % number, if possible.
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -133,7 +133,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                          % to be used in creation of the image
                                          % for every node in the vocabulary.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*4; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
     else
         options.receptiveFieldSize = options.gaborFilterSize*5;
     end                                  % Size (one side) of the receptive field at
@@ -141,7 +141,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -201,13 +201,13 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 18000;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.06; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -219,8 +219,8 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.nsubs = 40000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 400;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
