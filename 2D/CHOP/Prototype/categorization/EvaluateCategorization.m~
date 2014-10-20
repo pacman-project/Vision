@@ -10,36 +10,29 @@
 %> Ver 1.0 on 04.07.2014
 function [ ] = EvaluateCategorization( datasetName )
     % Read vocabulary.
+    load([options.outputFolder '/vb.mat']); 
+
     options = SetParameters(datasetName, 'train');
-    load([options.outputFolder '/vb.mat']);
     outputFolder = options.testInferenceFolder;
     fileNames = fuf([outputFolder '/*.mat'], 1, 'detail');
     gtArr = NaN(size(fileNames,1), 1);
     detectionArr = NaN(size(fileNames,1), 1);
+    estimatedCategoryLabel = NaN;
     w = warning('off', 'all');
     for fileItr = 1:numel(fileNames)
-       estimatedCategoryLabel = NaN;
-       load(fileNames{fileItr});
+        
+       load(fileNames{fileItr}, 'categoryLabel', 'estimatedCategoryLabel');
        % If this file has not been processed yet, move on.
        if isnan(estimatedCategoryLabel)
-           estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr);
-       end
-       if estimatedCategoryLabel ~= categoryLabel
+           continue;
+       else
            1;
        end
-       
        gtArr(fileItr) = categoryLabel;
        detectionArr(fileItr) = estimatedCategoryLabel;
+       estimatedCategoryLabel = NaN;
     end
     warning(w);
-    
-    if ~isempty(strfind(datasetName, 'MNIST'))
-        categoryNames = cellfun(@(x) str2double(x), categoryNames);
-        customOrder = zeros(size(categoryNames,1),1);
-        customOrder(categoryNames+1) = 1:size(categoryNames,1);
-    else
-        customOrder = [];
-    end
     
     % Find number of processed samples.
     processedSamples = ~isnan(detectionArr);
@@ -50,10 +43,6 @@ function [ ] = EvaluateCategorization( datasetName )
     % Estimate performance, and find confusion matrix.
     accuracy = numel(find(detectionArr == gtArr)) / numberOfProcessedSamples;
     confMat = confusionmat(gtArr, detectionArr);
-    if ~isempty(customOrder)
-        confMat= confMat(customOrder, customOrder);
-    end
-    
     save([options.outputFolder '/perf.mat'], 'accuracy', 'confMat');
     display(['Accuracy: ' num2str(accuracy)]);
     display('Confusion matrix:');

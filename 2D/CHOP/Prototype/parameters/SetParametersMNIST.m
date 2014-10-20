@@ -12,7 +12,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersCommon( datasetName, options )
+function [ options ] = SetParametersMNIST( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -20,7 +20,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
@@ -32,7 +32,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 10;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -47,14 +47,14 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 7;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2);
+    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
     options.autoFilterThr = 0.3;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
-    options.autoFilterCount = 40;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 1000; % Number of random patches used 
+    options.autoFilterCount = 100;      % Number of auto-detected filters.
+    options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
@@ -111,7 +111,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                           % specific part pair is reduced
                                           % automatically to match this
                                           % number, if possible.
-    options.scaling = 0.6;            % Each successive layer is downsampled 
+    options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -133,7 +133,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                          % to be used in creation of the image
                                          % for every node in the vocabulary.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*5; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
     else
         options.receptiveFieldSize = options.gaborFilterSize*5;
     end                                  % Size (one side) of the receptive field at
@@ -141,7 +141,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -173,7 +173,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
                                   % inhibition) is performed.
-    options.favorParam = 5;      % Between 1:100, if it increases, category 
+    options.favorParam = 1;      % Between 1:100, if it increases, category 
                                  % nodes with peaks towards a single category 
                                  % will be favoured more, rather than those 
                                  % with relatively uniform distribution.
@@ -187,7 +187,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                            % 'size': size times frequency.
                                            % 'freq': only takes frequency of
                                            % a node into account.
-    options.subdue.isMDLExact = true;     % If true, exact mdl is calculated.
+    options.subdue.isMDLExact = false;     % If true, exact mdl is calculated.
                                            % Otherwise, approximate mdl is
                                            % calculated (faster).
     options.subdue.mdlNodeWeight = 8;      % Weight of a node in DL calculations 
@@ -201,13 +201,13 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 20;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 3000;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.1; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -219,7 +219,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 1000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 80000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

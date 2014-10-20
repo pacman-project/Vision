@@ -15,7 +15,7 @@
 function [ options ] = SetParameters( datasetName, isTraining )
     options.isTraining = isTraining;
     %% ========== DEBUG PARAMETER ==========
-    options.debug = 0;           % If debug = 1, additional output will be 
+    options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
                                  
     options.backgroundClass = 'Background'; % The string that identifies 
@@ -26,8 +26,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                  
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;
-    options.numberOfThreads = feature('NumCores') * 2 - 1;
-%    options.numberOfThreads = feature('NumCores'); % For my macbook pro
+%    options.numberOfThreads = feature('NumCores') * 2 - 1;
+    options.numberOfThreads = feature('NumCores'); % For my macbook pro
     
     %% ========== DATASET-SPECIFIC PROGRAM PARAMETERS ==========
     % Learn dataset path relative to this m file

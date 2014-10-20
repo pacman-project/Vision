@@ -15,7 +15,6 @@
 function [ ] = MarkCategoryLabels( datasetName )
     %#ok<*NODEF>
     options = SetParameters(datasetName, 'train');
-    favorParam = options.favorParam;
     % Read the vocabulary and the exported realizations. 
     load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
     load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx', 'poseArr');
@@ -48,13 +47,13 @@ function [ ] = MarkCategoryLabels( datasetName )
         % Process each node in the vocabulary.
         probArr = cell(numberOfParts,1);
         for partItr = 1:numel(vocabLevel)
-            if isempty(realArr{partItr})
-                assgnArr = (hist(realArr{partItr}, 1:numberOfCategories) / numel(realArr{partItr}));
+            if ~isempty(realArr{partItr})
+                assgnArr = single((hist(realArr{partItr}, 1:numberOfCategories) / numel(realArr{partItr})));
             else
-                assgnArr = zeros(1, numberOfCategories);
+                assgnArr = zeros(1, numberOfCategories, 'single');
             end
             assgnArr = assgnArr .* normConstants;
-            assgnArr = exp(assgnArr * favorParam);     % Favouring assgnArrs with peaks.
+            assgnArr(isnan(assgnArr)) = 0;
             assgnArr = assgnArr / sum(assgnArr);
             probArr{partItr} = assgnArr;
         end

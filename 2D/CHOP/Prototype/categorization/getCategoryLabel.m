@@ -14,8 +14,13 @@
 %> Updates
 %> Ver 1.0 on 04.07.2014
 function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr)
-    maxLevels = max(exportArr(:,4));
+%    maxLevels = max(exportArr(:,4));
+    maxLevels = 2;
     categoryLabel = -1;
+    numberOfCategories = numel(vocabulary{1}(1).categoryArr);
+    categoryList = 1:numberOfCategories;
+    categoryDecisionArr = zeros(1, numberOfCategories, 'single');
+    bestCategories = [];
     for levelItr = maxLevels:-1:1
         vocabLevel = vocabulary{levelItr};
         categoryArrs = cat(1, vocabLevel.categoryArr);
@@ -23,9 +28,19 @@ function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr)
            break; 
         end
         nodes = exportArr(exportArr(:,4) == levelItr,:);
-        categoryDecisionArr = sum(categoryArrs(nodes(:,1),:),1) / size(nodes,1);
-        [~, bestCategories] = find(categoryDecisionArr == max(categoryDecisionArr));
-        
+        categoryDecisionArr = categoryDecisionArr + sum(categoryArrs(nodes(:,1),:),1) / size(nodes,1);
+%        categoryDecisionArr = sum(categoryArrs(nodes(1,1),:),1);
+        % Mark previously considered best categories. We're selecting from
+        % them.
+        if ~isempty(bestCategories)
+            categoryDecisionArr(setdiff(categoryList, bestCategories)) = 0;
+        end
+        [~, newBestCategories] = find(categoryDecisionArr == max(categoryDecisionArr));
+        if ~isempty(bestCategories)
+            bestCategories = intersect(bestCategories, newBestCategories);
+        else
+            bestCategories = newBestCategories;
+        end
         if numel(bestCategories) == 1
             categoryLabel = bestCategories;
             break;
