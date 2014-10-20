@@ -8,30 +8,37 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.07.2014
-function [ ] = EvaluateCategorization( datasetName )
+function [ ] = EvaluateCategorization( datasetName, perfType )
     % Read vocabulary.
     options = SetParameters(datasetName, 'train');
     load([options.outputFolder '/vb.mat']);
     outputFolder = options.testInferenceFolder;
-    fileNames = fuf([outputFolder '/*.mat'], 1, 'detail');
-    gtArr = NaN(size(fileNames,1), 1);
-    detectionArr = NaN(size(fileNames,1), 1);
-    w = warning('off', 'all');
-    for fileItr = 1:numel(fileNames)
-       estimatedCategoryLabel = NaN;
-       load(fileNames{fileItr});
-       % If this file has not been processed yet, move on.
-       if isnan(estimatedCategoryLabel)
-           estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr);
-       end
-       if estimatedCategoryLabel ~= categoryLabel
-           1;
-       end
-       
-       gtArr(fileItr) = categoryLabel;
-       detectionArr(fileItr) = estimatedCategoryLabel;
+    if strcmp(perfType, 'test') 
+        fileNames = fuf([outputFolder '/*.mat'], 1, 'detail');
+        gtArr = NaN(size(fileNames,1), 1);
+        detectionArr = NaN(size(fileNames,1), 1);
+        w = warning('off', 'all');
+        for fileItr = 1:numel(fileNames)
+           estimatedCategoryLabel = NaN;
+           load(fileNames{fileItr});
+           % If this file has not been processed yet, move on.
+           if isnan(estimatedCategoryLabel)
+               estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr);
+           end
+           gtArr(fileItr) = categoryLabel;
+           detectionArr(fileItr) = estimatedCategoryLabel;
+        end
+        warning(w);
+    else
+        load([options.outputFolder '/export.mat']);
+        numberOfImages = max(exportArr(:,5));
+        gtArr = categoryArrIdx;
+        detectionArr = NaN(numberOfImages,1);
+        for imageItr = 1:numberOfImages
+            exportArrImg = exportArr(exportArr(:,5) == imageItr,:);
+            detectionArr(imageItr) = getCategoryLabel(vocabulary, exportArrImg);
+        end
     end
-    warning(w);
     
     if ~isempty(strfind(datasetName, 'MNIST'))
         categoryNames = cellfun(@(x) str2double(x), categoryNames);
