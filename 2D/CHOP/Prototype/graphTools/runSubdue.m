@@ -89,6 +89,8 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
         assignedEdges(nonemptyEdgeIdx), 'UniformOutput', false);
     allEdges(numel(graphLevel)) = AdjInfo();
     [allEdges.adjInfo] = deal(assignedEdges{:});
+    allEdgeNodePairs = cat(1,allEdges.adjInfo);
+    allEdgeNodePairs = allEdgeNodePairs(:,1:2);
     clear assignedEdges;
     
     % If no edges are present, time to return.
@@ -148,7 +150,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
                 end
 
                 %% Step 2.3: Evaluate childSubs, find their instances.
-                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, ...
+                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact);
 
                 %% Save childSubs
@@ -159,23 +161,25 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
         %% Add each children group in childGroupArr into extendedSubs.
         display('[SUBDUE] Merging all children and putting them into bestSubs if they match final criteria.');
         extendedSubs = [];
-        for childGroupItr = 1:numel(childSubArr)
-            %% Step 2.4: Add childSubs to extendedSubs and bestSubs.
-            childSubs = childSubArr{childGroupItr};
-            if ~isempty(childSubs)
-                extendedSubs = addToQueue(childSubs, extendedSubs, beam);
-                if numel(childSubs(1).edges) >= (options.subdue.minSize-1)
-                    % Here, a check ensures that the subs to put in bestSubs
-                    % are distinct. Simply, an instance of any sub in bestSubs
-                    % should not have the exact same node list (children) as
-                    % any other sub in the list.
-                    [~,sortedIdx]=sort([childSubs.mdlScore]);
-                    childSubs=childSubs(sortedIdx);
-
-                    % Add remaining child subs to best subs.
-                    bestSubs = addToQueue(childSubs, bestSubs, nsubs);    
-                end 
+        %% Step 2.4: Add childSubs to extendedSubs and bestSubs.
+        childSubArr = cat(2,childSubArr{:});
+        
+        % Remove duplicate nodes from the children subs.
+        if size(childSubArr(1).edges,1) > 1
+            childSubEdges = cell(1, numel(childSubArr));
+            for subItr = 1:numel(childSubArr)
+                childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
             end
+            subCenters = {childSubArr.centerId};
+            vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
+            [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
+            childSubArr = childSubArr(validChildrenIdx);
+        end
+        
+        % Add children to the both queues.
+        if ~isempty(childSubArr)
+            extendedSubs = addToQueue(childSubArr, extendedSubs, beam);
+            bestSubs = addToQueue(childSubArr, bestSubs, nsubs); 
         end
         clear childSubArr;
         
@@ -199,63 +203,66 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     
     %% Previous graph data is returned.
     prevGraphData.allEdges = allEdges;
+    prevGraphData.allEdgeNodePairs = allEdgeNodePairs;
     prevGraphData.allSigns = allSigns;
     prevGraphData.bestSubs = bestSubs;
     
     %% Allocate space for new graphLevel and vocabLevel.
-    numberOfInstances = 1;
+    numberOfInstances = 0;
     for bestSubItr = 1:numberOfBestSubs
         numberOfInstances = numberOfInstances + numel(bestSubs(bestSubItr).instances);
     end
     clear vocabLevel graphLevel
-    vocabLevel(numberOfBestSubs) = options.vocabNode;
-    graphLevel(numberOfInstances) = options.graphNode;
-    
-    %% Assign instances of each discovered substructure to graph node. 
-    % We store substructures in vocabLevel array.
-    instanceOffset = 1;
-    for bestSubItr = 1:numberOfBestSubs
-       % Assign label of sub.
-       vocabLevel(bestSubItr).label = int32(bestSubItr);
-       
-       % Assign mdl score.
-       vocabLevel(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore;
-       vocabLevel(bestSubItr).normMdlScore = bestSubs(bestSubItr).normMdlScore;
-       
-       % Assign sub edges (definition)
-       numberOfEdges = size(bestSubs(bestSubItr).edges,1);
-       if numberOfEdges > 0
-           subEdges = [ones(numberOfEdges,1), ...
-               (2:1:(numberOfEdges+1))', bestSubs(bestSubItr).edges(:,1), ones(numberOfEdges,1)];
-           vocabLevel(bestSubItr).adjInfo = subEdges;
-           vocabLevel(bestSubItr).children = [bestSubs(bestSubItr).centerId; bestSubs(bestSubItr).edges(:,2)]';
-       else
-           vocabLevel(bestSubItr).children = bestSubs(bestSubItr).centerId;
-       end
-       %% Assign instances to this sub.
-       instances = bestSubs(bestSubItr).instances;
-       numberOfInstances = numel(bestSubs(bestSubItr).instances);
-       labelIds = num2cell(repmat(int32(bestSubItr), numberOfInstances,1));
-       
-       %% Create required fields such as centerIdx, edges, children and sign array to assign to instances.
-       centerIdx = [instances.centerIdx];
-       centerIdxCellArr = num2cell(centerIdx');
-       numberOfInstances = numel(centerIdx);
-       instanceEndOffset = instanceOffset + numberOfInstances - 1;
-       edges = {allEdges(centerIdx).adjInfo}';
-       edgeIdx = {instances.edges}';
-       instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
-       instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
-       instanceSigns = num2cell(allSigns(centerIdx));
-       
-       % Assign fields to graphs.
-       [graphLevel(instanceOffset:instanceEndOffset).labelId] = deal(labelIds{:});
-       [graphLevel(instanceOffset:instanceEndOffset).children] = deal(instanceChildren{:});
-       [graphLevel(instanceOffset:instanceEndOffset).sign] = deal(instanceSigns{:});
-       instanceOffset = instanceOffset + numberOfInstances;
-       
-       % Clear variables.
-       clear centerIdx centerIdxCellArr edges instanceEdges instanceChildren instanceSigns labelIds edgeIdx
+    if numberOfInstances>0
+        vocabLevel(numberOfBestSubs) = options.vocabNode;
+        graphLevel(numberOfInstances) = options.graphNode;
+
+        %% Assign instances of each discovered substructure to graph node. 
+        % We store substructures in vocabLevel array.
+        instanceOffset = 1;
+        for bestSubItr = 1:numberOfBestSubs
+           % Assign label of sub.
+           vocabLevel(bestSubItr).label = int32(bestSubItr);
+
+           % Assign mdl score.
+           vocabLevel(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore;
+           vocabLevel(bestSubItr).normMdlScore = bestSubs(bestSubItr).normMdlScore;
+
+           % Assign sub edges (definition)
+           numberOfEdges = size(bestSubs(bestSubItr).edges,1);
+           if numberOfEdges > 0
+               subEdges = [ones(numberOfEdges,1), ...
+                   (2:1:(numberOfEdges+1))', bestSubs(bestSubItr).edges(:,1), ones(numberOfEdges,1)];
+               vocabLevel(bestSubItr).adjInfo = subEdges;
+               vocabLevel(bestSubItr).children = [bestSubs(bestSubItr).centerId; bestSubs(bestSubItr).edges(:,2)]';
+           else
+               vocabLevel(bestSubItr).children = bestSubs(bestSubItr).centerId;
+           end
+           %% Assign instances to this sub.
+           instances = bestSubs(bestSubItr).instances;
+           numberOfInstances = numel(bestSubs(bestSubItr).instances);
+           labelIds = num2cell(repmat(int32(bestSubItr), numberOfInstances,1));
+
+           %% Create required fields such as centerIdx, edges, children and sign array to assign to instances.
+           centerIdx = [instances.centerIdx];
+           centerIdxCellArr = num2cell(centerIdx');
+           numberOfInstances = numel(centerIdx);
+           instanceEndOffset = instanceOffset + numberOfInstances - 1;
+           edges = {allEdges(centerIdx).adjInfo}';
+           edgeIdx = {instances.edges}';
+           instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
+           instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
+           instanceSigns = num2cell(allSigns(centerIdx));
+
+           % Assign fields to graphs.
+           [graphLevel(instanceOffset:instanceEndOffset).labelId] = deal(labelIds{:});
+           [graphLevel(instanceOffset:instanceEndOffset).children] = deal(instanceChildren{:});
+           [graphLevel(instanceOffset:instanceEndOffset).sign] = deal(instanceSigns{:});
+           instanceOffset = instanceOffset + numberOfInstances;
+        end
+    else
+        vocabLevel = [];
+        graphLevel = [];
     end
     
    nextVocabLevel = vocabLevel;
@@ -417,6 +424,7 @@ end
 %> @param subs Sub list which will be evaluated.
 %> @param evalMetric Evaluation metric.
 %> @param allEdges List of all edges in the graph.
+%> @param allEdgeNodePairs List of all edge node pairs in the graph.
 %> @param allSigns List of all signs of the nodes in the graph.
 %> @param graphSize Size of the graph.
 %> @param overlap If true, overlapping instances are considered in
@@ -432,12 +440,12 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs] = evaluateSubs(subs, evalMetric, allEdges, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact)
+function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact)
     numberOfSubs = numel(subs);
     for subItr = 1:numberOfSubs
         % We compress the object graph using the children, and the
         % edges they are involved. 
-        subScore = getSubScore(subs(subItr), allEdges, evalMetric, ...
+        subScore = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
            allSigns, mdlNodeWeight, mdlEdgeWeight, ....
             overlap, isMDLExact);
 

@@ -15,7 +15,7 @@
 %> Ver 1.0 on 04.07.2014
 function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr)
 %    maxLevels = max(exportArr(:,4));
-    maxLevels = 3;
+    maxLevels = 2;
     categoryLabel = -1;
     numberOfCategories = numel(vocabulary{1}(1).categoryArr);
     categoryList = 1:numberOfCategories;

@@ -201,12 +201,13 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 3000;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1200;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
+    options.inferenceTimeLimit = 1;
     options.subdue.threshold = 0.1; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
@@ -219,7 +220,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 80000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
