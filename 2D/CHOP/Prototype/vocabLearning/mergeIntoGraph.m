@@ -26,12 +26,10 @@ function [graph] = mergeIntoGraph(graph, level, ~, levelItr, position)
     if ~position
         for newInstItr = 1:numel(level)
             children = level(newInstItr).children;
-            for childItr = 1:numel(children)
-               if ~ismember(newInstItr, previousLevel(children(childItr)).parents)
-                    previousLevel(children(childItr)).parents = ...
-                        [previousLevel(children(childItr)).parents, int32(newInstItr)];
-               end
-            end 
+            if ~ismember(newInstItr, previousLevel(children(1)).parents)
+                previousLevel(children(1)).parents = ...
+                    [previousLevel(children(1)).parents, int32(newInstItr)];
+            end
         end
     end
     

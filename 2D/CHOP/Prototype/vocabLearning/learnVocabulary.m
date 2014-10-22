@@ -83,14 +83,6 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         [vocabLevel, graphLevel, prevGraphData] = discoverSubs(vocabLevel, redundantVocabulary{levelItr-1}, graphLevel, ...
             options, false, levelItr-1);
         
-        %% Remove duplicate subs in order to speed up inhibition.
-        display('........ Removing duplicate nodes from the new object graph..');
-        if ~isempty(vocabLevel) && ~isempty(prevGraphData)
-            [vocabLevel, graphLevel, bestSubs] = removeDuplicateNodes(vocabLevel, graphLevel, prevGraphData.bestSubs); 
-            prevGraphData.bestSubs = bestSubs;
-            clear bestSubs;
-        end
-        
         %% If no new subs have been found, finish processing.
         if isempty(vocabLevel)
            % Write previous level's appearances to the output folder.

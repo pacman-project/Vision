@@ -13,6 +13,7 @@ function [ ] = EvaluateCategorization( datasetName, perfType )
     options = SetParameters(datasetName, 'train');
     load([options.outputFolder '/vb.mat']);
     outputFolder = options.testInferenceFolder;
+    vocabulary = vocabulary;
     if strcmp(perfType, 'test') 
         fileNames = fuf([outputFolder '/*.mat'], 1, 'detail');
         gtArr = NaN(size(fileNames,1), 1);
