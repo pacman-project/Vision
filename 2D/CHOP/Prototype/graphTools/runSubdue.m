@@ -163,21 +163,20 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
         extendedSubs = [];
         %% Step 2.4: Add childSubs to extendedSubs and bestSubs.
         childSubArr = cat(2,childSubArr{:});
-        
-        % Remove duplicate nodes from the children subs.
-        if size(childSubArr(1).edges,1) > 1
-            childSubEdges = cell(1, numel(childSubArr));
-            for subItr = 1:numel(childSubArr)
-                childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
-            end
-            subCenters = {childSubArr.centerId};
-            vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
-            [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
-            childSubArr = childSubArr(validChildrenIdx);
-        end
-        
         % Add children to the both queues.
         if ~isempty(childSubArr)
+            % Remove duplicate nodes from the children subs.
+            if size(childSubArr(1).edges,1) > 1
+                childSubEdges = cell(1, numel(childSubArr));
+                for subItr = 1:numel(childSubArr)
+                    childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
+                end
+                subCenters = {childSubArr.centerId};
+                vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
+                [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
+                childSubArr = childSubArr(validChildrenIdx);
+            end
+        
             extendedSubs = addToQueue(childSubArr, extendedSubs, beam);
             bestSubs = addToQueue(childSubArr, bestSubs, nsubs); 
         end
