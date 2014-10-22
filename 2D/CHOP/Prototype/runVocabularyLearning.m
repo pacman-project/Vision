@@ -78,8 +78,10 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             end
             
             % Save image into processed folder.
-            imwrite(img, [processedFolder '/' fileName '.png']);
-
+            if options.debug
+                imwrite(img, [processedFolder '/' fileName '.png']);
+            end
+            
             % Switch file names with those copied.
             trainingFileNames(fileItr) = {[processedFolder '/' fileName '.png']};
 
@@ -115,7 +117,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             allNodes(fileItr) = {nodes};
 
             % Save smoothed image.
-            imwrite(smoothedImg, [smoothedFolder '/' fileName '.png']);
+            if options.debug
+                imwrite(smoothedImg, [smoothedFolder '/' fileName '.png']);
+            end
         end
 
         % Reorder images based on their node count. This helps in
