@@ -32,7 +32,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 10;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 7;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -41,7 +41,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
+    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)-1;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
@@ -136,7 +136,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*5;
+        options.receptiveFieldSize = options.gaborFilterSize*3;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -221,7 +221,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
