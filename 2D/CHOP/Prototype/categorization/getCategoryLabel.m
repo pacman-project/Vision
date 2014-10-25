@@ -13,15 +13,14 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.07.2014
-function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr)
+function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr, minLevels, maxLevels)
 %    maxLevels = max(exportArr(:,4));
-    maxLevels = 2;
     categoryLabel = -1;
     numberOfCategories = numel(vocabulary{1}(1).categoryArr);
     categoryList = 1:numberOfCategories;
     categoryDecisionArr = zeros(1, numberOfCategories, 'single');
     bestCategories = [];
-    for levelItr = maxLevels:-1:1
+    for levelItr = maxLevels:-1:minLevels
         vocabLevel = vocabulary{levelItr};
         categoryArrs = cat(1, vocabLevel.categoryArr);
         if isempty(categoryArrs) 

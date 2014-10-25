@@ -83,6 +83,10 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         [vocabLevel, graphLevel, prevGraphData] = discoverSubs(vocabLevel, redundantVocabulary{levelItr-1}, graphLevel, ...
             options, false, levelItr-1);
         
+        % Open/close matlabpool to save memory.
+        matlabpool close;
+        matlabpool('open', options.numberOfThreads);
+        
         %% If no new subs have been found, finish processing.
         if isempty(vocabLevel)
            % Write previous level's appearances to the output folder.
@@ -102,10 +106,17 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', levelItr);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
+        %% Analyzing categorization properties of the nodes. 
+        load([options.currentFolder '/output/' options.datasetName '/export.mat']);
+%        AnalyzeVocabLevel(vocabLevel, graphLevel, categoryArrIdx, categoryNames, levelItr);
+        
         %% Combining parts to have more generic parts. 
         % Apologies for this section to be 'hidden' for now. It'll be unhid as soon as possible.
         display('........ Combining parts..');
         [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, distanceMatrices{levelItr-1}, graphSize, prevGraphData, options);
+        % Open/close matlabpool to save memory.
+        matlabpool close;
+        matlabpool('open', options.numberOfThreads);
         
          %% If the subs have all been eliminated, finish processing.
         if isempty(vocabLevel)
@@ -124,6 +135,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         % discarded. *Natural selection*
         display('........ Applying inhibition..');
         graphLevel=applyTestInhibition(graphLevel, options, levelItr);
+        % Open/close matlabpool to save memory.
+        matlabpool close;
+        matlabpool('open', options.numberOfThreads);
         
         %% Post-process graphLevel, vocabularyLevel and find redundantVocabularyLevel.
         % This part is again related to combining parts.
@@ -160,6 +174,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
                visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
            end
         end
+        % Open/close matlabpool to save memory.
+        matlabpool close;
+        matlabpool('open', options.numberOfThreads);
         
         %% Step 2.6: If no new edges found, kill program.
         newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));

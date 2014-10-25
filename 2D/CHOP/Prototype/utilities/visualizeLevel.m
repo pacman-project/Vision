@@ -25,6 +25,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
     filtBandCount = size(options.filters{1},3);
     numberOfThreads = options.numberOfThreads;
     childrenPerNode = options.vis.nodeReconstructionChildren;
+    instancePerNode = options.vis.instancePerNode;
+    instanceImgDim = round(sqrt(instancePerNode));
     filterType = options.filterType;
     if strcmp(filterType, 'auto') && levelId == 1
         isAutoFilter = true;
@@ -109,8 +111,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-%       for setItr = 1:numberOfThreadsUsed
-        for setItr = 1:numberOfThreadsUsed
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -119,139 +120,148 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
             for nodeItr = 1:numel(nodeSet)
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
                 labelId = vocabNodeSet(nodeItr);
-                nodeInstances = find(nodeLabelIds==labelId);
-                if numel(nodeInstances)>1
-                     nodeInstances = nodeInstances(1);   % CHANGE: Print only the first realization.
-                end
-                instancePos = mat2cell(centerPos(nodeInstances,:), ones(1, numel(nodeInstances)), 2);
-                instanceLeafNodeSets = leafNodeSets(nodeInstances,:);
-                instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
-                    repmat(y, numel(x), 1), instanceLeafNodeSets, instancePos, ...
-                    'UniformOutput', false);
-                children = leafNodeLabelIds(cat(2, instanceLeafNodeSets{:}));
-                childrenCoords= cat(1, instanceLeafNodePos{:});
-
-                % Trim children if total number is more than a threshold.
-                if numel(children) > childrenPerNode
-                   children = children(1:childrenPerNode,:);
-                   childrenCoords = childrenCoords(1:childrenPerNode,:);
-                end
-
-                %% Give weight the children to get a cleaner representation of the average image for the node.
-                % First, we learn base scores, which essentially describe
-                % how close each child is to each other. A child does
-                % contribute to itself.
-                distMatrix = squareform(pdist(childrenCoords));
-                maxDist = max(max(distMatrix));
-                scoreMatrix = exp(maxDist - distMatrix);
-                maxDist = max(max(scoreMatrix));
-                scoreMatrix = scoreMatrix / maxDist;
-
-                % Now, weight the scores by the similarity matrix entries.
-                weightMatrix = leafSimilarityMatrix(children, children);
-
-                % Multiply score matrix by weight matrix to get weighted
-                % scores (element by element).
-                scoreMatrix = scoreMatrix .* weightMatrix;
-                scoreMatrix = sum(scoreMatrix,1);
-                scoreMatrix = scoreMatrix / max(scoreMatrix);
-
-                %% At this point, we have the relative coordinates of all children. 
-                % All we will do is to create an empty mask large enough, and
-                % write the children's masks over it.
-
-                % Determine the upper, lower, left and right bounds (extremes)
-                % of the mask required to hold this composition's mask.
-                maskMinX = 0;
-                maskMinY = 0;
-                maskMaxX = 0;
-                maskMaxY = 0;
-                for childItr = 1:numel(children)
-                    minX = childrenCoords(childItr,1) - patchLowDims(children(childItr),1);
-                    maxX = childrenCoords(childItr,1) + patchHighDims(children(childItr),1);
-                    minY = childrenCoords(childItr,2) - patchLowDims(children(childItr),2);
-                    maxY = childrenCoords(childItr,2) + patchHighDims(children(childItr),2);
-                    if maskMinX > minX
-                        maskMinX = minX;
-                    end
-                    if maskMaxX < maxX
-                        maskMaxX = maxX;
-                    end
-                    if maskMinY > minY
-                        maskMinY = minY;
-                    end
-                    if maskMaxY < maxY
-                        maskMaxY = maxY;
-                    end
-                end
-                maskMinX = double(floor(maskMinX)-1);
-                maskMinY = double(floor(maskMinY)-1);
-                maskMaxX = double(ceil(maskMaxX)+1);
-                maskMaxY = double(ceil(maskMaxY)+1);
-                childrenCoords = int32(round(double(childrenCoords) - [ones(numel(children),1) * maskMinX, ones(numel(children),1) * maskMinY]));
-
-                %% Write the children's masks to the current mask.
-                currentMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
-                currentFilledMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
-                currentLabelMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
-                for childItr = 1:numel(children)
-                    % Write the child's mask to the output.
-                    currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                      (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:) = ...
-                      max(prevNodeMasks{children(childItr)}.*scoreMatrix(childItr), ...
-                          currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                              (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:));
-
-                    currentFilledMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                          (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))) = 1;
-
-                    % Mark label image for the child.
-                    currentLabelMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                         (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))) = ...
-                                 max(currentLabelMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                         (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))), ...
-                         double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
+                nodeInstances = find(nodeLabelIds==labelId)';
+                if numel(nodeInstances)>instancePerNode
+                     nodeInstances = nodeInstances(1:instancePerNode);   % Print a number of realizations for each node.
                 end
                 
-                %% Add background to currentMask, and normalize it.
-                % Learn the median color to use as background.
-                validValues = currentMask(currentFilledMask>0);
-                filledValue = median(validValues);
+                instanceImgs = cell(numel(nodeInstances),1);
+                for nodeInstanceItr = nodeInstances
+                    nodeInstance = nodeInstances(nodeInstanceItr);
+                    instancePos = mat2cell(centerPos(nodeInstance,:), ones(1, numel(nodeInstance)), 2);
+                    instanceLeafNodeSets = leafNodeSets(nodeInstance,:);
+                    instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
+                        repmat(y, numel(x), 1), instanceLeafNodeSets, instancePos, ...
+                        'UniformOutput', false);
+                    children = leafNodeLabelIds(cat(2, instanceLeafNodeSets{:}));
+                    childrenCoords= cat(1, instanceLeafNodePos{:});
 
-                % Assign filling value to each band.
-                for bandItr = 1:size(currentMask,3)
-                    bandMask = currentMask(:,:,bandItr);
-                    bandMask(~currentLabelMask) = filledValue;
-                    currentMask(:,:,bandItr) = bandMask;
+                    % Trim children if total number is more than a threshold.
+                    if numel(children) > childrenPerNode
+                       children = children(1:childrenPerNode,:);
+                       childrenCoords = childrenCoords(1:childrenPerNode,:);
+                    end
+
+                    %% Give weight the children to get a cleaner representation of the average image for the node.
+                    % First, we learn base scores, which essentially describe
+                    % how close each child is to each other. A child does
+                    % contribute to itself.
+                    distMatrix = squareform(pdist(childrenCoords));
+                    maxDist = max(max(distMatrix));
+                    scoreMatrix = exp(maxDist - distMatrix);
+                    maxDist = max(max(scoreMatrix));
+                    scoreMatrix = scoreMatrix / maxDist;
+
+                    % Now, weight the scores by the similarity matrix entries.
+                    weightMatrix = leafSimilarityMatrix(children, children);
+
+                    % Multiply score matrix by weight matrix to get weighted
+                    % scores (element by element).
+                    scoreMatrix = scoreMatrix .* weightMatrix;
+                    scoreMatrix = sum(scoreMatrix,1);
+                    scoreMatrix = scoreMatrix / max(scoreMatrix);
+
+                    %% At this point, we have the relative coordinates of all children. 
+                    % All we will do is to create an empty mask large enough, and
+                    % write the children's masks over it.
+
+                    % Determine the upper, lower, left and right bounds (extremes)
+                    % of the mask required to hold this composition's mask.
+                    maskMinX = 0;
+                    maskMinY = 0;
+                    maskMaxX = 0;
+                    maskMaxY = 0;
+                    for childItr = 1:numel(children)
+                        minX = childrenCoords(childItr,1) - patchLowDims(children(childItr),1);
+                        maxX = childrenCoords(childItr,1) + patchHighDims(children(childItr),1);
+                        minY = childrenCoords(childItr,2) - patchLowDims(children(childItr),2);
+                        maxY = childrenCoords(childItr,2) + patchHighDims(children(childItr),2);
+                        if maskMinX > minX
+                            maskMinX = minX;
+                        end
+                        if maskMaxX < maxX
+                            maskMaxX = maxX;
+                        end
+                        if maskMinY > minY
+                            maskMinY = minY;
+                        end
+                        if maskMaxY < maxY
+                            maskMaxY = maxY;
+                        end
+                    end
+                    maskMinX = double(floor(maskMinX)-1);
+                    maskMinY = double(floor(maskMinY)-1);
+                    maskMaxX = double(ceil(maskMaxX)+1);
+                    maskMaxY = double(ceil(maskMaxY)+1);
+                    childrenCoords = int32(round(double(childrenCoords) - [ones(numel(children),1) * maskMinX, ones(numel(children),1) * maskMinY]));
+
+                    %% Write the children's masks to the current mask.
+                    currentMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
+                    currentFilledMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
+                    currentLabelMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
+                    for childItr = 1:numel(children)
+                        % Write the child's mask to the output.
+                        currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
+                          (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:) = ...
+                          max(prevNodeMasks{children(childItr)}.*scoreMatrix(childItr), ...
+                              currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
+                                  (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:));
+
+                        currentFilledMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
+                              (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))) = 1;
+
+                        % Mark label image for the child.
+                        currentLabelMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
+                             (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))) = ...
+                                     max(currentLabelMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
+                             (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))), ...
+                             double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
+                    end
+
+                    %% Add background to currentMask, and normalize it.
+                    % Learn the median color to use as background.
+                    validValues = currentMask(currentFilledMask>0);
+                    filledValue = median(validValues);
+
+                    % Assign filling value to each band.
+                    for bandItr = 1:size(currentMask,3)
+                        bandMask = currentMask(:,:,bandItr);
+                        bandMask(~currentLabelMask) = filledValue;
+                        currentMask(:,:,bandItr) = bandMask;
+                    end
+
+                    % Normalize current mask to [0,1].
+                    currentMask = ( currentMask - min(validValues)) / (max(validValues) - min(validValues));
+
+                    %% If the size of the current mask can be divided by two, pad sides to prevent this.
+                    dimRems = rem(size(currentMask),2);
+                    if dimRems(1) == 0
+                        currentMask = [currentMask; ones(1, size(currentMask,2), size(currentMask,3)) * filledValue];
+                    end
+                    if dimRems(2) == 0
+                        currentMask = [currentMask, ones(size(currentMask, 1), 1, size(currentMask,3)) * filledValue];
+                    end
+
+                    % Assign currentMask to the label image.
+                    currentLabelImg = currentMask;
+
+                    %% Print the files to output folders.
+                    if nodeInstanceItr == 1
+                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                        imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
+                    end
+                    
+                    % Save all instances. We'll print them to another
+                    % image.
+                    instanceImgs(nodeInstanceItr) = {currentLabelImg};
                 end
-
-                % Normalize current mask to [0,1].
-                currentMask = ( currentMask - min(validValues)) / (max(validValues) - min(validValues));
-
-                %% If the size of the current mask can be divided by two, pad sides to prevent this.
-                dimRems = rem(size(currentMask),2);
-                if dimRems(1) == 0
-                    currentMask = [currentMask; ones(1, size(currentMask,2), size(currentMask,3)) * filledValue];
-                end
-                if dimRems(2) == 0
-                    currentMask = [currentMask, ones(size(currentMask, 1), 1, size(currentMask,3)) * filledValue];
-                end
-
-                % Assign currentMask to the label image.
-                currentLabelImg = currentMask;
-
-                %% Print the files to output folders.
-                if isRedundant
-                    realLabel = labelIds(nodeSet(nodeItr));
-                    optionOrder = nnz(labelIds(1:nodeSet(nodeItr))==realLabel);
-                    imwrite(currentMask, [reconstructionDir num2str(realLabel) '_option' num2str(optionOrder) '.png']);
-                else
-                    imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
-                    imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
-                end
+                % Combine instance images together, write them to a larger
+                % image and save it.
+                
             end
             warning(w);
         end
+        clear leafNodeSets centerPos nodeLabelIds leafNodeLabelIds leafNodePos prevNodeMasks avgPrevNodeMasks parallelNodeSets;
     end
     
     %% Combine all compositions and show them wit`hin a single image.
@@ -313,6 +323,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
             overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
                 colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
         end
+        
+        clear allCompMasks;
         
         % A final make up in order to separate masks from each other by 1s.
         overallImage(isnan(overallImage)) = 255;

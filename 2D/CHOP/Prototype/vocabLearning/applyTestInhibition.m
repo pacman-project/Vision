@@ -80,4 +80,5 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     end
     preservedNodes = [preservedNodes{:}]>0;
     graphLevel = graphLevel(:,preservedNodes);
+    clear imageGraphLevels imageAllNodeCoords preservedNodes;
 end

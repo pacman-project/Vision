@@ -38,15 +38,14 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
     % Right now, we only work with 2-dimensional spatial relations.
     %% Put each image's node set into a different bin.
     numberOfImages = max(imageIds);
-    imageGraphNodeSets = cell(numberOfImages, 1);
     imageNodeIdArr = cell(numberOfImages,1);
     imageNodeCoordArr = cell(numberOfImages,1);
     for imageItr = 1:max(imageIds)
        imageNodeIdx = imageIds == imageItr;
-       imageGraphNodeSets(imageItr) = {currentLevel(imageIds == imageItr)};
        imageNodeIdArr(imageItr) = {nodeIds(imageNodeIdx)};
        imageNodeCoordArr(imageItr) = {nodeCoords(imageNodeIdx,:)};
     end
+    clear currentLevel;
     
     %% Process each image separately (and in parallel)
     allSamples = cell(numberOfImages,1);
@@ -96,10 +95,13 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
         edgeCoords = node1Coords - node2Coords;
         allSamples(imageItr) = {[node1Labels, node2Labels, edgeCoords]};
     end
+    clear imageNodeIdArr imageNodeCoordArr;
+    
     
     %% We have all possible edges extracted from all images. 
     % Moving on to mode calculation.
     allEdges = cat(1, allSamples{:});
+    clear allSamples;
     
     % If no edges exist, return.
     if isempty(allEdges)
@@ -152,6 +154,7 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
            
         warning(w);
     end
+    clear uniqueEdgeSamples;
     modes = round(cat(1, modes{:}));
         
     %% Add reverse modes to the modes array.
@@ -164,5 +167,4 @@ function [modes] = learnModes(mainGraph, options, currentLevelId)
 
     % Sort array.
     modes = sortrows(modes);
-    
 end

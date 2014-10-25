@@ -3,6 +3,7 @@ function [vocabLevel, redundantVocabLevel, graphLevel, newDistanceMatrix] = post
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);
     IC = num2cell(int32(IC));
     [graphLevel.labelId] = deal(IC{:});
+    clear IC;
 
     % Get the redundant compositions to help inference process.
     if ~isempty(subClasses)
@@ -19,6 +20,7 @@ function [vocabLevel, redundantVocabLevel, graphLevel, newDistanceMatrix] = post
         remainingMatchArr(remainingComps) = 1:numel(remainingComps);
         VIC = num2cell(remainingMatchArr(subClasses(redundantComps)));
         [redundantVocabLevel.label] = deal(VIC{:});
+        clear VIC;
     end
     
     % Eliminate unused compositions from vocabulary.

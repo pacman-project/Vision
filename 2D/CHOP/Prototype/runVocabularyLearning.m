@@ -187,8 +187,15 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [modes, mainGraph] = extractEdges(mainGraph, options, 1, []);
         graphLevel = mainGraph{1};
         
+        % Transform category array into an index-based one (having numbers
+        % instead of category strings). The category string labels is saved
+        % in categoryNames.
+        [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); %#ok<NASGU>
+        categoryNames = categoryArr(categoryNames); %#ok<NASGU>
+        
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryNames', 'categoryArrIdx');
         [vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes, modes, ...
                                         options, trainingFileNames); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
@@ -196,18 +203,12 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % Export realizations into easily-readable arrays.
         exportArr = exportRealizations(mainGraph); %#ok<NASGU>
         
-        % Transform category array into an index-based one (having numbers
-        % instead of category strings). The category string labels is saved
-        % in categoryNames.
-        [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); %#ok<NASGU>
-        categoryNames = categoryArr(categoryNames); %#ok<NASGU>
-        
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'trainingFileNames', 'categoryNames');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'categoryArrIdx', 'poseArr'); 
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'categoryArrIdx', 'poseArr', '-append'); 
     end
     
     % Close thread pool if opened.

@@ -8,7 +8,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.07.2014
-function [ ] = EvaluateCategorization( datasetName, perfType )
+function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLevels )
     % Read vocabulary.
     options = SetParameters(datasetName, 'train');
     load([options.outputFolder '/vb.mat']);
@@ -24,7 +24,7 @@ function [ ] = EvaluateCategorization( datasetName, perfType )
            load(fileNames{fileItr});
            % If this file has not been processed yet, move on.
            if isnan(estimatedCategoryLabel)
-               estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr);
+               estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr, minLevels, maxLevels);
            end
            gtArr(fileItr) = categoryLabel;
            detectionArr(fileItr) = estimatedCategoryLabel;
@@ -37,7 +37,7 @@ function [ ] = EvaluateCategorization( datasetName, perfType )
         detectionArr = NaN(numberOfImages,1);
         for imageItr = 1:numberOfImages
             exportArrImg = exportArr(exportArr(:,5) == imageItr,:);
-            detectionArr(imageItr) = getCategoryLabel(vocabulary, exportArrImg);
+            detectionArr(imageItr) = getCategoryLabel(vocabulary, exportArrImg, minLevels, maxLevels);
         end
     end
     

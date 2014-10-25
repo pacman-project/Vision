@@ -44,12 +44,14 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         vocabDescriptions = {vocabLevel.children};
         vocabDescriptions = cellfun(@(x) mat2str(sort(x)), vocabDescriptions, 'UniformOutput', false);
         [~, IA, IC] = unique(vocabDescriptions, 'stable');
+        clear vocabDescriptions;
         vocabLevel = vocabLevel(1, IA);
 
         % Update graph level.
         labelIds = cat(1, graphLevel.labelId);
         IC = num2cell(int32(IC(labelIds)));
         [graphLevel.labelId] = deal(IC{:});
+        clear IC;
     else
         %% If current modes do exist, we can use the positioning information to eliminate parts further.
         currentModes = currentModes(:,3:4);
@@ -72,6 +74,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
             [~, vocabSortOrder{vocabNodeItr}] = sortrows(vocabNodePositions{vocabNodeItr});
         end
         vocabDescriptions = cellfun(@(x,y,z) [x(z)', y(z,:)], vocabNodeLabels, vocabNodePositions, vocabSortOrder, 'UniformOutput', false);
+        clear vocabNodeLabels vocabEdge svocabNeighborModes vocabNodePositions vocabSortOrder;
 
         %% For each sub, we will find matching ones with a cost.
         numberOfSubs = numel(vocabDescriptions);

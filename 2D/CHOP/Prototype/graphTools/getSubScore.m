@@ -35,6 +35,7 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
         centerIdx = cat(1, sub.instances.centerIdx);
         instanceEdges = {allEdges(centerIdx).adjInfo}';
         centerCellIdx = num2cell(centerIdx);
+        clear centerIdx;
         instanceUsedEdgeIdx = {sub.instances.edges}';
         numberOfNodes = numel(allEdges);
         numberOfInstances = numel(instanceSigns);   % Beware: Changes if overlap not allowed!
@@ -42,6 +43,7 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
         % Calculate outgoing nodes (destinations of edges where
         % instance's children are the source).
         instanceChildren = cellfun(@(x,y,z) sort([z; x(y,2)]), instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
+        clear instanceEdges instanceUsedEdgeIdx centerCellIdx;
 
         % If overlaps are not allowed, filter out overlapping instances.
         if ~overlap
@@ -127,11 +129,14 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                     instanceNeighbors = instChildrenIds(instanceNeighbors);
                     instanceNeighbors = unique(instanceNeighbors, 'rows');
                     subScore = subScore - round(sum(allConstants(instanceNeighbors(:,1))) * mdlEdgeWeight);
+                    clear instanceNeighbors instChildrenIds;
                 else
                     instanceOutNeighbors = cellfun(@(x) numel(setdiff(allEdgeNodePairs(ismember(allEdgeNodePairs(:,1), x),2), x)), instanceChildren);
                     instanceInNeighbors = cellfun(@(x) numel(setdiff(allEdgeNodePairs(ismember(allEdgeNodePairs(:,2), x),1), x)), instanceChildren);
                     subScore = subScore - round(sum((instanceOutNeighbors + instanceInNeighbors) .* instanceConstants) * mdlEdgeWeight);
+                    clear instanceOutNeighbors instanceInNeighbors;
                 end
+                clear allConstants;
             else
                 %% Approximate MDL calculation
                 % Adding a number of edges per each new instance, which is
@@ -141,6 +146,7 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                 % assumed to be the same, that's why the average degree is
                 % multiplied by two.
                 subScore = subScore - round(2 * avgDegree * sum(instanceConstants) * mdlEdgeWeight);
+                clear instanceConstants;
             end
 
             % 5) Finally, consider the own description length of the sub.

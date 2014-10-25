@@ -174,6 +174,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
                 subCenters = {childSubArr.centerId};
                 vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
                 [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
+                clear vocabDescriptors subCenters childSubEdges;
                 childSubArr = childSubArr(validChildrenIdx);
             end
         
@@ -186,6 +187,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
         if haltedParent == -1
             display('[SUBDUE] Swapping children with parents and going on..');
             parentSubs = extendedSubs;
+            clear extendedSubs;
         else
             break;
         end
@@ -250,22 +252,28 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
            edges = {allEdges(centerIdx).adjInfo}';
            edgeIdx = {instances.edges}';
            instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
+           clear edges edgeIdx;
            instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
+           clear centerIdxCellArr;
            instanceSigns = num2cell(allSigns(centerIdx));
 
            % Assign fields to graphs.
            [graphLevel(instanceOffset:instanceEndOffset).labelId] = deal(labelIds{:});
            [graphLevel(instanceOffset:instanceEndOffset).children] = deal(instanceChildren{:});
            [graphLevel(instanceOffset:instanceEndOffset).sign] = deal(instanceSigns{:});
+           clear labelIds instanceChildren instanceSigns centerIdx instances;
            instanceOffset = instanceOffset + numberOfInstances;
         end
     else
         vocabLevel = [];
         graphLevel = [];
     end
+   
     
+   clear allEdges allEdgeNodePairs allSigns bestSubs;
    nextVocabLevel = vocabLevel;
    nextGraphLevel = graphLevel;
+   clear vocabLevel graphLevel;
 end
 
 %> Name: getSingleNodeSubs
@@ -341,6 +349,7 @@ function [extendedSubs] = extendSub(sub, allEdges)
     % Get unused edges from sub's instances.
     allUsedEdgeIdx = {sub.instances.edges}';
     allUnusedEdges = cellfun(@(x,y) x(setdiff(1:size(x,1),y),:), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
+    clear allUsedEdgeIdx;
     
     % Record which edge belongs to which instance. 
     allEdgeInstanceIds = zeros(size(allUnusedEdges,1),1);
@@ -405,6 +414,7 @@ function [extendedSubs] = extendSub(sub, allEdges)
         newSub.instances = newInstances;
         extendedSubs(edgeTypeItr) = newSub;
     end
+    clear subAllEdges;
 end
 
 %> Name: evaluateSubs
@@ -485,4 +495,5 @@ function [queue] = addToQueue(subs, queue, maxSize)
     [~,sortedIdx]=sort([addedQueue.mdlScore], 'descend');
     sortedQueue=addedQueue(sortedIdx);
     queue = sortedQueue(1:maxSize);
+    clear sortedQueue addedQueue;
 end

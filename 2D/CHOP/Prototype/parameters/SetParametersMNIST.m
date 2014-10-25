@@ -132,6 +132,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.vis.nodeReconstructionChildren = 1000; % Max number of children
                                          % to be used in creation of the image
                                          % for every node in the vocabulary.
+    options.vis.instancePerNode = 9;     % Should be square of a natural number.
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
     else
@@ -141,7 +142,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -208,7 +209,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.inferenceTimeLimit = 1;
-    options.subdue.threshold = 0.2; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -220,7 +221,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

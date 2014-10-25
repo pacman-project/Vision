@@ -50,6 +50,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
         currentModesFirstNodes = currentModes(:,1);
         currentModesSecNodes = currentModes(:,2);
         currentModesPos = currentModes(:,3:4);
+        clear currentModes;
     else
         currentModesFirstNodes = [];
         currentModesSecNodes = [];
@@ -196,5 +197,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
        imageGraphNodeSets(imageItr) = {curGraphNodes};
     end
     currentLevel = [imageGraphNodeSets{:}];
+    clear imageGraphNodeSets;
     mainGraph(currentLevelId) = {currentLevel};
+    clear currentLevel;
 end

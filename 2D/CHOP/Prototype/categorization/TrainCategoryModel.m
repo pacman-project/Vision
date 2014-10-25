@@ -6,9 +6,13 @@ function [] = TrainCategoryModel(datasetName, minLevel, maxLevel)
     
         % Extract simple features from images.
         featureDims = cellfun(@(x) numel(x), vocabulary);
-        cumSums = cumsum(featureDims);
+        cumSums = int32(cumsum(featureDims));
         cumSums(2:end) = cumSums(1:(end-1));
         cumSums(1) = 0;
+        if numel(cumSums) < maxLevel
+            maxLevel = numel(cumSums);
+        end
+        cumSums(end+1) = sum(featureDims);
         featureDim = sum(featureDims);
         numberOfImages = max(exportArr(:,5));
         features = zeros(numberOfImages, featureDim);
@@ -21,10 +25,7 @@ function [] = TrainCategoryModel(datasetName, minLevel, maxLevel)
             features(imgItr,activations) = 1;
         end
 
-        features = features(:,(cumSums(minLevel)+1):end);
-        if maxLevel ~= numel(cumSums)
-           features = features(:,1:(cumSums(maxLevel+1))); 
-        end
+        features = features(:,(cumSums(minLevel)+1):(cumSums(maxLevel+1)));
         % Train a SVM model with cross-validation.
         cmd='-s 0 -t 0';
         learnedModel = svmtrain(categoryArrIdx, features, cmd);
