@@ -18,7 +18,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceMatrix, levelId, ~, numberOfPrevNodes, options, isRedundant)
+function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceMatrix, levelId, ~, numberOfPrevNodes, options, ~)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -26,7 +26,11 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
     numberOfThreads = options.numberOfThreads;
     childrenPerNode = options.vis.nodeReconstructionChildren;
     instancePerNode = options.vis.instancePerNode;
-    instanceImgDim = round(sqrt(instancePerNode));
+    if levelId == 1
+        instanceImgDim = 1; 
+    else
+        instanceImgDim = round(sqrt(instancePerNode));
+    end
     filterType = options.filterType;
     if strcmp(filterType, 'auto') && levelId == 1
         isAutoFilter = true;
@@ -56,20 +60,15 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
        mkdir(reconstructionDir);
     end
     
-    %% Read label ids if redundant level is processed.
-    if isRedundant
-        labelIds = [currentLevel.label];
-    else
-        labelIds = [];
-    end
-    
     %% In level 1, only print low level filters as first n nodes.
     if levelId == 1
         filterDir = [currentFolder '/filters/' options.filterType '/'];
         numberOfNodes = numel(currentLevel);
+        nodeImgs = cell(numberOfNodes,1);
         for nodeItr = 1:numberOfNodes
             mask = double(imread([filterDir 'filt' num2str(nodeItr) '.png']));
             mask = (mask - min(min(min(mask)))) / (max(max(max(mask))) - min(min(min(mask))));
+            nodeImgs{nodeItr} = {uint8(round(mask * 255))};
             imwrite(mask, [reconstructionDir num2str(nodeItr) '.png']);
         end
     else
@@ -111,10 +110,12 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-        for setItr = 1:numberOfThreadsUsed
+        setImgs = cell(numberOfThreadsUsed,1);
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
+            nodeImgs = cell(numel(nodeSet),1);
             
             % Go through each composition in current node set.
             for nodeItr = 1:numel(nodeSet)
@@ -253,86 +254,102 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                     
                     % Save all instances. We'll print them to another
                     % image.
+                    currentLabelImg = uint8(round(currentLabelImg * 255));
                     instanceImgs(nodeInstanceItr) = {currentLabelImg};
                 end
                 % Combine instance images together, write them to a larger
                 % image and save it.
-                
+                nodeImgs(nodeItr) = {instanceImgs};
             end
             warning(w);
+            setImgs(setItr) = {nodeImgs};
         end
+        nodeImgs = cat(1, setImgs{:});
         clear leafNodeSets centerPos nodeLabelIds leafNodeLabelIds leafNodePos prevNodeMasks avgPrevNodeMasks parallelNodeSets;
     end
     
-    %% Combine all compositions and show them wit`hin a single image.
-    if ~isRedundant
-        % Learn number of rows/columns.
-        colImgCount = ceil(sqrt(numberOfNodes));
-        rowImgCount = ceil(numberOfNodes/colImgCount);
+    %% Combine all compositions and show them within a single image.
+    % Learn number of rows/columns.
+    colImgCount = ceil(sqrt(numberOfNodes));
+    rowImgCount = ceil(numberOfNodes/colImgCount);
 
-        %% Show the set of compositions in a single image and save it.
-        % Read all masks into an array, and get the extreme dimensions.
-        allCompMasks = cell(numberOfNodes,1);
-        compMaskSize = [1, 1];
+    %% Show the set of compositions in a single image and save it.
+    % Read all masks into an array, and get the extreme dimensions.allCompMasks = cell(numberOfNodes,1);
+    compMaskSize = [1, 1];
+    for nodeItr = 1:numberOfNodes
+        instanceImgs = nodeImgs{nodeItr};
+        dim3 = size(instanceImgs{1},3);
+        instanceImgSizes = cellfun(@(x) size(x), instanceImgs, 'UniformOutput', false);
+        compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
+    end
+
+    % Make mask sizes uniform and write them all back.
+    if levelId>1
         for nodeItr = 1:numberOfNodes
-            % Read image and add it to the figure.
-            if levelId == 1
-                tempMask = imread([reconstructionDir num2str(nodeItr) '.png']);
-            else
-                tempMask = imread([reconstructionDir num2str(nodeItr) '_comp.png']);
-            end
-            compMaskSize = max(compMaskSize, [size(tempMask,1), size(tempMask,2)]);
-            allCompMasks(nodeItr) = {tempMask};
-        end
-        
-        % Make mask sizes uniform and write them all back.
-        if levelId>1
-            for nodeItr = 1:numberOfNodes
-                tempMask2 = imread([reconstructionDir num2str(nodeItr) '.png']);
+            instanceImgs = nodeImgs{nodeItr};
+            for instItr = 1:numel(instanceImgs)
+                tempMask2 = instanceImgs{instItr};
                 finalTempMask = zeros([compMaskSize, size(tempMask2,3)], 'uint8');
                 margins = (compMaskSize - [size(tempMask2,1), size(tempMask2,2)])/2;
                 finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
                     (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
-                imwrite(finalTempMask, [reconstructionDir num2str(nodeItr) '.png']);
+                % A make-up to fill in NaNs (empty points).
+                fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
+                finalTempMask(finalTempMask == 0) = fillInValue;
+                instanceImgs{instItr} = finalTempMask;
             end
+            nodeImgs{nodeItr} = instanceImgs;
         end
-        
-        % Using the maximum dimensions, transform each composition image to the
-        % same size. 
-        overallImage = NaN((rowImgCount)*(compMaskSize(1)+1)+1, colImgCount*(compMaskSize(2)+1)+1, size(tempMask,3));
-        finalMask = NaN([compMaskSize, size(tempMask,3)]);
-        for nodeItr = 1:numberOfNodes
-            compFinalMask = finalMask;
-            compRealMask = double(allCompMasks{nodeItr});
-            margins = (compMaskSize - [size(compRealMask,1), size(compRealMask,2)])/2;
-            compFinalMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
-                (floor(margins(2))+1):(end-ceil(margins(2))), :) = compRealMask;
+    end
+
+    % Using the maximum dimensions, transform each composition image to the
+    % same size. 
+    overallImage = NaN((rowImgCount)*(compMaskSize(1)+1)+1, colImgCount * (compMaskSize(2)+1)+1, dim3);
+    overallInstanceImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
+ %   overallInstanceRealImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
+    for nodeItr = 1:numberOfNodes
+        instanceImgs = nodeImgs{nodeItr};
+        for instItr = 1:numel(instanceImgs)
+            compFinalMask = instanceImgs{instItr};
 
             % If this feature is a dead one, reduce illumination by three.
             if isAutoFilter && ismember(nodeItr, deadFeatures)
-                compFinalMask = round(compFinalMask * 0.33);
+                compFinalMask = uint8(round(compFinalMask * 0.33));
             end
-            
-            % A make-up to fill in NaNs (empty points).
-            fillInValue = median(compFinalMask(~isnan(compFinalMask) & compFinalMask<255));
-            compFinalMask(isnan(compFinalMask)) = fillInValue;
-            
+
             % Add the composition's mask to the overall mask image.
             rowStart = 2 + floor((nodeItr-1)/colImgCount)*(compMaskSize(1)+1);
             colStart = 2 + rem(nodeItr-1, colImgCount) * (compMaskSize(2)+1);
-            overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
-                colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
+            rowStart2= 2 + floor((nodeItr-1)/colImgCount)*(compMaskSize(1)+1) *instanceImgDim ;
+            colStart2 = 2 + rem(nodeItr-1, colImgCount) * (compMaskSize(2)+1) * instanceImgDim;
+            if instItr == 1
+                overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
+                    colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
+            end
+            %We're writing sample instances to other images. Find where to
+            %write them and put them in their location.
+            rowInstStart = floor((instItr - 1)/instanceImgDim)*(compMaskSize(1)+1);
+            colInstStart = rem(instItr-1, instanceImgDim) * (compMaskSize(2)+1);
+            overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+compMaskSize(1)-1), ...
+                (colStart2+colInstStart):((colStart2+colInstStart)+compMaskSize(2)-1), :) = compFinalMask;
         end
-        
-        clear allCompMasks;
-        
-        % A final make up in order to separate masks from each other by 1s.
-        overallImage(isnan(overallImage)) = 255;
-        overallImage = uint8(overallImage);
-        
-        % Then, write the compositions the final image.
-        imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
     end
+
+    clear instanceImgs;
+
+    % A final make up in order to separate masks from each other by 1s.
+    whiteRowIdx = 1:(compMaskSize(1)+1) *instanceImgDim:size(overallInstanceImage,1);
+    whiteColIdx = 1:(compMaskSize(2)+1) *instanceImgDim:size(overallInstanceImage,2);
+    overallImage(isnan(overallImage)) = 255;
+    overallImage = uint8(overallImage);
+    overallInstanceImage(isnan(overallInstanceImage)) = 0;
+    overallInstanceImage(:, whiteColIdx, :) = 255;
+    overallInstanceImage(whiteRowIdx, :, :) = 255;
+    overallInstanceImage = uint8(overallInstanceImage);
+
+    % Then, write the compositions the final image.
+    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
+    imwrite(overallInstanceImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb_variations.png']);
 end
 
 
