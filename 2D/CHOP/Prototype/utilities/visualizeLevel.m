@@ -111,7 +111,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         %% Go through each node in the current layer, and reconstuct it to
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
-        parfor setItr = 1:numberOfThreadsUsed
+        for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -126,7 +126,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                 end
                 
                 instanceImgs = cell(numel(nodeInstances),1);
-                for nodeInstanceItr = nodeInstances
+                for nodeInstanceItr = 1:numel(nodeInstances)
                     nodeInstance = nodeInstances(nodeInstanceItr);
                     instancePos = mat2cell(centerPos(nodeInstance,:), ones(1, numel(nodeInstance)), 2);
                     instanceLeafNodeSets = leafNodeSets(nodeInstance,:);
