@@ -22,6 +22,6 @@ function [] = Experiment(datasetName, fileType)
     runVocabularyLearning(datasetName, fileType, '');
     MarkCategoryLabels(datasetName);
     runTestInference(datasetName, fileType);
-    EvaluateCategorization(datasetName, 'test');
+    EvaluateCategorization(datasetName, 'test', 1, 4);
     diary off;
 end

@@ -209,7 +209,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.inferenceTimeLimit = 1;
-    options.subdue.threshold = 0.075; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -221,7 +221,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
