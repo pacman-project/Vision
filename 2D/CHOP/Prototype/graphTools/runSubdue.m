@@ -46,7 +46,7 @@
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
-function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel, graphLevel, options)
+function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel, graphLevel, categoryArrIdx, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -68,6 +68,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     maxTime = options.subdue.maxTime;
     maxSize = options.subdue.maxSize;
     numberOfThreads = options.numberOfThreads;
+    isSupervised = options.subdue.supervised;
     
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
@@ -95,6 +96,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     
     % If no edges are present, time to return.
     allSigns = cat(1, graphLevel.sign);
+    categoryArrIdx = categoryArrIdx(cat(1, graphLevel.imageId));
     
     % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
     graphSize = numberOfAllEdges * mdlEdgeWeight + ...
@@ -102,7 +104,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
     display('[SUBDUE] Creating single node subs..');
-    singleNodeSubs = getSingleNodeSubs(allLabels, allSigns);
+    singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, categoryArrIdx);
     parentSubs = addToQueue(singleNodeSubs, parentSubs, options.subdue.beam);
     
     %% Step 2: Main loop
@@ -151,7 +153,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
 
                 %% Step 2.3: Evaluate childSubs, find their instances.
                 childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact);
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
 
                 %% Save childSubs
                 childSubArr(parentItr) = {childSubs};
@@ -284,6 +286,7 @@ end
 %> 
 %> @param allLabels Labels for every graph node.
 %> @param allSigns Signs for every graph node.
+%> @param categoryArrIdx Categories for every graph node.
 %>
 %> @retval singleNodeSubs Substructure list of single-node subs.
 %> 
@@ -292,7 +295,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns)
+function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, categoryArrIdx)
     numberOfSubs = max(allLabels);
     singleNodeSubs(numberOfSubs) = Substructure();
     validSubs = ones(numberOfSubs,1)>0;
@@ -313,8 +316,8 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns)
 
             % Fill in instance information. 
             instanceIdx = allLabels == subItr;
-            subNodeAssgnArr = num2cell([int32(find(instanceIdx)), allSigns(instanceIdx,1)]);
-            [singleNodeInstances.centerIdx, singleNodeInstances.sign] = deal(subNodeAssgnArr{:});
+            subNodeAssgnArr = num2cell([int32(find(instanceIdx)), allSigns(instanceIdx,1), categoryArrIdx(instanceIdx)]);
+            [singleNodeInstances.centerIdx, singleNodeInstances.sign, singleNodeInstances.category] = deal(subNodeAssgnArr{:});
 
             singleNodeSubs(subItr).instances = singleNodeInstances;
             clear singleNodeInstances;
@@ -449,12 +452,20 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact)
+function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised)
     numberOfSubs = numel(subs);
     for subItr = 1:numberOfSubs
+        % Find the weight of this node, by taking the max of the category distribution. 
+        if isSupervised
+            categoryArr = double([subs(subItr).instances.category]);
+            weight = nnz(categoryArr == mode(categoryArr)) / numel(categoryArr);
+        else
+            weight = 1;
+        end
+        
         % We compress the object graph using the children, and the
         % edges they are involved. 
-        subScore = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
+        subScore = weight * getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
            allSigns, mdlNodeWeight, mdlEdgeWeight, ....
             overlap, isMDLExact);
 

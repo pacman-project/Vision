@@ -159,7 +159,13 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
         for subItr = 1:numel(matchedSubs)
             if ~matchedSubs(subItr)
                 bestSubs(subItr).instances = cat(2, bestSubs(subClasses == subItr).instances);
-                newMDLScore = getSubScore(bestSubs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
+                if isSupervised
+                    categoryArr = double([bestSubs(subItr).instances.category]);
+                    weight = nnz(categoryArr == mode(categoryArr)) / numel(categoryArr);
+                else
+                    weight = 1;
+                end
+                newMDLScore = weight * getSubScore(bestSubs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
                 allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact);
                 vocabLevel(subItr).mdlScore = newMDLScore;
                 if strcmp(evalMetric, 'mdl')

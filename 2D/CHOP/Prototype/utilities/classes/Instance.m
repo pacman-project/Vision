@@ -24,6 +24,7 @@ classdef Instance
                     % v3, edgeId, isDirected; ...]
         sign; % Signature of the instance, which typically should set 
                    % to 1 unless the relevant image is of background class.
+        category@int32; % Category of the the image this instance belongs to.
     end
 end
 

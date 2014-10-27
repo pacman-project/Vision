@@ -335,7 +335,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         end
     end
 
-    clear instanceImgs;
+    clear instanceImgs nodeImgs setImgs;
 
     % A final make up in order to separate masks from each other by 1s.
     whiteRowIdx = 1:(compMaskSize(1)+1) *instanceImgDim:size(overallInstanceImage,1);
