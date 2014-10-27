@@ -232,7 +232,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                      % returned anyway in order to
                                      % introduce redundancy in the final
                                      % object graphs.
-     options.subdue.supervised = false; % If true, graph search is performed over
+     options.subdue.supervised = true; % If true, graph search is performed over
                                                                           % the whole data. If not, individual categories 
                                                                           % are searched, and the vocabularies are then 
                                                                           % combined.
