@@ -38,6 +38,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
     mdlEdgeWeight = options.subdue.mdlEdgeWeight;
     isMDLExact = options.subdue.isMDLExact;
     overlap = options.subdue.overlap;
+    isSupervised = options.subdue.supervised;
     
     %% If no current modes exist, we eliminate them based on their children only.
     if isempty(currentModes)
