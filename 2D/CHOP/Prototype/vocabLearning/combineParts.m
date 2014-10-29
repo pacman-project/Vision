@@ -110,7 +110,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
                     newEntries = zeros(1, numel(selectedParts));
                     for partItr2 = 1:numel(selectedParts)
                         description2 = vocabDescriptions{selectedParts(partItr2)}; %#ok<PFBNS>
-                        matchingCost = InexactMatch(description, description2, maxDistance, oldDistMat);
+                        matchingCost = InexactMatch(description, description2, maxDistance, oldDistMat, threshold);
                         if matchingCost <= threshold && selectedParts(partItr2) < partItr
                             matchedSubs(partItr) = 1;
                             subClasses(partItr) = selectedParts(partItr2);
@@ -316,6 +316,9 @@ end
 %>       nodeId2 posX posY; ...
 %> @param description2 Description of the second composition.
 %> @param maxDistance Maximum distance in the node positioning space.
+%> @param distanceMatrix NxN matrix with each entry containing the distance
+%> between two nodes, indexing that specific entry.
+%> @param distanceThr Used as a heuristic for the maximum distance allowed.
 %>
 %> @retval lowestCost Minimum matching score.
 %> 
@@ -323,7 +326,7 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 06.05.2014
-function [lowestCost] = InexactMatch(description, description2, maxDistance, distanceMatrix)
+function [lowestCost] = InexactMatch(description, description2, maxDistance, distanceMatrix, distanceThr)
     % Get both descriptions to the same size.
     firstDesSize = size(description,1);
     secDesSize = size(description2,1);
@@ -350,11 +353,22 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
             ~isinf(description2(:,1));
         
         % Estimate node-node distances.
+        stopFlag = false;
         for nodeItr = 1:numberOfChildren
             if validEdges(nodeItr)
                 currentCost = currentCost + distanceMatrix(comparedDescription(nodeItr,1), ...
                                             description2(nodeItr,1));
             end
+            % If the cost has gone too high, stop processing. A goto would
+            % be great tho.
+            if currentCost>distanceThr
+                stopFlag = true;
+                break;
+            end
+        end
+        % If the cost has gone too high, stop processing.
+        if stopFlag
+            break;
         end
 
         % Estimate edge-edge distances.
@@ -368,6 +382,10 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
             if lowestCost == 0
                 break;
             end
+        end
+        % If the cost is small enough, finish processing.
+        if lowestCost<=distanceThr
+            break;
         end
     end
 end
