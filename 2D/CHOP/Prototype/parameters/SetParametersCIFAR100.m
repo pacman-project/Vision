@@ -50,7 +50,7 @@ function [ options ] = SetParametersCIFAR100( datasetName, options )
     options.autoFilterSize = 8;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
-    options.autoFilterThr = 0.3;       % Min response threshold for convolved 
+    options.autoFilterThr = 0.25;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
@@ -61,7 +61,7 @@ function [ options ] = SetParametersCIFAR100( datasetName, options )
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    options.auto.deadFeatureStd = 0.3; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.05; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform

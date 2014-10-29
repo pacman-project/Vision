@@ -16,9 +16,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.isTraining = isTraining;
     %% ========== DEBUG PARAMETER ==========
     if ~isTraining
-        options.debug = 1;
+        options.debug = 0;
     else
-        options.debug = 0;           % If debug = 1, additional output will be 
+        options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end                             
     options.backgroundClass = 'Background'; % The string that identifies 

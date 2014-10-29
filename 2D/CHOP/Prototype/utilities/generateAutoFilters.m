@@ -26,7 +26,16 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         mkdir([options.currentFolder '/filters/auto']);
     end
     if ~exist([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'file')
-        fileNames = fuf([datasetFolder '*' fileType], 1, 'detail');
+        if strcmp(fileType, '.mat')
+            load([options.currentFolder '/input/' datasetName '/Auto.mat']);
+            numberOfImages = size(images,1);
+            imgDim = size(images,4);
+        else
+            fileNames = fuf([datasetFolder '*' fileType], 1, 'detail');
+            numberOfImages = numel(fileNames);
+            img = imread(fileNames{1});
+            imgDim = size(img,3);
+        end
         if ~exist([options.currentFolder '/filters/vis/' datasetName], 'dir')
             mkdir([options.currentFolder '/filters/vis/' datasetName]);
         end
@@ -36,13 +45,16 @@ function [ ] = generateAutoFilters( datasetName, fileType )
 
         %% Step 2: Collect random samples from each image to create our data samples.
         display('Collecting samples...');
-        samplesPerImg = ceil(options.autoFilterPatchCount / numel(fileNames));
-        img = imread(fileNames{1});
-        samples = zeros(samplesPerImg * numel(fileNames), (options.autoFilterSize^2) * size(img,3));
+        samplesPerImg = ceil(options.autoFilterPatchCount / numberOfImages);
+        samples = zeros(samplesPerImg * numberOfImages, (options.autoFilterSize^2) * imgDim);
 
         sampleOffset = 0;
-        for fileItr = 1:numel(fileNames)
-            img = imread(fileNames{fileItr});
+        for fileItr = 1:numberOfImages
+            if strcmp(fileType, '.mat')
+                img = squeeze(images(fileItr,:,:,:));
+            else
+                img = imread(fileNames{fileItr});
+            end
             
             %% Downsample the image if it will be processed that way.
             if max(size(img)) > options.maxImageDim
@@ -81,9 +93,9 @@ function [ ] = generateAutoFilters( datasetName, fileType )
 
         %% Cluster whitened samples to get cluster centers.
         display('Clustering features...');
-        opts = statset('MaxIter', 600);
+        opts = statset('MaxIter', 500, 'UseParallel', true);
         [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', ...
-            'EmptyAction', 'Singleton', 'Replicates', 1, 'Options', opts);
+            'EmptyAction', 'Singleton', 'Replicates', 5, 'Options', opts);
 
         %% Save cluster centers, along with other info.
         save([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');

@@ -279,7 +279,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
     for nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
         dim3 = size(instanceImgs{1},3);
-        instanceImgSizes = cellfun(@(x) size(x), instanceImgs, 'UniformOutput', false);
+        instanceImgSizes = cellfun(@(x) [size(x,1), size(x,2)], instanceImgs, 'UniformOutput', false);
         compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
     end
 
