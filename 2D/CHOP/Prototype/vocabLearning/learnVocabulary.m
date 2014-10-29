@@ -99,7 +99,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         
         %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
         previousLevel = mainGraph{levelItr-1};
-        graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes);
+        graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, options.numberOfThreads);
         
         %% Calculate statistics from this graph.
         display('........ Before we apply inhibition, estimating statistics..');

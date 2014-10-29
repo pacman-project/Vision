@@ -8,6 +8,7 @@
 %> @param previousLevel 
 %> @param graphLevel 
 %> @param leafNodes 
+%> @param numberOfThreads
 %>  
 %> @retval graphLevel 
 %>
@@ -15,18 +16,31 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.02.2014
-function graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes)
-    for newNodeItr = 1:numel(graphLevel)
-        graphLevel(newNodeItr).imageId = previousLevel(graphLevel(newNodeItr).children(1)).imageId;
-        numberOfChildren = numel(graphLevel(newNodeItr).children);
-        nodeLeafNodes = cell(numberOfChildren,1);
-        for childItr = 1:numel(graphLevel(newNodeItr).children)
-           nodeLeafNodes(childItr) = {previousLevel(graphLevel(newNodeItr).children(childItr)).leafNodes}; 
-        end
-        nodeLeafNodes = unique([nodeLeafNodes{:}]);
-        graphLevel(newNodeItr).position = int32(round(sum(cat(1, leafNodes(nodeLeafNodes,2:3))) / numel(nodeLeafNodes)));
-        graphLevel(newNodeItr).leafNodes = nodeLeafNodes;
+function graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, numberOfThreads)
+    numberOfNodes = numel(graphLevel);
+    nodeSets = repmat(ceil(numberOfNodes/numberOfThreads), numberOfThreads,1);
+    remNodes = rem(numberOfNodes, numberOfThreads);
+    if remNodes > 0
+        nodeSets(end) = nodeSets(end) + remNodes - numberOfThreads;
     end
+    nodeSets = mat2cell(graphLevel, 1, nodeSets);
+    parfor setItr = 1:numberOfThreads
+        subLevel = nodeSets{setItr};
+        for newNodeItr = 1:numel(subLevel)
+            nodeChildren = subLevel(newNodeItr).children;
+            numberOfChildren = numel(nodeChildren);
+            subLevel(newNodeItr).imageId = previousLevel(nodeChildren(1)).imageId;
+            nodeLeafNodes = cell(numberOfChildren,1);
+            for childItr = 1:numberOfChildren
+               nodeLeafNodes(childItr) = {previousLevel(nodeChildren(childItr)).leafNodes}; 
+            end
+            nodeLeafNodes = unique([nodeLeafNodes{:}]);
+            subLevel(newNodeItr).position = int32(round(sum(cat(1, leafNodes(nodeLeafNodes,2:3))) / numel(nodeLeafNodes)));
+            subLevel(newNodeItr).leafNodes = nodeLeafNodes;
+        end
+        nodeSets(setItr) = {subLevel};
+    end
+    graphLevel = cat(2, nodeSets{:});
 
     % Rearrange graph level so it is sorted by image id.
     arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];
