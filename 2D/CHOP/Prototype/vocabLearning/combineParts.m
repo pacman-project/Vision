@@ -285,7 +285,7 @@ function [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStart
 
             for partItr = 1:selectedPartCount
                 description2 = vocabDescriptions{selectedParts(partItr)};
-                matchingCost = InexactMatch(description, description2, maxDistance, distanceMatrix);
+                matchingCost = InexactMatch(description, description2, maxDistance, distanceMatrix, threshold);
                 if matchingCost <= threshold
                     matchFlag = true;
                     break;
