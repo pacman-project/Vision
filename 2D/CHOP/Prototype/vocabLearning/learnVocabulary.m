@@ -165,8 +165,8 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         
         %% Print vocabulary and graph level to output images (reconstruction).
         if ~isempty(modes)               
-             if ~isempty(newSimilarityMatrix)
-               imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
+             if ~isempty(newDistanceMatrix)
+               imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
             end
             display('........ Visualizing previous levels...');
  %           visualizeLevel( vocabLevel, graphLevel, leafNodes, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
