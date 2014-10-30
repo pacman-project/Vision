@@ -45,13 +45,13 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
     previousModes = [];
     
     %% Create distance matrices of the first level.
-    distanceMatrices(1) = {createDistanceMatrix(options.filters)};
+    distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType)};
     
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));
     
     %% Print first vocabulary and graph level.
-    visualizeLevel( vocabulary{1}, [], [], [], 1, previousModes, 0, options, 0);
+%    visualizeLevel( vocabulary{1}, [], [], [], 1, previousModes, 0, options, 0);
     if options.debug
         display('........ Visualizing the realizations in the first level...');
         visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
@@ -164,9 +164,13 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         graphLevel = mainGraph{levelItr};
         
         %% Print vocabulary and graph level to output images (reconstruction).
-        if ~isempty(modes)
-            display('........ Visualizing previous level...');
-            visualizeLevel( vocabLevel, graphLevel, leafNodes, distanceMatrices{1}, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
+        if ~isempty(modes)               
+             if ~isempty(newSimilarityMatrix)
+               imwrite(newSimilarityMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_sim.png']);
+            end
+            display('........ Visualizing previous levels...');
+ %           visualizeLevel( vocabLevel, graphLevel, leafNodes, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
+ %           visualizeLevel( redundantVocabLevel, leafNodes, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 1);
         end
         if options.debug
            display('........ Visualizing realizations on images...');

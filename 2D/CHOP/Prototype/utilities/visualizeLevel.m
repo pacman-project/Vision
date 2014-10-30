@@ -7,7 +7,6 @@
 %> @param currentLevel Current vocabulary level.
 %> @param graphLevel Current graph level.
 %> @param levelId Identifier of the current level.
-%> @param modes Modes of the previous level to reconstruct the features.
 %> @param numberOfPrevNodes Number of nodes in previous vocabulary level.
 %> @param options Program options.
 %> @param isRedundant If currentLevel consists of redundant compositions,
@@ -18,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceMatrix, levelId, ~, numberOfPrevNodes, options, ~)
+function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, previousModes, numberOfPrevNodes, options, isRedundant)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -39,9 +38,6 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
         isAutoFilter = false;
     end
     
-    % Turn leaf distance matrix into leaf similarity matrix.
-    leafSimilarityMatrix = (max(max(leafDistanceMatrix)) - leafDistanceMatrix) / max(max(leafDistanceMatrix));
-    
     %% Learn positions of leaf nodes.
     if levelId > 1
         leafNodeSets = {graphLevel.leafNodes}';
@@ -58,6 +54,13 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
     else
        rmdir(reconstructionDir, 's');
        mkdir(reconstructionDir);
+    end
+    
+    %% Read label ids if redundant level is processed.
+    if isRedundant
+        labelIds = [currentLevel.label];
+    else
+        labelIds = [];
     end
     
     %% In level 1, only print low level filters as first n nodes.
@@ -143,24 +146,24 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                        childrenCoords = childrenCoords(1:childrenPerNode,:);
                     end
 
-                    %% Give weight the children to get a cleaner representation of the average image for the node.
-                    % First, we learn base scores, which essentially describe
-                    % how close each child is to each other. A child does
-                    % contribute to itself.
-                    distMatrix = squareform(pdist(childrenCoords));
-                    maxDist = max(max(distMatrix));
-                    scoreMatrix = exp(maxDist - distMatrix);
-                    maxDist = max(max(scoreMatrix));
-                    scoreMatrix = scoreMatrix / maxDist;
-
-                    % Now, weight the scores by the similarity matrix entries.
-                    weightMatrix = leafSimilarityMatrix(children, children);
-
-                    % Multiply score matrix by weight matrix to get weighted
-                    % scores (element by element).
-                    scoreMatrix = scoreMatrix .* weightMatrix;
-                    scoreMatrix = sum(scoreMatrix,1);
-                    scoreMatrix = scoreMatrix / max(scoreMatrix);
+%                     %% Give weight the children to get a cleaner representation of the average image for the node.
+%                     % First, we learn base scores, which essentially describe
+%                     % how close each child is to each other. A child does
+%                     % contribute to itself.
+%                     distMatrix = squareform(pdist(childrenCoords));
+%                     maxDist = max(max(distMatrix));
+%                     scoreMatrix = exp(maxDist - distMatrix);
+%                     maxDist = max(max(scoreMatrix));
+%                     scoreMatrix = scoreMatrix / maxDist;
+% 
+%                     % Now, weight the scores by the similarity matrix entries.
+%                     weightMatrix = leafSimilarityMatrix(children, children);
+% 
+%                     % Multiply score matrix by weight matrix to get weighted
+%                     % scores (element by element).
+%                     scoreMatrix = scoreMatrix .* weightMatrix;
+%                     scoreMatrix = sum(scoreMatrix,1);
+%                     scoreMatrix = scoreMatrix / max(scoreMatrix);
 
                     %% At this point, we have the relative coordinates of all children. 
                     % All we will do is to create an empty mask large enough, and
@@ -204,7 +207,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, leafDistanceM
                         % Write the child's mask to the output.
                         currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                           (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:) = ...
-                          max(prevNodeMasks{children(childItr)}.*scoreMatrix(childItr), ...
+                          max(prevNodeMasks{children(childItr)}, ...
                               currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                                   (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:));
 

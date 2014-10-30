@@ -25,7 +25,6 @@ function [] = TrainCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgS
         allActivations(:,1) = allActivations(:,1)- cumSums(minLevel);
 %        allActivations = unique(allActivations(:,[1 3]), 'rows');
         poolSteps = imgSize / poolSize;
-
         for imgItr = 1:numberOfImages
             activations = allActivations(allActivations(:,5) == imgItr,:);
             for levelItr = minLevel:maxLevel

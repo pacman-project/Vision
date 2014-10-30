@@ -316,7 +316,11 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, categoryArrIdx)
 
             % Fill in instance information. 
             instanceIdx = allLabels == subItr;
-            subNodeAssgnArr = num2cell([int32(find(instanceIdx)), allSigns(instanceIdx,1), categoryArrIdx(instanceIdx)]);
+            categoryIdx = categoryArrIdx(instanceIdx);
+            if size(categoryIdx,1) == 1
+                categoryIdx = categoryIdx';
+            end
+            subNodeAssgnArr = num2cell([int32(find(instanceIdx)), allSigns(instanceIdx,1), categoryIdx]);
             [singleNodeInstances.centerIdx, singleNodeInstances.sign, singleNodeInstances.category] = deal(subNodeAssgnArr{:});
 
             singleNodeSubs(subItr).instances = singleNodeInstances;

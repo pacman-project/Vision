@@ -67,6 +67,20 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
+     options.distType = 'rank'; % If 'euc': Euclidean distance 
+                                                   % (normalized by number
+                                                   % of nonzero pixels)
+                                                   % will define the
+                                                   % distance between two
+                                                   % filters. If 'man',
+                                                   % manifold distance to
+                                                   % be used. If 'rank',
+                                                   % manifold distance is
+                                                   % used, however, the
+                                                   % features are ranked
+                                                   % with their distances,
+                                                   % and the ranking is the
+                                                   % new distance function.
     %% ========== GT Parameters ==========
     options.useGT = true;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
