@@ -9,7 +9,7 @@ function [finalImg] = printCloseFilters(distanceMatrix, levelItr, options)
         end
     end
     numberOfFilters = numel(filters);
-    shownFilters = 6;
+    shownFilters = min(size(distanceMatrix,1), 6);
     imgDim = size(filters{1});
     finalImg = zeros([numberOfFilters + 1 + numberOfFilters*imgDim(1), shownFilters + 1 + imgDim(1) * shownFilters, size(filters{1},3)], 'uint8');
     for filterItr = 1:numel(filters)
