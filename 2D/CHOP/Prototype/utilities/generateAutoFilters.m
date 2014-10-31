@@ -93,9 +93,9 @@ function [ ] = generateAutoFilters( datasetName, fileType )
 
         %% Cluster whitened samples to get cluster centers.
         display('Clustering features...');
-        opts = statset('MaxIter', 500, 'UseParallel', true);
+        opts = statset('MaxIter', 300);
         [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', ...
-            'EmptyAction', 'Singleton', 'Replicates', 5, 'Options', opts);
+            'EmptyAction', 'Singleton', 'Replicates', 1, 'Display', 'iter', 'Options', opts);
 
         %% Save cluster centers, along with other info.
         save([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');

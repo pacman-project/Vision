@@ -59,6 +59,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
     if options.debug
         display('........ Visualizing the realizations in the first level...');
         visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
+        visualizeCroppedImgs( vocabulary{1}, 1, options);
     end
     
     %% Calculate statistics from this graph.
@@ -179,7 +180,8 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         if options.debug
            display('........ Visualizing realizations on images...');
            if ~isempty(vocabLevel)
-               visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
+                visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
+                visualizeCroppedImgs( vocabLevel, levelItr, options);
            end
         end
         % Open/close matlabpool to save memory.

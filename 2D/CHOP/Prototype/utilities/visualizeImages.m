@@ -17,11 +17,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, ~, graphLevel, leafNodes, levelItr, options, type )
+function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, type )
     outputTempDir = [options.outputFolder '/reconstruction/' type];
     backgroundDir = [options.outputFolder '/reconstruction/' type '/' options.backgroundClass];
     processedFolder = options.processedFolder;   
     reconstructionType = options.reconstructionType;
+    instancePerNode = options.vis.instancePerNode;
     
     filter1 = options.filters{1};
     filtBandCount = size(filter1,3);
@@ -46,11 +47,20 @@ function [ ] = visualizeImages( fileList, ~, graphLevel, leafNodes, levelItr, op
     else
         vocabMaskList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*.png'], 1, 'detail');
         minusList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*_comp.png'], 1, 'detail');
+        minusList = [minusList; fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*_uni.png'], 1, 'detail')];
         numberOfMasks = numel(vocabMaskList) - numel(minusList);
         for fileItr = 1:numberOfMasks
             vocabMasks{fileItr} = imread([options.currentFolder '/debug/' options.datasetName ...
                 '/level' num2str(usedLevel) '/reconstruction/' num2str(fileItr) '.png']);
         end
+    end
+    
+    %% Create folders to put the cropped original images for each realization in.
+    numberOfNodes = numel(vocabLevel);
+    usedChildren = ones(numberOfNodes, 1) * instancePerNode;
+    croppedOrgFolder = [options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/cropped'];
+    if ~exist(croppedOrgFolder, 'dir')
+       mkdir(croppedOrgFolder); 
     end
     
     %% Put realizations into distinct sets so that each image has its own nodes in a set.
@@ -61,7 +71,7 @@ function [ ] = visualizeImages( fileList, ~, graphLevel, leafNodes, levelItr, op
     end
     
     %% Go over the list of images and run reconstruction.
-    parfor fileItr = 1:numel(fileList)
+    for fileItr = 1:numel(fileList)
         nodeOffset = numel(find(imageIds<fileItr));
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
@@ -158,6 +168,13 @@ function [ ] = visualizeImages( fileList, ~, graphLevel, leafNodes, levelItr, op
                  reconstructedPatch(avgNodeMask > 10) = nodes(nodeItr).labelId;
                  labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2))) = reconstructedPatch;
+                 
+                 %% Write original image's cropped area to a file.
+                 if usedChildren(nodes(nodeItr).labelId) > 0
+                      usedChildren(nodes(nodeItr).labelId) = usedChildren(nodes(nodeItr).labelId) - 1;
+                     imwrite(actualImg((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
+                         (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:), [croppedOrgFolder '/' num2str(nodes(nodeItr).labelId) '_' num2str(instancePerNode - usedChildren(nodes(nodeItr).labelId)) '.png']);
+                 end
             end
             
             %% Mark the center of each realization with its label id.

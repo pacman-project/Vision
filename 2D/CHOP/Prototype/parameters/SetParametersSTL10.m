@@ -148,15 +148,15 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                          % for every node in the vocabulary.
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*4; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*5;
+        options.receptiveFieldSize = options.gaborFilterSize*4;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -216,13 +216,13 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1200;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.025; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.04; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -233,8 +233,8 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                     % generalization ability of detected
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 2; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
