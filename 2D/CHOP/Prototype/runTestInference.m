@@ -69,7 +69,9 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
                 chosenCategoryArr = cellfun(@(x) strcmp(x, categoryStr), categoryNames);
                 categoryLabel = find(chosenCategoryArr, 1, 'first');
             end
-            categoryArrIdx(fileItr) = categoryLabel;
+            if ~isempty(categoryLabel)
+                categoryArrIdx(fileItr) = categoryLabel;
+            end
             save([options.testInferenceFolder '/' fileName '_test.mat'], 'categoryLabel');
         end
         

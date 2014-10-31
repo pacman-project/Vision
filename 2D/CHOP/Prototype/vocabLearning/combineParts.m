@@ -93,10 +93,20 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
 
         while partStartIdx < numberOfSubs
             % Select first numberOfThreads parts.
-            [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
-                matchedSubs, setSize, maxDistance, distanceMatrix, threshold);
-            distanceMatrixEntries = cell(numberOfSubs-partStartIdx,1);
+            [selectedParts, partEndIdx, ~, ~, ~] = GetBestParts(vocabDescriptions, partStartIdx, ...
+                matchedSubs, subClasses, setSize, maxDistance, distanceMatrix, threshold);
+%             if numel(selectedParts)>1
+%                 bestEntries = [bestEntries, zeros(size(bestEntries,1),1)]; %#ok<AGROW>
+%                 bestEntries = [zeros(1, size(bestEntries,2)); bestEntries]; %#ok<AGROW>
+%                 bestEntries = bestEntries + bestEntries';
+%                 newDistanceMatrix(selectedParts, selectedParts) = bestEntries;
+%             end
+            
+%             if partEndIdx>numberOfSubs
+%                 break;
+%             end
 
+            distanceMatrixEntries = cell(numberOfSubs,1);
             % If set is empty, we're at the end of the list.
             if isempty(selectedParts)
                 break;
@@ -106,7 +116,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
             parfor partItr = (partStartIdx+1):numberOfSubs
                 if ~matchedSubs(partItr)
                     description = vocabDescriptions{partItr};
-
                     newEntries = zeros(1, numel(selectedParts));
                     for partItr2 = 1:numel(selectedParts)
                         description2 = vocabDescriptions{selectedParts(partItr2)}; %#ok<PFBNS>
@@ -116,6 +125,9 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
                             subClasses(partItr) = selectedParts(partItr2);
                             break; 
                         else
+%                             if matchingCost~=newDistanceMatrix(selectedParts(partItr2), partItr)
+%                                 1
+%                             end
                             newEntries(partItr2) = matchingCost;
                         end
                     end
@@ -131,6 +143,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(
             newDistanceMatrix(nonemptyIdx, selectedParts) = allEntries;
             newDistanceMatrix(selectedParts, nonemptyIdx) = allEntries';
             partStartIdx = partEndIdx;
+            clear distanceMatrixEntries;
         end
 
         % Process the last sub, if it has not been assigned to any
@@ -262,23 +275,25 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 10.07.2014
-function [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStartIdx, ...
-                    matchedSubs, numberOfThreads, maxDistance, distanceMatrix, threshold)
+function [selectedParts, partEndIdx, newEntries, matchedSubs, subClasses] = GetBestParts(vocabDescriptions, partStartIdx, ...
+                    matchedSubs, subClasses, numberOfParts, maxDistance, distanceMatrix, threshold)
     selectedPartCount = 1;
-    partEndIdx = partStartIdx + 1;
-    selectedParts = zeros(numberOfThreads,1);
+    selectedParts = zeros(numberOfParts,1);
     firstPartIdx = find(~matchedSubs(partStartIdx:end), 1, 'first') + partStartIdx-1;
+    partEndIdx = firstPartIdx + 1;
     
     % If no unmatched part exists, exit.
     if isempty(firstPartIdx)
         selectedParts = [];
+        newEntries = [];
         partEndIdx = numel(vocabDescriptions) + 1;
         return;
     end
     selectedParts(1) = firstPartIdx;
+    newEntries = zeros(numberOfParts-1, numberOfParts-1);
     
     % Select a number of initial parts.
-    while selectedPartCount<numberOfThreads && partEndIdx <= numel(vocabDescriptions) 
+    while selectedPartCount<numberOfParts && partEndIdx <= numel(vocabDescriptions) 
         if ~matchedSubs(partEndIdx)
             matchFlag = false;
             description = vocabDescriptions{partEndIdx};
@@ -288,7 +303,11 @@ function [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStart
                 matchingCost = InexactMatch(description, description2, maxDistance, distanceMatrix, threshold);
                 if matchingCost <= threshold
                     matchFlag = true;
+                    matchedSubs(partEndIdx) = 1;
+                    subClasses(partEndIdx) = selectedParts(partItr);
                     break;
+                else
+                    newEntries(selectedPartCount, partItr) = matchingCost;
                 end
             end
 
@@ -300,6 +319,7 @@ function [selectedParts, partEndIdx] = GetBestParts(vocabDescriptions, partStart
         partEndIdx = partEndIdx+1;
     end
     selectedParts = selectedParts(selectedParts>0);
+    newEntries = newEntries(1:(numel(selectedParts)-1), 1:(numel(selectedParts)-1));
 end
 
 %> Name: InexactMatch
@@ -338,7 +358,7 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
     numberOfChildren = max(firstDesSize, secDesSize);
     
     % Get row permutations of the first description.
-    rows = perms(1:numberOfChildren);
+    rows = sortrows(perms(1:numberOfChildren));
     
     % Compare each permutation of rows of description to description2. The
     % one which gets the minimum cost is our match.
@@ -353,22 +373,11 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
             ~isinf(description2(:,1));
         
         % Estimate node-node distances.
-        stopFlag = false;
         for nodeItr = 1:numberOfChildren
             if validEdges(nodeItr)
                 currentCost = currentCost + distanceMatrix(comparedDescription(nodeItr,1), ...
                                             description2(nodeItr,1));
             end
-            % If the cost has gone too high, stop processing. A goto would
-            % be great tho.
-            if currentCost>distanceThr
-                stopFlag = true;
-                break;
-            end
-        end
-        % If the cost has gone too high, stop processing.
-        if stopFlag
-            break;
         end
 
         % Estimate edge-edge distances.
@@ -379,13 +388,9 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
         % Assign lowest cost if current cost is smaller.
         if currentCost<lowestCost
             lowestCost = currentCost;
-            if lowestCost == 0
+            if lowestCost <=distanceThr
                 break;
             end
-        end
-        % If the cost is small enough, finish processing.
-        if lowestCost<=distanceThr
-            break;
         end
     end
 end

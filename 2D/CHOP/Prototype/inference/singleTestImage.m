@@ -79,7 +79,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, redund
         
         %% Fill in children, position info and sort nodes based on image id.
         previousLevel = mainGraph{levelItr-1};
-        newLevel = fillBasicInfo(previousLevel, newLevel, leafNodes);
+        newLevel = fillBasicInfo(previousLevel, newLevel, leafNodes, options.numberOfThreads);
         
         %% Apply local inhibition.
         if options.fastInference

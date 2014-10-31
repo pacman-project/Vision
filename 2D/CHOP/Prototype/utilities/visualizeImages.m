@@ -36,13 +36,21 @@ function [ ] = visualizeImages( fileList, ~, graphLevel, leafNodes, levelItr, op
     end
     
     %% Read vocabulary masks.
-    vocabMaskList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*.png'], 1, 'detail');
-    minusList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*_comp.png'], 1, 'detail');
-    numberOfMasks = numel(vocabMaskList) - numel(minusList);
-    vocabMasks = cell(numberOfMasks,1);
-    for fileItr = 1:numberOfMasks
-        vocabMasks{fileItr} = imread([options.currentFolder '/debug/' options.datasetName ...
-            '/level' num2str(usedLevel) '/reconstruction/' num2str(fileItr) '.png']);
+    vocabMasks = cell(numel(options.filters),1);
+    if usedLevel == 1
+        for fileItr = 1:numel(options.filters)
+            filter1 = options.filters{fileItr};
+            filter1 = uint8(255*(filter1 - min(min(min(filter1))))/(max(max(max(filter1))) - min(min(min(filter1)))));
+            vocabMasks{fileItr} = filter1;
+        end
+    else
+        vocabMaskList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*.png'], 1, 'detail');
+        minusList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*_comp.png'], 1, 'detail');
+        numberOfMasks = numel(vocabMaskList) - numel(minusList);
+        for fileItr = 1:numberOfMasks
+            vocabMasks{fileItr} = imread([options.currentFolder '/debug/' options.datasetName ...
+                '/level' num2str(usedLevel) '/reconstruction/' num2str(fileItr) '.png']);
+        end
     end
     
     %% Put realizations into distinct sets so that each image has its own nodes in a set.
