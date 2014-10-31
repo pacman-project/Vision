@@ -51,7 +51,11 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
     numberOfImages = numel(unique([graphLevel.imageId]));
     
     %% Print first vocabulary and graph level.
-%    visualizeLevel( vocabulary{1}, [], [], [], 1, previousModes, 0, options, 0);
+    visualizeLevel( vocabulary{1}, [], [], 1, previousModes, 0, options, 0);
+     if ~isempty(distanceMatrices{1})
+       imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
+    end
+    printCloseFilters(distanceMatrices{1}, 1, options);
     if options.debug
         display('........ Visualizing the realizations in the first level...');
         visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
@@ -170,7 +174,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
             end
             display('........ Visualizing previous levels...');
             visualizeLevel( vocabLevel, graphLevel, leafNodes, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
- %           visualizeLevel( redundantVocabLevel, leafNodes, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 1);
+            printCloseFilters(newDistanceMatrix, levelItr, options);
         end
         if options.debug
            display('........ Visualizing realizations on images...');

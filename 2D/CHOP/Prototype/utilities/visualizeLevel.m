@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, previousModes, numberOfPrevNodes, options, isRedundant)
+function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, ~, numberOfPrevNodes, options, isRedundant)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -336,6 +336,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, prev
             overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+compMaskSize(1)-1), ...
                 (colStart2+colInstStart):((colStart2+colInstStart)+compMaskSize(2)-1), :) = compFinalMask;
         end
+        imwrite(instanceImgs{1}, [reconstructionDir num2str(nodeItr) '_uni.png']);
     end
 
     clear instanceImgs nodeImgs setImgs;

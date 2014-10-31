@@ -217,7 +217,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.inferenceTimeLimit = 1;
-    options.subdue.threshold = 0.1; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.03; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 

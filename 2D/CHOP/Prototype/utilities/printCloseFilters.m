@@ -1,4 +1,13 @@
-function [finalImg] = printCloseFilters(filters, distanceMatrix)
+function [finalImg] = printCloseFilters(distanceMatrix, levelItr, options)
+    if levelItr == 1
+        filters = options.filters;
+    else
+        filters = cell(size(distanceMatrix,1),1);
+        for filterItr = 1:numel(filters)
+            datasetName = options.datasetName;
+            filters{filterItr} = imread([options.currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/reconstruction/' num2str(filterItr) '_uni.png']);
+        end
+    end
     numberOfFilters = numel(filters);
     shownFilters = 6;
     imgDim = size(filters{1});
@@ -11,8 +20,10 @@ function [finalImg] = printCloseFilters(filters, distanceMatrix)
             startX = 2 + (filterItr-1) * (imgDim(1)+1);
             startY = 2 + (shownItr-1) * (imgDim(1)+1);
             filter1 = filters{rankings(shownItr)};
+            filter1 = double(filter1);
             filter1 = uint8(255 * (filter1 - min(min(min(filter1)))) / (max(max(max(filter1))) - min(min(min(filter1)))));
             finalImg(startX:(startX+imgDim(1)-1), startY:(startY+imgDim(1)-1), :) = filter1;
         end
     end
+    imwrite(finalImg, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_neighbors.png']);
 end
