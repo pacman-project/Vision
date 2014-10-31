@@ -50,10 +50,10 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     end
     
     compMaskSize = [1, 1];
+    dim3 = size(instanceImgs{1},3);
     for nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
         if ~isempty(instanceImgs)
-            dim3 = size(instanceImgs{1},3);
             instanceImgSizes = cellfun(@(x) [size(x,1), size(x,2)], instanceImgs, 'UniformOutput', false);
             compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
         end

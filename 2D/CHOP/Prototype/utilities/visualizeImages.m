@@ -58,7 +58,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     %% Create folders to put the cropped original images for each realization in.
     numberOfNodes = numel(vocabLevel);
     usedChildren = ones(numberOfNodes, 1) * instancePerNode;
-    croppedOrgFolder = [options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/cropped'];
+    croppedOrgFolder = [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '/cropped'];
     if ~exist(croppedOrgFolder, 'dir')
        mkdir(croppedOrgFolder); 
     end
@@ -133,6 +133,10 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             
             %% Process each reconstructed node, and write them to a mask if necessary.
             reconstructedNodes = nodeReconInfo(reconstructedNodes,:);
+            minX = Inf;
+            maxX = -1;
+            minY = Inf;
+            maxY = -1;
             for reconNodeItr = 1:size(reconstructedNodes,1)
                 % Read the mask here, and crop it if necessary.
                 nodeMask = vocabMasks{reconstructedNodes(reconNodeItr,1)}; %#ok<PFBNS>
@@ -153,6 +157,18 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                 end
                 
                 %% Write to reconstruction mask.
+                 if minX > (position(1)-halfSize(1))
+                     minX = (position(1)-halfSize(1));
+                 end
+                 if maxX > (position(1)+otherHalfSize(1))
+                     maxX = (position(1)+otherHalfSize(1));
+                 end
+                 if minY > (position(2)-halfSize(2))
+                     minY = (position(2)-halfSize(2));
+                 end
+                 if maxY > (position(2)+otherHalfSize(2))
+                     maxY = (position(2)+otherHalfSize(2));
+                 end
                  writtenMask = nodeMask;
                  reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) = ... 
@@ -171,7 +187,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                  
                  %% Write original image's cropped area to a file.
                  if usedChildren(nodes(nodeItr).labelId) > 0
-                      usedChildren(nodes(nodeItr).labelId) = usedChildren(nodes(nodeItr).labelId) - 1;
+                     usedChildren(nodes(nodeItr).labelId) = usedChildren(nodes(nodeItr).labelId) - 1;
                      imwrite(actualImg((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                          (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:), [croppedOrgFolder '/' num2str(nodes(nodeItr).labelId) '_' num2str(instancePerNode - usedChildren(nodes(nodeItr).labelId)) '.png']);
                  end

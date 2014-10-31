@@ -22,7 +22,7 @@ function [finalImg] = printCloseFilters(distanceMatrix, levelItr, options)
             filter1 = filters{rankings(shownItr)};
             filter1 = double(filter1);
             filter1 = uint8(255 * (filter1 - min(min(min(filter1)))) / (max(max(max(filter1))) - min(min(min(filter1)))));
-            finalImg(startX:(startX+imgDim(1)-1), startY:(startY+imgDim(1)-1), :) = filter1;
+            finalImg(startX:(startX+imgDim(1)-1), startY:(startY+imgDim(2)-1), :) = filter1;
         end
     end
     imwrite(finalImg, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_neighbors.png']);
