@@ -40,7 +40,8 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
         for instItr = 1:instancePerNode
             filePath = [croppedDir '/' num2str(vocabItr) '_' num2str(instItr) '.png'];
             if exist([croppedDir '/' num2str(vocabItr) '_' num2str(instItr) '.png'], 'file')
-                instanceImgs(instItr) = {imread(filePath)};
+                img = imread(filePath);
+                instanceImgs(instItr) = {img};
             else
                 break;
             end
@@ -50,7 +51,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     end
     
     compMaskSize = [1, 1];
-    dim3 = size(instanceImgs{1},3);
+    dim3 = size(img,3);
     for nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
         if ~isempty(instanceImgs)
