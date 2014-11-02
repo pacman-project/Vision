@@ -98,9 +98,10 @@ function [ ] = generateAutoFilters( datasetName, fileType )
             'EmptyAction', 'Singleton', 'Replicates', 1, 'Display', 'iter', 'Options', opts);
 
         %% Save cluster centers, along with other info.
-        save([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');
+        save([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'mu', 'invMat', 'whMat');
+%        save([options.currentFolder '/filters/vis/' datasetName '/Xwh.mat'], 'Xwh');
     else
-        load([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'Xwh', 'mu', 'invMat', 'whMat');
+        load([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'mu', 'invMat', 'whMat');
     end
     numberOfFilters = size(C,1);
  
@@ -109,7 +110,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
     visX = ceil(sqrt(numberOfFilters));
     visY = ceil(numberOfFilters/visX);
     imageSize = [visX * options.autoFilterSize + (visX-1), ...
-        visY * options.autoFilterSize + (visY-1), round(size(Xwh,2)/(options.autoFilterSize^2))];
+        visY * options.autoFilterSize + (visY-1), round(size(C,2)/(options.autoFilterSize^2))];
     finalImage = zeros(imageSize);
     filterItr = 1;
     visC = C;
