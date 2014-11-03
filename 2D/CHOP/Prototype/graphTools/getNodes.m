@@ -33,6 +33,7 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
             img(:,:,bandItr) = imfilter(img(:,:,bandItr), myfilter, 'replicate', 'same', 'conv');
             img(:,:,bandItr)=medfilt2(img(:,:,bandItr), [3,3]);
         end
+        deadFeatures = [];
     elseif strcmp(options.filterType, 'auto')
         stride = options.auto.stride;
         whMat = options.auto.whMat;
@@ -237,4 +238,5 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
        [centerX, centerY] = ind2sub(size(responseImg), finalNodeIdx(nodeItr));
        nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY])};
     end
+    nodes = nodes(cellfun(@(x) ~isempty(x), nodes(:,1)),:);
 end

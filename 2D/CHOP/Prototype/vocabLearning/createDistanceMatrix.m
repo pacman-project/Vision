@@ -12,7 +12,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 01.09.2014
-function [ distMat ] = createDistanceMatrix( filters, distType )
+function [ distMat ] = createDistanceMatrix( filters, distType, deadFeatures )
     cogFilters = cell(numel(filters),1);
     numberOfFilters = numel(filters);
     distMat = zeros(numel(filters));
@@ -72,7 +72,9 @@ function [ distMat ] = createDistanceMatrix( filters, distType )
         end
     end
     newDistMat = newDistMat - 2;
-    distMat = newDistMat/max(max(newDistMat));
+    validFeatures = setdiff(1:size(newDistMat), deadFeatures);
+    distMat = newDistMat/max(max(newDistMat(validFeatures, validFeatures)));
+    distMat(distMat > 1) = 1;
 end
 
 function distance = findDistance(filter1, filter2, distType)

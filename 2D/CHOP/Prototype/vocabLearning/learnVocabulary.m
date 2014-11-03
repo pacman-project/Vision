@@ -45,7 +45,7 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
     previousModes = [];
     
     %% Create distance matrices of the first level.
-    distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType)};
+    distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType, options.auto.deadFeatures)};
     
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));
