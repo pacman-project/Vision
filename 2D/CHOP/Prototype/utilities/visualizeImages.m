@@ -191,7 +191,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2))) = reconstructedPatch;
             end
             %% Write original image's cropped area to a file.
-            if usedChildren(nodes(nodeItr).labelId) > 0
+            if usedChildren(nodes(nodeItr).labelId) > 0 && strcmp(type, 'train')
                 usedChildren(nodes(nodeItr).labelId) = usedChildren(nodes(nodeItr).labelId) - 1;
                 imwrite(actualImg(minX:maxX, ...
                     minY:maxY, :), [croppedOrgFolder '/' num2str(nodes(nodeItr).labelId) '_' num2str(instancePerNode - usedChildren(nodes(nodeItr).labelId)) '.png']);
@@ -201,53 +201,54 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             labeledReconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
                 (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1)) = nodes(nodeItr).labelId;
         end
-        %% TODO: Uncomment visualization of images.
-%         %% Write the reconstructed mask to the output.
-%         % Add some random colors to make each composition look different, 
-%         % and overlay the gabors with the original image.
-%         rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k');
-%         %% Write the original image to a mask.
-%         if size(reconstructedMask,3)>1
-%             assignedBands = 1:size(reconstructedMask,3);
-%         else
-%             assignedBands = ones(size(rgbImg,3),1);
-%         end
-%         for bandItr = 1:size(rgbImg,3)
-%             rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask(:,:,assignedBands(bandItr)))/255)) + ...
-%             actualImg(:,:,bandItr) .* uint8(reconstructedMask(:,:,assignedBands(bandItr))==0);
-%         end 
-% 
-%         %% Add edges to the image for visualization.
-%         edgeImg = zeros(sizeOfImage);
-%         edgeRgbImg = rgbImg;
-%         for nodeItr = 1:numel(nodes)
-%             edgeImg((nodes(nodeItr).position(1)-2):(nodes(nodeItr).position(1)+2), ...
-%                 (nodes(nodeItr).position(2)-2):(nodes(nodeItr).position(2)+2)) = nodes(nodeItr).labelId;
-%             edges = nodes(nodeItr).adjInfo;
-%             if isempty(edges)
-%                continue;
-%             end
-%             edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
-%             if ~isempty(edges)
-%                 for edgeItr = 1:size(edges,1)
-%                    edgeIdx = drawline(double(nodes(edges(edgeItr,1)).position), double(nodes(edges(edgeItr,2)).position), sizeOfImage);
-%                    edgeImg(edgeIdx) = edges(edgeItr,3);
-%                 end
-%             end
-%         end
-%         edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
-%         edgeRgbImg = max(edgeRgbImg, edgeImg);
-% 
-%         if levelItr>1
-%             imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
-%             imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
-%             imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
-%             imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType '.png']);
-%         else
-%             imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
-%             imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
-%             imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType  '.png']);
-%             imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
-%         end
+        if strcmp(type, 'test')
+            %% Write the reconstructed mask to the output.
+            % Add some random colors to make each composition look different, 
+            % and overlay the gabors with the original image.
+            rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k');
+            %% Write the original image to a mask.
+            if size(reconstructedMask,3)>1
+                assignedBands = 1:size(reconstructedMask,3);
+            else
+                assignedBands = ones(size(rgbImg,3),1);
+            end
+            for bandItr = 1:size(rgbImg,3)
+                rgbImg(:,:,bandItr) = uint8(double(rgbImg(:,:,bandItr)) .* (double(reconstructedMask(:,:,assignedBands(bandItr)))/255)) + ...
+                actualImg(:,:,bandItr) .* uint8(reconstructedMask(:,:,assignedBands(bandItr))==0);
+            end 
+
+            %% Add edges to the image for visualization.
+            edgeImg = zeros(sizeOfImage);
+            edgeRgbImg = rgbImg;
+            for nodeItr = 1:numel(nodes)
+                edgeImg((nodes(nodeItr).position(1)-2):(nodes(nodeItr).position(1)+2), ...
+                    (nodes(nodeItr).position(2)-2):(nodes(nodeItr).position(2)+2)) = nodes(nodeItr).labelId;
+                edges = nodes(nodeItr).adjInfo;
+                if isempty(edges)
+                   continue;
+                end
+                edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
+                if ~isempty(edges)
+                    for edgeItr = 1:size(edges,1)
+                       edgeIdx = drawline(double(nodes(edges(edgeItr,1)).position), double(nodes(edges(edgeItr,2)).position), sizeOfImage);
+                       edgeImg(edgeIdx) = edges(edgeItr,3);
+                    end
+                end
+            end
+            edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
+            edgeRgbImg = max(edgeRgbImg, edgeImg);
+
+            if levelItr>1
+                imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
+                imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
+                imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
+                imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType '.png']);
+            else
+                imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
+                imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
+                imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType  '.png']);
+                imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
+            end
+        end
     end
 end

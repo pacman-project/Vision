@@ -52,15 +52,15 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
     
     %% Print first vocabulary and graph level.
     visualizeLevel( vocabulary{1}, [], [], 1, previousModes, 0, options, 0);
-     if ~isempty(distanceMatrices{1})
+    if ~isempty(distanceMatrices{1})
        imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
     end
-    printCloseFilters(distanceMatrices{1}, 1, options);
     if options.debug
         display('........ Visualizing the realizations in the first level...');
         visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
         visualizeCroppedImgs( vocabulary{1}, 1, options);
     end
+    printCloseFilters(distanceMatrices{1}, 1, options);
     
     %% Calculate statistics from this graph.
     display('........ Estimating statistics for level 1..');
@@ -175,7 +175,6 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
             end
             display('........ Visualizing previous levels...');
             visualizeLevel( vocabLevel, graphLevel, leafNodes, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
-            printCloseFilters(newDistanceMatrix, levelItr, options);
         end
         if options.debug
            display('........ Visualizing realizations on images...');
@@ -183,6 +182,9 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
                 visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
                 visualizeCroppedImgs( vocabLevel, levelItr, options);
            end
+        end
+        if ~isempty(modes)
+            printCloseFilters(newDistanceMatrix, levelItr, options); 
         end
         % Open/close matlabpool to save memory.
         matlabpool close;
