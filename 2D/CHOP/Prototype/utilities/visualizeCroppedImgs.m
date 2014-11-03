@@ -24,6 +24,10 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
     
+    if isempty(currentLevel)
+       return; 
+    end
+    
     %% Create output folder structure.
     croppedDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId) '/cropped/'];
     
@@ -50,14 +54,13 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
         nodeImgs(vocabItr) = {instanceImgs};
     end
     
-    compMaskSize = [1, 1];
-    dim3 = size(img,3);
-    for nodeItr = 1:numberOfNodes
-        instanceImgs = nodeImgs{nodeItr};
-        if ~isempty(instanceImgs)
-            instanceImgSizes = cellfun(@(x) [size(x,1), size(x,2)], instanceImgs, 'UniformOutput', false);
-            compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
-        end
+    if levelId == 1
+        compMaskSize = [size(options.filters{1},1), size(options.filters{1},2)];
+        dim3 = size(options.filters{1},3);
+    else
+        randImg = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/1_uni.png']);
+        compMaskSize = [size(randImg,1), size(randImg,2)];
+        dim3 = size(randImg,3);
     end
     
     % Make mask sizes uniform and write them all back.
@@ -73,6 +76,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
             finalTempMask(finalTempMask == 0) = fillInValue;
             instanceImgs{instItr} = finalTempMask;
+            imwrite(finalTempMask, [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png']);
         end
         nodeImgs{nodeItr} = instanceImgs;
     end
