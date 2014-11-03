@@ -171,9 +171,9 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         
         % Remove responses resulting from dead features. (Will be replaced 
         % by a better method in the future)
-        for deadFeature = deadFeatures
-            responseImgs(:,:,deadFeature) = 0;
-        end
+%         for deadFeature = deadFeatures
+%             responseImgs(:,:,deadFeature) = 0;
+%         end
     end
     
     %% We apply a minimum response threshold over response image.
@@ -231,6 +231,9 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     finalNodeIdx = find(responseImg);
     nodes = cell(numel(finalNodeIdx), 2);
     for nodeItr = 1:numel(finalNodeIdx)
+       if ismember(responseImg(finalNodeIdx(nodeItr)), deadFeatures)
+          continue; 
+       end
        [centerX, centerY] = ind2sub(size(responseImg), finalNodeIdx(nodeItr));
        nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY])};
     end

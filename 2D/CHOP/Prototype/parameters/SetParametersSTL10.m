@@ -49,7 +49,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                         % be surpressed.
     options.autoFilterSize = 10;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)+1;
+    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
     options.autoFilterThr = 0.2;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
@@ -61,13 +61,13 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    options.auto.deadFeatureStd = 0.00; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.04; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-     options.distType = 'rank'; % If 'euc': Euclidean distance 
+    options.distType = 'rank'; % If 'euc': Euclidean distance 
                                                    % (normalized by number
                                                    % of nonzero pixels)
                                                    % will define the
@@ -222,7 +222,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.025; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 

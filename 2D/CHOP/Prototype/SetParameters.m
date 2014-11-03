@@ -100,8 +100,10 @@ function [ options ] = SetParameters( datasetName, isTraining )
             end
             options.filterMatrix = filterMatrix;
 
+            stDevs = std(filterMatrix, 0, 2);
+            stDevs = stDevs / max(stDevs);
             % Mark dead features.
-            options.auto.deadFeatures = find(std(filterMatrix, 0, 2) < options.auto.deadFeatureStd );
+            options.auto.deadFeatures = find(stDevs < options.auto.deadFeatureStd );
         else
             display('Auto-features not learned. Please run automatic feature learning before running CHOP. You can disregard this message if you are running that already.');
         end

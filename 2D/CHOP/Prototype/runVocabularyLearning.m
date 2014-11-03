@@ -104,7 +104,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         display('..... Level 1 Node Extraction started. This may take a while.');
         allNodes = cell(size(trainingFileNames,1),1);
         smoothedFolder = options.smoothedFolder;
-        parfor fileItr = 1:size(trainingFileNames,1)
+        for fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([processedFolder '/' fileName '.png']);
             
