@@ -24,6 +24,10 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
     
+    if isempty(currentLevel)
+       return; 
+    end
+    
     %% Create output folder structure.
     croppedDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId) '/cropped/'];
     
@@ -91,6 +95,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
             finalTempMask(finalTempMask == 0) = fillInValue;
             instanceImgs{instItr} = finalTempMask;
+            imwrite(finalTempMask, [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png']);
         end
         nodeImgs{nodeItr} = instanceImgs;
     end
