@@ -157,7 +157,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
         if strcmp(property, 'hist')
             normalizedEdgeCoords = round((edgeCoords / neighborhood)*(halfSizeHMatrix-2)) + halfSizeHMatrix;
             hMatrixInd = sub2ind([sizeHMatrix, sizeHMatrix], normalizedEdgeCoords(:,1), normalizedEdgeCoords(:,2));
-            edgeIds = hMatrix(hMatrixInd);
+            edgeIds = int32(hMatrix(hMatrixInd));
         elseif strcmp(property, 'mode');
             %% Process each node in this image. 
            edgeIds = zeros(numberOfAllEdges,1);
