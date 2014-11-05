@@ -17,7 +17,7 @@ function [finalImg] = printCloseFilters(distanceMatrix, levelItr, options)
        end
        filter1 = double(filters{filterItr});
        filter1 = uint8(255 * (filter1 - min(min(min(filter1)))) / (max(max(max(filter1))) - min(min(min(filter1)))));
-       if ~isempty(orgImg)
+       if ~isempty(orgImg) && nnz(size(filter1) ~= size(orgImg)) == 0
            filter1 = uint8(round(double(filter1) * 0.7 + double(orgImg) * 0.3));
        end
        filters{filterItr} = filter1;

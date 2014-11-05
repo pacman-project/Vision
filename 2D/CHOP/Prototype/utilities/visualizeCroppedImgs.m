@@ -77,6 +77,8 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             for dimItr = 1:dim3
                 filterMultipleImg(:,:,dimItr) = filterImg;
             end
+        else
+            filterMultipleImg = filterImg;
         end
         instanceImgs = [{filterMultipleImg}; instanceImgs];
         nodeImgs(nodeItr) = {instanceImgs};
