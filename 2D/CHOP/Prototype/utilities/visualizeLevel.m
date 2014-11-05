@@ -281,9 +281,13 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, ~, n
     compMaskSize = [1, 1];
     for nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
-        dim3 = size(instanceImgs{1},3);
+        if ~isempty(instanceImgs)
+            dim3 = size(instanceImgs{1},3);
+        end
         instanceImgSizes = cellfun(@(x) [size(x,1), size(x,2)], instanceImgs, 'UniformOutput', false);
-        compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
+        if ~isempty(instanceImgSizes)
+            compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
+        end
     end
 
     % Make mask sizes uniform and write them all back.
@@ -336,7 +340,9 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, ~, n
             overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+compMaskSize(1)-1), ...
                 (colStart2+colInstStart):((colStart2+colInstStart)+compMaskSize(2)-1), :) = compFinalMask;
         end
-        imwrite(instanceImgs{1}, [reconstructionDir num2str(nodeItr) '_uni.png']);
+        if ~isempty(instanceImgs)
+            imwrite(instanceImgs{1}, [reconstructionDir num2str(nodeItr) '_uni.png']);
+        end
     end
 
     clear instanceImgs nodeImgs setImgs;

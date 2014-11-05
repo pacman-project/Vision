@@ -191,7 +191,8 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2))) = reconstructedPatch;
             end
             %% Write original image's cropped area to a file.
-            if usedChildren(nodes(nodeItr).labelId) > 0 && strcmp(type, 'train')
+%            if usedChildren(nodes(nodeItr).labelId) > 0 && strcmp(type, 'train')
+            if usedChildren(nodes(nodeItr).labelId) > 0
                 usedChildren(nodes(nodeItr).labelId) = usedChildren(nodes(nodeItr).labelId) - 1;
                 imwrite(actualImg(minX:maxX, ...
                     minY:maxY, :), [croppedOrgFolder '/' num2str(nodes(nodeItr).labelId) '_' num2str(instancePerNode - usedChildren(nodes(nodeItr).labelId)) '.png']);

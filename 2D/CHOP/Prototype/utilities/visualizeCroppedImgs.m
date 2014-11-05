@@ -35,11 +35,11 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
 
     % Read cropped images.
     nodeImgs = cell(numberOfNodes,1);
-    for vocabItr = 1:numel(currentLevel)
-        instanceImgs = cell(instancePerNode, 1);
-        for instItr = 1:instancePerNode
-            filePath = [croppedDir '/' num2str(vocabItr) '_' num2str(instItr) '.png'];
-            if exist([croppedDir '/' num2str(vocabItr) '_' num2str(instItr) '.png'], 'file')
+    for nodeItr = 1:numel(currentLevel)
+        instanceImgs = cell(instancePerNode-1, 1);
+        for instItr = 1:(instancePerNode-1)
+            filePath = [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png'];
+            if exist([croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png'], 'file')
                 img = imread(filePath);
                 instanceImgs(instItr) = {img};
             else
@@ -47,17 +47,35 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             end
         end
         instanceImgs = instanceImgs(cellfun(@(x) ~isempty(x), instanceImgs));
-        nodeImgs(vocabItr) = {instanceImgs};
+        nodeImgs(nodeItr) = {instanceImgs};
     end
     
+    % Learn the right mask sizes and band counts.
     compMaskSize = [1, 1];
-    dim3 = size(img,3);
+    dim3 = 1;
     for nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
         if ~isempty(instanceImgs)
+            dim3 = size(instanceImgs{1},3);
             instanceImgSizes = cellfun(@(x) [size(x,1), size(x,2)], instanceImgs, 'UniformOutput', false);
             compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
         end
+    end
+    
+    % Put the part to the instance list, too.
+    for nodeItr = 1:numberOfNodes
+        instanceImgs = nodeImgs{nodeItr};
+        filterImg = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/' num2str(nodeItr) '.png']);
+        newSize=min([size(filterImg,1), size(filterImg,2)], compMaskSize);
+        filterImg = filterImg(1:newSize(1), 1:newSize(2), :);
+        if size(filterImg,3) < dim3
+            filterMultipleImg = zeros(size(filterImg,1), size(filterImg,2), dim3, 'uint8');
+            for dimItr = 1:dim3
+                filterMultipleImg(:,:,dimItr) = filterImg;
+            end
+        end
+        instanceImgs = [{filterMultipleImg}; instanceImgs];
+        nodeImgs(nodeItr) = {instanceImgs};
     end
     
     % Make mask sizes uniform and write them all back.

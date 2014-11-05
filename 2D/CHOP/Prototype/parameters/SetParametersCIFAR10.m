@@ -47,36 +47,42 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 6;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
-    options.autoFilterThr = 0.3;       % Min response threshold for convolved 
+    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-2;
+    options.autoFilterThr = 0.00;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 150000; % Number of random patches used 
+    options.autoFilterPatchCount = 200000; % Number of random patches used 
                                            % to find auto-detected filters.
-    options.auto.stride = 2;           % Stride to use when extracting first-
+    options.auto.stride = 1;           % Stride to use when extracting first-
                                        % level features. Only works in
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    options.auto.deadFeatureStd = 0.3; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.03; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'euc'; % If 'euc': Euclidean distance 
-                                       % (normalized by number
-                                       % of nonzero pixels)
-                                       % will define the
-                                       % distance between two
-                                       % filters. If 'man',
-                                       % manifold distance to
-                                       % be used.
+    options.distType = 'rank'; % If 'euc': Euclidean distance 
+                                                   % (normalized by number
+                                                   % of nonzero pixels)
+                                                   % will define the
+                                                   % distance between two
+                                                   % filters. If 'man',
+                                                   % manifold distance to
+                                                   % be used. If 'rank',
+                                                   % manifold distance is
+                                                   % used, however, the
+                                                   % features are ranked
+                                                   % with their distances,
+                                                   % and the ranking is the
+                                                   % new distance function.
     %% ========== GT Parameters ==========
-    options.useGT = true;              % If true, gt info is used. 
+    options.useGT = false;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
                                        % the gt contour is examined (within
                                        % a neighborhood defined by
@@ -140,17 +146,19 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
     options.vis.nodeReconstructionChildren = 1000; % Max number of children
                                          % to be used in creation of the image
                                          % for every node in the vocabulary.
-    options.vis.instancePerNode = 9;     % Should be square of a natural number.
+    options.vis.instancePerNode = 9;     % Should be square of a natural number. 
+                                                                      % It defines how many instances per vocabulary 
+                                                                      % node will be visualized.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*4; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*5;
+        options.receptiveFieldSize = options.gaborFilterSize*4;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -176,8 +184,8 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                        % edgeRadius grows at every level
                                        % with the same ratio as the
                                        % receptive field.
-    options.maxLevels = 20;    % The maximum level count for training.
-    options.maxInferenceLevels = 20; % The maximum level count for testing.
+    options.maxLevels = 3;    % The maximum level count for training.
+    options.maxInferenceLevels = 2; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -210,7 +218,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 7200;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 180;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -228,8 +236,8 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 400;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
@@ -239,7 +247,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                      % returned anyway in order to
                                      % introduce redundancy in the final
                                      % object graphs.
-     options.subdue.supervised = true; % If true, graph search is performed over
+     options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 
 			                  % combined.

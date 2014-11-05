@@ -101,7 +101,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, redund
         mainGraph = mergeIntoGraph(mainGraph, newLevel, [], levelItr, 1);
         
         %% Extract the edges to form the new graph.
-        if levelItr ~= numberOfLevels
+        if levelItr < numberOfLevels
             [~, mainGraph] = extractEdges(mainGraph, options, levelItr, modes);
         end
         

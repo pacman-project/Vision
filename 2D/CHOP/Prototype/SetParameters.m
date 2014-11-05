@@ -93,14 +93,20 @@ function [ options ] = SetParameters( datasetName, isTraining )
             % We create a feature matrix out of these filters for fast
             % processing.
             filterMatrix = zeros(options.numberOfFilters, numel(filters{1}));
+            stDevs = zeros(options.numberOfFilters,1);
             if size(filterMatrix,2) >0
                 for filtItr = 1:options.numberOfFilters
-                    filterMatrix(filtItr,:) = filters{filtItr}(:);
+                    filter1 = filters{filtItr};
+                    filterMatrix(filtItr,:) = filter1(:);
+                    stDev = 0;
+                    for bandItr = 1:size(filter1,3)
+                        bandImg = filter1(:,:,bandItr);
+                        stDev = stDev + std(bandImg(:));
+                    end
+                    stDevs(filtItr) = stDev / size(filter1,3);
                 end
             end
             options.filterMatrix = filterMatrix;
-
-            stDevs = std(filterMatrix, 0, 2);
             stDevs = stDevs / max(stDevs);
             % Mark dead features.
             options.auto.deadFeatures = find(stDevs < options.auto.deadFeatureStd );
