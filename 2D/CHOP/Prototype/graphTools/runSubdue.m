@@ -46,7 +46,7 @@
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
-function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel, graphLevel, categoryArrIdx, options)
+function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -55,7 +55,6 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     parentSubs = [];
     nextVocabLevel = [];
     nextGraphLevel = [];
-    prevGraphData = [];
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
@@ -69,6 +68,8 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     maxSize = options.subdue.maxSize;
     numberOfThreads = options.numberOfThreads;
     isSupervised = options.subdue.supervised;
+    regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
+    threshold = options.subdue.threshold * regularizationParam; % Hard threshold for cost of matching two subs.
     
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
@@ -104,7 +105,8 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
     display('[SUBDUE] Creating single node subs..');
-    singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, categoryArrIdx);
+    singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, ...
+        nodeDistanceMatrix, categoryArrIdx, threshold);
     parentSubs = addToQueue(singleNodeSubs, parentSubs, options.subdue.beam);
     
     %% Step 2: Main loop
@@ -146,7 +148,7 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
             processedSet = parentSubSets{setItr};
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
-                childSubs = extendSub(parentSubs(parentItr), allEdges);
+                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold);
                 if isempty(childSubs) 
                     continue;
                 end
@@ -203,12 +205,6 @@ function [nextVocabLevel, nextGraphLevel, prevGraphData] = runSubdue(vocabLevel,
     if numberOfBestSubs < 1
        return;
     end
-    
-    %% Previous graph data is returned.
-    prevGraphData.allEdges = allEdges;
-    prevGraphData.allEdgeNodePairs = allEdgeNodePairs;
-    prevGraphData.allSigns = allSigns;
-    prevGraphData.bestSubs = bestSubs;
     
     %% Allocate space for new graphLevel and vocabLevel.
     numberOfInstances = 0;
@@ -295,36 +291,38 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, categoryArrIdx)
+function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMatrix, categoryArrIdx, threshold)
     numberOfSubs = max(allLabels);
     singleNodeSubs(numberOfSubs) = Substructure();
     validSubs = ones(numberOfSubs,1)>0;
     
     %% For each center node label type, we create a substructure.
     for subItr = 1:numberOfSubs
-        subCenterIdx = allLabels == subItr;
-        instances = find(subCenterIdx);
+        distances = nodeDistanceMatrix(subItr,allLabels);
+        subCenterIdx = distances <= threshold;
+        instances = find(subCenterIdx)';
         numberOfInstances = numel(instances);
         
         %Assign center id.
         singleNodeSubs(subItr).centerId = subItr;
         
-        % Give maximum score so that it is at the top of things.
+        % Give maximum score so that it is at the top of the queue.
         singleNodeSubs(subItr).mdlScore = numberOfInstances;
         if numberOfInstances>0
             singleNodeInstances(numberOfInstances) = Instance(); %#ok<AGROW>
 
             % Fill in instance information. 
-            instanceIdx = allLabels == subItr;
-            categoryIdx = categoryArrIdx(instanceIdx);
+            categoryIdx = categoryArrIdx(subCenterIdx);
             if size(categoryIdx,1) == 1
                 categoryIdx = categoryIdx';
             end
-            subNodeAssgnArr = num2cell([int32(find(instanceIdx)), allSigns(instanceIdx,1), categoryIdx]);
-            [singleNodeInstances.centerIdx, singleNodeInstances.sign, singleNodeInstances.category] = deal(subNodeAssgnArr{:});
+            subNodeAssgnArr = cell(numberOfInstances,4);
+            subNodeAssgnArr(:,1:3) = num2cell([int32(instances), allSigns(subCenterIdx,1), categoryIdx]);
+            subNodeAssgnArr(:,4) = num2cell(distances(subCenterIdx));
+            [singleNodeInstances.centerIdx, singleNodeInstances.sign, singleNodeInstances.category, singleNodeInstances.matchCost] = deal(subNodeAssgnArr{:});
 
             singleNodeSubs(subItr).instances = singleNodeInstances;
-            clear singleNodeInstances;
+            clear singleNodeInstances subNodeAssgnArr;
         else
             validSubs(subItr) = 0;
         end
@@ -350,7 +348,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges)
+function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold)
     centerIdx = cat(1,sub.instances.centerIdx);
     subAllEdges = {allEdges(centerIdx).adjInfo}';
     % Get unused edges from sub's instances.
@@ -359,12 +357,15 @@ function [extendedSubs] = extendSub(sub, allEdges)
     clear allUsedEdgeIdx;
     
     % Record which edge belongs to which instance. 
-    allEdgeInstanceIds = zeros(size(allUnusedEdges,1),1);
+    allEdgeInstanceIds = zeros(sum(cellfun(@(x) size(x,1), allUnusedEdges)),1);
+    allEdgePrevCosts = zeros(size(allEdgeInstanceIds));
     itrOffset = 1;
     unusedEdgeCount = cellfun(@(x) size(x,1), allUnusedEdges);
     for itr = 1:numel(allUnusedEdges)
         beginOffset = itrOffset;
-        allEdgeInstanceIds(beginOffset:(beginOffset+(unusedEdgeCount(itr)-1))) = itr;
+        endOffset = (beginOffset+(unusedEdgeCount(itr)-1));
+        allEdgeInstanceIds(beginOffset:endOffset) = itr;
+        allEdgePrevCosts(beginOffset:endOffset) = sub.instances(itr).matchCost;
         itrOffset = itrOffset + unusedEdgeCount(itr);
     end         
     allUnusedEdges = cat(1, allUnusedEdges{:});
@@ -400,12 +401,17 @@ function [extendedSubs] = extendSub(sub, allEdges)
         newSub.edges = [newSub.edges; uniqueEdgeTypes(edgeTypeItr,:)];
         
         %% Find instances of this new sub, and mark the new edges as 'used' in each of its subs.
-        % This process is crucial for fast calculation of DL.
-        edgesToExtendIdx = allUnusedEdges(:,3) == uniqueEdgeTypes(edgeTypeItr,1) & ...
-            allUnusedEdges(:,4) == uniqueEdgeTypes(edgeTypeItr,2);
+        % Extend the subs by taking the threshold into account. Unless the
+        % instance's collective matching cost surpasses the threshold, it
+        % is a valid instance.
+        edgesToExtendCosts = allEdgePrevCosts + ...
+            edgeDistanceMatrix(allUnusedEdges(:,3), uniqueEdgeTypes(edgeTypeItr,1)) + ...
+            nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2));
+        edgesToExtendIdx = edgesToExtendCosts <= threshold;
         edgesToExtend = allUnusedEdges(edgesToExtendIdx,:);
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx)';
         newInstances = sub.instances(edgeInstanceIds);
+        instanceCosts = edgesToExtendCosts(edgesToExtendIdx);
         
         % Each added edge actually means a new instance. 
         for instanceItr = 1:numel(edgeInstanceIds)
@@ -415,11 +421,13 @@ function [extendedSubs] = extendSub(sub, allEdges)
             end
             addedEdgeIdx = find(instanceEdges(:, 2) == edgesToExtend(instanceItr,2));
             newInstances(instanceItr).edges = [newInstances(instanceItr).edges; addedEdgeIdx];
+            newInstances(instanceItr).matchCost = instanceCosts(instanceItr);
         end
         
         % Assign instances and we are good to go.
         newSub.instances = newInstances;
         extendedSubs(edgeTypeItr) = newSub;
+        clear newInstances newSub;
     end
     clear subAllEdges;
 end

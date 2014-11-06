@@ -182,9 +182,16 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
         [vocabLevel, graphLevel] = generateLevels(leafNodes, leafNodeSigns, options);
         
+        %% Learn edge-based distance matrix once and for all.
+        [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize);
+        options.edgeIdMatrix = edgeIdMatrix;
+        options.edgeDistanceMatrix = edgeDistanceMatrix;
+        options.edgeCoords = edgeCoords;
+        clear edgeIdMatrix edgeDistanceMatrix edgeCoords;
+        
         %% Step 2.1: Get first-level object graph edges.
         mainGraph = {graphLevel};
-        [modes, mainGraph] = extractEdges(mainGraph, options, 1, []);
+        [mainGraph] = extractEdges(mainGraph, options, 1);
         graphLevel = mainGraph{1};
         
         % Transform category array into an index-based one (having numbers
@@ -196,7 +203,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryNames', 'categoryArrIdx');
-        [vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes, modes, ...
+        [vocabulary, mainGraph, distanceMatrices] = learnVocabulary(vocabLevel, graphLevel, leafNodes, ...
                                         options, trainingFileNames); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
@@ -205,7 +212,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'redundantVocabulary', 'modes', 'trainingFileNames', 'categoryNames');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'distanceMatrices', 'trainingFileNames', 'categoryNames');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'categoryArrIdx', 'poseArr', '-append'); 

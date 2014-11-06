@@ -77,11 +77,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.filters = filters;
     options.numberOfFilters = numel(filters);
     
-    if strcmp(options.property, 'co-occurence') && strcmp(options.reconstructionType, 'true')
-        options.reconstructionType = 'leaf';
-        display('"co-occurence" property and "true" reconstruction is incompatible. Switching to "leaf" type reconstruction.');
-    end
-    
     %% ========== FILTER MATRIX & DATA STRUCTURES GENERATION ==========
     if strcmp(options.filterType, 'auto') 
         if exist([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'file') 

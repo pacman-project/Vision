@@ -25,9 +25,9 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel, prevGraphData] = discoverSubs( vocabLevel, redundantVocabLevel, graphLevel, options, preDefinedSearch, levelItr)
+function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, nodeDistanceMatrix, options, preDefinedSearch, levelItr)
     startTime = tic;
-    prevGraphData = [];
+    edgeDistanceMatrix = options.edgeDistanceMatrix;
     if ~preDefinedSearch
         display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
     end
@@ -39,9 +39,9 @@ function [vocabLevel, graphLevel, prevGraphData] = discoverSubs( vocabLevel, red
         % This part is again related to combining parts. 
         % The status of this section is debatable. Please wait for updates.
         % It'll be unhid as soon as possible.
-        graphLevel = inferSubs(vocabLevel, redundantVocabLevel, graphLevel, options);
+        graphLevel = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, options);
     else
-        [vocabLevel, graphLevel, prevGraphData] = runSubdue(vocabLevel, graphLevel, categoryArrIdx, options);
+        [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options);
     end
     
     % Show time elapsed.

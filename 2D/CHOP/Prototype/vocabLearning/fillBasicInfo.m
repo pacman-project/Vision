@@ -23,11 +23,10 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, number
     if remNodes > 0
         nodeSets(end) = nodeSets(end) + remNodes - numberOfThreads;
     end
-    if numel(graphLevel) >= ceil(numberOfNodes/numberOfThreads) * numberOfThreads
-        nodeSets = mat2cell(graphLevel, 1, nodeSets);
-    else
-        nodeSets = {graphLevel};
+    if nodeSets(end) < 1
+        nodeSets = nodeSets(1:(end-1));
     end
+    nodeSets = mat2cell(graphLevel, 1, nodeSets);
     parfor setItr = 1:numel(nodeSets)
         subLevel = nodeSets{setItr};
         for newNodeItr = 1:numel(subLevel)

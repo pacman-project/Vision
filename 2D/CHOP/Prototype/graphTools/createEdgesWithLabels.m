@@ -22,40 +22,25 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 %> Separate mode learning from this function on 28.01.2014
-function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, modes, hMatrix)
+function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
     scale = (1/options.scaling)^(currentLevelId-1);
-    neighborhood = fix(options.edgeRadius * scale);
-    
+    neighborhood = floor(options.edgeRadius * scale);
     currentLevel = mainGraph{currentLevelId};
     nodeIds = [currentLevel.labelId]';
     nodeCoords = cat(1, currentLevel.position);
     imageIds = [currentLevel.imageId]';
+    edgeIdMatrix = options.edgeIdMatrix;
+    halfMatrixSize = (options.edgeQuantize+1)/2;
+    matrixSize = [options.edgeQuantize, options.edgeQuantize];
+    downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
     
     %% Program options into variables.
     edgeNoveltyThr = 1-options.edgeNoveltyThr;
     maxNodeDegree = options.maxNodeDegree;
     % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
     averageNodeDegree = maxNodeDegree;
-    
-    property = options.property;
-    %% Calculate size of the histogram matrix.
-    sizeHMatrix = size(hMatrix,1);
-    halfSizeHMatrix = floor(sizeHMatrix/2);
-    
-    %% Get relevant pair-wise distributions (nodes)
-    if ~isempty(modes) && numel(modes) >= currentLevelId
-        currentModes = modes{currentLevelId};
-        currentModesFirstNodes = currentModes(:,1);
-        currentModesSecNodes = currentModes(:,2);
-        currentModesPos = currentModes(:,3:4);
-        clear currentModes;
-    else
-        currentModesFirstNodes = [];
-        currentModesSecNodes = [];
-        currentModesPos = [];
-    end
     
     %% Put each image's node set into a different bin.
     numberOfImages = max(imageIds);
@@ -149,41 +134,18 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
         % Update data structures based on removed edges.
         allEdges = allEdges(validEdges,:);
         edgeCoords = edgeCoords(validEdges,:);
-        numberOfAllEdges = nnz(validEdges);
-        node1Labels = node1Labels(validEdges,:);
-        node2Labels = node2Labels(validEdges,:);
+        normalizedEdgeCoords = fix(fix(downsampleRatio * edgeCoords) + halfMatrixSize);
         
-        %% Based on the edge type, assign edge labels here.
-        if strcmp(property, 'hist')
-            normalizedEdgeCoords = round((edgeCoords / neighborhood)*(halfSizeHMatrix-2)) + halfSizeHMatrix;
-            hMatrixInd = sub2ind([sizeHMatrix, sizeHMatrix], normalizedEdgeCoords(:,1), normalizedEdgeCoords(:,2));
-            edgeIds = int32(hMatrix(hMatrixInd));
-        elseif strcmp(property, 'mode');
-            %% Process each node in this image. 
-           edgeIds = zeros(numberOfAllEdges,1);
-           for edgeItr = 1:numberOfAllEdges
-                % Estimate mode of this edge.
-                applicableModeIdx = find(currentModesFirstNodes == node1Labels(edgeItr) & ...
-                currentModesSecNodes == node2Labels(edgeItr));
-                applicableModes = currentModesPos(applicableModeIdx,:);
-                centerArr2 = double(repmat(edgeCoords(edgeItr,:), size(applicableModes,1),1));
-                distances = sqrt(sum((centerArr2 - applicableModes).^2, 2));
-                [~, minDist] = min(distances);
-
-                % If a valid mode exists, assign its label.
-                if numel(minDist)>0
-                    edgeIds(edgeItr) = applicableModeIdx(minDist(1));
-                else
-                    edgeIds(edgeItr) = 0;
-                end
-           end
-        else
-            edgeIds = ones(numberOfAllEdges,1, 'int32');
-        end
+        % Double check in order not to go out of bounds.
+        normalizedEdgeCoords(normalizedEdgeCoords < 1) = 1;
+        normalizedEdgeCoords(normalizedEdgeCoords > matrixSize(1)) = matrixSize(1);
         
+        %Find edge labels.
+        matrixInd = sub2ind(matrixSize, normalizedEdgeCoords(:,1), normalizedEdgeCoords(:,2));
+        edgeIds = edgeIdMatrix(matrixInd);
         edges = [allEdges(:,1:2) + imageNodeOffset, edgeIds, directedArr];
         
-        % Due to some approximations in mode calculations, some edgeIds might 
+        % Due to some approximations in neighborhood calculations, some edgeIds might 
         % have been assigned as 0. Eliminate such cases.
         edges = edges(edgeIds>0,:);
         

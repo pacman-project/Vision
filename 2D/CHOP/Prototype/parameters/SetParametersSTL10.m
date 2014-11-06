@@ -106,25 +106,12 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.property = 'hist'; % Geometric property to be examined
-                                       % 'co-occurence': uniform edges 
-                                       % 'mode' (DEFAULT): clusters of relative 
-                                       % positions
-                                       % 'hist': divide space into 8 
-                                       % pre-defined regions.
-    options.mode.maxSamplesPerMode = 200; % In mode calculation between node1
-                                          % and node2, not all samples are
-                                          % considered. Randomly chosen
-                                          % samples are used, defined with
-                                          % this number.
-    options.mode.minSamplesPerMode = 4;   % The minimum number of samples to 
-                                          % be assigned to each mode (avg). If
-                                          % there are not enough samples 
-                                          % for statistical learning,
-                                          % number of modes for that
-                                          % specific part pair is reduced
-                                          % automatically to match this
-                                          % number, if possible.
+    options.edgeQuantize = 50;         % This parameter is used to quantize 
+                                        % edges in a edgeQuantize x edgeQuantize 
+                                        % window. As the receptive field
+                                        % grows, each relation is scaled
+                                        % down to this window, and then
+                                        % quantized. 
     options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
@@ -167,13 +154,6 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maximumModes = 50;         % Maximum number of modes allowed for 
-                                       % a node pair in statistical learning.
-                                       % The actual number of modes for
-                                       % every pair will be lower, since an
-                                       % optimal number of clusters is
-                                       % found in Minimum Conditional
-                                       % Entropy Clustering.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius 
                                        % for two subs to be 
                                        % determined as neighbors. Centroids
@@ -222,7 +202,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.07; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.025; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -234,7 +214,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 40000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 2000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

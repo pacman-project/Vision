@@ -8,17 +8,11 @@
 %>
 %> @param vocabLevel The first level of vocabulary, level 1 parts.
 %> @param graphLevel Object graphs level 1.
-%> @param modes The mode array that only includes first level relations.
 %> @param options Program options
 %> @param fileList input image name list.
 %>
 %> @retval vocabulary The hierarchic vocabulary learnt from the data.
-%> @retval redundantVocabulary The vocabulary which contains redundant
-%> compositions, which have indices of actual compositions in their 'label'
-%> fields.
 %> @retval mainGraph The hierarchic object graphs.
-%> @retval modes Cell array including modes belonging to each layer, each 
-%>      in a separate cell.
 %> @retval distanceMatrices Distance matrix of compositions.
 %> 
 %> Author: Rusen
@@ -29,12 +23,11 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, modes, ...
+function [ vocabulary, mainGraph, distanceMatrices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
                                                             options, fileList)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
-    redundantVocabulary = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
     
@@ -42,16 +35,16 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
-    previousModes = [];
     
     %% Create distance matrices of the first level.
     distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType, options.auto.deadFeatures)};
+    newDistanceMatrix = distanceMatrices{1};
     
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));
     
     %% Print first vocabulary and graph level.
-    visualizeLevel( vocabulary{1}, [], [], 1, previousModes, 0, options, 0);
+    visualizeLevel( vocabulary{1}, [], [], 1, [], 0, options, 0);
     if ~isempty(distanceMatrices{1})
        imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
     end
@@ -67,25 +60,13 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
     [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', 1);
     display(['........ Average coverage of leaf nodes: ' num2str(avgCoverage) ', while average shareability is: ' num2str(avgShareability) ' percent.']); 
     
+    %% Load categories. Analyzing categorization properties of the nodes. 
+    load([options.currentFolder '/output/' options.datasetName '/export.mat']);
+    
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
-        %% Step 2.0: Assign current modes.
-        currentModes = [];
-        if ~isempty(modes) && numel(modes)>=(levelItr-1)
-            currentModes = modes{levelItr-1};
-        end
-        
-        if strcmp(options.subdue.evalMetric, 'mdl')
-            allEdges = {graphLevel.adjInfo}';
-            graphSize = sum(cellfun(@(x) size(x,1), allEdges)) * options.subdue.mdlEdgeWeight + ...
-                numel(graphLevel) * options.subdue.mdlNodeWeight;
-            clear allEdges;
-        else
-            graphSize = 1;
-        end
-        
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-        [vocabLevel, graphLevel, prevGraphData] = discoverSubs(vocabLevel, redundantVocabulary{levelItr-1}, graphLevel, ...
+        [vocabLevel, graphLevel] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
             options, false, levelItr-1);
         
         % Open/close matlabpool to save memory.
@@ -96,7 +77,6 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         if isempty(vocabLevel)
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
-           redundantVocabulary = redundantVocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
            break; 
@@ -111,23 +91,10 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', levelItr);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
-        %% Analyzing categorization properties of the nodes. 
-        load([options.currentFolder '/output/' options.datasetName '/export.mat']);
-%        AnalyzeVocabLevel(vocabLevel, graphLevel, categoryArrIdx, categoryNames, levelItr);
-        
-        %% Combining parts to have more generic parts. 
-        % Apologies for this section to be 'hidden' for now. It'll be unhid as soon as possible.
-        display('........ Combining parts..');
-        [vocabLevel, graphLevel, newDistanceMatrix, subClasses] = combineParts(vocabLevel, graphLevel, currentModes, distanceMatrices{levelItr-1}, graphSize, prevGraphData, options);
-        % Open/close matlabpool to save memory.
-        matlabpool close;
-        matlabpool('open', options.numberOfThreads);
-        
          %% If the subs have all been eliminated, finish processing.
         if isempty(vocabLevel)
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
-           redundantVocabulary = redundantVocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
            break; 
@@ -144,11 +111,14 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
         
-        %% Post-process graphLevel, vocabularyLevel and find redundantVocabularyLevel.
-        % This part is again related to combining parts.
-        % Apologies for this section to be 'hidden' for now. It'll be unhid as soon as possible.
-        [vocabLevel, redundantVocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, subClasses, newDistanceMatrix, graphLevel);
-        distanceMatrices{levelItr} = newDistanceMatrix;
+        %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
+        % In addition, we re-assign the node ids in graphLevel.
+        if ~isempty(vocabLevel)
+            [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, options);
+            distanceMatrices{levelItr} = newDistanceMatrix;
+        else
+            newDistanceMatrix = [];
+        end
         
         %% Calculate statistics from this graph.
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);
@@ -160,32 +130,30 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         
         %% Step 2.4: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
-        redundantVocabulary(levelItr) = {redundantVocabLevel};
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
         
         %% Step 2.5: Create object graphs G_(l+1) for the next level, l+1.
         % Extract the edges between new realizations to form the new object graphs.
-        [modes, mainGraph] = extractEdges(mainGraph, options, levelItr, modes);
+        [mainGraph] = extractEdges(mainGraph, options, levelItr);
         graphLevel = mainGraph{levelItr};
         
-        %% Print vocabulary and graph level to output images (reconstruction).
-        if ~isempty(modes)               
-             if ~isempty(newDistanceMatrix)
-               imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
-            end
+        %% Print vocabulary and graph level to output images (reconstruction).    
+        if ~isempty(newDistanceMatrix)
+           imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
+        end
+        if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
-            visualizeLevel( vocabLevel, graphLevel, leafNodes, levelItr, modes{levelItr-1}, numel(vocabulary{1}), options, 0);
-        end
-        if options.debug
-           display('........ Visualizing realizations on images...');
-           if ~isempty(vocabLevel)
-                visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
-                visualizeCroppedImgs( vocabLevel, levelItr, options);
-           end
-        end
-        if ~isempty(modes)
+            visualizeLevel( vocabLevel, graphLevel, leafNodes, levelItr, [], numel(vocabulary{1}), options, 0);
+            if options.debug
+               display('........ Visualizing realizations on images...');
+               if ~isempty(vocabLevel)
+                    visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
+                    visualizeCroppedImgs( vocabLevel, levelItr, options);
+               end
+            end
             printCloseFilters(newDistanceMatrix, levelItr, options); 
         end
+        
         % Open/close matlabpool to save memory.
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
@@ -194,7 +162,6 @@ function [ vocabulary, redundantVocabulary, mainGraph, modes, distanceMatrices] 
         newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));
         if ~newEdgesAvailable
             vocabulary = vocabulary(1:(levelItr),:);
-            redundantVocabulary = redundantVocabulary(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
         end

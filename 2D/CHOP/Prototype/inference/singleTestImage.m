@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, redundantVocabulary, modes, options)
+function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, distanceMatrices, options)
     totalInferenceTime = 0;
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
@@ -51,7 +51,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, redund
     mainGraph = {graphLevel};
     
     %% Get edges depending on the property to be embedded in the graph.
-    [~, mainGraph] = extractEdges(mainGraph, options, 1, modes);
+    [~, mainGraph] = extractEdges(mainGraph, options, 1);
     
     %% Visualize level 1 test image.
     if options.debug
@@ -67,7 +67,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, redund
            display(['Working on level ' num2str(levelItr) '.']);
         end
         startTime = tic;
-        newLevel = collectInstances(vocabulary{levelItr}, redundantVocabulary{levelItr}, mainGraph{levelItr-1}, options, levelItr);
+        newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, options, levelItr);
         duration = toc(startTime);
         totalInferenceTime = totalInferenceTime + duration;
         

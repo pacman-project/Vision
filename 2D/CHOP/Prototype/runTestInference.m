@@ -20,6 +20,13 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     options = SetParameters(datasetName, false);
     options.currentFolder = options.currentFolder;
     
+    %% Learn edge-based distance matrix once and for all.
+    [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize);
+    options.edgeIdMatrix = edgeIdMatrix;
+    options.edgeDistanceMatrix = edgeDistanceMatrix;
+    options.edgeCoords = edgeCoords;
+    clear edgeIdMatrix edgeDistanceMatrix edgeCoords;
+    
     % Open threads for parallel processing.
     if options.parallelProcessing
         s = matlabpool('size');
@@ -40,7 +47,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         end
     
         if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
-            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'modes', 'vocabulary', 'redundantVocabulary', 'categoryNames');
+            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'distanceMatrices', 'categoryNames');
             load([options.currentFolder '/output/' datasetName '/export.mat']);
         else
             display('No vocabulary exists!');
@@ -80,7 +87,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, vocabulary, redundantVocabulary, modes, options);
+            totalInferenceTime = totalInferenceTime + singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, options);
         end
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
     end
