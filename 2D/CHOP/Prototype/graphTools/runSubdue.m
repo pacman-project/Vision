@@ -65,9 +65,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     beam = options.subdue.beam;
     nsubs = options.subdue.nsubs;
     maxTime = options.subdue.maxTime;
+    minSize = options.subdue.minSize;
     maxSize = options.subdue.maxSize;
     numberOfThreads = options.numberOfThreads;
     isSupervised = options.subdue.supervised;
+    orgThreshold = single(options.subdue.threshold);
     regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
     threshold = single(options.subdue.threshold * regularizationParam); % Hard threshold for cost of matching two subs.
     
@@ -111,8 +113,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     
     %% Step 2: Main loop
     startTime = tic;
+    % Let's find the adaptive threshold with the size of the minimum 
+    currentSize = 2;
     
     while ~isempty(parentSubs)
+        adaptiveThreshold = orgThreshold * (currentSize * 2 - 1);
         % Check time. If it took too long, end processing. 
         % Check parent's size. If it is too large, end processing.
         elapsedTime = toc(startTime);
@@ -127,7 +132,8 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         
         %% All good, execution.
         display(['[SUBDUE/Parallel] Expanding subs of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
-        childSubArr = cell(numel(parentSubs),1);
+        childSubArrFinal = cell(numel(parentSubs),1);
+        childSubArrToExtend = cell(numel(parentSubs),1);
         setDistributions = ones(floor(numel(parentSubs)/numberOfThreads),1) * numberOfThreads;
         if rem(numel(parentSubs), numberOfThreads) > 0
             setDistributions = [setDistributions;rem(numel(parentSubs), numberOfThreads)]; %#ok<AGROW>
@@ -152,19 +158,50 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                 if isempty(childSubs) 
                     continue;
                 end
+                
+                % Here, we define two versions of childSubs, one for
+                % extension, and one for evaluation. The evaluation version
+                % has instances with a strict threshold. In order to
+                % provide for the next level of discovery, we also keep 
+                % one version for extension, which has instances found with
+                % a more loose threshold.
+                numberOfChildSubs = numel(childSubs);
+                childSubsFinal = childSubs;
+                validChildSubs = zeros(numberOfChildSubs,1)>0;
+                for childItr = 1:numberOfChildSubs
+                    validInstanceIdx = childSubsFinal(childItr).instanceMatchCosts <= adaptiveThreshold;
+                    if nnz(validInstanceIdx)
+                        subFinal = childSubsFinal(childItr);
+                        validChildSubs(childItr) = 1;
+                        subFinal.instanceCenterIdx = subFinal.instanceCenterIdx(validInstanceIdx,:);
+                        subFinal.instanceEdges = subFinal.instanceEdges(validInstanceIdx,:);
+                        subFinal.instanceSigns = subFinal.instanceSigns(validInstanceIdx,:);
+                        subFinal.instanceCategories = subFinal.instanceCategories(validInstanceIdx,:);
+                        subFinal.instanceMatchCosts = subFinal.instanceMatchCosts(validInstanceIdx,:);
+                        childSubsFinal(childItr) = subFinal;
+                    end
+                end
+                childSubs = childSubs(validChildSubs);
+                childSubsFinal = childSubsFinal(validChildSubs);
+                
+                % If no subs are remaining, continue.
+                if isempty(childSubs) 
+                    continue;
+                end
 
                 %% Step 2.3: Evaluate childSubs, find their instances.
-                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
+                childSubsFinal = evaluateSubs(childSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
 
                 %% Step 2.4: Based on the new added edge/node pair, eliminate subs that match to better subs.
-                mdlScores = [childSubs.mdlScore];
+                mdlScores = [childSubsFinal.mdlScore];
                 [~, sortIdx] = sort(mdlScores, 'descend');
+                childSubsFinal = childSubsFinal(sortIdx);
                 childSubs = childSubs(sortIdx);
-                validSubs = ones(numel(childSubs),1)>0;
-                edgeNodePairs = cat(1, childSubs.edges);
-                numberOfEdgesPerSub = size(childSubs(1).edges,1);
-                numberOfChildSubs = numel(childSubs);
+                validSubs = ones(numel(childSubsFinal),1)>0;
+                edgeNodePairs = cat(1, childSubsFinal.edges);
+                numberOfEdgesPerSub = size(childSubsFinal(1).edges,1);
+                numberOfChildSubs = numel(childSubsFinal);
                 edgeNodePairs = edgeNodePairs(1:numberOfEdgesPerSub:(numberOfChildSubs*numberOfEdgesPerSub), :);
                 for childItr = 1:(numberOfChildSubs-1)
                     if validSubs(childItr)
@@ -181,9 +218,17 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                     end
                 end
                 childSubs = childSubs(validSubs);
+                childSubsFinal = childSubsFinal(validSubs);
+                
+                % Assign mdl scores to childSubs, too.
+                for childItr = 1:numel(childSubsFinal)
+                    childSubs(childItr).mdlScore = childSubsFinal(childItr).mdlScore;
+                    childSubs(childItr).normMdlScore = childSubsFinal(childItr).normMdlScore;
+                end
                 
                 %% Save childSubs
-                childSubArr(parentItr) = {childSubs};
+                childSubArrFinal(parentItr) = {childSubsFinal};
+                childSubArrToExtend(parentItr) = {childSubs};
             end
         end
         
@@ -191,31 +236,40 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         display('[SUBDUE] Merging all children and putting them into bestSubs if they match final criteria.');
         extendedSubs = [];
         %% Step 2.4: Add childSubs to extendedSubs and bestSubs.
-        childSubArr = cat(2,childSubArr{:});
+        childSubArrFinal = cat(2,childSubArrFinal{:});
+        childSubArrToExtend = cat(2, childSubArrToExtend{:});
         % Add children to the both queues.
-        if ~isempty(childSubArr)
+        if ~isempty(childSubArrFinal)
             % Remove duplicate nodes from the children subs.
-            if size(childSubArr(1).edges,1) > 1
-                childSubEdges = cell(1, numel(childSubArr));
-                for subItr = 1:numel(childSubArr)
-                    childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
+            if size(childSubArrFinal(1).edges,1) > 1
+                childSubEdges = cell(1, numel(childSubArrFinal));
+                for subItr = 1:numel(childSubArrFinal)
+                    childSubEdges(subItr) = {sortrows(childSubArrFinal(subItr).edges)};
                 end
-                subCenters = {childSubArr.centerId};
+                subCenters = {childSubArrFinal.centerId};
                 vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
                 [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
                 clear vocabDescriptors subCenters childSubEdges;
-                childSubArr = childSubArr(validChildrenIdx);
+                childSubArrFinal = childSubArrFinal(validChildrenIdx);
+                childSubArrToExtend = childSubArrToExtend(validChildrenIdx);
             end
         
-            extendedSubs = addToQueue(childSubArr, extendedSubs, beam);
-            bestSubs = addToQueue(childSubArr, bestSubs, nsubs); 
+            % Check for maxSize to put to extendedSubs (parentSubs for next level).
+            if currentSize < maxSize
+                extendedSubs = addToQueue(childSubArrToExtend, extendedSubs, beam);
+            end
+            % Check for minSize to put to final sub array.
+            if currentSize >= minSize
+                bestSubs = addToQueue(childSubArrFinal, bestSubs, nsubs); 
+            end
         end
-        clear childSubArr;
+        clear childSubArrFinal childSubArrToExtend;
         
         %% Step 2.6: Swap expandedSubs with parentSubs.
         if haltedParent == -1
             display('[SUBDUE] Swapping children with parents and going on..');
             parentSubs = extendedSubs;
+            currentSize = currentSize + 1;
             clear extendedSubs;
         else
             break;

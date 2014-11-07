@@ -17,9 +17,6 @@
 %> Ver 1.0 on 05.02.2014
 function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, options)
     % Read data into helper data structures.
-    regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
-    threshold = single(options.subdue.threshold * regularizationParam); % Hard threshold for cost of matching two subs.
-    
     edges = cat(1, graphLevel.adjInfo);
     
     % If no edges are present, time to return.
@@ -33,6 +30,7 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
     %% Match subs from vocabLevel to their instance in graphLevel.
     vocabRealizations = cell(numel(vocabLevel),1);
     for vocabItr = 1:numel(vocabLevel)
+         threshold = single(options.subdue.threshold * ((size(vocabLevel(vocabItr).edges,1)+1)*2-1)); % Hard threshold for cost of matching two subs.
          %% Subgraph matching.
          % Start with the center.
          centerId = vocabLevel(vocabItr).children(1);
@@ -41,6 +39,8 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
          if nnz(validInstances) == 0
              continue;
          end
+         
+         
         % Allocate space to hold the instances.
          instanceChildren = int32(find(validInstances));
          instanceMatchCosts = centerMatchCosts(validInstances);
