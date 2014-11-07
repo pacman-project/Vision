@@ -210,7 +210,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                             if validSubs(childItr2)
                                 edgeNodePair2 = edgeNodePairs(childItr2,:);
                                 if edgeDistanceMatrix(edgeNodePair1(1), edgeNodePair2(1)) + ...
-                                        nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) <= threshold
+                                        nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) <= adaptiveThreshold
                                     validSubs(childItr2) = 0;
                                 end
                             end
