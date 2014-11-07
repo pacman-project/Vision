@@ -21,5 +21,5 @@
 %> Ver 1.0 on 18.12.2013
 function [newLevel] = collectInstances(vocabLevel, previousGraphLevel, nodeDistanceMatrix, options, levelItr)
     %% Discover new level's subs.
-    [~, newLevel, ~] = discoverSubs(vocabLevel, previousGraphLevel, nodeDistanceMatrix, options, true, levelItr);
+    [~, newLevel] = discoverSubs(vocabLevel, previousGraphLevel, nodeDistanceMatrix, options, true, levelItr);
 end

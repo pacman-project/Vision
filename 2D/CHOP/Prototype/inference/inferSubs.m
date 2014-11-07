@@ -5,8 +5,6 @@
 %>
 %> @param vocabLevel Input vocabulary level. Compositions in this vocabulary 
 %> level are detected in graphLevel.
-%> @param vocabLevel Input redundant vocabulary level. Compositions in this 
-%> vocabulary level are detected in graphLevel.
 %> @param graphLevel The current object graphs' level. The graphLevel's
 %> nodes are sorted first by their imageId, then labelId.
 %> @param options Program options.
@@ -17,14 +15,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [graphLevel] = inferSubs(vocabLevel, redundantVocabLevel, graphLevel, options)
-    % Combine vocabLevel with redundant compositions.
-    validVocabLevel = [ones(numel(vocabLevel),1); zeros(numel(redundantVocabLevel),1)];
-    realVocabIds = [1:numel(vocabLevel), [redundantVocabLevel.label]];
-    vocabLevel = [vocabLevel, redundantVocabLevel];
-    
+function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, options)
     % Read data into helper data structures.
-    edges = {graphLevel.adjInfo}';
+    regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
+    threshold = single(options.subdue.threshold * regularizationParam); % Hard threshold for cost of matching two subs.
+    
+    edges = cat(1, graphLevel.adjInfo);
     
     % If no edges are present, time to return.
     if isempty(edges)
@@ -32,98 +28,56 @@ function [graphLevel] = inferSubs(vocabLevel, redundantVocabLevel, graphLevel, o
         return;
     end
     
-    %% Read edges and label ids of linked nodes into edges array.
-    nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), edges);
-    labelIds = cat(1, graphLevel.labelId)';
-    edges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), labelIds(x(:,1:2))], ...
-        edges(nonemptyEdgeIdx), 'UniformOutput', false);
-    edgeCount = cellfun(@(x) size(x,1), edges);
-    edges = cat(1, edges{nonemptyEdgeIdx});
-    
-    % If no edges are present, time to return.
-    if isempty(edges)
-        graphLevel = [];
-        return;
-    end
-    
-    % Record which edge belongs to which instance. 
-    allEdgeInstanceIds = zeros(size(edges,1),1);
-    itrOffset = 1;
-    for itr = 1:numel(edgeCount)
-        beginOffset = itrOffset;
-        allEdgeInstanceIds(beginOffset:(beginOffset+(edgeCount(itr)-1))) = itr;
-        itrOffset = itrOffset + edgeCount(itr);
-    end 
-    
-    %% Get descriptors for edges in the object graph.
-    if strcmp(options.property, 'mode')
-        edgeDescriptors = edges(:,3);
-    else
-        offset1 = max(max(edges(:,4:5)));
-        offset2 = offset1^2;
-        edgeDescriptors = (edges(:,3)-1) * offset2 + (edges(:,4)-1)*offset1 + edges(:,5);
-    end
-    
-    %% Get unique label ids of the previous level.
-    uniqueLabelIds = unique(labelIds);
+    labelIds = cat(1, graphLevel.labelId);
     
     %% Match subs from vocabLevel to their instance in graphLevel.
     vocabRealizations = cell(numel(vocabLevel),1);
     for vocabItr = 1:numel(vocabLevel)
-       %% Quick checks to determine if this composition should be searched.
-       % First, see if all nodes exist in the object graphs.
-       if nnz(ismember(vocabLevel(vocabItr).children, uniqueLabelIds)) ~= numel(vocabLevel(vocabItr).children)
-           continue;
-       end
-       
-       %% Get descriptors for edges in the vocabulary node.
-       vocabEdges = vocabLevel(vocabItr).adjInfo;
-       vocabChildren = (vocabLevel(vocabItr).children)';
-       if strcmp(options.property, 'mode')
-            vocabDescriptors = vocabEdges(:,3);
-       else
-            vocabDescriptors = (vocabEdges(:,3)-1)*offset2 + (vocabChildren(vocabEdges(:,1))-1) * offset1 + vocabChildren(vocabEdges(:,2));
-       end
-       numberOfVocabEdges = numel(vocabDescriptors);
-       
-       %% INDEXING: Search for descriptors in receptive fields, and return those contain at least one.
-       nonUnqValidInstances = allEdgeInstanceIds(edgeDescriptors == vocabDescriptors(1));
-       if ~isempty(nonUnqValidInstances)
-           validInstances = fastsortedunique(allEdgeInstanceIds(edgeDescriptors == vocabDescriptors(1)));
-       else
-           validInstances = [];
-       end
-       
-       % Verify valid instances by checking against rest of edges.
-       if numberOfVocabEdges > 1 && ~isempty(validInstances)
-           for vocabDescItr = 2:numberOfVocabEdges
-                validInstances = validInstances(ismembc(validInstances, ...
-                    allEdgeInstanceIds(edgeDescriptors == vocabDescriptors(vocabDescItr))));
-           end
-       end    
-       
-       % If no valid instances exist, pass.
-       if isempty(validInstances)
-           continue;
-       end
-       
-       %% Process each instance to get correct node sets corresponding to instances.
-       discoveredInstances = cell(numel(validInstances),1);
-       for instanceItr = 1:numel(validInstances)
-            instanceEdgeIdx = find(allEdgeInstanceIds == validInstances(instanceItr));
-            instanceEdgeDescriptors = edgeDescriptors( allEdgeInstanceIds == validInstances(instanceItr));
-            
-            % Collect instances of each edge from vocabulary node's description.
-            instanceEdgeSets = cell(numberOfVocabEdges,1);
-            for vocabEdgeItr = 1:numberOfVocabEdges
-                idx = instanceEdgeDescriptors == vocabDescriptors(vocabEdgeItr);
-                instanceEdgeSets(vocabEdgeItr) = {edges(instanceEdgeIdx(idx), 2)};
+         %% Subgraph matching.
+         % Start with the center.
+         centerId = vocabLevel(vocabItr).children(1);
+         centerMatchCosts = nodeDistanceMatrix(centerId, labelIds)';
+         validInstances = centerMatchCosts <= threshold;
+         if nnz(validInstances) == 0
+             continue;
+         end
+        % Allocate space to hold the instances.
+         instanceChildren = int32(find(validInstances));
+         instanceMatchCosts = centerMatchCosts(validInstances);
+         
+        %% Get descriptors for edges in the vocabulary node.
+        vocabEdges = vocabLevel(vocabItr).adjInfo;
+         
+        %% Iteratively, try to match each edge to the instances.
+        for edgeItr = 1:size(vocabEdges,1)
+            if isempty(instanceChildren) 
+                break;
             end
-            
-            % Get all possible combinations of nodes from each set.
-            discoveredInstances(instanceItr) = {allcomb(validInstances(instanceItr), instanceEdgeSets{:})};
-       end
-       vocabRealizations(vocabItr) = {cat(1, discoveredInstances{:})};
+            childInstances = cell(size(instanceChildren,1),1);
+            childMatchingCosts = cell(size(instanceChildren,1),1);
+            for parentItr = 1:size(instanceChildren,1)
+                currentEdges = graphLevel(instanceChildren(parentItr,1)).adjInfo;
+                if size(instanceChildren,2) > 1
+                    currentEdges = currentEdges(~ismember(currentEdges(:,2), instanceChildren(parentItr,2:end)), :);
+                end
+                currentEdges = [currentEdges(:,3), currentEdges(:,2)];
+                matchCosts = instanceMatchCosts(parentItr) + edgeDistanceMatrix(currentEdges(:,1), vocabEdges(edgeItr,3)) + ...
+                                                                    nodeDistanceMatrix(labelIds(currentEdges(:,2)), vocabLevel(vocabItr).children(vocabEdges(edgeItr,2)));
+                validChildrenIdx = matchCosts<=threshold;
+                validChildren = currentEdges(validChildrenIdx,2);
+                
+                if ~isempty(validChildren)
+                    newInstanceChildren = zeros(numel(validChildren), size(instanceChildren,2)+1, 'int32');
+                    newInstanceChildren(:,1:size(instanceChildren,2)) = repmat(instanceChildren(parentItr,:), numel(validChildren),1);
+                    newInstanceChildren(:,end) = validChildren;
+                    childInstances(parentItr) = {newInstanceChildren};
+                    childMatchingCosts(parentItr) = {matchCosts(validChildrenIdx)};
+                end
+            end
+            instanceChildren = cat(1, childInstances{:});
+            instanceMatchCosts = cat(1, childMatchingCosts{:});
+        end
+       vocabRealizations(vocabItr) = {instanceChildren};
     end
     numberOfInstanceArr = cellfun(@(x) size(x,1), vocabRealizations);
     numberOfInstances = sum(numberOfInstanceArr);
@@ -144,11 +98,7 @@ function [graphLevel] = inferSubs(vocabLevel, redundantVocabLevel, graphLevel, o
     for vocabItr = 1:numel(vocabLevel)
        if numberOfInstanceArr(vocabItr) > 0
             instanceEndOffset = instanceOffset + (numberOfInstanceArr(vocabItr)-1);
-            if validVocabLevel(vocabItr)
-                labelIds(instanceOffset:instanceEndOffset) = int32(vocabItr);
-            else
-                labelIds(instanceOffset:instanceEndOffset) = realVocabIds(vocabItr);
-            end
+            labelIds(instanceOffset:instanceEndOffset) = int32(vocabItr);
             instanceOffset = instanceEndOffset+1;
        end
     end

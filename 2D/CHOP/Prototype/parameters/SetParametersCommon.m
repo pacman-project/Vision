@@ -32,7 +32,7 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 11;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 10;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -41,40 +41,46 @@ function [ options ] = SetParametersCommon( datasetName, options )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)-1;
+    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 7;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 10;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
-    options.autoFilterThr = 0.3;       % Min response threshold for convolved 
+    options.autoFilterThr = 0.2;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
-    options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 100000; % Number of random patches used 
+    options.autoFilterCount = 200;      % Number of auto-detected filters.
+    options.autoFilterPatchCount = 200000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    options.auto.deadFeatureStd = 0.3; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.04; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'euc'; % If 'euc': Euclidean distance 
-                                       % (normalized by number
-                                       % of nonzero pixels)
-                                       % will define the
-                                       % distance between two
-                                       % filters. If 'man',
-                                       % manifold distance to
-                                       % be used.
+    options.distType = 'rank'; % If 'euc': Euclidean distance 
+                                                   % (normalized by number
+                                                   % of nonzero pixels)
+                                                   % will define the
+                                                   % distance between two
+                                                   % filters. If 'man',
+                                                   % manifold distance to
+                                                   % be used. If 'rank',
+                                                   % manifold distance is
+                                                   % used, however, the
+                                                   % features are ranked
+                                                   % with their distances,
+                                                   % and the ranking is the
+                                                   % new distance function.
     %% ========== GT Parameters ==========
     options.useGT = true;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
@@ -100,25 +106,12 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.property = 'mode'; % Geometric property to be examined
-                                       % 'co-occurence': uniform edges 
-                                       % 'mode' (DEFAULT): clusters of relative 
-                                       % positions
-                                       % 'hist': divide space into 8 
-                                       % pre-defined regions.
-    options.mode.maxSamplesPerMode = 200; % In mode calculation between node1
-                                          % and node2, not all samples are
-                                          % considered. Randomly chosen
-                                          % samples are used, defined with
-                                          % this number.
-    options.mode.minSamplesPerMode = 4;   % The minimum number of samples to 
-                                          % be assigned to each mode (avg). If
-                                          % there are not enough samples 
-                                          % for statistical learning,
-                                          % number of modes for that
-                                          % specific part pair is reduced
-                                          % automatically to match this
-                                          % number, if possible.
+    options.edgeQuantize = 50;         % This parameter is used to quantize 
+                                        % edges in a edgeQuantize x edgeQuantize 
+                                        % window. As the receptive field
+                                        % grows, each relation is scaled
+                                        % down to this window, and then
+                                        % quantized. 
     options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
@@ -142,15 +135,15 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                          % for every node in the vocabulary.
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*4; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*3;
+        options.receptiveFieldSize = options.gaborFilterSize*4;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -161,13 +154,6 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maximumModes = 50;         % Maximum number of modes allowed for 
-                                       % a node pair in statistical learning.
-                                       % The actual number of modes for
-                                       % every pair will be lower, since an
-                                       % optimal number of clusters is
-                                       % found in Minimum Conditional
-                                       % Entropy Clustering.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius 
                                        % for two subs to be 
                                        % determined as neighbors. Centroids
@@ -210,14 +196,13 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 1200;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1800;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.inferenceTimeLimit = 1;
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.025; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -240,9 +225,9 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                      % returned anyway in order to
                                      % introduce redundancy in the final
                                      % object graphs.
-     options.subdue.supervised = true; % If true, graph search is performed over
-                                                                          % the whole data. If not, individual categories 
-                                                                          % are searched, and the vocabularies are then 
-                                                                          % combined.
+     options.subdue.supervised = false; % If true, graph search is performed over
+				          % the whole data. If not, individual categories 
+			                  % are searched, and the vocabularies are then 
+			                  % combined.
 end
 

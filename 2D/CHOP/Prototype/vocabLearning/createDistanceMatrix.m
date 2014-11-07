@@ -75,6 +75,7 @@ function [ distMat ] = createDistanceMatrix( filters, distType, deadFeatures )
     validFeatures = setdiff(1:size(newDistMat), deadFeatures);
     distMat = newDistMat/max(max(newDistMat(validFeatures, validFeatures)));
     distMat(distMat > 1) = 1;
+    distMat = single(distMat);
 end
 
 function distance = findDistance(filter1, filter2, distType)

@@ -23,13 +23,14 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, distanceMatrices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
+function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
                                                             options, fileList)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
+    graphLevelIndices = cell(options.maxLevels,1);
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
@@ -44,7 +45,7 @@ function [ vocabulary, mainGraph, distanceMatrices] = learnVocabulary( vocabLeve
     numberOfImages = numel(unique([graphLevel.imageId]));
     
     %% Print first vocabulary and graph level.
-    visualizeLevel( vocabulary{1}, [], [], 1, [], 0, options, 0);
+    visualizeLevel( vocabulary{1}, [], [], 1, 0, options);
     if ~isempty(distanceMatrices{1})
        imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
     end
@@ -79,6 +80,7 @@ function [ vocabulary, mainGraph, distanceMatrices] = learnVocabulary( vocabLeve
            vocabulary = vocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
+           graphLevelIndices = graphLevelIndices(1:(levelItr-1),:);
            break; 
         end
         
@@ -97,6 +99,7 @@ function [ vocabulary, mainGraph, distanceMatrices] = learnVocabulary( vocabLeve
            vocabulary = vocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
+           graphLevelIndices = graphLevelIndices(1:(levelItr-1),:);
            break; 
         end
         
@@ -114,8 +117,9 @@ function [ vocabulary, mainGraph, distanceMatrices] = learnVocabulary( vocabLeve
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
-            [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, options);
+            [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, options);
             distanceMatrices{levelItr} = newDistanceMatrix;
+            graphLevelIndices{levelItr} = graphLabelAssgnArr;
         else
             newDistanceMatrix = [];
         end
@@ -137,13 +141,13 @@ function [ vocabulary, mainGraph, distanceMatrices] = learnVocabulary( vocabLeve
         [mainGraph] = extractEdges(mainGraph, options, levelItr);
         graphLevel = mainGraph{levelItr};
         
-        %% Print vocabulary and graph level to output images (reconstruction).    
+        %% Print vocabulary and graph level to output images (reconstruction).
         if ~isempty(newDistanceMatrix)
            imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
         end
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
-            visualizeLevel( vocabLevel, graphLevel, leafNodes, levelItr, [], numel(vocabulary{1}), options, 0);
+            visualizeLevel( vocabLevel, graphLevel, leafNodes, levelItr, numel(vocabulary{1}), options);
             if options.debug
                display('........ Visualizing realizations on images...');
                if ~isempty(vocabLevel)
@@ -164,6 +168,7 @@ function [ vocabulary, mainGraph, distanceMatrices] = learnVocabulary( vocabLeve
             vocabulary = vocabulary(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
+            graphLevelIndices = graphLevelIndices(1:(levelItr),:);
         end
     end
 end

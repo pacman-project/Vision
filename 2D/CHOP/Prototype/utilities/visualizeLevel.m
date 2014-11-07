@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, ~, numberOfPrevNodes, options, isRedundant)
+function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numberOfPrevNodes, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -54,13 +54,6 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, ~, n
     else
        rmdir(reconstructionDir, 's');
        mkdir(reconstructionDir);
-    end
-    
-    %% Read label ids if redundant level is processed.
-    if isRedundant
-        labelIds = [currentLevel.label];
-    else
-        labelIds = [];
     end
     
     %% In level 1, only print low level filters as first n nodes.

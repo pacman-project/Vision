@@ -6,8 +6,6 @@
 %>
 %> @param vocabLevel If preDefinedSearch is 1, the compositions in this
 %> vocabulary level are searched in graphLevel. If 0, simply ignored.
-%> @param redundantVocabLevel If preDefinedSearch is 1, the compositions in this
-%> redundant vocabulary level are searched in graphLevel. If 0, simply ignored.
 %> @param graphLevel The current object graphs' level.
 %> @param options Program options.
 %> @param currentFolder Path to the workspace folder.

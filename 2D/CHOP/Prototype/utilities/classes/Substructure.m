@@ -15,6 +15,17 @@ classdef Substructure
         mdlScore@double % The MDL score of this node.
         normMdlScore@double % The normalized MDL score of this node. 
                      % (mdlScore/graphSize).
-        instances % An array of instances (realizations of the part).
+        instanceCenterIdx@int32 % An array of instances (realizations of the part).
+        instanceEdges@uint8; % The NxE array of instance edges, where N is the number of 
+                                                   % realizations, and E is
+                                                   % the number of edges in
+                                                   % 'edges'. Each number
+                                                   % is an index to the
+                                                   % array containing
+                                                   % outgoing edges for
+                                                   % each node.
+       instanceSigns@uint8;
+       instanceCategories@uint8;
+       instanceMatchCosts@single;
     end
 end

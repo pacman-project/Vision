@@ -2,7 +2,7 @@
 images=loadMNISTImages('train-images-idx3-ubyte')';
 labels = loadMNISTLabels('train-labels-idx1-ubyte');
 
-trainingImagePerClass = 500;
+trainingImagePerClass = 100;
 testImagePerClass = 25;
 
 for itr = 0:9

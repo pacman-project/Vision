@@ -14,7 +14,7 @@ classdef Instance
                         % in an Instance is isomorphic to the graph
                         % description of the Substructure this Instance
                         % belongs to. 
-        edges@int32; % Edges connecting the center node to the other nodes 
+        edges@uint8; % Edges connecting the center node to the other nodes 
                     % in its receptive graph. Please note that this array
                     % does not encode all connections in the center node's
                     % receptive graph. It only retains the ones that are
@@ -22,10 +22,10 @@ classdef Instance
                     % instance to its linked part's graph description. Is
                     % of the form (v2, edgeId, isDirected; 
                     % v3, edgeId, isDirected; ...]
-        sign; % Signature of the instance, which typically should set 
+        sign@uint8; % Signature of the instance, which typically should set 
                    % to 1 unless the relevant image is of background class.
-        category@int32; % Category of the the image this instance belongs to.
-        matchCost; % Matching cost of this instance to the vocabulary part.
+        category@uint8; % Category of the the image this instance belongs to. ( This means max 255 categories are supported for now).
+        matchCost@single; % Matching cost of this instance to the vocabulary part.
     end
 end
 

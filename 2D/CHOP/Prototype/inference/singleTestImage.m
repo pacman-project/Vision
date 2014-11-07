@@ -15,8 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, distanceMatrices, options)
-    totalInferenceTime = 0;
+function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, graphLevelIndices, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -45,13 +44,13 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, distan
     leafNodes = nodes;
     
     %% Generate first level object graph.
-    [~, graphLevel] = generateLevels(nodes, ones(size(nodes,1),1), options);
+    [~, newLevel] = generateLevels(nodes, ones(size(nodes,1),1), options);
 
     %% Step 2.1: Get first-level object graph edges.
-    mainGraph = {graphLevel};
+    mainGraph = {newLevel};
     
     %% Get edges depending on the property to be embedded in the graph.
-    [~, mainGraph] = extractEdges(mainGraph, options, 1);
+    [mainGraph] = extractEdges(mainGraph, options, 1);
     
     %% Visualize level 1 test image.
     if options.debug
@@ -66,10 +65,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, distan
         if options.debug
            display(['Working on level ' num2str(levelItr) '.']);
         end
-        startTime = tic;
-        newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, options, levelItr);
-        duration = toc(startTime);
-        totalInferenceTime = totalInferenceTime + duration;
+        newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, distanceMatrices{levelItr-1}, options, levelItr);
         
         %% Assign positions, image ids, and leaf nodes. 
         % If no new subs have been found, finish processing.
@@ -89,6 +85,17 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, distan
             display(['........ Remaining: ' num2str(numel(newLevel)) ' realizations belonging to ' num2str(numel(unique([newLevel.labelId]))) ' compositions.']);
         end
         
+        %% Assign new labels to newLevel, and continue.    
+        labelIds = [newLevel.labelId];
+        graphLabelAssgnArr = graphLevelIndices{levelItr};
+        newLabelIds = num2cell(graphLabelAssgnArr(labelIds)');
+        [newLevel.labelId] = deal(newLabelIds{:});
+
+        % Rearrange graph level so it is sorted by image id.
+        arrayToSort = [[newLevel.imageId]', [newLevel.labelId]'];
+        [~, sortedIdx] = sortrows(arrayToSort);
+        newLevel = newLevel(sortedIdx);
+        
         %% If new level is empty, break.
         if isempty(newLevel)
             if options.debug
@@ -102,7 +109,7 @@ function [totalInferenceTime] = singleTestImage(testFileName, vocabulary, distan
         
         %% Extract the edges to form the new graph.
         if levelItr < numberOfLevels
-            [~, mainGraph] = extractEdges(mainGraph, options, levelItr, modes);
+            [mainGraph] = extractEdges(mainGraph, options, levelItr);
         end
         
         %% Visualize the test images with previous layer's subs.

@@ -1,4 +1,4 @@
-%> Name: visualizeLevel
+%> Name: visualizeCroppedImgs
 %>
 %> Description: Given the current and previous vocabulary level, this
 %> function visualizes the current vocabulary level as a separate patche for
@@ -9,14 +9,11 @@
 %> @param levelId Identifier of the current level.
 %> @param numberOfPrevNodes Number of nodes in previous vocabulary level.
 %> @param options Program options.
-%> @param isRedundant If currentLevel consists of redundant compositions,
-%> set 1. Otherwise set 0.
 %> 
 %> Author: Rusen
 %>
 %> Updates
-%> Ver 1.0 on 10.02.2014
-%> Redundant vocabulary output option added. 10.05.2014
+%> Ver 1.0 on 01.11.2014
 function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
@@ -137,6 +134,3 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     % Then, write the compositions the final image.
     imwrite(overallInstanceImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb_cropped.png']);
 end
-
-
-

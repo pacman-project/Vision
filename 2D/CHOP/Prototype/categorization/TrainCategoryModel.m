@@ -74,6 +74,6 @@ function [] = TrainCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgS
          end
         cmd = ['-t 2 -c ', num2str(bestc), ' -g ', num2str(bestg),' -q '];
         learnedModel = svmtrain(categoryArrIdx, features, cmd);
-        save([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '.mat'], 'features', 'categoryArrIdx', 'learnedModel', 'cumSums', 'W', 'normFactor', 'COEFF');
+        save([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '.mat'], 'features', 'categoryArrIdx', 'learnedModel', 'cumSums', 'W', 'normFactor');
     end
 end

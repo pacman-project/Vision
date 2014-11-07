@@ -23,6 +23,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     processedFolder = options.processedFolder;   
     reconstructionType = options.reconstructionType;
     instancePerNode = options.vis.instancePerNode;
+    printTrainRealizations = options.vis.printTrainRealizations;
     
     filter1 = options.filters{1};
     filtBandCount = size(filter1,3);
@@ -202,7 +203,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
             labeledReconstructedMask((nodes(nodeItr).position(1)-1):(nodes(nodeItr).position(1)+1), ...
                 (nodes(nodeItr).position(2)-1):(nodes(nodeItr).position(2)+1)) = nodes(nodeItr).labelId;
         end
-        if strcmp(type, 'test')
+        if strcmp(type, 'test') || (strcmp(type, 'train') && printTrainRealizations)
             %% Write the reconstructed mask to the output.
             % Add some random colors to make each composition look different, 
             % and overlay the gabors with the original image.

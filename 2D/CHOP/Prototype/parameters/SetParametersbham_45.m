@@ -17,7 +17,7 @@ function [ options ] = SetParametersbham_45( datasetName, options )
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
-    options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
+    options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
@@ -25,7 +25,7 @@ function [ options ] = SetParametersbham_45( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.05; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.1; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
@@ -41,7 +41,7 @@ function [ options ] = SetParametersbham_45( datasetName, options )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)-1;
+    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2) - 2;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
@@ -101,30 +101,17 @@ function [ options ] = SetParametersbham_45( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.property = 'mode'; % Geometric property to be examined
-                                       % 'co-occurence': uniform edges 
-                                       % 'mode' (DEFAULT): clusters of relative 
-                                       % positions
-                                       % 'hist': divide space into 8 
-                                       % pre-defined regions.
-    options.mode.maxSamplesPerMode = 200; % In mode calculation between node1
-                                          % and node2, not all samples are
-                                          % considered. Randomly chosen
-                                          % samples are used, defined with
-                                          % this number.
-    options.mode.minSamplesPerMode = 4;   % The minimum number of samples to 
-                                          % be assigned to each mode (avg). If
-                                          % there are not enough samples 
-                                          % for statistical learning,
-                                          % number of modes for that
-                                          % specific part pair is reduced
-                                          % automatically to match this
-                                          % number, if possible.
+    options.edgeQuantize = 50;         % This parameter is used to quantize 
+                                        % edges in a edgeQuantize x edgeQuantize 
+                                        % window. As the receptive field
+                                        % grows, each relation is scaled
+                                        % down to this window, and then
+                                        % quantized. 
     options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
@@ -156,7 +143,7 @@ function [ options ] = SetParametersbham_45( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -167,13 +154,6 @@ function [ options ] = SetParametersbham_45( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maximumModes = 50;         % Maximum number of modes allowed for 
-                                       % a node pair in statistical learning.
-                                       % The actual number of modes for
-                                       % every pair will be lower, since an
-                                       % optimal number of clusters is
-                                       % found in Minimum Conditional
-                                       % Entropy Clustering.
     options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius 
                                        % for two subs to be 
                                        % determined as neighbors. Centroids
@@ -222,7 +202,7 @@ function [ options ] = SetParametersbham_45( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.03; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -234,7 +214,7 @@ function [ options ] = SetParametersbham_45( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 3000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
@@ -245,7 +225,7 @@ function [ options ] = SetParametersbham_45( datasetName, options )
                                      % returned anyway in order to
                                      % introduce redundancy in the final
                                      % object graphs.
-     options.subdue.supervised = true; % If true, graph search is performed over
+     options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 
 			                  % combined.

@@ -30,20 +30,21 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                 allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact)
             
     % Read signs and edges of the instances.
-    instanceSigns = allSigns(cat(1, sub.instances.centerIdx));
+    instanceSigns = allSigns(sub.instanceCenterIdx);
     if strcmp(evalMetric, 'mdl')
-        centerIdx = cat(1, sub.instances.centerIdx);
+        centerIdx = sub.instanceCenterIdx;
         instanceEdges = {allEdges(centerIdx).adjInfo}';
         centerCellIdx = num2cell(centerIdx);
-        clear centerIdx;
-        instanceUsedEdgeIdx = {sub.instances.edges}';
+%        clear centerIdx;
+        instanceUsedEdgeIdx = sub.instanceEdges;
+        instanceUsedEdgeIdx = mat2cell(instanceUsedEdgeIdx, ones(size(instanceUsedEdgeIdx,1),1), size(instanceUsedEdgeIdx,2));
         numberOfNodes = numel(allEdges);
         numberOfInstances = numel(instanceSigns);   % Beware: Changes if overlap not allowed!
 
         % Calculate outgoing nodes (destinations of edges where
         % instance's children are the source).
         instanceChildren = cellfun(@(x,y,z) sort([z; x(y,2)]), instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
-        clear instanceEdges instanceUsedEdgeIdx centerCellIdx;
+%        clear instanceEdges instanceUsedEdgeIdx centerCellIdx;
 
         % If overlaps are not allowed, filter out overlapping instances.
         if ~overlap
@@ -78,7 +79,7 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
             uniqueNodes = unique(cat(1, instanceChildren{:}));
             uniqueEdgeList = {allEdges(uniqueNodes).adjInfo};
             avgDegree = mean(cellfun(@(x) size(x,1), uniqueEdgeList));
-            clear uniqueEdgeList;
+   %         clear uniqueEdgeList;
             
             %% DL calculation for compressed object graph takes place.
             % We only take the modified parts of the new graph into account. It
@@ -115,8 +116,6 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                 % considered. The reason to omit this is its immense complexity. We
                 % leave this point as future work. We're open to contributions
                 % towards a better, more correct compression algorithm :)
-                allConstants = ones(numel(allSigns),1);
-                allConstants(~allSigns) = -1;
                 if ~overlap
                     % If overlaps are not allowed, and there are no
                     % background instances, the exact mdl calculation can
@@ -128,15 +127,15 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                     instanceNeighbors = allEdgeNodePairs(xor(ismembc(allEdgeNodePairs(:,1), uniqueNodes), ismember(allEdgeNodePairs(:,2),uniqueNodes)),:);
                     instanceNeighbors = instChildrenIds(instanceNeighbors);
                     instanceNeighbors = unique(instanceNeighbors, 'rows');
-                    subScore = subScore - round(sum(allConstants(instanceNeighbors(:,1))) * mdlEdgeWeight);
-                    clear instanceNeighbors instChildrenIds;
+                    subScore = subScore - round(sum(multConstants(instanceNeighbors(:,1))) * mdlEdgeWeight);
+  %                  clear instanceNeighbors instChildrenIds;
                 else
                     instanceOutNeighbors = cellfun(@(x) numel(setdiff(allEdgeNodePairs(ismember(allEdgeNodePairs(:,1), x),2), x)), instanceChildren);
                     instanceInNeighbors = cellfun(@(x) numel(setdiff(allEdgeNodePairs(ismember(allEdgeNodePairs(:,2), x),1), x)), instanceChildren);
                     subScore = subScore - round(sum((instanceOutNeighbors + instanceInNeighbors) .* instanceConstants) * mdlEdgeWeight);
-                    clear instanceOutNeighbors instanceInNeighbors;
+   %                 clear instanceOutNeighbors instanceInNeighbors;
                 end
-                clear allConstants;
+  %              clear allConstants;
             else
                 %% Approximate MDL calculation
                 % Adding a number of edges per each new instance, which is
@@ -146,7 +145,7 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                 % assumed to be the same, that's why the average degree is
                 % multiplied by two.
                 subScore = subScore - round(2 * avgDegree * sum(instanceConstants) * mdlEdgeWeight);
-                clear instanceConstants;
+ %               clear instanceConstants;
             end
 
             % 5) Finally, consider the own description length of the sub.
@@ -155,7 +154,4 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
         otherwise
             display('Error: evalMetric not implemented (in getSubScore.m).');
     end
-    
-    
 end
-

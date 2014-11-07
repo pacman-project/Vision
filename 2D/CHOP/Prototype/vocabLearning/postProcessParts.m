@@ -1,6 +1,6 @@
-function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, options)
+function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, options)
     edgeCoords = options.edgeCoords;
-    edgeQuantize = options.edgeQuantize/2;
+    edgeQuantize = options.edgeQuantize;
     % Assign new labels of the remaining realizations.
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);
     IC = num2cell(int32(IC));
@@ -12,6 +12,32 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     newLabelArr = num2cell(int32(1:numel(vocabLevel)));
     [vocabLevel.label] = deal(newLabelArr{:});
     
+    %% Sort vocabLevel based on their occurences. Update graphLevel based on this info.
+    orgRanks = num2cell(int32(1:numel(vocabLevel)));
+    [vocabLevel.orgRank] = deal(orgRanks{:});
+    labelIds = [graphLevel.labelId];
+    if numel(unique(labelIds)) == 1
+        frequencies = numel(labelIds);
+    else
+        frequencies = hist(labelIds, 1:numel(vocabLevel));
+    end
+    [~, vocabLevelSortIdx] = sort(frequencies, 'descend');
+    vocabLevel = vocabLevel(vocabLevelSortIdx);
+    for nodeItr = 1:numel(vocabLevel)
+        vocabLevel(nodeItr).label = int32(nodeItr);
+    end
+    
+    % Update graph ids.
+    graphLabelAssgnArr = zeros(numel(vocabLevel),1, 'int32');
+    graphLabelAssgnArr(vocabLevelSortIdx) = 1:numel(vocabLevel);
+    newLabelIds = num2cell(graphLabelAssgnArr(labelIds)');
+    [graphLevel.labelId] = deal(newLabelIds{:});
+    
+    % Rearrange graph level so it is sorted by image id.
+    arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];
+    [~, sortedIdx] = sortrows(arrayToSort);
+    graphLevel = graphLevel(sortedIdx);
+%     
     %% Find the distance matrix among the remaining parts in vocabLevel.
     edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
     numberOfNodes = numel(vocabLevel);
@@ -56,6 +82,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
            (max(childrenCounts, repmat(childrenCounts(partItr), 1, numberOfNodes)) * 2 - 1);
     end
     newDistanceMatrix = newDistanceMatrix / max(max(newDistanceMatrix));
+    newDistanceMatrix = single(newDistanceMatrix);
 end
 
 %> Name: InexactMatch
