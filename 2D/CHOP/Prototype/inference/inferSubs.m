@@ -30,7 +30,7 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
     %% Match subs from vocabLevel to their instance in graphLevel.
     vocabRealizations = cell(numel(vocabLevel),1);
     for vocabItr = 1:numel(vocabLevel)
-         threshold = single(options.subdue.threshold * ((size(vocabLevel(vocabItr).edges,1)+1)*2-1)); % Hard threshold for cost of matching two subs.
+         threshold = single(options.subdue.threshold * ((size(vocabLevel(vocabItr).adjInfo,1)+1)*2-1)); % Hard threshold for cost of matching two subs.
          %% Subgraph matching.
          % Start with the center.
          centerId = vocabLevel(vocabItr).children(1);
