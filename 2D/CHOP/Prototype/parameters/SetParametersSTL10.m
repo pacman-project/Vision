@@ -202,7 +202,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.025; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
