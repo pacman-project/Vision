@@ -78,10 +78,19 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             end
             
             % Save image into processed folder.
-            imwrite(img, [processedFolder '/' fileName '.png']);
+            fileNameNew = fileName;
+            if exist([processedFolder '/' fileName '.png'], 'file')
+                fileId = 1;
+                fileNameNew = [fileName '_' num2str(fileId)];
+                while exist([processedFolder '/' fileNameNew '.png'], 'file')
+                    fileId = fileId + 1;
+                    fileNameNew = [fileName '_' num2str(fileId)];
+                end
+            end
+            imwrite(img, [processedFolder '/' fileNameNew '.png']);
             
             % Switch file names with those copied.
-            trainingFileNames(fileItr) = {[processedFolder '/' fileName '.png']};
+            trainingFileNames(fileItr) = {[processedFolder '/' fileNameNew '.png']};
 
             % If gt file exists, write it to the processed gt folder. In
             % addition, we keep track of the name of gt file corresponding

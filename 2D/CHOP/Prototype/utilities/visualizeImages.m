@@ -129,7 +129,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                 continue;
             end
             
-            
             % Fetch the node list to reconstruct.
             if strcmp(reconstructionType, 'true')
                 reconstructedNodes = nodeItr;
