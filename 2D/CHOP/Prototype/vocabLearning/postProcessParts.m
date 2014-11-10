@@ -1,8 +1,10 @@
 function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, options)
     edgeCoords = options.edgeCoords;
     edgeQuantize = options.edgeQuantize;
+    threshold = options.subdue.threshold;
     % Assign new labels of the remaining realizations.
-    [remainingComps, ~, IC] = unique([graphLevel.labelId]);
+    
+    [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
     IC = num2cell(int32(IC));
     [graphLevel.labelId] = deal(IC{:});
     clear IC;
@@ -37,7 +39,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];
     [~, sortedIdx] = sortrows(arrayToSort);
     graphLevel = graphLevel(sortedIdx);
-%     
+    
     %% Find the distance matrix among the remaining parts in vocabLevel.
     edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
     numberOfNodes = numel(vocabLevel);
@@ -59,13 +61,21 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     
     newDistanceMatrix = zeros(numberOfNodes);
     distMatEntries = cell(numberOfNodes,1);
-    parfor partItr1 = 1:(numberOfNodes-1)
-        description1 = vocabDescriptions{partItr1};
+    for partItr1 = 1:(numberOfNodes-1)
         newEntries = zeros(1, numberOfNodes);
-        for partItr2 = (partItr1+1):numberOfNodes; 
-            description2 = vocabDescriptions{partItr2}; %#ok<PFBNS>
-            matchingCost = InexactMatch(description1, description2, edgeQuantize, nodeDistanceMatrix);
-            newEntries(partItr2) = matchingCost;
+        description1 = vocabDescriptions{partItr1};
+        savedRows = unique(description1(:,1));
+        sparseNodeMat = zeros(size(nodeDistanceMatrix,1));
+        sparseNodeMat(savedRows,:) = nodeDistanceMatrix(savedRows,:);
+        sparseNodeMat = sparse(sparseNodeMat);
+
+        parfor partItr2 = (partItr1+1):numberOfNodes
+            description2 = vocabDescriptions{partItr2};
+            adaptiveThreshold = (max(size(description1, 1), size(description2,1))*2-1) * threshold;
+            matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat, adaptiveThreshold);
+            if matchingCost >0
+                newEntries(partItr2) = matchingCost;
+            end
         end
         distMatEntries(partItr1) = {newEntries};
     end
@@ -74,7 +84,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
         newDistanceMatrix = newDistanceMatrix + newDistanceMatrix';
     end
     
-    % Normalize distances by the size of compared parts.
+    %% Normalize distances by the size of compared parts.
     childrenCounts = {vocabLevel.children};
     childrenCounts = cellfun(@(x) numel(x), childrenCounts);
     for partItr = 1:numel(vocabLevel);
@@ -108,7 +118,7 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 06.05.2014
-function [lowestCost] = InexactMatch(description, description2, maxDistance, distanceMatrix)
+function [lowestCost] = InexactMatch(description, description2, maxDistance, distanceMatrix, adaptiveThreshold)
     % Get both descriptions to the same size.
     firstDesSize = size(description,1);
     secDesSize = size(description2,1);
@@ -137,8 +147,8 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
         % Estimate node-node distances.
         for nodeItr = 1:numberOfChildren
             if validEdges(nodeItr)
-                currentCost = currentCost + distanceMatrix(comparedDescription(nodeItr,1), ...
-                                            description2(nodeItr,1));
+                currentCost = currentCost + single(full(distanceMatrix(comparedDescription(nodeItr,1), ...
+                                            description2(nodeItr,1))));
             end
         end
 
@@ -150,7 +160,8 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
         % Assign lowest cost if current cost is smaller.
         if currentCost<lowestCost
             lowestCost = currentCost;
-            if lowestCost == 0
+            if lowestCost <=adaptiveThreshold
+                lowestCost = 0;
                break; 
             end
         end
