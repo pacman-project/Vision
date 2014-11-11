@@ -18,6 +18,6 @@ function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords ] = findEdgeDistanceMatr
     % Find the distance matrix with respect to pairs of individual
     % relations.
     points = [xArr(relations), yArr(relations)];
-    edgeDistanceMatrix = squareform(pdist(points)) / edgeQuantize;
+    edgeDistanceMatrix = single(squareform(pdist(points)) / edgeQuantize);
 end
 

@@ -19,6 +19,7 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, graphL
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
+    threshold = options.subdue.threshold;
     [~, fileName, ~] = fileparts(testFileName);
     if options.debug
         display(['Processing ' fileName '.']);
@@ -65,7 +66,7 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, graphL
         if options.debug
            display(['Working on level ' num2str(levelItr) '.']);
         end
-        newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, distanceMatrices{levelItr-1}, options, levelItr);
+        newLevel = collectInstances(vocabulary{levelItr}, mainGraph{levelItr-1}, distanceMatrices{levelItr-1}, options, threshold, levelItr);
         
         %% Assign positions, image ids, and leaf nodes. 
         % If no new subs have been found, finish processing.

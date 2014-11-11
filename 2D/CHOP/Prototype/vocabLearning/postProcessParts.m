@@ -2,9 +2,10 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     edgeCoords = options.edgeCoords;
     edgeQuantize = options.edgeQuantize;
     threshold = options.subdue.threshold;
+    singlePrecision = options.singlePrecision;
     % Assign new labels of the remaining realizations.
     
-    [remainingComps, ~, IC] = unique([graphLevel.labelId], 'stable');
+    [remainingComps, ~, IC] = unique([graphLevel.labelId]);
     IC = num2cell(int32(IC));
     [graphLevel.labelId] = deal(IC{:});
     clear IC;
@@ -71,7 +72,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
 
         parfor partItr2 = (partItr1+1):numberOfNodes
             description2 = vocabDescriptions{partItr2};
-            adaptiveThreshold = (max(size(description1, 1), size(description2,1))*2-1) * threshold;
+            adaptiveThreshold = single((max(size(description1, 1), size(description2,1))*2-1) * threshold) + singlePrecision;
             matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat, adaptiveThreshold);
             if matchingCost >0
                 newEntries(partItr2) = matchingCost;
@@ -134,7 +135,7 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
     
     % Compare each permutation of rows of description to description2. The
     % one which gets the minimum cost is our match.
-    lowestCost = inf;
+    lowestCost = realmax('single');
     numberOfRows = size(rows,1);
     for permItr = 1:numberOfRows
         currentCost = 0;
@@ -160,7 +161,7 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
         % Assign lowest cost if current cost is smaller.
         if currentCost<lowestCost
             lowestCost = currentCost;
-            if lowestCost <=adaptiveThreshold
+            if lowestCost < adaptiveThreshold
                 lowestCost = 0;
                break; 
             end

@@ -68,7 +68,7 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
     for levelItr = 2:options.maxLevels
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
         [vocabLevel, graphLevel] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
-            options, false, levelItr-1);
+            options, false, options.subdue.threshold, levelItr-1);
         
         % Open/close matlabpool to save memory.
         matlabpool close;
@@ -117,6 +117,7 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
+            display('........ Calculating distance matrix among the vocabulary nodes..');
             [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, options);
             distanceMatrices{levelItr} = newDistanceMatrix;
             graphLevelIndices{levelItr} = graphLabelAssgnArr;
@@ -125,6 +126,7 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
         end
         
         %% Calculate statistics from this graph.
+        display('........ Estimating post-inhibition statistics..');
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);
         
         % display debugging info.

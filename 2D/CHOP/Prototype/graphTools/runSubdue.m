@@ -71,7 +71,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     isSupervised = options.subdue.supervised;
     orgThreshold = single(options.subdue.threshold);
     regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
-    threshold = single(options.subdue.threshold * regularizationParam); % Hard threshold for cost of matching two subs.
+    threshold = single(options.subdue.threshold * regularizationParam) + options.singlePrecision; % Hard threshold for cost of matching two subs.
     
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
@@ -109,6 +109,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     display('[SUBDUE] Creating single node subs..');
     singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, ...
         nodeDistanceMatrix, categoryArrIdx, threshold);
+ %   parentSubs = addToQueue(singleNodeSubs, parentSubs, numel(singleNodeSubs));
     parentSubs = addToQueue(singleNodeSubs, parentSubs, options.subdue.beam);
     
     %% Step 2: Main loop
@@ -118,7 +119,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     minMdlScoreFinal = 0; % Preserve memory by deleting unnecessary subs.
     
     while ~isempty(parentSubs)
-        adaptiveThreshold = orgThreshold * (currentSize * 2 - 1);
+        adaptiveThreshold = orgThreshold * (single(currentSize) * 2 - 1) + 0.0001;
         % Check time. If it took too long, end processing. 
         % Check parent's size. If it is too large, end processing.
         elapsedTime = toc(startTime);
@@ -173,7 +174,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                 childSubsFinal = childSubs;
                 validChildSubs = zeros(numberOfChildSubs,1)>0;
                 for childItr = 1:numberOfChildSubs
-                    validInstanceIdx = childSubsFinal(childItr).instanceMatchCosts <= adaptiveThreshold;
+                    validInstanceIdx = childSubsFinal(childItr).instanceMatchCosts < adaptiveThreshold;
                     if nnz(validInstanceIdx)
                         subFinal = childSubsFinal(childItr);
                         validChildSubs(childItr) = 1;
@@ -214,7 +215,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                             if validSubs(childItr2)
                                 edgeNodePair2 = edgeNodePairs(childItr2,:);
                                 if edgeDistanceMatrix(edgeNodePair1(1), edgeNodePair2(1)) + ...
-                                        nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) <= adaptiveThreshold
+                                        nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) < adaptiveThreshold
                                     validSubs(childItr2) = 0;
                                 end
                             end
@@ -354,6 +355,8 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     end
     clear vocabLevel graphLevel
     if numberOfInstances>0
+%        remainingBestSubs = 1:numberOfBestSubs;
+%        IA = 1:numberOfInstances;
         %% First, we eliminate the instances having exactly the same node list.
         % Learn the maximum children count in instances.
         maxSubSize = 1;
@@ -388,7 +391,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
        remainingBestSubs = unique(remainingInstanceLabels(IA))';
        numberOfBestSubs = numel(remainingBestSubs);
        numberOfInstances = numel(IA);
-        
        %Allocate space for new graph/vocab level.
         vocabLevel(numberOfBestSubs) = options.vocabNode;
         graphLevel(numberOfInstances) = options.graphNode;
@@ -489,7 +491,7 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
     %% For each center node label type, we create a substructure.
     for subItr = 1:numberOfSubs
         distances = nodeDistanceMatrix(allLabels, subItr);
-        subCenterIdx = distances <= threshold;
+        subCenterIdx = distances < threshold;
         instances = int32(find(subCenterIdx));
         numberOfInstances = numel(instances);
         
@@ -601,7 +603,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         edgesToExtendCosts = allEdgePrevCosts + ...
             edgeDistanceMatrix(allUnusedEdges(:,3), uniqueEdgeTypes(edgeTypeItr,1)) + ...
             nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2));
-        edgesToExtendIdx = edgesToExtendCosts <= threshold;
+        edgesToExtendIdx = edgesToExtendCosts < threshold;
         edgesToExtend = allUnusedEdges(edgesToExtendIdx,:);
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
         

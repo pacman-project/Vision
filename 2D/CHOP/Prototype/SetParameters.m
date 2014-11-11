@@ -18,10 +18,10 @@ function [ options ] = SetParameters( datasetName, isTraining )
     if ~isTraining
         options.debug = 1;
     else
-        options.debug = 0;           % If debug = 1, additional output will be 
+        options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end                             
-    options.vis.printTrainRealizations = false;
+    options.vis.printTrainRealizations = true;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
@@ -77,6 +77,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
     filters = createFilters(options);
     options.filters = filters;
     options.numberOfFilters = numel(filters);
+    
+    %%  ========== SINGLE PRECISION  ========== 
+    options.singlePrecision = single(0.0001);
     
     %% ========== FILTER MATRIX & DATA STRUCTURES GENERATION ==========
     if strcmp(options.filterType, 'auto') 

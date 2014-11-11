@@ -23,7 +23,7 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, nodeDistanceMatrix, options, preDefinedSearch, levelItr)
+function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, nodeDistanceMatrix, options, preDefinedSearch, threshold, levelItr)
     startTime = tic;
     edgeDistanceMatrix = options.edgeDistanceMatrix;
     if ~preDefinedSearch
@@ -37,7 +37,7 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, nodeDi
         % This part is again related to combining parts. 
         % The status of this section is debatable. Please wait for updates.
         % It'll be unhid as soon as possible.
-        graphLevel = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, options);
+        graphLevel = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, threshold);
     else
         [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options);
     end
