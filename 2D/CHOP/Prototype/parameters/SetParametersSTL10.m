@@ -53,8 +53,8 @@ function [ options ] = SetParametersSTL10( datasetName, options )
     options.autoFilterThr = 0.05;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
-    options.autoFilterCount = 200;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 200000; % Number of random patches used 
+    options.autoFilterCount = 1600;      % Number of auto-detected filters.
+    options.autoFilterPatchCount = 400000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
@@ -67,7 +67,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'rank'; % If 'euc': Euclidean distance 
+    options.distType = 'euc'; % If 'euc': Euclidean distance 
                                                    % (normalized by number
                                                    % of nonzero pixels)
                                                    % will define the
