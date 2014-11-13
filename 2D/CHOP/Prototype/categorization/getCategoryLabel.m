@@ -13,22 +13,35 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.07.2014
-function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr, minLevels, maxLevels)
+function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr, confidenceArr, minLevels, maxLevels)
 %    maxLevels = max(exportArr(:,4));
     categoryLabel = -1;
     numberOfCategories = numel(vocabulary{1}(1).categoryArr);
+    if ~isempty(confidenceArr)
+        confidenceArr = repmat(confidenceArr, 1, numberOfCategories);
+    end
     categoryList = 1:numberOfCategories;
     categoryDecisionArr = zeros(1, numberOfCategories, 'single');
     bestCategories = [];
     for levelItr = maxLevels:-1:minLevels
         vocabLevel = vocabulary{levelItr};
-        categoryArrs = cat(1, vocabLevel.categoryArr);
+        categoryArrs = double(cat(1, vocabLevel.categoryArr)).^2;
         if isempty(categoryArrs) 
            break; 
         end
         nodes = exportArr(exportArr(:,4) == levelItr,:);
+        if ~isempty(confidenceArr)
+            nodeConfidences = confidenceArr(exportArr(:,4) == levelItr,:);
+            % Here, we set the maximum confidence as 1, and others as zero.
+            if size(nodeConfidences,1) > 1
+                [maxVal, ~] = max(max(nodeConfidences));
+                nodeConfidences(nodeConfidences<(maxVal-0.000001)) = 0;
+            end
+        else
+            nodeConfidences = ones(size(exportArr,1),1);
+        end
         if size(nodes,1)>0
-            categoryDecisionArr = categoryDecisionArr + sum(categoryArrs(nodes(:,1),:),1) / size(nodes,1);
+            categoryDecisionArr = categoryDecisionArr + sum(categoryArrs(nodes(:,1),:) .* nodeConfidences) / size(nodes,1);
 %           categoryDecisionArr = sum(categoryArrs(nodes(1,1),:),1);
             % Mark previously considered best categories. We're selecting from
             % them.

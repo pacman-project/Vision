@@ -29,6 +29,7 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
     
     %% Match subs from vocabLevel to their instance in graphLevel.
     vocabRealizations = cell(numel(vocabLevel),1);
+    vocabRealizationsConfidence = cell(numel(vocabLevel),1);
     for vocabItr = 1:numel(vocabLevel)
          adaptiveThreshold = single(threshold * ((size(vocabLevel(vocabItr).adjInfo,1)+1)*2-1)) + 0.0001; % Hard threshold for cost of matching two subs.
          %% Subgraph matching.
@@ -39,7 +40,6 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
          if nnz(validInstances) == 0
              continue;
          end
-         
          
         % Allocate space to hold the instances.
          instanceChildren = int32(find(validInstances));
@@ -78,6 +78,8 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
             instanceMatchCosts = cat(1, childMatchingCosts{:});
         end
        vocabRealizations(vocabItr) = {instanceChildren};
+       instanceConfidences = (adaptiveThreshold - instanceMatchCosts )/ adaptiveThreshold;
+       vocabRealizationsConfidence(vocabItr) = {instanceConfidences};
     end
     numberOfInstanceArr = cellfun(@(x) size(x,1), vocabRealizations);
     numberOfInstances = sum(numberOfInstanceArr);
@@ -88,6 +90,10 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
         graphLevel = [];
         return;
     end
+    
+    %% Get confidences.
+    confidenceArr = double(cat(1, vocabRealizationsConfidence{:}));
+    confidenceArrCell = num2cell(confidenceArr);
     
     %% Generate graph level.
     graphLevel(numberOfInstances) = GraphNode;
@@ -111,6 +117,7 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
     [graphLevel.labelId] = deal(labelIds{:});
     [graphLevel.children] = deal(allChildren{:});
     [graphLevel.sign] = deal(1);
+    [graphLevel.confidence] = deal(confidenceArrCell{:});
     
     % Sort graph level based on label ids.
     graphLevel = graphLevel(sortIdx);
@@ -118,7 +125,14 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
     % Get unique instances (to be consistent with training)
     allChildren = allChildren(sortIdx);
     allChildren = cellfun(@(x) mat2str(sort(x)), allChildren, 'UniformOutput', false);
-    [~, IC, ~] = unique(allChildren, 'stable');
-    graphLevel = graphLevel(IC);
+    [~, IC, IA] = unique(allChildren, 'stable');
+    validSubs = zeros(numel(IC),1)>0;
+    for childItr = 1:numel(IC)
+        matchingInstances = find(IA==childItr);
+        [~, trueInstance] = max(confidenceArr(matchingInstances));
+        trueInstance = matchingInstances(trueInstance);
+        validSubs(trueInstance) = 1;
+    end
+    graphLevel = graphLevel(validSubs);
 end
 

@@ -17,6 +17,9 @@
 function [ ] = generateAutoFilters( datasetName, fileType )
     %% Step 1: Get program options and initialize variables.
     options = SetParameters(datasetName, true);
+    if ~strcmp(options.filterType, 'auto')
+        return;
+    end
     datasetFolder = [options.currentFolder '/input/' datasetName '/vocab/'];
     
     if ~exist([options.currentFolder '/filters/auto'], 'dir')

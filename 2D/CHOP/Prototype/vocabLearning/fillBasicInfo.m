@@ -28,6 +28,7 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, number
         for newNodeItr = 1:numel(subLevel)
             nodeChildren = subLevel(newNodeItr).children;
             numberOfChildren = numel(nodeChildren);
+            subLevel(newNodeItr).confidence = mean([previousLevel(nodeChildren).confidence]) * subLevel(newNodeItr).confidence;
             subLevel(newNodeItr).imageId = previousLevel(nodeChildren(1)).imageId;
             nodeLeafNodes = cell(numberOfChildren,1);
             for childItr = 1:numberOfChildren

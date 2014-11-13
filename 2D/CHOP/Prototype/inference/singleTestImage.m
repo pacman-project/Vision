@@ -120,10 +120,10 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, graphL
     end
     
     %% Process mainGraph to export realizations in the desired format for inte2D/3D integration.
-    exportArr = exportRealizations(mainGraph); %#ok<NASGU>
+    [exportArr, confidenceArr] = exportRealizations(mainGraph); %#ok<ASGLU,NASGU>
     if exist([options.testInferenceFolder '/' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr', '-append');
+        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr', 'confidenceArr', '-append');
     else
-        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr');
+        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr', 'confidenceArr');
     end
 end

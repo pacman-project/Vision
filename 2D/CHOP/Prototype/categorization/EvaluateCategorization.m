@@ -24,20 +24,21 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
            load(fileNames{fileItr});
            % If this file has not been processed yet, move on.
            if isnan(estimatedCategoryLabel)
-               estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr, minLevels, maxLevels);
+               estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr, confidenceArr, minLevels, maxLevels);
            end
            gtArr(fileItr) = categoryLabel;
            detectionArr(fileItr) = estimatedCategoryLabel;
         end
         warning(w);
     else
+        confidenceArr = [];
         load([options.outputFolder '/export.mat']);
         numberOfImages = max(exportArr(:,5));
         gtArr = categoryArrIdx;
         detectionArr = NaN(numberOfImages,1);
         for imageItr = 1:numberOfImages
             exportArrImg = exportArr(exportArr(:,5) == imageItr,:);
-            detectionArr(imageItr) = getCategoryLabel(vocabulary, exportArrImg, minLevels, maxLevels);
+            detectionArr(imageItr) = getCategoryLabel(vocabulary, exportArrImg, confidenceArr, minLevels, maxLevels);
         end
     end
     
