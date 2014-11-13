@@ -20,7 +20,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
@@ -47,14 +47,14 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 10;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
     options.autoFilterThr = 0.05;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 200;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 200000; % Number of random patches used 
+    options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
@@ -143,7 +143,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -214,7 +214,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

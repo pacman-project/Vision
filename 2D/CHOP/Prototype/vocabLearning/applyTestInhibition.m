@@ -31,10 +31,10 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     confidenceArr = [graphLevel.confidence];
     % If confidences are marked, we do elimination based on them, not mdl
     % scores of matching subs.
-    if ~isempty(confidenceArr)
-        [~, sortIdx] = sort(confidenceArr, 'descend');
-        graphLevel = graphLevel(sortIdx);
-    end
+ %   if ~isempty(confidenceArr)
+ %       [~, sortIdx] = sort(confidenceArr, 'descend');
+ %       graphLevel = graphLevel(sortIdx);
+ %   end
 
     % Fill in necessary internal structures.
     imageIds = [graphLevel.imageId];

@@ -125,14 +125,15 @@ function [graphLevel] = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, ed
     % Get unique instances (to be consistent with training)
     allChildren = allChildren(sortIdx);
     allChildren = cellfun(@(x) mat2str(sort(x)), allChildren, 'UniformOutput', false);
-    [~, IC, IA] = unique(allChildren, 'stable');
-    validSubs = zeros(numel(IC),1)>0;
-    for childItr = 1:numel(IC)
-        matchingInstances = find(IA==childItr);
-        [~, trueInstance] = max(confidenceArr(matchingInstances));
-        trueInstance = matchingInstances(trueInstance);
-        validSubs(trueInstance) = 1;
-    end
-    graphLevel = graphLevel(validSubs);
+    [~, IC, ~] = unique(allChildren, 'stable');
+%     validSubs = zeros(numel(IC),1)>0;
+%     for childItr = 1:numel(IC)
+%         matchingInstances = find(IA==childItr);
+%         [~, trueInstance] = max(confidenceArr(matchingInstances));
+%         trueInstance = matchingInstances(trueInstance);
+%         validSubs(trueInstance) = 1;
+%     end
+%     graphLevel = graphLevel(validSubs);
+    graphLevel = graphLevel(IC);
 end
 

@@ -139,10 +139,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         mdlScoreArrFinal = cell(numel(parentSubs),1);
         mdlScoreArrToExtend = cell(numel(parentSubs),1);
         minMdlScoreExt = 0;    % This  two will increase as more and more subs are discovered.
-        setDistributions = ones(floor(numel(parentSubs)/numberOfThreads),1) * numberOfThreads;
-        if rem(numel(parentSubs), numberOfThreads) > 0
-            setDistributions = [setDistributions;rem(numel(parentSubs), numberOfThreads)]; %#ok<AGROW>
-        end
+ %       setDistributions = ones(floor(numel(parentSubs)/numberOfThreads),1) * numberOfThreads;
+        setDistributions = numel(parentSubs);
+%         if rem(numel(parentSubs), numberOfThreads) > 0
+%             setDistributions = [setDistributions;rem(numel(parentSubs), numberOfThreads)]; %#ok<AGROW>
+ %        end
         parentSubSets = cell(mat2cell(1:numel(parentSubs), 1, setDistributions));
         for setItr = 1:numel(parentSubSets)
             %% Step 2.1: If it has been too long, we need to finish execution.
@@ -159,6 +160,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
             processedSet = parentSubSets{setItr};
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
+                display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
                 childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold);
                 if isempty(childSubs) 
                     continue;
