@@ -20,6 +20,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     datasetName = options.datasetName;
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
+    visualizedNodes = 16;
     
     if isempty(currentLevel)
        return; 
@@ -31,6 +32,9 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     %% Combine all compositions and show them within a single image.
     % Learn number of rows/columns.
     numberOfNodes = numel(currentLevel);
+    if levelId>1
+        numberOfNodes = min(visualizedNodes, numberOfNodes);
+    end
     colImgCount = ceil(sqrt(numberOfNodes));
     rowImgCount = ceil(numberOfNodes/colImgCount);
 
