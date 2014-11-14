@@ -90,9 +90,6 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
         end
         
         %% To parallelize things, we put vocabulary nodes in different sets, and give each to a thread.
-        if levelId>1
-            numberOfNodes = min(numberOfNodes, visualizedNodes);
-        end
         nodeSet = (1:numberOfNodes);
         numberOfThreadsUsed = 1;
         if options.parallelProcessing && numberOfThreads > 1 && numberOfNodes > numberOfThreads
