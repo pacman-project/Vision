@@ -91,8 +91,8 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
                 (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
             % A make-up to fill in NaNs (empty points).
-            fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
-            finalTempMask(finalTempMask == 0) = fillInValue;
+  %          fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
+  %          finalTempMask(finalTempMask == 0) = fillInValue;
             instanceImgs{instItr} = finalTempMask;
             imwrite(finalTempMask, [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png']);
         end

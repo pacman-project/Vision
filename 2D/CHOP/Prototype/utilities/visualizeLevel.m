@@ -25,6 +25,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
     numberOfThreads = options.numberOfThreads;
     childrenPerNode = options.vis.nodeReconstructionChildren;
     instancePerNode = options.vis.instancePerNode;
+    visualizedNodes = 16;
     if levelId == 1
         instanceImgDim = 1; 
     else
@@ -89,6 +90,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
         end
         
         %% To parallelize things, we put vocabulary nodes in different sets, and give each to a thread.
+        numberOfNodes = min(numberOfNodes, visualizedNodes);
         nodeSet = (1:numberOfNodes);
         numberOfThreadsUsed = 1;
         if options.parallelProcessing && numberOfThreads > 1 && numberOfNodes > numberOfThreads
@@ -218,6 +220,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
                     %% Add background to currentMask, and normalize it.
                     % Learn the median color to use as background.
                     validValues = currentMask(currentFilledMask>0);
+                    filledValue = 0;
                     filledValue = median(validValues);
 
                     % Assign filling value to each band.
@@ -294,7 +297,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
                 finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
                     (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
                 % A make-up to fill in NaNs (empty points).
-                fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
+                fillInValue = 0;
+ %               fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
                 finalTempMask(finalTempMask == 0) = fillInValue;
                 instanceImgs{instItr} = finalTempMask;
             end
