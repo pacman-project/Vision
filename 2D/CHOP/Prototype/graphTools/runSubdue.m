@@ -243,6 +243,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                 childSubsFinal = childSubsFinal(sortIdx);
                 childSubs = childSubs(sortIdx);
                 mdlScores = mdlScores(sortIdx);
+                validMdlScoreIdx = mdlScores>0;
+                childSubs = childSubs(validMdlScoreIdx);
+                childSubsFinal = childSubsFinal(validMdlScoreIdx);
+                mdlScores = mdlScores(validMdlScoreIdx);
                 
                 %% Finally, eliminate subs that will not be used later on. This is done to save memory.
                 mdlScoresFinal = mdlScores;
