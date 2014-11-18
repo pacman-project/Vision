@@ -56,12 +56,12 @@ function [ distMat ] = createDistanceMatrix( filters, distType, deadFeatures )
     end
     % Normalize distMat.
     distMat(distMat == -1) = max(max(distMat));
-    distMat = distMat/max(max(distMat));
+    newDistMat = distMat/max(max(distMat));
     % If rank type distance is used, each node's distances to others is
     % sorted, and the ranks are entered as the new distance functions.
 %    newDistMat = ones(size(distMat)) * numberOfFilters;
-    newDistMat = zeros(size(distMat));
     if strcmp(distType, 'rank')
+        newDistMat = zeros(size(distMat));
         sortAssgnArr = 1:numberOfFilters;
         for filtItr = 1:numberOfFilters
             distances = distMat(filtItr,:);
@@ -70,8 +70,8 @@ function [ distMat ] = createDistanceMatrix( filters, distType, deadFeatures )
             newDistMat(filtItr, :) = newDistMat(filtItr, :) + assgnArr;
             newDistMat(:, filtItr) = newDistMat(:, filtItr) + assgnArr';
         end
+        newDistMat = newDistMat - 2;
     end
-    newDistMat = newDistMat - 2;
     validFeatures = setdiff(1:size(newDistMat), deadFeatures);
     distMat = newDistMat/max(max(newDistMat(validFeatures, validFeatures)));
     distMat(distMat > 1) = 1;

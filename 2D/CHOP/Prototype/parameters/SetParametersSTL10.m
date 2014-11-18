@@ -53,8 +53,8 @@ function [ options ] = SetParametersSTL10( datasetName, options )
     options.autoFilterThr = 0.05;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
-    options.autoFilterCount = 1600;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 400000; % Number of random patches used 
+    options.autoFilterCount = 200;      % Number of auto-detected filters.
+    options.autoFilterPatchCount = 200000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
@@ -196,7 +196,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 1800;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values

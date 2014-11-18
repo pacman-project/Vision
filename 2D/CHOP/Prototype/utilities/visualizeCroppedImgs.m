@@ -20,7 +20,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     datasetName = options.datasetName;
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
-    visualizedNodes = 16;
+    visualizedNodes = 100;
     
     if isempty(currentLevel)
        return; 
