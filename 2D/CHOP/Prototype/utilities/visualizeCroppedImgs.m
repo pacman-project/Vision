@@ -20,7 +20,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     datasetName = options.datasetName;
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
-    visualizedNodes = 100;
+    visualizedNodes = options.vis.visualizedNodes;
     
     if isempty(currentLevel)
        return; 
@@ -66,6 +66,8 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
         end
     end
+    imgVar = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/' num2str(nodeItr) '_uni.png']);
+    compMaskSize = max(compMaskSize, [size(imgVar,1), size(imgVar,2)]);
     
     % Put the part to the instance list, too.
     for nodeItr = 1:numberOfNodes

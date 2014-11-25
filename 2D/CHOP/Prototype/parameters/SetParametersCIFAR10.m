@@ -135,6 +135,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                          % to be used in creation of the image
                                          % for every node in the vocabulary.
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
+    options.vis.visualizedNodes = 4; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = options.autoFilterSize*4; % DEFAULT 5
     else

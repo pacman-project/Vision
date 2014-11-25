@@ -82,18 +82,18 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             save([options.testInferenceFolder '/' fileName '_test.mat'], 'categoryLabel');
         end
         
-        %% We have modified the ranking in vocabulary based on frequency, after learning them using MDL. 
-        % Now, we revert back to the original ranking.
-        if numel(vocabulary)>1
-            for levelItr = 2:numel(vocabulary)
-                vocabLevel = vocabulary{levelItr};
-                arrToSort = [vocabLevel.orgRank];
-                [~, sortIdx] = sort(arrToSort, 'ascend');
-                vocabLevel = vocabLevel(sortIdx);
-                % Assign labels.
-                vocabulary(levelItr) = {vocabLevel};
-            end
-        end
+%         %% We have modified the ranking in vocabulary based on frequency, after learning them using MDL. 
+%         % Now, we revert back to the original ranking.
+%         if numel(vocabulary)>1
+%             for levelItr = 2:numel(vocabulary)
+%                 vocabLevel = vocabulary{levelItr};
+%                 arrToSort = [vocabLevel.orgRank];
+%                 [~, sortIdx] = sort(arrToSort, 'ascend');
+%                 vocabLevel = vocabLevel(sortIdx);
+%                 % Assign labels.
+%                 vocabulary(levelItr) = {vocabLevel};
+%             end
+%         end
         
         %% Step 1.2: Run inference on each test image.
         totalInferenceTime = 0;
@@ -101,7 +101,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             startTime = tic;
-            singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, graphLevelIndices, options);
+            singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, options);
             totalInferenceTime = totalInferenceTime + toc(startTime);
         end
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');

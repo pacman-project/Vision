@@ -25,7 +25,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
     numberOfThreads = options.numberOfThreads;
     childrenPerNode = options.vis.nodeReconstructionChildren;
     instancePerNode = options.vis.instancePerNode;
-    visualizedNodes = 16;
+    visualizedNodes = options.vis.visualizedNodes;
     if levelId == 1
         instanceImgDim = 1; 
     else
@@ -248,6 +248,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
                     if nodeInstanceItr == 1
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
                         imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
+                    else
+                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_var_ ' num2str(nodeInstanceItr) '.png']);
                     end
                     
                     % Save all instances. We'll print them to another
@@ -270,6 +272,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
     % Learn number of rows/columns.
     colImgCount = ceil(sqrt(numberOfNodes));
     rowImgCount = ceil(numberOfNodes/colImgCount);
+    smallColImgCount = ceil(sqrt(visualizedNodes));
+    smallRowImgCount = ceil(visualizedNodes/smallColImgCount);
 
     %% Show the set of compositions in a single image and save it.
     % Read all masks into an array, and get the extreme dimensions.allCompMasks = cell(numberOfNodes,1);
@@ -310,7 +314,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
     % Using the maximum dimensions, transform each composition image to the
     % same size. 
     overallImage = NaN((rowImgCount)*(compMaskSize(1)+1)+1, colImgCount * (compMaskSize(2)+1)+1, dim3);
-    overallInstanceImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
+    overallInstanceImage = NaN((smallRowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, smallColImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
  %   overallInstanceRealImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
     for nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
@@ -325,8 +329,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
             % Add the composition's mask to the overall mask image.
             rowStart = 2 + floor((nodeItr-1)/colImgCount)*(compMaskSize(1)+1);
             colStart = 2 + rem(nodeItr-1, colImgCount) * (compMaskSize(2)+1);
-            rowStart2= 2 + floor((nodeItr-1)/colImgCount)*(compMaskSize(1)+1) *instanceImgDim ;
-            colStart2 = 2 + rem(nodeItr-1, colImgCount) * (compMaskSize(2)+1) * instanceImgDim;
+            rowStart2= 2 + floor((nodeItr-1)/smallColImgCount)*(compMaskSize(1)+1) *instanceImgDim ;
+            colStart2 = 2 + rem(nodeItr-1, smallColImgCount) * (compMaskSize(2)+1) * instanceImgDim;
             if instItr == 1
                 overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
                     colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
@@ -335,8 +339,10 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
             %write them and put them in their location.
             rowInstStart = floor((instItr - 1)/instanceImgDim)*(compMaskSize(1)+1);
             colInstStart = rem(instItr-1, instanceImgDim) * (compMaskSize(2)+1);
-            overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+compMaskSize(1)-1), ...
-                (colStart2+colInstStart):((colStart2+colInstStart)+compMaskSize(2)-1), :) = compFinalMask;
+            if nodeItr<=visualizedNodes
+                overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+compMaskSize(1)-1), ...
+                    (colStart2+colInstStart):((colStart2+colInstStart)+compMaskSize(2)-1), :) = compFinalMask;
+            end
         end
         if ~isempty(instanceImgs)
             imwrite(instanceImgs{1}, [reconstructionDir num2str(nodeItr) '_uni.png']);
