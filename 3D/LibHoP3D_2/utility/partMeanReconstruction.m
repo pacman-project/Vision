@@ -3,14 +3,24 @@
 
 % fieldCenter - position of the central subpart
 
-function [ positions, elements ] = partMeanReconstruction(layerID, partID, fieldCenter, triple8OutDepth, triple7OutDepth, triple6OutDepth, triple5OutDepth, triple4OutDepth, ...
-                                                            triple3OutDepth, displ3, displ5, displ7, nClusters)
+function [ positions, elements ] = partMeanReconstruction(layerID, partID, fieldCenter, tripleOutDepth, displ3, displ5, displ7, nClusters)
     
     offsetY4 = [-displ3, 0, displ3];
     offsetX5 = [-displ5, 0, displ5];
     offsetY6 = [-displ5, 0, displ5];
     offsetX7 = [-displ7, 0, displ7];
     offsetY8 = [-displ7, 0, displ7];
+    
+    % add an empty element in the end of each list. It's a patch :)
+    tripleOutDepth{3} = [tripleOutDepth{3}; [nClusters+1,nClusters+1, 1, 1, 1, nClusters+1,nClusters+1,nClusters+1,nClusters+1, 1, 1, 1]];
+    
+    for i = 4:8 
+        if ~isempty(tripleOutDepth{i})
+            len = size(tripleOutDepth{i-1}, 1);
+            tripleOutDepth{i} = [tripleOutDepth{i}; [len,1, 1, 1,len,len,1, 1, 1,]];
+        end
+    end
+    
     
     indsEls4 = [1,5,6];
 
@@ -19,9 +29,9 @@ function [ positions, elements ] = partMeanReconstruction(layerID, partID, field
         positions = fieldCenter;
         elements = partID;
         
-    elseif layerID == 3
+    elseif layerID == 3 
         
-        curEl = triple3OutDepth(partID,:);
+        curEl = tripleOutDepth{3}(partID,:);
         indsEl = [1,2,6,7,8,9];
         indsDepths = [3,4,5,10,11,12];
         curXY = curEl(indsEl);
@@ -40,12 +50,12 @@ function [ positions, elements ] = partMeanReconstruction(layerID, partID, field
         elements = [];
         positions = [];
         
-        cur4triple = triple4OutDepth(partID, :);
+        cur4triple = tripleOutDepth{4}(partID, :);
         els4 = cur4triple(indsEls4);
         depths4Adder = [cur4triple(4), 0 cur4triple(9)];  % top centre bottom
         
-        for i = 1:3                            % three triples of the third layet
-            curEl = triple3OutDepth(els4(i),:);
+        for i = 1:3                            % three triples of the third layer
+            curEl = tripleOutDepth{3}(els4(i),:);
             indsEl = [1,2,6,7,8,9];
             indsDepths = [3,4,5,10,11,12];
 
@@ -68,19 +78,19 @@ function [ positions, elements ] = partMeanReconstruction(layerID, partID, field
         elements = [];
         positions = [];
         
-        cur5triple = triple5OutDepth(partID, :);
+        cur5triple = tripleOutDepth{5}(partID, :);
         els5 = cur5triple(indsEls4);
         depths5Adder = [cur5triple(4), 0 cur5triple(9)];  % top centre bottom
         
         
         for k = 1:3 % three triples of the 4th layer
         
-            cur4triple = triple4OutDepth(els5(k), :);
+            cur4triple = tripleOutDepth{4}(els5(k), :);
             els4 = cur4triple(indsEls4);
             depths4Adder = [cur4triple(4), 0 cur4triple(9)];  % top centre bottom
         
             for i = 1:3                            % three triples of the third layer
-                curEl = triple3OutDepth(els4(i),:);
+                curEl = tripleOutDepth{3}(els4(i),:);
                 indsEl = [1,2,6,7,8,9];
                 indsDepths = [3,4,5,10,11,12];
 
@@ -106,25 +116,25 @@ function [ positions, elements ] = partMeanReconstruction(layerID, partID, field
         elements = [];
         positions = [];
         
-        cur6triple = triple6OutDepth(partID, :);
+        cur6triple = tripleOutDepth{6}(partID, :);
         els6 = cur6triple(indsEls4);
         depths6Adder = [cur6triple(4), 0 cur6triple(9)];  % top centre bottom
         
         
         for kk = 1:3 % three triples of the layer 5
             
-            cur5triple = triple5OutDepth(els6(kk), :);
+            cur5triple = tripleOutDepth{5}(els6(kk), :);
             els5 = cur5triple(indsEls4);
             depths5Adder = [cur5triple(4), 0 cur5triple(9)];  % top centre bottom
         
             for k = 1:3 % three triples of the 4th layer
 
-                cur4triple = triple4OutDepth(els5(k), :);
+                cur4triple = tripleOutDepth{4}(els5(k), :);
                 els4 = cur4triple(indsEls4);
                 depths4Adder = [cur4triple(4), 0 cur4triple(9)];  % top centre bottom
 
                 for i = 1:3                            % three triples of the third layer
-                    curEl = triple3OutDepth(els4(i),:);
+                    curEl = tripleOutDepth{3}(els4(i),:);
                     indsEl = [1,2,6,7,8,9];
                     indsDepths = [3,4,5,10,11,12];
 
@@ -151,30 +161,30 @@ function [ positions, elements ] = partMeanReconstruction(layerID, partID, field
         elements = [];
         positions = [];
         
-        cur7triple = triple7OutDepth(partID, :);
+        cur7triple = tripleOutDepth{7}(partID, :);
         els7 = cur7triple(indsEls4);
         depths7Adder = [cur7triple(4), 0 cur7triple(9)];  % top centre bottom
         
         for kkk = 1:3 % three triples of the layer 6
             
-            cur6triple = triple6OutDepth(els7(kkk), :);
+            cur6triple = tripleOutDepth{6}(els7(kkk), :);
             els6 = cur6triple(indsEls4);
             depths6Adder = [cur6triple(4), 0 cur6triple(9)];  % top centre bottom
         
             for kk = 1:3 % three triples of the layer 5
 
-                cur5triple = triple5OutDepth(els6(kk), :);
+                cur5triple = tripleOutDepth{5}(els6(kk), :);
                 els5 = cur5triple(indsEls4);
                 depths5Adder = [cur5triple(4), 0 cur5triple(9)];  % top centre bottom
 
                 for k = 1:3 % three triples of the 4th layer
 
-                    cur4triple = triple4OutDepth(els5(k), :);
+                    cur4triple = tripleOutDepth{4}(els5(k), :);
                     els4 = cur4triple(indsEls4);
                     depths4Adder = [cur4triple(4), 0 cur4triple(9)];  % top centre bottom
 
                     for i = 1:3                            % three triples of the third layer
-                        curEl = triple3OutDepth(els4(i),:);
+                        curEl = tripleOutDepth{3}(els4(i),:);
                         indsEl = [1,2,6,7,8,9];
                         indsDepths = [3,4,5,10,11,12];
 
@@ -202,36 +212,36 @@ function [ positions, elements ] = partMeanReconstruction(layerID, partID, field
         elements = [];
         positions = [];
         
-        cur8triple = triple8OutDepth(partID, :);
+        cur8triple = tripleOutDepth{8}(partID, :);
         els8 = cur8triple(indsEls4);
         depths8Adder = [cur8triple(4), 0 cur8triple(9)];  % top centre bottom
         
         for kkkk = 1:3 % three triples of the layer 7
 
-            cur7triple = triple7OutDepth(els8(kkkk), :);
+            cur7triple = tripleOutDepth{7}(els8(kkkk), :);
             els7 = cur7triple(indsEls4);
             depths7Adder = [cur7triple(4), 0 cur7triple(9)];  % top centre bottom
         
             for kkk = 1:3 % three triples of the layer 6
 
-                cur6triple = triple6OutDepth(els7(kkk), :);
+                cur6triple = tripleOutDepth{6}(els7(kkk), :);
                 els6 = cur6triple(indsEls4);
                 depths6Adder = [cur6triple(4), 0 cur6triple(9)];  % top centre bottom
 
                 for kk = 1:3 % three triples of the layer 5
 
-                    cur5triple = triple5OutDepth(els6(kk), :);
+                    cur5triple = tripleOutDepth{5}(els6(kk), :);
                     els5 = cur5triple(indsEls4);
                     depths5Adder = [cur5triple(4), 0 cur5triple(9)];  % top centre bottom
 
                     for k = 1:3 % three triples of the 4th layer
 
-                        cur4triple = triple4OutDepth(els5(k), :);
+                        cur4triple = tripleOutDepth{4}(els5(k), :);
                         els4 = cur4triple(indsEls4);
                         depths4Adder = [cur4triple(4), 0 cur4triple(9)];  % top centre bottom
 
                         for i = 1:3                            % three triples of the third layer
-                            curEl = triple3OutDepth(els4(i),:);
+                            curEl = tripleOutDepth{3}(els4(i),:);
                             indsEl = [1,2,6,7,8,9];
                             indsDepths = [3,4,5,10,11,12];
 

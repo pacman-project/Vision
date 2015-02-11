@@ -94,15 +94,15 @@ function [] = performInference3(list_depths, list_El, list_mask, lenF, sigma, si
         
     if dataSetNumber == 1 || dataSetNumber == 3     % Aim@Shape dataset
         
-        [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, [], isErrosion, discRadius, isX, isY, ...
-                            isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);
+        [I, ~, ~, mask, r, c, is_successfull] = preliminaryProcessing(I, [], isErrosion, discRadius, isX, isY, ...
+                            isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, [], []);
                         
 
     elseif dataSetNumber == 2  % Washington data set
         
         mask = imread(list_mask{i});
-        [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY,...
-            isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);          
+        [I, ~, ~, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY,...
+            isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, [], []);          
     end
         
         

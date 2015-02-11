@@ -1,4 +1,4 @@
-setenv OMP_NUM_THREADS 2
+setenv OMP_NUM_THREADS 12
 
 addpath('matlab');
 

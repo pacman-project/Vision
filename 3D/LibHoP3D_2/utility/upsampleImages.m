@@ -1,4 +1,4 @@
-function upsampleImages(list_depth, list_mask, lenF, is_downsampling, dowsample_rate, dataSetNumber)
+function upsampleImages(list_depth, list_mask, lenF, is_downsampling, dowsample_rate)
 
     disp('upsampling images...');
     
@@ -13,15 +13,6 @@ function upsampleImages(list_depth, list_mask, lenF, is_downsampling, dowsample_
         
         parfor i = 1:lenF
             I = imread(list_depth{i});
-
-            [r, c] = size(I);
-            
-%             if dataSetNumber == 2
-%                 maxDim = max(r,c);
-%                 dowsample_rate = 200/maxDim;
-%             end
-
-
             if ismask
                 mask = imread(list_mask{i});
             end
@@ -29,9 +20,7 @@ function upsampleImages(list_depth, list_mask, lenF, is_downsampling, dowsample_
             I = imresize(I, dowsample_rate);
             if ismask
                 mask = imresize(mask, dowsample_rate);
-            end           
-                        
-            [r,c] = size(I);
+            end                        
 
             imwrite(I, list_depth{i}, 'png');
             if ismask

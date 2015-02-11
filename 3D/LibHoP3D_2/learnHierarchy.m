@@ -13,9 +13,9 @@
 
 
 
-function [] = learnHierarchy()
+function [nNClusters] = learnHierarchy()
 
-dataSetNumber = 2;
+dataSetNumber = 3;
 dataSetNames{1} = 'Aim@Shape';
 dataSetNames{2} = 'Washington';
 dataSetNames{3} = 'Vladislav_STD';
@@ -23,6 +23,7 @@ dataSetNames{3} = 'Vladislav_STD';
 partSelectionMethod = 1;
 nClusters = 7;
 
+is_GPU_USED = false;
 n2Clusters = nClusters^2;
 
 % here we initialize the parallel computing (including GPU acceleration)
@@ -30,9 +31,16 @@ n2Clusters = nClusters^2;
 % reset(g);
 % matlabpool open 10    % for parallel computing
 
+
+% define folders configuration
+commonRoot = 'D:/';
+root = [commonRoot, 'LibHoP3D/'];
+addPaths(root);
+
 if partSelectionMethod == 1
     
-    [ meargeThresh3, meargeThresh4,meargeThresh5, meargeThresh6, meargeThresh7, meargeThresh8 ] = defineMeargeThreshes(1);
+     meargeThresh = defineMeargeThreshes(1, dataSetNumber);
+     [iterations, lenSelected, fieldSize, maxRelDepth, quant, partsCoverArea, numSimilar, threshPair, sieve_thresh] = loadPartSelectionParameters(dataSetNumber);
     
 elseif partSelectionMethod == 2
     
@@ -42,22 +50,8 @@ elseif partSelectionMethod == 2
     gammaParam = [0, 0, 0.33, 1.0];
 end
 
-% define folders configuration
-commonRoot = 'D:/'; 
-root = [commonRoot, 'LibHoP3D/'];
-addPaths(root);
 
-depthPathDefault = '';
-
-
-%% define the input data
-if dataSetNumber == 1
-    depthPath = [commonRoot, 'Input Data/AimShape/4T_600'];   %'D:\3D\Input Data\Images for categorization\1T';     
-elseif dataSetNumber == 2
-    depthPath = [commonRoot, 'Input Data/Washington/Washington3Categories_008'];  %'/home/vvk201/Wash-rgbd-dataset'; 
-elseif dataSetNumber == 3
-    depthPath = [commonRoot, 'commonRoot/Input Data/VladislavSTD/Vladislav_STD_600/depth'];
-end
+[depthPath, elPath] = getPathToData(dataSetNumber, commonRoot);
 
 
 %% define output file names
@@ -69,73 +63,43 @@ if partSelectionMethod == 1
     aL = '3';
 end
 
-% files for the raw statistics
-statistics1Layer = [root, 'statistics/statistics_1_', dsN, '_', nCl, '.mat'];
-statistics3Layer = [root, 'statistics/statistics_3_', dsN, '_', nCl, '.mat'];
-statistics4Layer = [root, 'statistics/statistics_4_', dsN, '_', nCl, '.mat'];
-statistics5Layer = [root, 'statistics/statistics_5_', dsN, '_', nCl, '.mat'];
-statistics6Layer = [root, 'statistics/statistics_6_', dsN, '_', nCl, '.mat'];
-statistics7Layer = [root, 'statistics/statistics_7_', dsN, '_', nCl, '.mat'];
-statistics8Layer = [root, 'statistics/statistics_8_', dsN, '_', nCl, '.mat'];
+[statisticsLayer, statisticsLayerSieved, statisticsLayerAggregated, statisticsLayerSieved_Weak, statisticsLayerAggregated_Weak, ...
+    partsLayer, fileForVisualizationLayer, partsLayerLoc, partsLayerEnt, partsSpecialSelected, partsLayerAll] = getStandardFilePaths(root, dsN, nCl, aL);
 
-% files for the sieved statistics
-statistics1LayerSieved = [root, 'statistics/statisticsSieved_1_', dsN, '_', nCl, '.mat'];
-statistics3LayerSieved = [root, 'statistics/statisticsSieved_3_', dsN, '_', nCl, '.mat'];
-statistics4LayerSieved = [root, 'statistics/statisticsSieved_4_', dsN, '_', nCl, '.mat'];
-statistics5LayerSieved = [root, 'statistics/statisticsSieved_5_', dsN, '_', nCl, '.mat'];
-statistics6LayerSieved = [root, 'statistics/statisticsSieved_6_', dsN, '_', nCl, '.mat'];
-statistics7LayerSieved = [root, 'statistics/statisticsSieved_7_', dsN, '_', nCl, '.mat'];
-statistics8LayerSieved = [root, 'statistics/statisticsSieved_8_', dsN, '_', nCl, '.mat'];
-
-% files for the Aggregated statistics
-statistics1LayerAggregated = [root, 'statistics/statisticsAggregated_1_', dsN, '_', nCl, '.mat'];
-statistics3LayerAggregated = [root, 'statistics/statisticsAggregated_3_', dsN, '_', nCl, '.mat'];
-statistics4LayerAggregated = [root, 'statistics/statisticsAggregated_4_', dsN, '_', nCl, '.mat'];
-statistics5LayerAggregated = [root, 'statistics/statisticsAggregated_5_', dsN, '_', nCl, '.mat'];
-statistics6LayerAggregated = [root, 'statistics/statisticsAggregated_6_', dsN, '_', nCl, '.mat'];
-statistics7LayerAggregated = [root, 'statistics/statisticsAggregated_7_', dsN, '_', nCl, '.mat'];
-statistics8LayerAggregated = [root, 'statistics/statisticsAggregated_8_', dsN, '_', nCl, '.mat'];
-
-% files for part selection results
-parts3Layer = [root, 'statistics/partsSelectionResults_3_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts4Layer = [root, 'statistics/partsSelectionResults_4_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts5Layer = [root, 'statistics/partsSelectionResults_5_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts6Layer = [root, 'statistics/partsSelectionResults_6_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts7Layer = [root, 'statistics/partsSelectionResults_7_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts8Layer = [root, 'statistics/partsSelectionResults_8_', dsN, '_', nCl, '_a', aL, '.mat'];
+% files with Statistical maps
+statisticalMapLayer{3} = [root, 'statistics/statisticalMap_3_', dsN, '_', nCl, '.mat'];
+statisticalMapLayer{4} = [root, 'statistics/statisticalMap_4_', dsN, '_', nCl, '.mat'];
+statisticalMapLayer{5} = [root, 'statistics/statisticalMap_5_', dsN, '_', nCl, '.mat'];
+statisticalMapLayer{6} = [root, 'statistics/statisticalMap_6_', dsN, '_', nCl, '.mat'];
+statisticalMapLayer{7} = [root, 'statistics/statisticalMap_7_', dsN, '_', nCl, '.mat'];
+statisticalMapLayer{8} = [root, 'statistics/statisticalMap_8_', dsN, '_', nCl, '.mat'];
 
 % files for overall coverage
-coverageOverall3Layer = [root, 'statistics/coverageOverall_3_', dsN, '_', nCl, '_a', aL, '.mat'];
-coverageOverall4Layer = [root, 'statistics/coverageOverall_4_', dsN, '_', nCl, '_a', aL, '.mat'];
-coverageOverall5Layer = [root, 'statistics/coverageOverall_5_', dsN, '_', nCl, '_a', aL, '.mat'];
-coverageOverall6Layer = [root, 'statistics/coverageOverall_6_', dsN, '_', nCl, '_a', aL, '.mat'];
-coverageOverall7Layer = [root, 'statistics/coverageOverall_7_', dsN, '_', nCl, '_a', aL, '.mat'];
-coverageOverall8Layer = [root, 'statistics/coverageOverall_8_', dsN, '_', nCl, '_a', aL, '.mat'];
-
-% files for layer visualization
-fileForVisualization3Layer = [root, 'statistics/fileForVisualization_3_', dsN, '_', nCl, '.mat'];
-fileForVisualization4Layer = [root, 'statistics/fileForVisualization_4_', dsN, '_', nCl, '.mat'];
-fileForVisualization5Layer = [root, 'statistics/fileForVisualization_5_', dsN, '_', nCl, '.mat'];
-fileForVisualization6Layer = [root, 'statistics/fileForVisualization_6_', dsN, '_', nCl, '.mat'];
-fileForVisualization7Layer = [root, 'statistics/fileForVisualization_5_', dsN, '_', nCl, '.mat'];
-fileForVisualization8Layer = [root, 'statistics/fileForVisualization_6_', dsN, '_', nCl, '.mat'];
+coverageOverallLayer{3} = [root, 'statistics/coverageOverall_3_', dsN, '_', nCl, '_a', aL, '.mat'];
+coverageOverallLayer{4} = [root, 'statistics/coverageOverall_4_', dsN, '_', nCl, '_a', aL, '.mat'];
+coverageOverallLayer{5} = [root, 'statistics/coverageOverall_5_', dsN, '_', nCl, '_a', aL, '.mat'];
+coverageOverallLayer{6} = [root, 'statistics/coverageOverall_6_', dsN, '_', nCl, '_a', aL, '.mat'];
+coverageOverallLayer{7} = [root, 'statistics/coverageOverall_7_', dsN, '_', nCl, '_a', aL, '.mat'];
+coverageOverallLayer{8} = [root, 'statistics/coverageOverall_8_', dsN, '_', nCl, '_a', aL, '.mat'];
 
 % folders with visualized vocabulary
 diskFolder = [commonRoot, 'Visualized vocabulary/'];
-folderFor3Layer = [diskFolder, dataSetNames{dataSetNumber},'/3_layer/'];
-folderFor4Layer = [diskFolder, dataSetNames{dataSetNumber},'/4_layer/'];
-folderFor5Layer = [diskFolder, dataSetNames{dataSetNumber},'/5_layer/'];
-folderFor6Layer = [diskFolder, dataSetNames{dataSetNumber},'/6_layer/'];
-folderFor7Layer = [diskFolder, dataSetNames{dataSetNumber},'/7_layer/'];
-folderFor8Layer = [diskFolder, dataSetNames{dataSetNumber},'/8_layer/'];
+folderForLayer{3} = [diskFolder, dataSetNames{dataSetNumber},'/3_layer/'];
+folderForLayer{4} = [diskFolder, dataSetNames{dataSetNumber},'/4_layer/'];
+folderForLayer{5} = [diskFolder, dataSetNames{dataSetNumber},'/5_layer/'];
+folderForLayer{6} = [diskFolder, dataSetNames{dataSetNumber},'/6_layer/'];
+folderForLayer{7} = [diskFolder, dataSetNames{dataSetNumber},'/7_layer/'];
+folderForLayer{8} = [diskFolder, dataSetNames{dataSetNumber},'/8_layer/'];
 
-elPath2 = [depthPath, '_layer2'];
-elPath3 = [depthPath, '_layer3'];
-elPath4 = [depthPath, '_layer4'];
-elPath5 = [depthPath, '_layer5'];
-elPath6 = [depthPath, '_layer6'];
-elPath7 = [depthPath, '_layer7'];
-elPath8 = [depthPath, '_layer8'];
+% folders with visualized statistical maps
+diskFolder = [commonRoot, 'Visualized statistics/'];
+folderForLayerStatMap{3} = [diskFolder, dataSetNames{dataSetNumber},'/3_layer/'];
+folderForLayerStatMap{4} = [diskFolder, dataSetNames{dataSetNumber},'/4_layer/'];
+folderForLayerStatMap{5} = [diskFolder, dataSetNames{dataSetNumber},'/5_layer/'];
+folderForLayerStatMap{6} = [diskFolder, dataSetNames{dataSetNumber},'/6_layer/'];
+folderForLayerStatMap{7} = [diskFolder, dataSetNames{dataSetNumber},'/7_layer/'];
+folderForLayerStatMap{8} = [diskFolder, dataSetNames{dataSetNumber},'/8_layer/'];
+
 
 displ3 = 6;
 displ5 = 18;
@@ -144,645 +108,460 @@ isFIG = false;
 
 %% define all parameters here
 
-fileListPrecomputed = false;
-is_subset = false; % whether we shall use all files for learning
 
-% define the subset length
-if dataSetNumber == 1 || dataSetNumber == 3
-    subset_len = 10; % how much shall we use for training
-    subsetPercent = 1.0; % not used
-elseif dataSetNumber == 2
-    subset_len = 1;
-    subsetPercent = 0.8; % what percent from each folder to use
-end
-
-[dxKernel, combs, largestLine, sigma, sigmaKernelSize, isErrosion, discRadius, is_guided, r_guided, eps, ...
+[dxKernel, dyKernelTop, dyKernelBottom, dxKernelBack, dxKernelForward, combs, largestLine, sigma, sigmaKernelSize, isErrosion, discRadius, is_guided, r_guided, eps, ...
     is_mask_extended, maxExtThresh1, maxExtThresh2] = loadFilteringParameters(dataSetNumber);
+[learningElType, learningElRadius, ~, ~] = loadLearningInferenceStructElement(dataSetNumber);
+[quantilesFirst] = defineFirstLayerQuantiles(nClusters, dataSetNumber, is_guided);
 
 
 %% Define what we have to learn
 
-is_first_layer = false; % computes cluster centres, thresh and clusterSizes
-is_third_layer = false;  % learns the first layer
-is_4th_layer = false;
-is_5th_layer = false; 
-is_6th_layer = false;
-is_7th_layer = true; 
-is_8th_layer = false; 
+is_layer{1} = 0; % computes cluster centres, thresh and clusterSizes
+is_layer{3} = 0;  % learns the first layer
+is_layer{4} = 1;
+is_layer{5} = 0; 
+is_layer{6} = 0;
+is_layer{7} = 0; 
+is_layer{8} = 0;
 
-is_statistics3_collected = false;
-is_statistics4_collected = false;
-is_statistics5_collected = false;
-is_statistics6_collected = false;
-is_statistics7_collected = false;
-is_statistics8_collected = false;
+is_statisticalMap{3} = 0;
+is_statisticalMap{4} = 0;
+is_statisticalMap{5} = 0;
+is_statisticalMap{6} = 0;
+is_statisticalMap{7} = 0;
+is_statisticalMap{8} = 0;
 
-is_statistics3_sieved = false;
-is_statistics4_sieved = false;
-is_statistics5_sieved = false;
-is_statistics6_sieved = false;
-is_statistics7_sieved = false;
-is_statistics8_sieved = false;
+is_statistics_collection{3} = 1;
+is_statistics_collection{4} = 1;
+is_statistics_collection{5} = 0;
+is_statistics_collection{6} = 0;
+is_statistics_collection{7} = 0;
+is_statistics_collection{8} = 0;
 
-is_statistics3_aggregated = false;
-is_statistics4_aggregated = false;
-is_statistics5_aggregated = false;
-is_statistics6_aggregated = false;
-is_statistics7_aggregated = false;
-is_statistics8_aggregated = false;
+% Weak seive of statistics
+is_statistics_sieve_aggregate_Weak{3} = 0;
+is_statistics_sieve_aggregate_Weak{4} = 0;
+is_statistics_sieve_aggregate_Weak{5} = 0;
+is_statistics_sieve_aggregate_Weak{6} = 0;
+is_statistics_sieve_aggregate_Weak{7} = 0;
+is_statistics_sieve_aggregate_Weak{8} = 0;
 
-is_partSelectionDone3 = false;
-is_partSelectionDone4 = false;
-is_partSelectionDone5 = false;
-is_partSelectionDone6 = false;
-is_partSelectionDone7 = false;
-is_partSelectionDone8 = false;
+% part selection according to special criteria
+is_localization{3} = 0;
+is_localization{4} = 0;
+is_localization{5} = 0;
+is_localization{6} = 0;
+is_localization{7} = 0;
+is_localization{8} = 0;
+
+is_Entropy{3} = 0;
+is_Entropy{4} = 0;
+is_Entropy{5} = 0;
+is_Entropy{6} = 0;
+is_Entropy{7} = 0;
+is_Entropy{8} = 0;
+
+is_partSelectionSpecialNeeded{3} = 0;
+is_partSelectionSpecialNeeded{4} = 0;
+is_partSelectionSpecialNeeded{5} = 0;
+is_partSelectionSpecialNeeded{6} = 0;
+is_partSelectionSpecialNeeded{7} = 0;
+is_partSelectionSpecialNeeded{8} = 0;
+
+is_statistics_sieve_aggregate_Strong{3} = 1;
+is_statistics_sieve_aggregate_Strong{4} = 1;
+is_statistics_sieve_aggregate_Strong{5} = 0;
+is_statistics_sieve_aggregate_Strong{6} = 0;
+is_statistics_sieve_aggregate_Strong{7} = 0;
+is_statistics_sieve_aggregate_Strong{8} = 0;
+
+is_partSelectionNeeded{3} = 1;
+is_partSelectionNeeded{4} = 1;
+is_partSelectionNeeded{5} = 0;
+is_partSelectionNeeded{6} = 0;
+is_partSelectionNeeded{7} = 0;
+is_partSelectionNeeded{8} = 0;
+
+combinePartSelection{3} = 1;
+combinePartSelection{4} = 1;
+combinePartSelection{5} = 1;
+combinePartSelection{6} = 1;
+combinePartSelection{7} = 1;
+combinePartSelection{8} = 1;
 
 % do we want to visualize the layer
-visualizeLayer_3 = true;
-visualizeLayer_4 = true;
-visualizeLayer_5 = true;
-visualizeLayer_6 = true;
-visualizeLayer_7 = true;
-visualizeLayer_8 = true;
+visualizeLayer{3} = 1;
+visualizeLayer{4} = 1;
+visualizeLayer{5} = 1;
+visualizeLayer{6} = 1;
+visualizeLayer{7} = 1;
+visualizeLayer{8} = 1;
 
-%% here we define the first layer quantiles (bins of the first layer)
+is_inferenceNeeded{2} = 1;
+is_inferenceNeeded{3} = 1;
+is_inferenceNeeded{4} = 1;
+is_inferenceNeeded{5} = 1;
+is_inferenceNeeded{6} = 0;
+is_inferenceNeeded{7} = 0;
+is_inferenceNeeded{8} = 0;
 
-[quantilesFirst] = defineFirstLayerQuantiles(nClusters, dataSetNumber, is_guided);
+isDownsampling{5} = 0;
+isDownsampling{7} = 0;
 
-%% creating a filelist here
-
-if dataSetNumber == 1 || dataSetNumber == 3
-    [list_depth, lenF] = extractFileList(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subset_len);
-    list_mask = [];
-elseif dataSetNumber == 2
-    [list_depth, list_mask, ~, lenF] = extractFileListWashington(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subsetPercent);
-end
-
-% % %  downsampling (if necessary)
-% if dataSetNumber == 1 || dataSetNumber == 3
-%     is_downsampling = true;
-%     dowsample_rate = 1.3;
-% elseif dataSetNumber == 2    
-%     is_downsampling = true;
-%     dowsample_rate = 2.5;
-% end
-% 
-% 
-% upsampleImages(list_depth, list_mask, lenF, is_downsampling, dowsample_rate, dataSetNumber); % to be done only once!
-
+%% downsampling of ALL images
 
 is_downsampling = false;
 dowsample_rate = 1.0;
 
-% fieldSize = [17, 5, 71];  % x, y and z directions
-% [coverageOverall, areaOverall] = ProjectAllStatistics3(statistics3LayerSieved, statistics3LayerAggregated, fieldSize, ...
-%                                                        list_depth, list_mask, lenF, dataSetNumber);
-% ratio = coverageOverall/areaOverall;
-% save(coverageOverall3Layer,  'coverageOverall');
+if is_downsampling  
+    UpsampleAllImages(dataSetNumber, depthPath, dowsample_rate);
+end
+
+
+%% creating a filelist here
+
+is_subset = false; % whether we shall use all files for learning
+
+% define the subset length
+if dataSetNumber == 1 || dataSetNumber == 3
+    subset_len = 800; % how much shall we use for training
+    subsetPercent = 1.0; % not used
+elseif dataSetNumber == 2
+    subset_len = 1;
+    subsetPercent = 0.1; % what percent from each folder to use
+end
+
+if dataSetNumber == 1 || dataSetNumber == 3
+    [list_depth, lenF] = extractFileList(depthPath{1}, is_subset, subset_len);
+    list_mask = [];
+elseif dataSetNumber == 2
+    [list_depth, list_mask, ~, lenF] = extractFileListWashington(depthPath{1}, is_subset, subsetPercent);
+end
+
+%% adding zero boundaries
+
+
+% boundSize = 10;
+% parfor i = 1:lenF
+%     I = imread(list_depth{i});
+%     I = I(:,:,1);
+%     I = addZeroBoundaries(I, boundSize);
+%     imwrite(I, list_depth{i}, 'png');
+% end
 
 
 
 %% learn the first layer
 
-if is_first_layer  % here we learn the first layer parameters
+
+
+if is_layer{1}  % here we learn the first layer parameters
     disp('Calibration of the first layer parameters...');
 
     [cluster1Centres, cluster1Bounds, thresh] = learnFirstLayer(list_depth, list_mask, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, ...
                       nClusters, quantilesFirst, dataSetNumber, is_guided, r_guided, eps, ...
                       is_mask_extended, maxExtThresh1, maxExtThresh2);
 
-    save(statistics1Layer,  'cluster1Centres', 'cluster1Bounds', 'thresh', 'nClusters', 'dataSetNumber');
+    save(statisticsLayer{1},  'cluster1Centres', 'cluster1Bounds', 'thresh', 'nClusters', 'dataSetNumber');    
+else
+    load(statisticsLayer{1});
 end
+
 
 % outFolder = '/home/vvk201/1LayerWash/';
 % 
 % applyFirstLayer(list_depth, list_mask, lenF, statistics1Layer, outFolder, sigma, sigmaKernelSize, ...
 %                                 dxKernel, isErrosion, discRadius, is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2);
 
+nNClusters{1} = nClusters;
+nNClusters{2} = n2Clusters;
+
+for i = 3:8
+    tripleOutDepth{i}   = [];
+    triplesCurOut{i}    = [];
+    partsOutSpecial{i}   = [];
+    nNClustersSpecial{i} = [];
+    nNClusters{i} = 0;
+end
+
+depthStep = thresh/4;
+maxDist = 2;
+borderOffset34 = 9;
 
 
 %% learn the third layer
 
-if is_third_layer  % here we learn the third layer of the hierarchy
+for layerID = 3:6
     
-    disp('Learning of the third layer ...');
-    % we have to perform the following procedures
-    
-    if ~is_first_layer
-        % read the first layer
-        load(statistics1Layer);
+ if is_layer{layerID}  % here we learn the third layer of the hierarchy
+
+    if mod(layerID, 2) == 1 
+        load('settings/displacements_Layer3.mat');
+    else
+        load('settings/displacements_Layer4.mat');
+    end
+        
+    if layerID ~= 3
+        load(partsLayerAll{layerID - 1});              % 'triplesCurOut', 'nNClusters', 'partsEntropy';
+        load(fileForVisualizationLayer{layerID - 1});  % 'tripleOutDepth'
+        clear('partsEntropy');
     end
     
-    %load('displacements_Layers3_4.mat');
-    load('settings/displacements_Layer3.mat'); % 'displacements'
+    nPrevClusters = nNClusters{layerID-1};
+    
+ 
+    if is_inferenceNeeded{layerID - 1}
+        
+        infArray = zeros(1, 8);
+        infArray(layerID-1) = 1; % inference of the previous layer
+        LayersInference(infArray, dataSetNumber, nClusters);
+    end
+    
+    [list_els] = makeElList(list_depth, depthPath{layerID-1}, elPath{layerID-1});
+              
+    if layerID == 5 % downsamplind required
+
+        if isDownsampling{5}  % make depth images of the same resolution as downsampled marks images
+            downsampleImages(list_depth, depthPath, list_els, list_mask, dataSetNumber, [depthPath{4}, '_D1']);  % downsamples depth images according to el images
+        end
+    end
+    
+    if ~strcmp(depthPath{layerID}, depthPath{1})
+
+        % create a file list again
+        if dataSetNumber == 1 || dataSetNumber == 3
+            [list_depth, lenF] = extractFileList(depthPath{layerID}, is_subset, subset_len);
+            list_mask = [];
+        elseif dataSetNumber == 2
+            [list_depth, list_mask, ~, lenF] = extractFileListWashington(depthPath{layerID}, is_subset, subsetPercent);
+        end
+        
+        % recompute list_els of elements from the previous layer
+        [list_els] = makeElList(list_depth, depthPath{layerID-1}, elPath{layerID-1});
+    end
+    
+    str = ['Learning of the layer ', num2str(layerID), '...'];
+    disp(str);    
     numDisps = size(displacements, 1);     % number of displacements
-    fieldSize = [17, 7, 71];  % x, y and z directions
-    quant = 0.06;
-    borderOffset34 = 9;
-    iterations = 400;
-    depthStep = thresh/4;
-    maxRelDepth = 127;
+    
+ 
+    %% build statistical maps
+    if is_statisticalMap{layerID}
+        
+        filterThresh = 20;
+        [stats5D, sumSamples] = buildStatMap_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius,...
+                                                        nPrevClusters, depthStep, dataSetNumber, ...
+                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, fieldSize{layerID}, filterThresh);
+                                                    
+        save(statisticalMapLayer{layerID}, 'stats5D', 'sumSamples');
+                                        
+        % after this we may be interested to visualize the statistical maps
+        visualizeStatisticalMaps( layerID - 1, tripleOutDepth, displ3, displ5, displ7, ...
+                                            nClusters, nPrevClusters, folderForLayerStatMap{layerID}, fieldSize{layerID}, depthStep, cluster1Centres, isFIG, stats5D);
+    end
     
     
-    elPath = elPath2;
-    strFolderLen = length(depthPath);
+    %% collect statistics
+
+    if is_statistics_collection{layerID}    
+        
+        [outputStatistics, outputCoords, curTS] = CollectStats_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, ...
+                                    discRadius, nPrevClusters, displacements, numDisps, layerID, depthStep, dataSetNumber, ...
+                                    is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth{layerID}, learningElType{layerID}, ...
+                                    learningElRadius{layerID}, displ3, cluster1Bounds);
+                                
+        save(statisticsLayer{layerID}, 'outputStatistics', 'outputCoords', 'curTS', '-v7.3');
+        save('Temp/depth_files.mat', 'list_depth', 'list_mask', 'list_els');
+    end
     
-    list_els = list_depth;
-    for i = 1:lenF
-        str = list_els{i};
-        str = [elPath ,str(strFolderLen + 1:end)];
-        list_els{i} = str;
+    load('Temp/depth_files.mat');
+    
+    %% Weak sieve and aggregation of the statistics
+    
+    weak_multiplier = 0.1;
+    
+    if is_statistics_sieve_aggregate_Weak{layerID} 
+        
+        % sieve
+        load(statisticsLayer{layerID});
+        numDisps = 2;
+        pairThresh = weak_multiplier *curTS * threshPair{layerID};
+        [statistics, outputCoords, clusterCurDepths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, pairThresh, nPrevClusters, ...
+                                                                quant{layerID}, maxRelDepth{layerID}, is_GPU_USED);
+
+        % aggregate
+        sieveThresh = weak_multiplier *curTS * sieve_thresh{layerID};
+        [X, frequencies, triples, is_sparse] = Aggregate_3Layer(statistics, nPrevClusters, curTS, sieveThresh, is_GPU_USED);
+        [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieveThresh, is_sparse, is_GPU_USED);
+        outputCoords = outputCoords(ind, :);
+        curTS = size(outputCoords, 1);
+        
+        save(statisticsLayerSieved_Weak{layerID}, 'statistics', 'clusterCurDepths', 'outputCoords', '-v7.3');
+        save(statisticsLayerAggregated_Weak{layerID}, 'X' ,'frequencies', 'curTS', 'triples', '-v7.3');
+        
+        % if necessary we check how statistics is collected    
+%         [coverageOverall, areaOverall] = ProjectAllStatistics(statisticsLayerSieved{layerID}, statisticsLayerAggregated{layerID}, partsCoverArea{layerID}, ...
+%                                                                list_depth, list_mask, lenF, dataSetNumber);
+%         ratio = coverageOverall/areaOverall;
+    end
+    
+    
+  %% compute additional part selection criteria  
+  
+    if is_Entropy{layerID} % part selection based on discrimination criteria
+        
+        [partEntropy] = computePartsEntropy(list_depth, statisticsLayerSieved_Weak{layerID}, statisticsLayerAggregated_Weak{layerID}, nPrevClusters+1, dataSetNumber);
+        save('Temp/entropy.mat', 'partEntropy');
+        
+        load(statisticsLayerAggregated_Weak{layerID}); 
+        
+%     Next lines come for visualization
+%         [partEntropy, inds] = sort(partEntropy, 'ascend');
+%         X = X(inds,:);
+%         a = [partEntropy, X];
+        
+        inds = partEntropy < 1.50;
+        triplesOutEnt = X(inds,:);
+        partEntropyOut = partEntropy(inds);
+        numSelectedEnt = size(triplesOutEnt, 1);
+        save(partsLayerEnt{layerID}, 'triplesOutEnt', 'numSelectedEnt', 'partEntropyOut');
+    end
+        
+    if is_localization{layerID} % part selection based on localization criteria
+        
+        if ~exist('partEntropy', 'var')
+            load('Temp/entropy.mat');
+        end
+        
+        winSize = 6;
+        [localizationOut] = computePartsLocalization(list_depth, statisticsLayerSieved_Weak{layerID}, statisticsLayerAggregated_Weak{layerID}, nPrevClusters+1, winSize);
+        save('Temp/localization.mat', 'localizationOut', 'partEntropy');           
+        load(statisticsLayerAggregated_Weak{layerID});
+        
+%     Next lines come for visualization
+%         [localizationOut, inds] = sort(localizationOut, 'ascend');
+%         X = X(inds,:);
+%         a = [localizationOut,X];
+
+        inds = localizationOut >= 0.40 & partEntropy < 1.6;
+        triplesOutLoc = X(inds,:);
+        numSelectedLoc = size(triplesOutLoc, 1);
+        
+        partLocEntropyOut = partEntropy(inds);
+        save(partsLayerLoc{layerID}, 'triplesOutLoc', 'numSelectedLoc', 'partLocEntropyOut');
+        
+    end
+    
+    
+    %% localization-discriminative-based part selection procedure  
+    
+    if is_partSelectionSpecialNeeded{layerID}
+        
+        [partsOutSpecial{layerID}, nNClustersSpecial{layerID}, partEntropySpecial] = partSelectionSpecial(true, true, partsLayerEnt{layerID}, partsLayerLoc{layerID},  ...
+                nClusters, fileForVisualizationLayer, clusterCurDepths, displ3, displ5, displ7, ...
+                layerID, cluster1Centres, depthStep, partsCoverArea{layerID});          
+  
+        save(partsSpecialSelected{layerID}, 'partsOutSpecial', 'nNClustersSpecial', 'partEntropySpecial');
     end
     
 
-    if ~is_statistics3_collected
+    %% Strong Sieve and Aggregation of the statistics
+    
+    if is_statistics_sieve_aggregate_Strong{layerID} 
         
-        [outputStatistics, outputCoords, curTS] = CollectStats_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
-                                                        displacements, numDisps, borderOffset34, 3, depthStep, dataSetNumber, ...
-                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth);                                              
-        save(statistics3Layer, 'outputStatistics', 'outputCoords');
-    end
-    
-    if ~is_statistics3_sieved 
-    
-        load(statistics3Layer);
+        % sieve
+        pairThresh = curTS * threshPair{layerID};
+        load(statisticsLayer{layerID});
         numDisps = 2;
-        thresh3Pair = 0.01 * lenF;
-        [statistics, outputCoords, cluster3Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh3Pair) 
-        save(statistics3LayerSieved, 'statistics', 'cluster3Depths', 'outputCoords');      
-    else
+        [statistics, outputCoords, clusterCurDepths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, pairThresh, nPrevClusters, ...
+                                                                            quant{layerID}, maxRelDepth{layerID}, is_GPU_USED);
         
-        load(statistics3LayerSieved);  %  variable statistics should be read
-        curTS = size(statistics, 1);
-    end
-    
-    if ~is_statistics3_aggregated % aggregate statistics
-        
-        sieve_thresh = 6;
-        [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, n2Clusters, curTS, sieve_thresh);
-        [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieve_thresh);
+        % aggregate        
+        sieveThresh = curTS * sieve_thresh{layerID};
+        [X, frequencies, triples, is_sparse] = Aggregate_3Layer(statistics, nPrevClusters, curTS, sieveThresh, is_GPU_USED);
+        [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieveThresh, is_sparse, is_GPU_USED);
         outputCoords = outputCoords(ind, :); 
         
-        save(statistics3LayerSieved, 'statistics', 'cluster3Depths', 'outputCoords');
-        save(statistics3LayerAggregated, 'X' ,'frequencies', 'curTS', 'triples');
-    end
+        save(statisticsLayerSieved{layerID}, 'statistics', 'clusterCurDepths', 'outputCoords', '-v7.3');
+        save(statisticsLayerAggregated{layerID}, 'X' ,'frequencies', 'curTS', 'triples', '-v7.3');
+        
+        % if necessary we check how statistics is collected
+        
+%         [coverageOverall, areaOverall] = ProjectAllStatistics(statisticsLayerSieved{layerID}, statisticsLayerAggregated{layerID}, partsCoverArea{layerID}, ...
+%                                                                list_depth, list_mask, lenF, dataSetNumber);
+%         ratio = coverageOverall/areaOverall;
+    end 
     
-    if ~is_partSelectionDone3
+    
+    
+ %% Coverage-based part selection procedure   
+         
+    if is_partSelectionNeeded{layerID}
         if partSelectionMethod == 1
             
-            lenSelected = 150;
-            [triples3Out, coverageOut, n3Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics3LayerSieved, statistics3LayerAggregated, ...
-                    dataSetNumber, fieldSize, list_depth, lenF, meargeThresh3, iterations, 3, [], lenSelected);
-            save(parts3Layer, 'triples3Out', 'coverageOut', 'n3Clusters');
-
-        elseif partSelectionMethod == 2
-
-            load(statistics3LayerSieved);    
-            load(statistics3LayerAggregated);
-
-            [triples3Out] = Optimization_layer3(X, frequencies, triples, nClusters, alphaParam(3), betaParam(3), gammaParam(3), subset_len); % this is the main procedure
-            save('statistics/layer3.mat', 'triples3Out');  
+            [triplesCurOut{layerID}, coverageOut, nNClusters{layerID}] = PartSelectionFull(nClusters, nPrevClusters, statisticsLayerSieved{layerID},...
+                    statisticsLayerAggregated{layerID}, dataSetNumber, partsCoverArea{layerID}, list_depth, lenF, iterations{layerID}, layerID, ...
+                    fileForVisualizationLayer, lenSelected{layerID}, displ3, displ5, displ7, cluster1Centres, depthStep, numSimilar{layerID}, is_GPU_USED);
+            
+            % define parts entropy: TODO
+            
+            partEntropyMain = 5*ones(nNClusters{layerID},1);    
+            % previously selected 
+            save(partsLayer{layerID}, 'triplesCurOut', 'coverageOut', 'nNClusters', 'partEntropyMain'); 
         end
     end
     
     % store the visualization of the vocabulary to the folder
     
-    if visualizeLayer_3
+    if combinePartSelection{layerID}
         
-        load(parts3Layer);                 % 'triples3Out', 'coverageOut',    'n3Clusters'
-        load(statistics3LayerSieved);      %  'statistics', 'cluster3Depths', 'outputCoords'
+        load(partsLayer{layerID});                 % 'triplesCurOut', 'coverageOut', 'nNClusters' 'partEntropyMain'
+        partsEntropy = partEntropyMain; 
         
-        fieldSize = [17, 17, 71];
+%         load(partsSpecialSelected{layerID});       % 'partsOutSpecial', 'nNClustersSpecial', 'partEntropySpecial'
+%         
+%         % this is to compute part's entropy for triplesCurOut
+% %         TODO !!!!
+%         partsEntropy{layerID} = [partEntropyMain; partEntropySpecial];
+%         triplesCurOut{layerID} = [triplesCurOut{layerID}; partsOutSpecial{layerID}];
+%         nNClusters{layerID} = nNClusters{layerID} + nNClustersSpecial{layerID};
+
+        save(partsLayerAll{layerID}, 'triplesCurOut', 'nNClusters', 'partsEntropy');
+    end
+    
+    
+    %% visualization of parts of the layer
+    
+    if visualizeLayer{layerID}
+
+        load(partsLayerAll{layerID});
+        load(statisticsLayerSieved{layerID});      %  'statistics', 'clusterCurDepths', 'outputCoords'
+        
+        if mod(layerID,2) == 1
+            LI = layerID + 1;  % to make a squared visualization field
+        else
+            LI = layerID;
+        end
+            
         % load(fileForVisualization3Layer);
 
         % prepare data for visualization (convert to the right format)
-        triple3OutDepth = store3Layer(triples3Out, cluster3Depths, n3Clusters, nClusters, partSelectionMethod);
-        save(fileForVisualization3Layer, 'triple3OutDepth');
+        if layerID == 3
+            tripleOutDepth{layerID} = store3Layer(triplesCurOut{layerID}, clusterCurDepths, nNClusters{layerID}, nClusters, partSelectionMethod);
+        else
+            tripleOutDepth{layerID} = store4Layer(triplesCurOut{layerID}, clusterCurDepths, nNClusters{layerID}, nClusters, partSelectionMethod);
+        end
+        
+        save(fileForVisualizationLayer{layerID}, 'tripleOutDepth');
 
-        [is_ok] = layer_N_demonstrator(3, [], [], [], [], [], triple3OutDepth, displ3, 0, 0, ...
-                                            nClusters, n3Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG);
+        [is_ok] = layer_N_demonstrator(layerID, tripleOutDepth, displ3, displ5, displ7, ...
+                                            nClusters, nNClusters{layerID}, folderForLayer{layerID}, fieldSize{LI}, depthStep, cluster1Centres, isFIG);
     end
     
+  end
 end
 
-
-
-
-%% learn the 4th layer
-
-if is_4th_layer
-
-    disp('Learning of the 4th layer ...');
-
-    if ~is_first_layer % read the first layer
-        load(statistics1Layer);
-    end
-
-    if ~is_third_layer % read the third layer
-        load(parts3Layer); % 'triples3Out', 'coverageOut', 'n3Clusters');  
-    end
-
-    load('displacements_Layer4.mat');   % 'displacements'
-    numDisps = size(displacements, 1); 
-    borderOffset34 = 9;
-    fieldSize = [17, 17, 71];
-    depthStep = thresh/4;
-    quant = 0.06;
-    maxDist = 2;
-    iterations = 300;
-    maxRelDepth = 127;
-    
-    elPath = elPath3;
-    strFolderLen = length(depthPath);
-    
-    list_els = list_depth;
-    for i = 1:lenF
-        str = list_els{i};
-        str = [elPath ,str(strFolderLen + 1:end)];
-        list_els{i} = str;
-    end
-    
-    if ~is_statistics4_collected
-        [outputStatistics, outputCoords, curTS] = CollectStats_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
-                                displacements, numDisps, borderOffset34, 4, depthStep, dataSetNumber, ...
-                                is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth);
-        save(statistics4Layer, 'outputStatistics', 'outputCoords');
-    end
-
-    if ~is_statistics4_sieved 
-    
-        load(statistics4Layer);
-        numDisps = 2;
-        thresh4Pair = 0.01 * lenF;
-        [statistics, outputCoords, cluster4Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh4Pair) 
-        save(statistics4LayerSieved, 'statistics', 'cluster4Depths', 'outputCoords'); 
-        
-    else
-        load(statistics4LayerSieved);  %  variable statistics should be read
-        curTS = size(statistics, 1);
-    end
-    
-    if ~is_statistics4_aggregated % aggregate statistics
-        
-        sieve_thresh = 3;
-        [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, n3Clusters, curTS, sieve_thresh);
-        
-        % sieve 'statistics' and 'outputCoords' once again
-        [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieve_thresh);
-        outputCoords = outputCoords(ind, :);  
-        
-        save(statistics4LayerSieved, 'statistics', 'cluster4Depths', 'outputCoords');
-        save(statistics4LayerAggregated, 'X' ,'frequencies', 'curTS', 'triples');
-    end
-    
-    if ~is_partSelectionDone4
-        if partSelectionMethod == 1 % libhop-based style 
-            
-            lenSelected = 250;
-            [triples4Out, coverageOut, n4Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics4LayerSieved, statistics4LayerAggregated, ...
-                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh4, ...
-                                     iterations, 4, fileForVisualization3Layer, lenSelected);
-                                 
-        elseif partSelectionMethod == 2
-            
-            [triples4Out] = Optimization_layer4(X, frequencies, triples3Out, triples4, nClusters, n3Clusters, maxDist, subset_len, alphaParam(4), betaParam(4), gammaParam(4));
-            n4Clusters = size(triples4Out, 1);
-            save('statistics/layer4Wash1.mat', 'triples4Out');
-        end
-    end
-    
-    if visualizeLayer_4
-        
-        load(parts4Layer);                 % 'triples4Out', 'coverageOut',    'n4Clusters'
-        load(statistics4LayerSieved);      %  'statistics', 'cluster4Depths', 'outputCoords'
-        
-        % prepare data for visualization (convert to the right format)
-        [triple4OutDepth] = store4Layer(triples4Out, cluster4Depths, n4Clusters, nClusters, partSelectionMethod);
-        
-        load(fileForVisualization3Layer);  % 'triple3OutDepth'
-        save(fileForVisualization4Layer, 'triple3OutDepth', 'triple4OutDepth');
-        
-        fieldSize = [17, 17, 71];
-        [is_ok] = layer_N_demonstrator(4, [], [], [], [], triple4OutDepth, triple3OutDepth, displ3, 0, 0, ...
-                                            nClusters, n4Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG);
-    end
-
-end   
-
-
-
-
-%% learn the 5th layer
-
-if is_5th_layer
-
-    disp('Learning of the 5th layer ...');
-    
-    % read all the previous layers
-
-    load(statistics1Layer);  % 'thresh', etc
-    load(parts3Layer); % 'triples3Out', 'coverageOut', 'n3Clusters');  
-    load(parts4Layer); % 'triples4Out', 'coverageOut', 'n4Clusters');
-    
-
-    load('displacements_Layer5.mat');   % 'displacements'
-    numDisps = size(displacements, 1); 
-    displacement56 = 26;
-    fieldSize = [53, 17, 251];
-    depthStep = thresh/4;
-    quant = 0.04;
-    maxDist = 2;
-    iterations = 400;
-    maxRelDepth = 500;
-    
-    elPath = elPath4;
-    strFolderLen = length(depthPath);
-    
-    list_els = list_depth;
-    for i = 1:lenF
-        str = list_els{i};
-        str = [elPath ,str(strFolderLen + 1:end)];
-        list_els{i} = str;
-    end
-    
-    if ~is_statistics5_collected
-        [outputStatistics, outputCoords, curTS] = CollectStats_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
-                                displacements, numDisps, displacement56, 5, depthStep, dataSetNumber, ...
-                                is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth);
-
-        save(statistics5Layer, 'outputStatistics', 'outputCoords');
-    end
-
-    if ~is_statistics5_sieved 
-    
-        load(statistics5Layer);
-        numDisps = 2;
-        thresh5Pair = 15;
-        [statistics, outputCoords, cluster5Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh5Pair) 
-        save(statistics5LayerSieved, 'statistics', 'cluster5Depths', 'outputCoords');       
-    else
-        load(statistics5LayerSieved);  %  variable statistics should be read
-        curTS = size(statistics, 1);
-    end
-    
-    if ~is_statistics5_aggregated % aggregate statistics
-        
-        sieve_thresh = 3;
-        [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, n4Clusters, curTS, sieve_thresh);
-        
-        % sieve 'statistics' and 'outputCoords' once again
-        [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieve_thresh);
-        outputCoords = outputCoords(ind, :);  
-        
-        save(statistics5LayerSieved, 'statistics', 'cluster5Depths', 'outputCoords');
-        save(statistics5LayerAggregated, 'X' ,'frequencies', 'curTS', 'triples');
-    end
-    
-    if ~is_partSelectionDone5
-        if partSelectionMethod == 1 % libhop-based style 
-            
-            lenSelected = 240;
-            [triples5Out, coverageOut, n5Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics5LayerSieved, statistics5LayerAggregated, ...
-                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh5, ...
-                                     iterations, 5, fileForVisualization4Layer, lenSelected);                    
-            save(parts5Layer, 'triples5Out', 'coverageOut', 'n5Clusters');
-            
-        elseif partSelectionMethod == 2  % to change
-            
-            disp('Not implemented');
-        end
-    end
-    
-    if visualizeLayer_5
-        
-        load(parts5Layer);                 % 'triples5Out', 'coverageOut',    'n5Clusters'
-        load(statistics5LayerSieved);      % 'statistics', 'cluster5Depths', 'outputCoords'
-        
-
-        % prepare data for visualization (convert to the right format)
-        [triple5OutDepth] = store4Layer(triples5Out, cluster5Depths, n5Clusters, nClusters, partSelectionMethod);
-        load(fileForVisualization4Layer);  % 'triple3OutDepth', 'triple4OutDepth'
-        save(fileForVisualization5Layer, 'triple3OutDepth', 'triple4OutDepth', 'triple5OutDepth');
-        save(parts5Layer, 'triples5Out', 'coverageOut', 'n5Clusters');
-        
-        fieldSize = [53, 53, 251];
-                      
-        [is_ok] = layer_N_demonstrator(5, [], [], [], triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, 0, ...
-                                            nClusters, n5Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG);
-    end
 end
 
-
-
-
-
-%% learn the 6th layer
-
-if is_6th_layer
-
-    disp('Learning of the 6th layer ...');
-    
-    % read all the previous layers
-
-    load(statistics1Layer);  % 'thresh', etc  
-    
-    load(parts5Layer); % 'triples5Out', 'coverageOut', 'n5Clusters');
-
-    load('displacements_Layer6.mat');   % 'displacements'
-    numDisps = size(displacements, 1); 
-    displacement56 = 26;
-    fieldSize = [53, 53, 351];
-    depthStep = thresh/4;
-    quant = 0.04;
-    maxDist = 2;
-    iterations = 440;
-    maxRelDepth = 500;
-    
-    elPath = elPath5;
-    strFolderLen = length(depthPath);
-    
-    list_els = list_depth;
-    for i = 1:lenF
-        str = list_els{i};
-        str = [elPath ,str(strFolderLen + 1:end)];
-        list_els{i} = str;
-    end
-    
-    if ~is_statistics6_collected
-        [outputStatistics, outputCoords, curTS] = CollectStats_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize,...
-                                dxKernel, isErrosion, discRadius, nClusters, ...
-                                displacements, numDisps, displacement56, 6, depthStep, dataSetNumber, ...
-                                is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth);
-
-        save(statistics6Layer, 'outputStatistics', 'outputCoords');
-    end
-
-    if ~is_statistics6_sieved 
-    
-        load(statistics6Layer);
-        numDisps = 2;
-        thresh6Pair = 8;
-        [statistics, outputCoords, cluster6Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh6Pair) 
-        save(statistics6LayerSieved, 'statistics', 'cluster6Depths', 'outputCoords');       
-    else
-        load(statistics6LayerSieved);  %  variable statistics should be read
-        curTS = size(statistics, 1);
-    end
-    
-    if ~is_statistics6_aggregated % aggregate statistics
-        
-        sieve_thresh = 2;
-        [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, n5Clusters, curTS, sieve_thresh);
-        
-        % sieve 'statistics' and 'outputCoords' once again
-        [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieve_thresh);
-        outputCoords = outputCoords(ind, :);
-        
-        save(statistics6LayerSieved, 'statistics', 'cluster6Depths', 'outputCoords');
-        save(statistics6LayerAggregated, 'X' ,'frequencies', 'curTS', 'triples');
-    end
-    
-    if ~is_partSelectionDone6
-        if partSelectionMethod == 1 % libhop-based style 
-            
-            lenSelected = 400;
-            [triples6Out, coverageOut, n6Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics6LayerSieved, statistics6LayerAggregated, ...
-                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh6, ...
-                                     iterations, 6, fileForVisualization5Layer, lenSelected);                 
-            save(parts6Layer, 'triples6Out', 'coverageOut', 'n6Clusters');
-            
-        elseif partSelectionMethod == 2  % to change
-            
-            disp('Not Implemented!');
-        end
-    end
-    
-    if visualizeLayer_6
-        
-        load(parts6Layer);                 % 'triples6Out', 'coverageOut',    'n6Clusters'
-        load(statistics6LayerSieved);      % 'statistics', 'cluster6Depths', 'outputCoords'
-        
-        
-        % prepare data for visualization (convert to the right format)
-        [triple6OutDepth] = store4Layer(triples6Out, cluster6Depths, n6Clusters, nClusters, partSelectionMethod);
-        
-        load(fileForVisualization5Layer);  % 'triple3OutDepth', 'triple4OutDepth' 'triple5OutDepth'
-        save(fileForVisualization6Layer, 'triple3OutDepth', 'triple4OutDepth', 'triple5OutDepth', 'triple6OutDepth');
-        
-        fieldSize = [53, 53, 301];
-        
-        [is_ok] = layer_N_demonstrator(6, [], [], triple6OutDepth, triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, 0, ...
-                                            nClusters, n6Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG); 
-    end
-
-end 
-
-
-
-
-%% learn the 7th layer
-
-if is_7th_layer
-
-    disp('Learning of the 6th layer ...');
-    
-    % read all the previous layers
-
-    load(statistics1Layer);  % 'thresh', etc  
-    
-    load(parts6Layer); % 'triples5Out', 'coverageOut', 'n5Clusters');
-
-    load('displacements_Layer7.mat');   % 'displacements'
-    numDisps = size(displacements, 1); 
-    borderOffset78 = 54;
-    fieldSize = [160, 160, 251];
-    depthStep = thresh/4;
-    quant = 0.04;
-    maxDist = 2;
-    iterations = 500;
-    maxRelDepth = 1000;
-    
-    elPath = elPath6;
-    strFolderLen = length(depthPath);
-    
-    list_els = list_depth;
-    for i = 1:lenF
-        str = list_els{i};
-        str = [elPath ,str(strFolderLen + 1:end)];
-        list_els{i} = str;
-    end
-    
-    if ~is_statistics7_collected
-        [outputStatistics, outputCoords, curTS] = CollectStats_NextLayers(list_els, list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
-                                displacements, numDisps, borderOffset78, 7, depthStep, dataSetNumber, ...
-                                is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth);
-
-        save(statistics7Layer, 'outputStatistics', 'outputCoords');
-    end
-
-    if ~is_statistics7_sieved 
-    
-        load(statistics7Layer);
-        numDisps = 2;
-        thresh7Pair = 0.0005 * lenF;
-        [statistics, outputCoords, cluster7Depths, curTS] = sieveStatistics(outputStatistics, outputCoords, numDisps, thresh7Pair);
-        save(statistics7LayerSieved, 'statistics', 'cluster7Depths', 'outputCoords');
-        
-    else
-        load(statistics7LayerSieved);  %  variable statistics should be read
-        curTS = size(statistics, 1);
-    end
-    
-    if ~is_statistics7_aggregated % aggregate statistics
-        
-        sieve_thresh = 2;
-        [X, frequencies, curTS, triples] = Aggregate_3Layer(statistics, n6Clusters, curTS, sieve_thresh);
-        
-        % sieve 'statistics' and 'outputCoords' once again
-        [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieve_thresh);
-        outputCoords = outputCoords(ind, :);
-        
-        save(statistics7LayerSieved, 'statistics', 'cluster7Depths', 'outputCoords');
-        save(statistics7LayerAggregated, 'X' ,'frequencies', 'curTS', 'triples');
-    end
-    
-    if ~is_partSelectionDone7
-        if partSelectionMethod == 1 % libhop-based style 
-            
-            lenSelected = 600;
-            [triples7Out, coverageOut, n7Clusters] = PartSelectionFull(nClusters, n2Clusters, statistics7LayerSieved, statistics7LayerAggregated, ...
-                                     dataSetNumber, fieldSize, list_depth, lenF, meargeThresh7, ...
-                                     iterations, 7, fileForVisualization6Layer, lenSelected);
-            save(parts7Layer, 'triples7Out', 'coverageOut', 'n7Clusters');
-             
-        elseif partSelectionMethod == 2  % to change 
-            
-            disp('Not implemented!');
-        end
-    end
-    
-    if visualizeLayer_7
-        
-        load(parts7Layer);                 % 'triples6Out', 'coverageOut',    'n6Clusters'
-        load(statistics7LayerSieved);      % 'statistics', 'cluster6Depths', 'outputCoords'
-        
-        
-        % prepare data for visualization (convert to the right format)
-        [triple7OutDepth] = store4Layer(triples7Out, cluster7Depths, n7Clusters, nClusters, partSelectionMethod);
-        
-        load(fileForVisualization6Layer);  % 'triple3OutDepth', 'triple4OutDepth' 'triple5OutDepth'
-        save(fileForVisualization7Layer, 'triple3OutDepth', 'triple4OutDepth', 'triple5OutDepth', 'triple6OutDepth', 'triple7OutDepth');
-        
-        fieldSize = [160, 160, 700];
-                            
-        [is_ok] = layer_N_demonstrator(7, [], triple7OutDepth, triple6OutDepth, triple5OutDepth, triple4OutDepth, triple3OutDepth, displ3, displ5, displ7, ...
-                                    nClusters, n6Clusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG);                            
-    end
-
-end  
-
-
-
-% matlabpool close 
 

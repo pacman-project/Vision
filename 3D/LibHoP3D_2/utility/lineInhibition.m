@@ -51,6 +51,8 @@ function [outLine, outErrors] = lineInhibition(nearestClusters, errors, wCoverag
 %     overlapsFar(strLen)   = minOverlap; % last element  % NOT USED 
     
     %%
+    
+    
       
     % decompose if line is too long
     els = [];

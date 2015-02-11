@@ -1,67 +1,27 @@
 % this function returns displacements for recognition of each layer after 4
 
-function [indsXLeft, indsYLeft, indsXRight, indsYRight] = getDisplacements(layerID, centerX, centerY, displ7, displ5, displ3, smallOffset)
+% elementType may be a circle or a square
+
+function [indsXLeft, indsYLeft, indsXRight, indsYRight] = getDisplacements(layerID, centerX, centerY, displ3, indsX, indsY)
+ 
+    % here we shift indexes to the right central position
     
-
-    if layerID == 5
-        % take a square of size 2*smallOffset
+    if mod(layerID,2) == 1  % 3,5, etc.
         
-        len = 3;
-        indsXLeft = zeros(1,len^2);
-        indsYLeft = zeros(1,len^2);
-        indsXRight = zeros(1,len^2);
-        indsYRight = zeros(1,len^2);
+        indsXLeft = indsX + centerX - displ3; 
+        indsYLeft = indsY + centerY;
+        indsXRight = indsX + centerX + displ3;
+        indsYRight = indsY + centerY;
         
-        centerXLeft = centerX - displ5;
-        centerYLeft = centerY;
-        centerXRight = centerX + displ5;
-        centerYRight = centerY;
+    else
         
-        range = len - 1;
-        num = 1;
+        indsXLeft = indsX + centerX; 
+        indsYLeft = indsY + centerY - displ3;
+        indsXRight = indsX + centerX;
+        indsYRight = indsY + centerY + displ3;
         
-        for i = -range:smallOffset:range      % should be [-4, -2, 0, 2, 4]  % x - direction
-            for j = -range:smallOffset:range  % should be [-4, -2, 0, 2, 4]  % y - direction
-                
-                indsXLeft(num)  = centerXLeft + i;
-                indsYLeft(num)  = centerYLeft + j;
-                indsXRight(num) = centerXRight + i;
-                indsYRight(num) = centerYRight + j;
-                num = num + 1;
-                
-            end
-        end
     end
 
-    if layerID == 6
-        % take a square of size 2*smallOffset
-        
-        len = 3;
-        indsXLeft  = zeros(1, len^2);
-        indsYLeft  = zeros(1, len^2);
-        indsXRight = zeros(1, len^2);
-        indsYRight = zeros(1, len^2);
-        
-        centerXLeft = centerX;
-        centerYLeft = centerY - displ5;
-        centerXRight = centerX;
-        centerYRight = centerY + displ5;
-        
-        range = len - 1;
-        num = 1;
-        
-        for i = -range:smallOffset:range      % should be [-4, -2, 0, 2, 4]  % x - direction
-            for j = -range:smallOffset:range  % should be [-4, -2, 0, 2, 4]  % y - direction
-                
-                indsXLeft(num)  = centerXLeft + i;
-                indsYLeft(num)  = centerYLeft + j;
-                indsXRight(num) = centerXRight + i;
-                indsYRight(num) = centerYRight + j;
-                num = num + 1;
-                
-            end
-        end
-    end
          
 end
 

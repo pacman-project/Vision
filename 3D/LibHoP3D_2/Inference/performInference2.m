@@ -2,14 +2,16 @@
 % the folder
 
 function [] = performInference2(list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discSize, nClusters, ...
-                            areLayersRequired, outRoot, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
+                            infArray, outRoot, combs, largestLine, wCoverage, wOverlap, is_inhibition, ...
                             is_downsampling, dowsample_rate, dataSetNumber, depthPath, cluster1Centres, cluster1Bounds, thresh, ...
-                            is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, isReconstructionErrorRequired)
+                            is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, isReconstructionError, ...
+                            dyKernelTop, dyKernelBottom, dxKernelBack, dxKernelForward)
             
 
 % -------------for the preliminary processing function--------------------
 isY = true;
 isX = true;
+isX_FB = true;
 isTrim = false;
 
 discrThresh1 = 10;
@@ -17,20 +19,37 @@ discrThresh2 = 3;
 
 lenDPW = length(depthPath);
 
-is_first_layer = areLayersRequired(1);
-is_second_layer = areLayersRequired(2);
-is_inhibition_1_layer = isInhibitionRequired(1);
-is_inhibition_2_layer = isInhibitionRequired(2); 
-isReconstructionError_1_Required = isReconstructionErrorRequired(1);
-isReconstructionError_2_Required = isReconstructionErrorRequired(2);
-
 if dataSetNumber ~= 2
     list_mask = zeros(1, lenF);
 end
 
+indsSS = randperm(lenF);
+
 parfor i = 1:lenF  % To use later for models
     
-    I = imread(list_depth{i}); % list should contain the full path
+    curStr = list_depth{indsSS(i)};
+%       ll = strfind(curStr, '/');
+%       fileName = curStr(ll:end);
+        
+
+    fileName = curStr(lenDPW+1:end);
+    outFile = [outRoot, fileName];
+    
+    ll = strfind(outFile, '/');
+    ll = ll(end); % last position
+    folderName = outFile(1:ll);
+    b = exist(folderName,'dir');
+
+    if b == 0
+        mkdir(folderName);
+    end
+    
+    % chech if file exists
+    b = exist(outFile, 'file');
+
+   if ~b
+    
+    I = imread(list_depth{indsSS(i)}); % list should contain the full path
     I = I(:,:,1);
     I = double(I);
     mask = [];
@@ -40,13 +59,14 @@ parfor i = 1:lenF  % To use later for models
         if is_downsampling
             I = imresize(I, dowsample_rate);
         end
-        [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, [], isErrosion, discSize, isX, isY, ...
-                            isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);
+        [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, [], isErrosion, discSize, isX, isY, isX_FB, ...
+                            isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, ...
+                            dyKernelTop, dyKernelBottom, dxKernelBack, dxKernelForward);
                         
     
     elseif dataSetNumber == 2  % Washington data set
         
-        mask = imread(list_mask{i});
+        mask = imread(list_mask{indsSS(i)});
 
         if is_downsampling
 
@@ -65,8 +85,9 @@ parfor i = 1:lenF  % To use later for models
             mask = imresize(mask, downRate);
         end
               
-        [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discSize, isX, isY,...
-                    isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);
+        [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discSize, isX, isY, isX_FB,...
+                    isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, ...
+                    dyKernelTop, dyKernelBottom, dxKernelBack, dxKernelForward);
                 
     end
     
@@ -95,42 +116,46 @@ parfor i = 1:lenF  % To use later for models
             elseif mod(ind(1),2) == 0
                 offset = 0;
             end
+            
+            
+            for iii = 1:3
                 
-            fx = Ix(k,ind(1)+offset : ind(end));
-            strLen = length(fx);
-            outLine = zeros(1,strLen);
-            outErrors = zeros(1,strLen);
-            altClusters = zeros(1,strLen);
-            altErrors = zeros(1,strLen);
-            inds = 1:2:strLen-1;
-            fxQuant = fx(inds);
-            strLen = length(fxQuant);
-            
-            [nearestClusters,  alternativeClusters] = discretizeLineVectorized(fxQuant, nClusters, cluster1Centres, cluster1Bounds);
-            
-            % this is done just to check
-            nearestClustersA = zeros(1, strLen);
-            for iii = 1:strLen
-                nearestClustersA(iii) = define1Cluster(fxQuant(iii), cluster1Bounds, nClusters);
+                fx = Ix(k,ind(1)+offset : ind(end), iii);  % look to central difference
+                strLen = length(fx);
+                
+                if iii == 1
+                    outLine = zeros(1,strLen);
+                    outErrors = zeros(1,strLen);
+                    altClusters = zeros(1,strLen);
+                    altErrors = zeros(1,strLen);
+                end
+                
+                inds = 1:2:strLen-1;
+                fxQuant = fx(inds);
+                strLen = length(fxQuant);
+                
+                if iii == 1
+                    [nearestClusters,  alternativeClusters] = discretizeLineVectorized(fxQuant, nClusters, cluster1Centres, cluster1Bounds);
+%                 elseif iii == 2  % check if forward and backward differences are the same
+%                     [nearestClusters2,  alternativeClusters2] = discretizeLineVectorized(fxQuant, nClusters, cluster1Centres, cluster1Bounds);
+%                     nearestClusters(nearestClusters ~= nearestClusters2) = 0; % non-planar area!
+                end
+ 
             end
             
-            if ~isequal(nearestClustersA, nearestClusters)
-                disp('ERROR');
-            end
             
-            [errors, alternativeErrors] = computeLineReconstructionErrors(nearestClusters, alternativeClusters, cluster1Centres, fx, inds, thresh);
+            % [errors, alternativeErrors] = computeLineReconstructionErrors(nearestClusters, alternativeClusters, cluster1Centres, fx, inds, thresh);
             
-            if is_inhibition_1_layer
+            if is_inhibition{1}
                 [output, curErrs] = lineInhibition(nearestClusters, errors, wCoverage, wOverlap, combs, largestLine);
                 outLine(inds) = output;
                 outErrors(inds) = curErrs;
                 % we do not perform inhibition in alternative hypothesis space
             else
                 outLine(inds) = nearestClusters;
-                outErrors(inds) = errors;
             end
             altClusters(inds) = alternativeClusters;
-            altErrors(inds) = alternativeErrors;
+%             altErrors(inds) = alternativeErrors;
             
             marks1(k,ind(1)+offset:ind(end)) = outLine;
             errors1(k,ind(1)+offset:ind(end)) = outErrors;
@@ -144,8 +169,8 @@ parfor i = 1:lenF  % To use later for models
     marks1_alt = marks1_alt .* mask;
     errors1_alt = errors1_alt.*mask;
     
-    if is_first_layer  % write the outcome somewhere
-%           imtool(marks1, [0,nClusters]);
+    if infArray(1)  % write the outcome somewhere
+%            imtool(marks1, [0,nClusters]);
 %           imtool(I, [min(min(I)), max(max(I))]);
 %         imtool(errors1);
 %         imtool(marks1_alt, [0,9]);
@@ -153,8 +178,8 @@ parfor i = 1:lenF  % To use later for models
 %         TODO write the results somewhere
     end
     
-    if isReconstructionError_1_Required
-        % do something smart
+    if isReconstructionError{1}
+        disp('not implemented yet');
     end
     
 
@@ -190,7 +215,9 @@ parfor i = 1:lenF  % To use later for models
             yMarks1_alt = marks1_alt(ind(1) : ind(end), k-2: k+2);
             yErrors1_alt = errors1_alt(ind(1) : ind(end), k-2: k+2);
             
-            line_Iy = Iy(ind(1) : ind(end), k);
+            line_Iy1 = Iy(ind(1) : ind(end), k, 1);
+            line_Iy2 = Iy(ind(1) : ind(end), k, 2);
+            line_Iy3 = Iy(ind(1) : ind(end), k, 3);
             
             if mod(ind(1), 2) == 0
                 offset = 1;   
@@ -207,19 +234,25 @@ parfor i = 1:lenF  % To use later for models
             indsL = find(nearestClusters > 0);
             for jj = 1:length(indsL)
                 clusterX = nearestClusters(indsL(jj));
-                dY = line_Iy(indsL(jj));
+                dY = line_Iy1(indsL(jj));
                 clusterY = define1Cluster(dY, cluster1Bounds, nClusters); 
-                if clusterY ~= 0
+                
+                dY2 = line_Iy2(indsL(jj));
+                clusterY2 = define1Cluster(dY2, cluster1Bounds, nClusters);
+                dY3 = line_Iy3(indsL(jj));
+                clusterY3 = define1Cluster(dY3, cluster1Bounds, nClusters);
+                
+                if clusterY == 0 || clusterY~=clusterY2 || clusterY~=clusterY3
+                    nearestClusters(indsL(jj)) = 0;
+                else
                     errorY = 0.1;                                                           % TODO SOMETHING BETTER
                     newInd = compute2elementIndex(clusterX, clusterY, nClusters);
                     nearestClusters(indsL(jj)) = newInd;
                     errors(indsL(jj)) = (errors(indsL(jj)) + errorY)/2;  % controversal
-                else
-                    nearestClusters(indsL(jj)) = 0;
                 end
             end
             
-            if is_inhibition_2_layer  % even numbers
+            if is_inhibition{2} % even numbers
                 inds = 3:2:strLen;
                 nearestClusters = nearestClusters(inds);
                 errors = errors(inds);
@@ -239,7 +272,7 @@ parfor i = 1:lenF  % To use later for models
 %     marks2 = marks2(offset2+1 : r-offset2, offset2+1 : c-offset2);
 %     errors2 = errors2(offset2+1 : r-offset2, offset2+1 : c-offset2);
         
-    if is_second_layer % write the results somewhere
+    if infArray(2) % write the results somewhere
         
 %         imtool(I, [min(min(I)), max(max(I))]);
 %         imtool(Ix, [min(min(Ix)), max(max(Ix))]);
@@ -247,27 +280,13 @@ parfor i = 1:lenF  % To use later for models
 %         imtool(marks2, [0, nClusters^2]);    % GIVES NICE PICTURES
 
         marks2 = uint8(marks2);
-        curStr = list_depth{i};
-%       ll = strfind(curStr, '/');
-%       fileName = curStr(ll:end);
 
-        fileName = curStr(lenDPW+1:end);
-        outFile = [outRoot, fileName];
-        
-        ll = strfind(outFile, '/');
-        ll = ll(end); % last position
-        folderName = outFile(1:ll);
-        b = exist(folderName,'dir');
-        
-        if b == 0
-            mkdir(folderName);
-        end
         imwrite(marks2, outFile, 'png');
         
     end
     
-    if isReconstructionError_2_Required
-        % do something
+    if isReconstructionError{2}
+        disp('not implemented');
     end
     
     
@@ -275,7 +294,7 @@ parfor i = 1:lenF  % To use later for models
     if mod(i,10) == 0
         i
     end
-
+   end
         
 end
 

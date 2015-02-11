@@ -8,9 +8,10 @@
 % isFull is true when all elements exist in a row
 % fieldSize is [sizeX, sizeY, sizeZ]
 
-function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLayers(list_elements, list_depths, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
-                                                        displacements, lenDisp, displacement34, layerID, depthStep, dataSetNumber, ...
-                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth)
+function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLayers(list_elements, list_depths, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius,...
+                                                        nPrevClusters, displacements, lenDisp, layerID, depthStep, dataSetNumber, ...
+                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, maxRelDepth, ...
+                                                        learningElType, learningElRadius, displ3, cluster1Bounds)
                                                     
     disp('collecting co-occurrence statistics...');
     %  for example displacements = [0 0; 0 -6; 0 6]; or displacements = [0 0; -6, 0; 6, 0];
@@ -19,9 +20,12 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
     %     1
     %     3
     
+    errosionAdder = 0;
+    emptyCellID = nPrevClusters + 1;
+    isY = true;
+    isX = true;
+    isX_FB = false;
     
-    isY = false;
-    isX = false;
     isTrim = false; % parameters for preliminary processing
     
     if dataSetNumber ~= 2
@@ -34,10 +38,12 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
     outputCoordsAll = [];
     curTSAll = 0;
     
-    step = 100;
+    step = 60;
     iiiPrev = 1;
     
-    for iii = step:step:lenF % This is done to speed up
+    [indsXOut, indsYOut] = getDispAbs(learningElType, learningElRadius);
+    
+    for iii = 1:step:lenF % This is done to speed up
         
         outputStatistics = [];
         outputCoords = [];
@@ -50,12 +56,11 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
         else
             indEnd = iii;
         end
-        
     
         parfor i = indStart:indEnd
 
                 I = imread(list_depths{i});     % depth image
-                marks3 = imread(list_elements{i});  % elements of the previous layer
+                marksPrev = imread(list_elements{i});  % elements of the previous layer
 
                 I = I(:,:,1);
 
@@ -68,16 +73,24 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
 
                 if dataSetNumber == 1 || dataSetNumber == 3 % Aim@Shape dataset || Vladislav_STD
 
-                    [I, ~, ~, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY, isTrim, dxKernel, sigmaKernelSize, sigma, ...
-                                                                            is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2);
+                    [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius + errosionAdder, isX, isY, isX_FB, isTrim, dxKernel, sigmaKernelSize, sigma, ...
+                                                                            is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, ...
+                                                                            [],[],[],[]);
 
                 elseif dataSetNumber == 2  % Washington data set
 
 
-                    [I, ~, ~, ~, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY, isTrim, dxKernel, sigmaKernelSize, sigma, ...
-                                                                            is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2);
+                    [I, Ix, Iy, ~, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius + errosionAdder, isX, isY, isX_FB, isTrim, dxKernel, sigmaKernelSize, sigma, ...
+                                                                            is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, ...
+                                                                            [],[],[],[]);
 
                 end
+                
+                Ix = Ix(:,:,1);
+                Iy = Iy(:,:,1);
+                
+                % extend a mask! This is done to treat areas with empty cells
+                mask = extendMaskWithDerivatives(mask, cluster1Bounds, Ix, Iy);           
 
                 if ~is_successfull
                     continue;
@@ -87,7 +100,7 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
                 if r~=rEl || c ~= cEl
                     disp('ERROR');
                 end
-                [rEl, cEl] = size(marks3);
+                [rEl, cEl] = size(marksPrev);
                 if r~=rEl || c ~= cEl
                     disp('ERROR');
                 end
@@ -97,31 +110,61 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
 
                 % next we try to match the next layer element around each window
 
-
-                [rows, cols] = find(marks3 > 0);
+                [rows, cols] = find(marksPrev > 0);
                 nEl = length(rows);
 
-                for j = 1: nEl
+                for j = 1: nEl 
+                    
+                    central = marksPrev(rows(j), cols(j));
+                    depthCentral = I(rows(j), cols(j));
+                    
+                    % check what are left and right neighbours    
+                    [indsXLeft, indsYLeft, indsXRight, indsYRight] = getDisplacements(layerID, cols(j), rows(j), displ3, indsXOut, indsYOut); 
 
-                    if layerID == 4 || layerID == 6 || layerID == 8
-                        if rows(j) < displacement34 + 1  || rows(j) > r - displacement34  || cols(j) < displacement34 + 1 || cols(j) > c - displacement34
-                            continue;
+                    % make shure indexes are not out of the image borders
+                    [indsXLeft, indsYLeft, indsXRight, indsYRight] = checkImageBoundaries(indsXLeft, indsYLeft, indsXRight, indsYRight, r, c);
+                    
+                    leftInds  = sub2ind(size(marksPrev), indsYLeft,  indsXLeft);
+                    rightInds = sub2ind(size(marksPrev), indsYRight, indsXRight);
+                    lefts       = marksPrev(leftInds);
+                    rights      = marksPrev(rightInds);
+                    leftsMask = mask(leftInds);
+                    rightsMask = mask((rightInds));
+                    
+                    % check is something is empty
+                    lenEmpLeft = length(leftsMask(leftsMask == 0))/length(indsYLeft);
+                    lenEmpRight = length(rightsMask(rightsMask == 0))/length(indsYRight);
+                    
+                    if lenEmpLeft >= 0.5 % left should be an empty cell
+                        left = emptyCellID;
+                        depthLeft = depthCentral;
+                    else
+                        lefts = lefts(lefts>0);
+                        if isempty(lefts)
+                            left = 0;
+                        else
+                            left = mode(lefts);
+                            depthLeft =  I(rows(j) + displacements(2,1), cols(j) + displacements(2,2));
                         end
-                    elseif layerID == 3 || layerID == 5 || layerID == 7 
-                        if cols(j) < displacement34 + 1 || cols(j) > c - displacement34
-                            continue;
-                        end
+
+                    end
+                    
+                    if lenEmpRight >= 0.5 % left should be an empty cell
+                        right = emptyCellID;
+                        depthRight = depthCentral;
+                    else
+                        rights = rights(rights>0);
+                        if isempty(rights)
+                            right = 0;
+                        else
+                            right = mode(rights);
+                            depthRight = I(rows(j) + displacements(3,1), cols(j) + displacements(3,2));   % learn from exact positions
+                        end  
                     end
 
-                    central = marks3(rows(j) + displacements(1,1), cols(j) + displacements(1,2));
-                    depthCentral = I(rows(j) + displacements(1,1), cols(j) + displacements(1,2));
-                    left =  marks3(rows(j) + displacements(2,1), cols(j) + displacements(2,2)); 
-                    right = marks3(rows(j) + displacements(3,1), cols(j) + displacements(3,2));  
-                    depthLeft =  I(rows(j) + displacements(2,1), cols(j) + displacements(2,2));
-                    depthRight = I(rows(j) + displacements(3,1), cols(j) + displacements(3,2));   % learn from exact positions
 
 
-                    if central ~= 0 && left ~= 0 && right ~= 0  % element is detected
+                    if central ~= 0 && left ~= 0 && right ~= 0 && (left ~= emptyCellID || right ~= emptyCellID) % element is detected
 
                         line = zeros(1, lenDisp*2 - 1); 
                         line(1) = central;
@@ -146,7 +189,7 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
 
                         line = int16(line);
 
-                        curCoords = [i, cols(j) + displacements(1,2), rows(j) + displacements(1,1)];  % image, x, y
+                        curCoords = [i, cols(j), rows(j)];  % image, x, y
                         curCoords = uint16(curCoords);
                         outputCoords = [outputCoords; curCoords];
                         outputStatistics = [outputStatistics; line];
@@ -166,6 +209,7 @@ function [outputStatisticsAll, outputCoordsAll, curTSAll] = CollectStats_NextLay
     
     end
     
+    disp('Statistics collection time is ...');
     toc
 
 end

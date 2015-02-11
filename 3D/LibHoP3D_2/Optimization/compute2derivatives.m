@@ -10,4 +10,8 @@ function [clusterX, clusterY] = compute2derivatives(elementNumber, nClusters)
         clusterX = ceil(elementNumber/nClusters);
     end
     
+    if clusterX == nClusters + 1 && clusterY == 1 % this is an empty cell
+        clusterY = nClusters + 1;     % ex. we return [8,8] if nClusters == 7
+    end
+    
 end

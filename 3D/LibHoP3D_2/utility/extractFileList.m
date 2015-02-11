@@ -1,13 +1,8 @@
 % this is to extract filelist and subset of it (if required)
 
-function [list_depth, len] = extractFileList(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subset_len)
+function [list_depth, len] = extractFileList(depthPath, is_subset, subset_len)
 
-    if ~fileListPrecomputed
-        list_depth = load_filelist(depthPath);
-    else
-        list_depth = load(depthPathDefault);
-        list_depth = list_depth.list_depth;
-    end
+    list_depth = load_filelist(depthPath);
 
     len = length(list_depth);
 

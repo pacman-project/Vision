@@ -1,8 +1,12 @@
 % this code is to create a MULTISCALE histogram of compositional parts
 
-function [] = histogramOfParts_best(n2Clusters, n3Clusters, n4Clusters)
+function [] = histogramOfParts_best()%(n2Clusters, n3Clusters, n4Clusters)
 
+nNClusters{2} = 81;
+nNClusters{3} = 500;
+nNClusters{4} = 700;
 
+numScales = 1;
 nbinsS1 = [1,1];
 nbinsS2 = [2,2];
 nbinsS3 = [3,3];
@@ -10,39 +14,64 @@ nbinsS3 = [3,3];
 are_neighboursInvolved = false;
 
 % 1 + 1*1 + 2*2 + 3*3
-totalNumBins = 1 + nbinsS1(1)*nbinsS1(2) + nbinsS2(1)*nbinsS2(2) + nbinsS3(1)*nbinsS3(2);
-
-numChannels = 3;
-
-if numChannels == 1
-    binSize = n2Clusters;
-elseif numChannels == 2
-    binSize = n2Clusters + n3Clusters;
-elseif numChannels == 3    
-    binSize = n2Clusters + n3Clusters + n4Clusters;
+totalNumBins = 1;
+if numScales >= 1
+    totalNumBins = totalNumBins + nbinsS1(1)*nbinsS1(2);
+end
+if numScales >= 2
+    totalNumBins = totalNumBins + nbinsS2(1)*nbinsS2(2);
+end
+if numScales == 3
+    totalNumBins = totalNumBins + nbinsS3(1)*nbinsS3(2);
 end
 
-%strRootE = 'D:/3D/Images for categorization/1view_1Scale/Elements';
-strRootE = 'D:\3D\Input Data\Images for categorization\8view_1Scale\ElementsOpt3';
-strRootD = 'D:\3D\Input Data\Images for categorization\8view_1Scale\images';
+numChannels = 1;
 
-list_el = load_filelist(strRootE); % this folder with files of the second layer elements
+if numChannels == 1
+    binSize = nNClusters{2};
+elseif numChannels == 2
+    binSize = nNClusters{2} + nNClusters{3};
+elseif numChannels == 3    
+    binSize = nNClusters{2} + nNClusters{3} + nNClusters{4};
+end
+
+% strRootE = 'D:\Input Data\AimShape\1_views_1Scale';
+strRootD = 'D:\Input Data\AimShape\20_views_1Scale';
+
+adder{2} = {'_layer2'};
+adder{3} = {'_layer3'};
+adder{4} = {'_layer4'};
+adder{5} = {'_layer5'};
+adder{6} = {'_layer6'};
+adder{7} = {'_layer7'};
+adder{8} = {'_layer8'};
+
+for i = 1:numChannels 
+    str = char(adder{i+1});
+    str = [strRootD, str];
+    temp = load_filelist(str); % this folder with files of the second layer elements
+    list_el{i} = temp;
+end
+
 list_D = load_filelist(strRootD); % this is folder with depths
-len = length(list_el);
+len = length(list_D);
 
-descLength = binSize * totalNumBins;
+%general descriptors
+genDescs = 2;
+
+descLength = genDescs + binSize * totalNumBins;
 
 % input for the SVM
 X = [];%zeros(len, descLength); 
 Y = zeros(len, 1);                % class labels
 M = zeros(len, 1);                % model number
 
-weightsAll = zeros(n2Clusters,8);
-el_listAll = zeros(n2Clusters,8);
-numElsAll = zeros(n2Clusters);
+weightsAll = zeros(nNClusters{2},8);
+el_listAll = zeros(nNClusters{2},8);
+numElsAll = zeros(nNClusters{2});
  
 if are_neighboursInvolved  % precompute the table for speed up reasons
-    for i = 1:n2Clusters
+    for i = 1:nNClusters{2}
         [ el_list, weights, numEl ] = extractNeighbours(i);
         el_listAll(i, :) = el_list;
         weightsAll(i, :) = weights;
@@ -52,21 +81,34 @@ end
 
 parfor i = 1:len % for every image
     
-    descriptor = zeros(1, descLength);
-    % address different viewing angles, scales
-    I = imread(list_el{i});
-    
     I_D = imread(list_D{i});
+    I_D = I_D(:,:,1);
     [r,c] = size(I_D);    % elements
     I_D = double(I_D);
     
+    I = zeros(r,c, numChannels);
+    
+    descriptor = zeros(1, descLength);
+    addNNCl = 0;
+    % address different viewing angles, scales
+    for j = 1:numChannels 
+         Itemp = imread(list_el{j}{i});
+         Itemp = double(Itemp);
+         Itemp = Itemp + addNNCl;
+         Itemp(Itemp == addNNCl) = 0;
+         I(:,:, j) = Itemp;
+         addNNCl = addNNCl + nNClusters{j+1};
+    end
+    
+
     H = I_D(:);
-    H = H(H>0);
+    lenH = length(H(H>0));
     
     % trim image I_D and chech whether it's size is the same as size of I
     mask = zeros(r,c);
     mask(I_D > 0) = 1;
     [I_D, ~] = trimImage(I_D, mask);
+    [I, ~] = trimImage(I, mask);
     [r,c] = size(I_D);
     [r1, c1, ~] = size(I); 
     
@@ -75,7 +117,7 @@ parfor i = 1:len % for every image
     end
     
     % find a class label first
-    str = list_el{i};
+    str = list_D{i};
     index_ = strfind(str,'/');
     new_str= str(index_+1:end);
     index = strfind(new_str,'_');
@@ -97,7 +139,7 @@ parfor i = 1:len % for every image
     Y(i) = y;
     % compute the block size
     
-    for sc = 1:3  % scales
+    for sc = 1:numScales  % scales
         
         % 1*1*1 + 2*1*1 + 2*2*2 + 2*3*3
         if sc == 1
@@ -129,11 +171,11 @@ parfor i = 1:len % for every image
                
                % extract this bin from both images
                curI = I(y1:y2, x1:x2, :);
-               curI_D = I_D(y1:y2, x1:x2);
+%                curI_D = I_D(y1:y2, x1:x2);
                
                for ii = 1:numChannels
 
-                   curIc = curI(:,:, ii)
+                   curIc = curI(:,:, ii);
                    % extract all non-zero elements
                    [rEls,cEls] = find(curIc > 0);
                    ll = length(rEls);
@@ -174,7 +216,14 @@ parfor i = 1:len % for every image
     % normalize the histogram binOverall
     maxH = max(binOverall);
     binOverall = binOverall/maxH;
-    descriptor(1:binSize) = binOverall;   
+    descriptor(1:binSize) = binOverall; 
+    
+    % add general descriptors
+    
+    
+    descriptor(end - 1) = lenH/(r*c);
+    descriptor(end) = r/c;
+    
     X = [X; descriptor];
     
     if mod(i,20) == 0
