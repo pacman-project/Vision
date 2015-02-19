@@ -10,6 +10,7 @@ function [] = addPaths(root)
     addpath([root,'Temp'])
     addpath([root,'Inference']);
     addpath([root,'categorization']);
+    addpath([root,'DifferentialGeometry']);
 
 end
 

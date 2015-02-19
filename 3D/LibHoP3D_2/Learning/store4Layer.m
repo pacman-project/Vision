@@ -16,6 +16,9 @@ function [triple4OutDepth] = store4Layer(triples4Out, cluster4Depths, n4Clusters
     triple4OutDepth = zeros(n4Clusters, 9); % 4+1+4  % top - central - bottom 
     
     for i = 1:n4Clusters
+%         if i == 70
+%             a = 2;
+%         end
         cur = triples4Out(i,:);
         
         if partSelectionMethod == 1 % rewrite to format: leftX leftY centralX, centralY, rightX rightY

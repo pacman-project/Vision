@@ -3,39 +3,29 @@
 % central, left, depthLeft, right, depthRight
 
 % Output:
-% tablePairs = zeros(2, n2Clusters, n2Clusters)
+% tablePairs = zeros(2, nPrevClusters, nPrevClusters)
 % 2 - left right
-% n2clusters - central element
-% n2clusters - another element
+% nPrevClusters - central element
+% nPrevClusters - another element
 
 
-function [tablePairs, numPairs] = Learn3Pairs(statistics, curTS, n2Clusters, thresh3Pair, lenDisp)
+function [tablePairs, numPairs] = Learn3Pairs(statistics, curTS, nPrevClusters, thresh3Pair, lenDisp)
 
     disp('Learning pairs of the third layer ...');
-    tablePairs = zeros(lenDisp, n2Clusters, n2Clusters);
+    tablePairs = zeros(lenDisp, nPrevClusters, nPrevClusters);
     
-    for i = 1:lenDisp % for each displacement
-        % extract subset
-        indC = [1, 2*i, 2*i+1];
-        curStat = statistics(:, indC);
+    
+    parfor i = 1:lenDisp % for each displacement
         
-        % 1) measure frequency of each pair
-
+        tableTemp = zeros(nPrevClusters, nPrevClusters);
         for j = 1:curTS
-            tablePairs(i, curStat(j,1), curStat(j,2)) = tablePairs(i, curStat(j,1), curStat(j,2)) + 1;  % increase the counter
+            tableTemp(statistics(j,1), statistics(j,2*i)) = tableTemp(statistics(j,1), statistics(j,2*i)) + 1;  % increase the counter
         end
         
-        % 2) filter out the least frequent pairs
-        for jj = 1:n2Clusters
-            for ii = 1:n2Clusters
-                if tablePairs(i, ii, jj) < thresh3Pair
-                    tablePairs(i, ii, jj) = 0; 
-                end        
-            end
-        end
-        
-        i
+        tableTemp(tableTemp < thresh3Pair) = 0;
+        tablePairs(i, :, :) = tableTemp;
     end
-    
+
     numPairs = length(tablePairs(tablePairs > 0));
+    
 end

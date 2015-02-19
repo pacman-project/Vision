@@ -6,10 +6,20 @@
 % for Aim@Shape datasetnumber = 1;
 % for Washington datasetnumber = 2
 
-function [] = LayersInference()
+function [] = LayersInference(infArray, dataSetNumber, nClusters)
 
-dataSetNumber = 2;
-nClusters = 7;
+if nargin == 0
+    % --------Define the layers for inference--------------------------------
+    infArray = [0,0,0,0,0,0,0,0];
+    dataSetNumber = 3;
+    nClusters = 7;
+end
+
+displ3 = 6;
+displ5 = 18;
+displ7 = 52;
+isFIG = false;
+
 n2Clusters = nClusters^2;
 
 % % here we initialize the perallel computing
@@ -23,21 +33,9 @@ commonRoot = 'D:/';
 root = [commonRoot, 'LibHoP3D/'];
 addPaths(root);
 
+[depthPath, outRoot ] = getPathToData(dataSetNumber, commonRoot);
+downSamplingFactor = 3;  % reduction of resolution
 
-% define a path to the input files
-
-depthPathDefault = 'listDepthDefault.mat';
-if dataSetNumber == 1
-    depthPathDefault = [root, 'settings/list_depth.mat'];
-    depthPath = [commonRoot, 'Input Data/AimShape/4T_600'];    
-elseif dataSetNumber == 2
-    depthPathDefault = 'settings/listDepthDefault.mat';
-    depthPath = [commonRoot,'Input Data/Washington/Washington3Categories_008'];      % '/home/vvk201/Wash-rgbd-dataset_0003T' 
-elseif dataSetNumber == 3
-    depthPath = [commonRoot, 'Input Data/VladislavSTD/Vladislav_STD/depth'];     
-end
-
-fileListPrecomputed = false;
 is_subset = false; % whether we shall use all files for learning
 
 % define the subset length
@@ -66,8 +64,13 @@ dowsample_rate = 1;
 
 % define all filtering parameters 
 
-[dxKernel, combs, largestLine, sigma, sigmaKernelSize, isErrosion, discRadius, is_guided, r_guided, eps, ...
+[dxKernel, dyKernelTop, dyKernelBottom, dxKernelBack, dxKernelForward, combs, largestLine, sigma, sigmaKernelSize, isErrosion, discRadius, is_guided, r_guided, eps, ...
     is_mask_extended, maxExtThresh1, maxExtThresh2] = loadFilteringParameters(dataSetNumber);
+
+[~, ~, fieldSize, ~, ~, ~, numSimilar, ~, ~] = loadPartSelectionParameters(dataSetNumber);
+[~, ~, inferenceElType, inferenceElRadius] = loadLearningInferenceStructElement(dataSetNumber);
+
+
 
 % ------------ parameters for line discretization---------------------
 % min [error + wOverlap * overlap - wCoverage*coverage ]
@@ -79,258 +82,239 @@ elseif dataSetNumber == 2
     wOverlap = 0.05;
 end
 
+[ meargeThresh ] = defineMeargeThreshes(1, dataSetNumber);
 
-[ meargeThresh3, meargeThresh4,meargeThresh5, meargeThresh6, meargeThresh7, meargeThresh8 ] = defineMeargeThreshes(1);
+isMaskResize = false;
 
-% --------Define the layers for inference--------------------------------
-is_first_layer = false;
-is_second_layer = false;
-is_third_layer = false;
-is_4th_layer = false; 
-is_5th_layer = false; 
-is_6th_layer = true;
-is_7th_layer = false; 
-is_8th_layer = false;
+is_inhibition{1} = 0;
+is_inhibition{2} = 0; 
+is_inhibition{3} = 0;
+is_inhibition{4} = 0; 
+is_inhibition{5} = 0; 
+is_inhibition{6} = 0;
+is_inhibition{7} = 0; 
+is_inhibition{8} = 0;
 
-is_inhibition_first_layer = false;
-is_inhibition_second_layer = false; 
-is_inhibition_third_layer = false;
-is_inhibition_4th_layer = false; 
-is_inhibition_5th_layer = false; 
-is_inhibition_6th_layer = false;
-is_inhibition_7th_layer = false; 
-is_inhibition_8th_layer = false;
+is_reconstructionError{1} = false;
+is_reconstructionError{2} = false; 
+is_reconstructionError{3} = false;
+is_reconstructionError{4} = false; 
+is_reconstructionError{5} = false; 
+is_reconstructionError{6} = false;
+is_reconstructionError{7} = false; 
+is_reconstructionError{8} = false;
 
-
-is_reconstructionError_first_layer = true;
-is_reconstructionError_second_layer = false; 
-is_reconstructionError_third_layer = false;
-is_reconstructionError_4th_layer = false; 
-is_reconstructionError_5th_layer = false; 
-is_reconstructionError_6th_layer = false;
-is_reconstructionError_7th_layer = false; 
-is_reconstructionError_8th_layer = false;
-
-areLayersRequired = [is_first_layer, is_second_layer, is_third_layer, is_4th_layer, is_5th_layer, is_6th_layer, is_7th_layer, is_8th_layer];
-isInhibitionRequired = [is_inhibition_first_layer, is_inhibition_second_layer, is_inhibition_third_layer, ...
-                        is_inhibition_4th_layer, is_inhibition_5th_layer, is_inhibition_6th_layer, is_inhibition_7th_layer, is_inhibition_8th_layer];
-isReconstructionErrorRequired = [is_reconstructionError_first_layer, is_reconstructionError_second_layer, is_reconstructionError_third_layer, ...
-    is_reconstructionError_4th_layer, is_reconstructionError_5th_layer, is_reconstructionError_6th_layer, is_reconstructionError_7th_layer, is_reconstructionError_8th_layer];
-
-% --------output folder-----------------------------------------------------
-
-outRoot2 = [depthPath, '_layer2'];
-outRoot3 = [depthPath, '_layer3'];
-outRoot4 = [depthPath, '_layer4'];
-outRoot5 = [depthPath, '_layer5'];
-outRoot6 = [depthPath, '_layer6'];
-outRoot7 = [depthPath, '_layer7'];
-outRoot8 = [depthPath, '_layer8'];
-    
+isDownsampling{4} = 0;
+isDownsampling{6} = 0;
 
  
-% --------input file names-----------------------------------------------------
+% --------input file names-------------------------------------------------
 
 dsN = num2str(dataSetNumber);
 nCl = num2str(nClusters);
 aL = '3'; % abstraction level
 
 vocabulary1Layer = [root, 'statistics/statistics_1_', dsN, '_', nCl, '.mat'];
- 
- % files for part selection results
-parts3Layer = [root, 'statistics/partsSelectionResults_3_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts4Layer = [root, 'statistics/partsSelectionResults_4_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts5Layer = [root, 'statistics/partsSelectionResults_5_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts6Layer = [root, 'statistics/partsSelectionResults_6_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts7Layer = [root, 'statistics/partsSelectionResults_7_', dsN, '_', nCl, '_a', aL, '.mat'];
-parts8Layer = [root, 'statistics/partsSelectionResults_8_', dsN, '_', nCl, '_a', aL, '.mat'];
 
-% files for the sieved statistics
-statistics1LayerSieved = [root, 'statistics/statisticsSieved_1_', dsN, '_', nCl, '.mat'];
-statistics3LayerSieved = [root, 'statistics/statisticsSieved_3_', dsN, '_', nCl, '.mat'];
-statistics4LayerSieved = [root, 'statistics/statisticsSieved_4_', dsN, '_', nCl, '.mat'];
-statistics5LayerSieved = [root, 'statistics/statisticsSieved_5_', dsN, '_', nCl, '.mat'];
-statistics6LayerSieved = [root, 'statistics/statisticsSieved_6_', dsN, '_', nCl, '.mat'];
-statistics7LayerSieved = [root, 'statistics/statisticsSieved_7_', dsN, '_', nCl, '.mat'];
-statistics8LayerSieved = [root, 'statistics/statisticsSieved_8_', dsN, '_', nCl, '.mat'];
-
-% files for the Aggregated statistics
-statistics1LayerAggregated = [root, 'statistics/statisticsAggregated_1_', dsN, '_', nCl, '.mat'];
-statistics3LayerAggregated = [root, 'statistics/statisticsAggregated_3_', dsN, '_', nCl, '.mat'];
-statistics4LayerAggregated = [root, 'statistics/statisticsAggregated_4_', dsN, '_', nCl, '.mat'];
-statistics5LayerAggregated = [root, 'statistics/statisticsAggregated_5_', dsN, '_', nCl, '.mat'];
-statistics6LayerAggregated = [root, 'statistics/statisticsAggregated_6_', dsN, '_', nCl, '.mat'];
-statistics7LayerAggregated = [root, 'statistics/statisticsAggregated_7_', dsN, '_', nCl, '.mat'];
-statistics8LayerAggregated = [root, 'statistics/statisticsAggregated_8_', dsN, '_', nCl, '.mat'];
-
-% files for layer visualization
-fileForVisualization3Layer = [root, 'statistics/fileForVisualization_3_', dsN, '_', nCl, '.mat'];
-fileForVisualization4Layer = [root, 'statistics/fileForVisualization_4_', dsN, '_', nCl, '.mat'];
-fileForVisualization5Layer = [root, 'statistics/fileForVisualization_5_', dsN, '_', nCl, '.mat'];
-fileForVisualization6Layer = [root, 'statistics/fileForVisualization_6_', dsN, '_', nCl, '.mat'];
-fileForVisualization7Layer = [root, 'statistics/fileForVisualization_7_', dsN, '_', nCl, '.mat'];
-fileForVisualization8Layer = [root, 'statistics/fileForVisualization_8_', dsN, '_', nCl, '.mat'];
- 
-% %--------------------------------------------------------------------------
-% % creating a filelist here
-
-if dataSetNumber == 1 || dataSetNumber == 3
-    [list_depth, lenF] = extractFileList(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subset_len);
-    list_mask = [];
-elseif dataSetNumber == 2
-    [list_depth, list_mask, ~, lenF] = extractFileListWashington(fileListPrecomputed, depthPath, depthPathDefault, is_subset, subsetPercent);
-end
-
+[~, ~, ~, statisticsLayerSieved_Weak, statisticsLayerAggregated_Weak, ...
+    ~, fileForVisualizationLayer, ~, ~, ~, partsLayerAll] = getStandardFilePaths(root, dsN, nCl, aL);
 
 load(vocabulary1Layer); %  cluster1Centres, cluster1Bounds, thresh
 depthStep = thresh/4;
+
 %--------------------------------------------------------------------------
 
-if is_first_layer || is_second_layer 
+if infArray(1) || infArray(2) 
     
     % read the first layer vocabulary
+    disp('Inference of the 2nd layer ...');  
 
+    if dataSetNumber == 1 || dataSetNumber == 3
+        [list_depth, lenF] = extractFileList(depthPath{1}, is_subset, subset_len);
+        list_mask = [];
+    elseif dataSetNumber == 2
+        [list_depth, list_mask, ~, lenF] = extractFileListWashington(depthPath{1}, is_subset, subsetPercent);
+    end
     
     performInference2(list_depth, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius, nClusters, ...
-                areLayersRequired, outRoot2, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
-                is_downsampling, dowsample_rate, dataSetNumber, depthPath, cluster1Centres, cluster1Bounds, thresh, ...
-                is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, isReconstructionErrorRequired);
+                infArray, outRoot{2}, combs, largestLine, wCoverage, wOverlap, is_inhibition, ...
+                is_downsampling, dowsample_rate, dataSetNumber, depthPath{2}, cluster1Centres, cluster1Bounds, thresh, ...
+                is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, is_reconstructionError, ...
+                dyKernelTop, dyKernelBottom, dxKernelBack, dxKernelForward);
+    
+            
+    % count number of detections for each part
+    
+    if dataSetNumber == 2  % extract images with previous layer
+        [list_els, ~, ~, lenF] = extractFileListWashingtonForClassification(outRoot{2}, is_subset, 1.0);
+    else
+        [list_els, lenF] = extractFileList(outRoot{2}, is_subset, subset_len);
+    end
+    
+    [ tableEls ] = ComputeStatsAfterInference(list_els, n2Clusters);
+    
 end
 
 % LIST_MASK - TO DELETE
-            
-if is_third_layer 
-    
-    elPath = outRoot2; % second layer elements
-    is_subset = false;
-    
-    if dataSetNumber == 2  % extract images with previous layer
-        [list_El, ~, ~, lenF] = extractFileListWashingtonForClassification(elPath, is_subset, 1.0);
-    else
-        [list_El, lenF] = extractFileList(fileListPrecomputed, elPath, '', is_subset, subset_len);
-    end
-    
-    load(statistics3LayerAggregated);  % 'X' ,'frequencies', 'curTS', 'triples'
-    load(parts3Layer);   % 'triples3Out', 'coverageOut', 'n3Clusters', 'abstractionLevel');
-    load(statistics3LayerSieved);     %   'statistics', 'cluster3Depths', 'outputCoords'
-    clear('statistics', 'outputCoords', 'triples', 'frequencies');
 
-    triples3Out = triples3Out(1:n3Clusters, :);
-    displacement34 = 6;
+for layerID = 3:6
     
-    performInference3(list_depth, list_El, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, nClusters, n2Clusters,...
-                n3Clusters, X, triples3Out, coverageOut, displacement34, ...
-                outRoot3, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
-                is_downsampling, dowsample_rate, elPath, meargeThresh3, isErrosion, discRadius, is_guided, r_guided, eps, ...
-                is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, cluster3Depths, dataSetNumber);         
-            
+    if infArray(layerID)
+        
+        str = ['Inference of the layer ', num2str(layerID), '...'];
+        disp(str); 
+        
+        if dataSetNumber == 1 || dataSetNumber == 3
+            [list_depth, lenF] = extractFileList(depthPath{layerID}, is_subset, subset_len);
+            list_mask = [];
+        elseif dataSetNumber == 2
+            [list_depth, list_mask, ~, lenF] = extractFileListWashington(depthPath{layerID}, is_subset, subsetPercent);
+        end
+         
+        [list_els] = makeElList(list_depth, depthPath{layerID-1}, outRoot{layerID-1});
+
+        load(statisticsLayerAggregated_Weak{layerID});  % 'X' ,'frequencies', 'curTS', 'triples'
+        load(partsLayerAll{layerID});   % 'triplesCurOut', 'nNClusters', 'partEntropy'
+        load(statisticsLayerSieved_Weak{layerID});     %   'statistics', 'clusterCurDepths', 'outputCoords'
+        clear('statistics', 'outputCoords', 'triples', 'frequencies');
+
+        triplesCurOut{layerID} = triplesCurOut{layerID}(1:nNClusters{layerID}, :);
+
+        performInferenceNext(list_depth, list_els, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
+                    nNClusters{layerID-1}, nNClusters{layerID}, nClusters, X, triplesCurOut{layerID}, partsEntropy, displ3, displ5, displ7, ...
+                    outRoot{layerID}, is_inhibition, inferenceElType{layerID}, inferenceElRadius{layerID}, ...  
+                    is_downsampling, dowsample_rate, outRoot{layerID-1}, meargeThresh{layerID}, isErrosion, discRadius, is_guided, r_guided, eps, ...
+                    is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, clusterCurDepths, fileForVisualizationLayer{layerID-1}, ...
+                    dataSetNumber, layerID, cluster1Centres, fieldSize{layerID}, cluster1Bounds, numSimilar{layerID});
+
+        % count number of detections for each part
+
+        if dataSetNumber == 2  % extract images with previous layer
+            [list_els, ~, ~, lenF] = extractFileListWashingtonForClassification(outRoot{layerID}, is_subset, 1.0);
+        else
+            [list_els, lenF] = extractFileList(outRoot{layerID}, is_subset, subset_len);
+        end
+
+        [ tableEls ] = ComputeStatsAfterInference(list_els, nNClusters{layerID});
+        tableEls = tableEls';
+        a = [triplesCurOut{layerID}, tableEls];
+        
+            % perform downsampling immediately after inference procedure
+    
+        if isDownsampling{layerID}                                                     % downsamples MARKS images in place!!!
+
+            marksDownsampling(list_depth, list_els, list_mask, lenF, dataSetNumber, downSamplingFactor, isErrosion, discRadius, ...
+                is_mask_extended, maxExtThresh1, maxExtThresh2, isMaskResize);
+
+            [ tableEls ] = ComputeStatsAfterInference(list_els, nNClusters{layerID});
+            tableEls = tableEls';
+            a = [triplesCurOut{layerID}, tableEls];
+
+        end
+
+    end
 end
 
-
-
-if is_4th_layer 
-    
-    elPath = outRoot3; % third layer elements
-    
-    is_subset = false;
-    
-    if dataSetNumber == 2  % extract images with previous layer
-        [list_El, ~, ~, lenF] = extractFileListWashingtonForClassification(elPath, is_subset, 1.0);
-    else
-        [list_El, lenF] = extractFileList(fileListPrecomputed, elPath, depthPathDefault, is_subset, subset_len)
-    end
-    
-    load(statistics4LayerAggregated);  % 'X' ,'frequencies', 'curTS', 'triples'
-    load(parts3Layer);   % 'triples3Out', 'coverageOut', 'n3Clusters', 'abstractionLevel');
-    load(parts4Layer);   % 'triples4Out', 'coverageOut', 'n4Clusters', 'abstractionLevel');
-    load(statistics4LayerSieved);     %   'statistics', 'cluster4Depths', 'outputCoords'
-    clear('statistics', 'outputCoords', 'triples', 'frequencies', 'triples3Out');
-
-    triples4Out = triples4Out(1:n4Clusters, :);
-    
-    displacement34 = 6;
-    
-    performInference4(list_depth, list_El, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
-                n3Clusters, n4Clusters, X, triples4Out, coverageOut, displacement34, ...
-                outRoot4, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
-                is_downsampling, dowsample_rate, elPath, meargeThresh4, isErrosion, discRadius, is_guided, r_guided, eps, ...
-                is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, cluster4Depths, fileForVisualization3Layer, dataSetNumber);   
-       
-end
-
-
-
-if is_5th_layer 
-    
-    elPath = outRoot4; % third layer elements
-    layerID = 5;
-    is_subset = false;
-    
-    if dataSetNumber == 2  % extract images with previous layer
-        [list_El, ~, ~, lenF] = extractFileListWashingtonForClassification(elPath, is_subset, 1.0);
-    else
-        [list_El, lenF] = extractFileList(fileListPrecomputed, elPath, depthPathDefault, is_subset, subset_len);
-    end
-    
-    load(statistics5LayerAggregated);  % 'X' ,'frequencies', 'curTS', 'triples'
-    load(parts4Layer);   % 'triples4Out', 'coverageOut', 'n4Clusters', 'abstractionLevel');
-    load(parts5Layer);   % 'triples5Out', 'coverageOut', 'n5Clusters', 'abstractionLevel');
-    
-    load(statistics5LayerSieved);     %   'statistics', 'cluster5Depths', 'outputCoords'
-    clear('statistics', 'outputCoords', 'triples', 'frequencies', 'triples4Out');
-
-    triples5Out = triples5Out(1:n5Clusters, :);
-    
-    displ3 = 6;
-    displ5 = 18;
-    displ7 = 54;
-    
-    performInferenceNext(list_depth, list_El, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
-                n4Clusters, n5Clusters, X, triples5Out, coverageOut, displ3, displ5, displ7,  ...
-                areLayersRequired, outRoot5, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
-                is_downsampling, dowsample_rate, elPath, meargeThresh5, isErrosion, discRadius, is_guided, r_guided, eps, ...
-                is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, cluster5Depths, fileForVisualization4Layer, ...
-                dataSetNumber, layerID);
-            
-    
-end
-
-
-if is_6th_layer 
-    
-    elPath = outRoot5; % third layer elements
-    layerID = 6;
-    is_subset = false;
-    
-    if dataSetNumber == 2  % extract images with previous layer
-        [list_El, ~, ~, lenF] = extractFileListWashingtonForClassification(elPath, is_subset, 1.0);
-    else
-        [list_El, lenF] = extractFileList(fileListPrecomputed, elPath, depthPathDefault, is_subset, subset_len);
-    end
-    
-    load(statistics6LayerAggregated);  % 'X' ,'frequencies', 'curTS', 'triples'
-    load(parts5Layer);   % 'triples5Out', 'coverageOut', 'n5Clusters');
-    load(parts6Layer);   % 'triples6Out', 'coverageOut', 'n6Clusters');
-    
-    load(statistics6LayerSieved);     %   'statistics', 'cluster5Depths', 'outputCoords'
-    clear('statistics', 'outputCoords', 'triples', 'frequencies', 'triples5Out');
-
-    triples6Out = triples6Out(1:n6Clusters, :);
-    
-    displ3 = 6;
-    displ5 = 18;
-    displ7 = 54;
-    
-    performInferenceNext(list_depth, list_El, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
-                n5Clusters, n6Clusters, X, triples6Out, coverageOut, displ3, displ5, displ7,  ...
-                areLayersRequired, outRoot6, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
-                is_downsampling, dowsample_rate, elPath, meargeThresh6, isErrosion, discRadius, is_guided, r_guided, eps, ...
-                is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, cluster6Depths, fileForVisualization5Layer, ...
-                dataSetNumber, layerID);
-            
-    
-end
-
-
+   
+% 
+% %% change path to the data (now use a path to downsampled data)
+% 
+% 
+% 
+% 
+% 
+% %% inference of the next layers
+% 
+% if is_5th_layer 
+%     
+%     disp('Inference of the 5th layer ...');
+%     
+%     elPath = outRoot4; % third layer elements
+%     layerID = 5;
+%     is_subset = false;
+%     
+%     fieldSize = [53, 17, 251];
+%     
+%     if dataSetNumber == 2  % extract images with previous layer
+%         [list_els, ~, ~, lenF] = extractFileListWashingtonForClassification(elPath, is_subset, 1.0);
+%     else
+%         [list_els, lenF] = extractFileList(fileListPrecomputed, elPath, depthPathDefault, is_subset, subset_len);
+%     end
+%     
+%     load(statistics5LayerAggregated);  % 'X' ,'frequencies', 'curTS', 'triples'
+%     load(parts4Layer);   % 'triples4Out', 'coverageOut', 'n4Clusters', 'abstractionLevel');
+%     load(parts5Layer);   % 'triples5Out', 'coverageOut', 'n5Clusters', 'abstractionLevel');
+%     
+%     load(statistics5LayerSieved);     %   'statistics', 'cluster5Depths', 'outputCoords'
+%     clear('statistics', 'outputCoords', 'triples', 'frequencies', 'triples4Out');
+% 
+%     triples5Out = triples5Out(1:n5Clusters, :);
+%     
+%     displ3 = 6;
+%     displ5 = 18;
+%     displ7 = 54;
+%     
+%     performInferenceNext(list_depth, list_els, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
+%                 n4Clusters, n5Clusters, nClusters, X, triples5Out, coverageOut, displ3, displ5, displ7,  ...
+%                 outRoot5, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
+%                 is_downsampling, dowsample_rate, elPath, meargeThresh{layerID}, isErrosion, discRadius, is_guided, r_guided, eps, ...
+%                 is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, cluster5Depths, fileForVisualization4Layer, ...
+%                 dataSetNumber, layerID, cluster1Centres, fieldSize, thresh);
+%             
+%             
+%     if dataSetNumber == 2  % extract images with layer 4 parts
+%         [list_els, ~, ~, lenF] = extractFileListWashingtonForClassification(outRoot5, is_subset, 1.0);
+%     else
+%         [list_els, lenF] = extractFileList(fileListPrecomputed, outRoot5, depthPathDefault, false, subset_len);
+%     end
+% 
+%     [ tableEls ] = ComputeStatsAfterInference(list_els, n5Clusters);
+%     tableEls = tableEls';
+%     a = [triples5Out, tableEls];
+%      
+%     
+% end
+% 
+% 
+% if is_6th_layer 
+%     
+%     disp('Inference of the 6th layer ...');
+%     
+%     elPath = outRoot5; % third layer elements
+%     layerID = 6;
+%     is_subset = false;
+%     fieldSize = [53, 53, 351];
+%     
+%     if dataSetNumber == 2  % extract images with previous layer
+%         [list_els, ~, ~, lenF] = extractFileListWashingtonForClassification(elPath, is_subset, 1.0);
+%     else
+%         [list_els, lenF] = extractFileList(fileListPrecomputed, elPath, depthPathDefault, is_subset, subset_len);
+%     end
+%     
+%     load(statistics6LayerAggregated);  % 'X' ,'frequencies', 'curTS', 'triples'
+%     load(parts5Layer);   % 'triples5Out', 'coverageOut', 'n5Clusters');
+%     load(parts6Layer);   % 'triples6Out', 'coverageOut', 'n6Clusters');
+%     
+%     load(statistics6LayerSieved);     %   'statistics', 'cluster5Depths', 'outputCoords'
+%     clear('statistics', 'outputCoords', 'triples', 'frequencies', 'triples5Out');
+% 
+%     triples6Out = triples6Out(1:n6Clusters, :);
+%     
+%     displ3 = 6;
+%     displ5 = 18;
+%     displ7 = 54;
+%     
+%     
+%     performInferenceNext(list_depth, list_els, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
+%                 n5Clusters, n6Clusters, nClusters, X, triples6Out, coverageOut, displ3, displ5, displ7,  ...
+%                 outRoot6, combs, largestLine, wCoverage, wOverlap, isInhibitionRequired, ...
+%                 is_downsampling, dowsample_rate, elPath, meargeThresh{layerID}, isErrosion, discRadius, is_guided, r_guided, eps, ...
+%                 is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, cluster6Depths, fileForVisualization5Layer, ...
+%                 dataSetNumber, layerID, cluster1Centres, fieldSize, thresh);
+%             
+%     
+% end
+% 
+% 
 
 

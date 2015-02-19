@@ -9,23 +9,21 @@ depthPathDefault = '';
 if select_depths    
     list_mask = [];
     list_images = [];
-%     depthPath = 'D:\Input Data\AimShape\4T';
-%     outputFolder = 'D:\Input Data\AimShape\4T_600';
 
-    depthPath = 'D:\Input Data\Washington\Washington3Categories';
-    outputFolder = 'D:\Input Data\Washington\Washington3Categories_008';
+    depthPath    = 'D:\Input Data\Washington\Wash-rgbd-dataset';
+    outputFolder = 'D:\Input Data\Washington\Wash-rgbd-dataset_001';
    
 end
 
 if select_elements
-    elPath = '/home/vvk201/Input Data/Washington/Wash-rgbd-dataset_layer4';
-    outputFolderE = '/home/vvk201/Input Data/Washington/Wash-rgbd-dataset_layer4_008';
+    elPath = 'D:\Input Data\Washington\Old Files\Wash-rgbd-dataset_layer2';
+    outputFolderE = 'D:\Input Data\Washington\Old Files\Wash-rgbd-dataset_layer2_007';
 end
 
 fileListPrecomputed = false;
 is_subset = true;
 subset_len = 600;
-subsetPercent = 0.08;
+subsetPercent = 0.2;
 
 strFolderLen = length(depthPath);
 
@@ -54,8 +52,9 @@ if select_elements
     end
 end
 
+list_els = zeros(1,lenF);
 
-for i = 1:lenF % we have to copy each file to the new location
+parfor i = 1:lenF % we have to copy each file to the new location
     
     strD = list_depth{i};
     newFileD = [outputFolder, strD(strFolderLen + 1:end)];
@@ -102,6 +101,10 @@ for i = 1:lenF % we have to copy each file to the new location
         end
 
         copyfile(list_els{i}, newFileE);
+    end
+    
+    if mod(i,100) == 0
+        i
     end
     
 end

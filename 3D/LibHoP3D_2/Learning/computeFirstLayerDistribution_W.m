@@ -14,14 +14,15 @@ function [allDXs, lenX] = computeFirstLayerDistribution_W(list_depth, list_mask,
     isTrim = true;
     isY = false;
     isX = true;
+    isX_FB = false;
 
     parfor k = 1 : lenF
         I = imread(list_depth{k});
         mask = imread(list_mask{k});
         
         I = I(:,:,1);             
-        [~, Ix, ~, mask, ~, ~, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discSize, isX, isY, isTrim, dxKernel,...
-                        sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);
+        [~, Ix, ~, mask, ~, ~, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discSize, isX, isY, isX_FB, isTrim, dxKernel,...
+                        sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, [], [], [], []);
 
         if is_successfull
             Ia = Ix(mask == 1);

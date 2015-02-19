@@ -7,7 +7,7 @@
 % numRecompute - shows how many elements we need to recompute
 
 function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, startX, dx, dy,...
-                                        list_depth, lenF, nPrevClusters, numRecompute, layerID)
+                                        list_depth, lenF, nPrevClusters, numRecompute, is_sparse, triples)
 
     disp('recomputing parts coverage...');
     
@@ -16,11 +16,17 @@ function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, s
     
     lenStat = size(statistics, 1);
     lenCombs = length(coverage);
+    
+    if startX+numRecompute-1 > lenCombs
+        numRecompute = lenCombs - startX + 1;
+    end
+        
+        
     coverage(startX:startX+numRecompute-1) = coverage(startX:startX+numRecompute-1) * 0;
     
-    if layerID >= 6
-        triples = sparse(zeros(nPrevClusters * nPrevClusters *nPrevClusters, 1));
-    else
+    
+    % create a matrix
+    if isempty(triples)
         triples = zeros(nPrevClusters, nPrevClusters, nPrevClusters);
     end
     
@@ -28,39 +34,44 @@ function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, s
     inds3 = [2,1,4]; % to extract columns of statistics
     statistics = statistics(:, inds3);
         
-    % fill a table triples
     
-    tic;
-    
-    if layerID >= 6
-        for i = startX:startX+numRecompute-1  % lenCombs
-            triples((X(i, 1) - 1) * (nPrevClusters^2) +  (X(i, 2) - 1) * nPrevClusters + X(i, 3), 1) = i;
-    %       triples(X(i, 1), X(i,2), X(i,3)) = i;
-        end
-    else
-        for i = startX:startX+numRecompute-1  % lenCombs
-            triples(X(i, 1), X(i,2), X(i,3)) = i;
-        end
-    end
     
     % create a table of format [el, Im, x,y]
     outputCoords = [zeros(lenStat, 1), outputCoords];
     
-    if layerID >= 6
-        parfor i = 1:lenStat      
-            outputCoords(i,1) = 0 + triples((statistics(i,1) - 1) * (nPrevClusters^2) + (statistics(i,2)-1) * nPrevClusters + statistics(i,3));
-            %outputCoords(i,1) = triples(statistics(i,1), statistics(i,2), statistics(i,3));  
-        end
-    else
-        parfor i = 1:lenStat      
-
-            %outputCoords(i,1) = 0 + triples((statistics(i,1) - 1) * (nPrevClusters^2) + (statistics(i,2)-1) * nPrevClusters + statistics(i,3));
-            outputCoords(i,1) = triples(statistics(i,1), statistics(i,2), statistics(i,3));  
+    if is_sparse 
+        % fill a table triples
+        for i = startX:startX+numRecompute-1  % lenCombs
+            triples{X(i, 1)}(X(i,2), X(i,3)) = i;
         end
         
-    end
+        % fill a table outputCoords
+        for i = 1:lenStat
+            outputCoords(i,1) = triples{statistics(i,1)}(statistics(i,2), statistics(i,3)); 
+        end
+               
+    else    % if it is NOT sparse
+        
+        % fill a table triples
+        inds = startX:1:startX+numRecompute-1;
+        indSS = sub2ind(size(triples), X(inds,1), X(inds,2), X(inds,3)); 
+        triples(indSS) = inds;
     
-    toc;
+%         for i = startX:startX+numRecompute-1  % lenCombs
+%             triples(X(i, 1), X(i,2), X(i,3)) = i;
+%         end
+        
+        % fill a table outputCoords
+        
+        inds = 1:1:lenStat;
+        indSS = sub2ind(size(triples), statistics(inds,1), statistics(inds,2), statistics(inds,3)); 
+        outputCoords(inds, 1) = triples(indSS);
+        
+%         for i = 1:lenStat 
+%             outputCoords(i,1) = triples(statistics(i,1), statistics(i,2), statistics(i,3));  
+%         end 
+    end
+
     % to exclude already selected parts (and those which do not need to be recomputed)
     firstCol = outputCoords(:,1);
     indEx = firstCol ~= 0;
@@ -81,7 +92,7 @@ function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, s
         c = size(I,2);
         
         I3 = I(:,:,3);
-        I3(I3>0) = 1;  % uncovered area. I3 acts as a mask now
+        I3(I3>0) = 1;  % uncovered area. I3 acts as an object mask now
         
         I3 = uint8(I3);
         I2 = uint8(zeros(r,c));   % image of zeros
@@ -95,10 +106,9 @@ function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, s
         els = els(inddds, :);
         lenEls = size(els, 1);
         
-        if lenEls > 0   % for some images there are no detected elements
-            
+        if lenEls > 0   % for some images there are no detected elements   
             prevEl = els(1,1);
-
+            
             for j = 1:lenEls
                 
                 curEl = els(j,1);
@@ -119,7 +129,7 @@ function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, s
                 x = els(j, 3);
                 y = els(j, 4);
                 I2(y-dy:y+dy ,x-dx:x+dx) = ones(2*dy+1, 2*dx+1);
-                
+    
             end
         end
         
@@ -127,8 +137,7 @@ function [coverage] = recomputeCoverage(statistics, outputCoords, coverage, X, s
         
         if mod(i,30) == 0
            i
-        end
-        
+        end  
     end
     
     % now write information from coverageTemp to coverage

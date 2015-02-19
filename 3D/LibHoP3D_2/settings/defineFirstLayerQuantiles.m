@@ -7,16 +7,16 @@ function [quantilesFirst] = defineFirstLayerQuantiles(nClusters, dataSetNumber, 
             elseif dataSetNumber == 2
                 quantilesFirst = [0.01 0.045 0.075 0.14 0.30];
             elseif dataSetNumber == 3
-                quantilesFirst = [0.01 0.050 0.11 0.22 0.37];
+                quantilesFirst = [0.03 0.060 0.11 0.22 0.37];
             end
 
         elseif nClusters == 7
             if dataSetNumber == 1
-                quantilesFirst = [0.01 0.054 0.13 0.26];  
+                quantilesFirst = [0.04 0.11 0.22 0.38];  
             elseif dataSetNumber == 2
-                quantilesFirst = [0.02 0.06 0.16 0.40];
+                quantilesFirst = [0.02 0.09 0.21 0.36];
             elseif dataSetNumber == 3
-                quantilesFirst = [0.01 0.060 0.13 0.26];
+                quantilesFirst = [0.03 0.10 0.20 0.35];
             end
         end
         
@@ -24,20 +24,20 @@ function [quantilesFirst] = defineFirstLayerQuantiles(nClusters, dataSetNumber, 
     elseif is_guided % parametres for guided image filtering
         if nClusters == 9
             if dataSetNumber == 1
-                quantilesFirst = [0.01 0.064 0.11 0.22 0.33];
+                quantilesFirst = [0.02 0.09 0.19 0.30 0.41];
             elseif dataSetNumber == 2
                 quantilesFirst = [0.01 0.045 0.075 0.14 0.30];
             elseif dataSetNumber == 3
-                quantilesFirst = [0.01 0.050 0.11 0.22 0.37];
+                quantilesFirst = [0.03 0.060 0.11 0.22 0.37];
             end
 
         elseif nClusters == 7
             if dataSetNumber == 1
-                quantilesFirst = [0.01 0.064 0.13 0.26];  
+                quantilesFirst = [0.04 0.12 0.24 0.38];  
             elseif dataSetNumber == 2
                 quantilesFirst = [0.02 0.06 0.16 0.40];
             elseif dataSetNumber == 3
-                quantilesFirst = [0.01 0.060 0.13 0.26];
+                quantilesFirst = [0.03 0.10 0.20 0.36];
             end
         end
     end

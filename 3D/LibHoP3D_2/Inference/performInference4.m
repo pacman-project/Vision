@@ -92,12 +92,12 @@ function [] = performInference4(list_depths, list_El, list_mask, lenF, sigma, si
         marks3 = imread(list_El{i});
         
         if dataSetNumber == 1 || dataSetNumber == 3     % Aim@Shape dataset
-            [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, [], isErrosion, discRadius, isX, isY, ...
-                                isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);
+            [I, ~, ~, mask, r, c, is_successfull] = preliminaryProcessing(I, [], isErrosion, discRadius, isX, isY, ...
+                                isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, [], []);
         elseif dataSetNumber == 2                       % Washington data set
             mask = imread(list_mask{i});
-            [I, Ix, Iy, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY,...
-                                isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2);          
+            [I, ~, ~, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius, isX, isY,...
+                                isTrim, dxKernel, sigmaKernelSize, sigma, is_guided, r_guided, eps, is_mask_extended, maxExtThresh1, maxExtThresh2, [], []);          
         end                                                         
                                                                 
         [rEl, cEl] = size(mask);  % all three images should be of the same size!
@@ -227,149 +227,7 @@ function [] = performInference4(list_depths, list_El, list_mask, lenF, sigma, si
             i
         end
         
-   end
-        
-        
-%         % ----------------------RECOGNITION OF THE 4TH LAYER HERE----------
-
-  % table4 = uint16(zeros(n3Clusters, n3Clusters, n3Clusters));
-%           marks4 = zeros(r,c);
-%         
-%         [rows, cols] = find(marks3 > 0);
-%         nEl = length(rows);
-
-%     for iii = 1:n4Clusters
-%         cur = triples4Out(iii,:);
-%         table4(cur(1),cur(2),cur(3)) = iii;
-%     end
-%         
-%         
-%         for j = 1:nEl
-%             
-%             % check whether it is close to the boundary
-%             if rows(j) < displ + 1  || rows(j) > r - displ  || cols(j) < displ + 1 || cols(j) > c - displ
-%                 continue;
-%             else
-%                 central = marks3(rows(j), cols(j));
-% %                 depth_centr =  I(rows(j), cols(j));
-%                 
-%                 
-%                 % check what are top and bottom neighbours
-%                 
-%                 tops =  [marks3(rows(j) - displ, cols(j)), marks3(rows(j) - hDispl, cols(j)), ...
-%                          marks3(rows(j) - displ, cols(j) - hDispl), marks3(rows(j) - displ, cols(j) + hDispl) ]; 
-%                 
-%                 bottoms = [marks3(rows(j) + displ, cols(j)),  marks3(rows(j) + hDispl, cols(j)), ...
-%                          marks3(rows(j) + displ, cols(j) - hDispl), marks3(rows(j) + displ, cols(j) + hDispl)];
-%                 
-% %                 tops =  [marks3(rows(j) - displ, cols(j)),          marks3(rows(j) - hDispl, cols(j)), ...
-% %                          marks3(rows(j) - displ, cols(j) - hDispl), marks3(rows(j) - displ, cols(j) + hDispl), ...
-% %                          marks3(rows(j) - hDispl, cols(j)- hDispl), marks3(rows(j) - hDispl, cols(j)+ hDispl)]; 
-% %                 
-% %                 bottoms = [marks3(rows(j) + displ, cols(j)),          marks3(rows(j) + hDispl, cols(j)), ...
-% %                          marks3(rows(j) + displ, cols(j) - hDispl), marks3(rows(j) + displ, cols(j) + hDispl), ...
-% %                          marks3(rows(j) + hDispl, cols(j)- hDispl), marks3(rows(j) + hDispl, cols(j)+ hDispl)];
-%                      
-%                      
-%                 indsT = find(tops > 0);
-%                 indsB = find(bottoms > 0);
-% 
-%                 if (isempty(indsT)) || (isempty(indsB))
-%                     continue;
-%                 end
-%                 
-% %                 depthsTop =    [I(rows(j) - displ, cols(j)), I(rows(j) - hDispl, cols(j))];
-% %                 depthsBottom = [I(rows(j) + displ, cols(j)), I(rows(j) + hDispl, cols(j))];
-% 
-%                 tops = tops(indsT);
-%                 bottoms = bottoms(indsB);
-%                 
-% %                 depthsTop = depthsTop(indsT);
-% %                 depthsBottom = depthsBottom(indsB);
-%                 
-%                 done = false; % local structure if matched to the vocabulary elements
-%                 ii = 1;
-%                 jj = 1;
-%                 
-%                 while (~done && ii <= length(indsT) && jj <= length(indsB))
-%                     top = tops(ii);
-%                     bottom = bottoms(jj);
-% %                     dTop = depthsTop(ii);
-% %                     dBottom = depthsBottom(jj);
-%                     
-%                     el = [top, central, bottom];
-%                     
-% %                     % this is imitation of the OR-nodes
-% %                     el = orNode4(el, table3, triples3Out);
-%                     
-%                     % matching
-%                     curEl = table4(el(1), el(2), el(3));
-%                     
-%                     if curEl ~= 0
-%                         marks4(rows(j), cols(j)) = curEl;
-%                         done = true;                 
-%                     end
-%                     
-%                     jj = jj+1; % increment loop variable
-%                     if jj > length(indsB)
-%                         jj = 1;
-%                         ii = ii+1;
-%                     end
-%                     
-%                 end
-%                                
-%             end 
-%         end
-%         
-%         %---------------------------end of 4th layer recognition-----------
-%         
-%         if is_third_layer && is_4th_layer  % write the results somewhere
-%             
-%             shift = n2Clusters;
-%             marks3 = marks3 + shift;
-%             marks3(marks3 == shift) = 0;
-%             
-% %             imtool(I, [min(min(I)), max(max(I))]);
-% %             imtool(marks3, [min(min(marks3)), max(max(marks3))]);
-% %             imtool(marks4, [min(min(marks4)), max(max(marks4))]);
-%             
-% %             len = length(marks3>0)
-%             
-%             shift = n2Clusters + n3Clusters;
-%             marks4 = marks4 + shift;
-%             marks4(marks4 == shift) = 0;
-%             
-%             curStr = list_El{i};
-%     %       ll = strfind(curStr, '/');
-%     %       fileName = curStr(ll:end);
-% 
-%             fileName = curStr(lenDPW+1:end);
-%             outFile = [outRoot, fileName];
-% 
-%             ll = strfind(outFile, '/');
-%             ll = ll(end); % last position
-%             folderName = outFile(1:ll);
-%             b = exist(folderName,'dir');
-% 
-%             if b == 0
-%                 mkdir(folderName);
-%             end
-%             
-%             % create many dimensional feature vector
-%             Imarks(:,:,1) = marks3;
-%             Imarks(:,:,2) = marks3;
-%             Imarks(:,:,3) = marks4;
-%             Imarks = uint16(Imarks);
-%             
-%             imwrite(Imarks, outFile, 'png');
-%         end
-% 
-%       %  imtool(marks3, [min(min(marks3)), max(max(marks3))]);
-%         if mod(i,10) == 0
-%             i
-%         end
-%     end
-%     
+    end  
 
         
 end

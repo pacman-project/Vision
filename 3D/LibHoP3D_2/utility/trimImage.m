@@ -10,5 +10,5 @@ function [outImage, outMask] = trimImage(inImage, mask)
     indcmin = indc(1);
     indcmax = indc(length(indc));
     outMask = mask(indrmin:indrmax, indcmin:indcmax);
-    outImage = inImage(indrmin:indrmax, indcmin:indcmax);
+    outImage = inImage(indrmin:indrmax, indcmin:indcmax, :);
 end
