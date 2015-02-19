@@ -1,9 +1,9 @@
 % Read images and labels.
-images=loadMNISTImages('train-images-idx3-ubyte')';
-labels = loadMNISTLabels('train-labels-idx1-ubyte');
+images=loadMNISTImages('train-images.idx3-ubyte')';
+labels = loadMNISTLabels('train-labels.idx1-ubyte');
 
-trainingImagePerClass = 100;
-testImagePerClass = 25;
+trainingImagePerClass = 1000;
+testImagePerClass = 200;
 
 for itr = 0:9
     if ~exist([pwd '/vocab/' num2str(itr)], 'dir')

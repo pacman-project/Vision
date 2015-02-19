@@ -222,10 +222,8 @@ function [ options ] = SetParametersCIFAR100( datasetName, options )
                                      % evaluation of the sub. Otherwise,
                                      % unique (in terms of node sets) instances 
                                      % are taken into account (DEFAULT).
-                                     % However, all possible instances are
-                                     % returned anyway in order to
-                                     % introduce redundancy in the final
-                                     % object graphs.
+                                     % Also, redundancy is removed from the
+                                     % main graph.
      options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 

@@ -47,9 +47,9 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 6;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
+    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-2;
     options.autoFilterThr = 0.05;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
@@ -96,13 +96,13 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 1;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 1;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -135,7 +135,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                          % to be used in creation of the image
                                          % for every node in the vocabulary.
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
-    options.vis.visualizedNodes = 4; % Number of vocabulary nodes to be visualized.
+    options.vis.visualizedNodes = 100; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = options.autoFilterSize*4; % DEFAULT 5
     else
@@ -198,13 +198,13 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 300;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.025; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -216,18 +216,16 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 30000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
                                      % unique (in terms of node sets) instances 
                                      % are taken into account (DEFAULT).
-                                     % However, all possible instances are
-                                     % returned anyway in order to
-                                     % introduce redundancy in the final
-                                     % object graphs.
-     options.subdue.supervised = true; % If true, graph search is performed over
+                                     % Also, redundancy is removed from the
+                                     % main graph.
+     options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 
 			                  % combined.

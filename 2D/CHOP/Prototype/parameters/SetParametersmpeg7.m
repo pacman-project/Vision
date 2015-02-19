@@ -12,7 +12,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersCALTECH101( datasetName, options )
+function [ options ] = SetParametersmpeg7( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -20,7 +20,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
@@ -32,7 +32,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 11;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -53,15 +53,16 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
     options.autoFilterThr = 0.05;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
-    options.autoFilterCount = 200;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 100000; % Number of random patches used 
+    options.autoFilterCount = 100;      % Number of auto-detected filters.
+    options.autoFilterPatchCount = 200000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.
-    options.auto.deadFeatureStd = 0.04; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.00;                                   
+%    options.auto.deadFeatureStd = 0.04; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
@@ -101,7 +102,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -112,7 +113,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                         % grows, each relation is scaled
                                         % down to this window, and then
                                         % quantized. 
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -134,7 +135,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                          % to be used in creation of the image
                                          % for every node in the vocabulary.
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
-    options.vis.visualizedNodes = 4; % Number of vocabulary nodes to be visualized.
+    options.vis.visualizedNodes = 100; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = options.autoFilterSize*4; % DEFAULT 5
     else
@@ -144,9 +145,9 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
+    options.maxImageDim = options.receptiveFieldSize*40; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in
                                        % the dataset is larger than this
@@ -197,13 +198,13 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1200;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.02; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -214,9 +215,9 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                     % generalization ability of detected
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
@@ -224,7 +225,7 @@ function [ options ] = SetParametersCALTECH101( datasetName, options )
                                      % are taken into account (DEFAULT).
                                      % Also, redundancy is removed from the
                                      % main graph.
-     options.subdue.supervised = true; % If true, graph search is performed over
+     options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 
 			                  % combined.

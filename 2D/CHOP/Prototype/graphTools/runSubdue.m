@@ -55,6 +55,9 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     parentSubs = [];
     nextVocabLevel = [];
     nextGraphLevel = [];
+    allLeafNodes = {graphLevel.leafNodes};
+    prevGraphNodeCount = numel(unique([graphLevel.leafNodes]));
+    numberOfFinalSubs = 500;
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
@@ -67,11 +70,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     maxTime = options.subdue.maxTime;
     minSize = options.subdue.minSize;
     maxSize = options.subdue.maxSize;
-%    numberOfThreads = options.numberOfThreads;
     isSupervised = options.subdue.supervised;
     orgThreshold = single(options.subdue.threshold);
     regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
     threshold = single(options.subdue.threshold * regularizationParam) + options.singlePrecision; % Hard threshold for cost of matching two subs.
+    singlePrecision = options.singlePrecision;
     
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
@@ -139,11 +142,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         mdlScoreArrFinal = cell(numel(parentSubs),1);
         mdlScoreArrToExtend = cell(numel(parentSubs),1);
         minMdlScoreExt = 0;    % This  two will increase as more and more subs are discovered.
- %       setDistributions = ones(floor(numel(parentSubs)/numberOfThreads),1) * numberOfThreads;
         setDistributions = numel(parentSubs);
-%         if rem(numel(parentSubs), numberOfThreads) > 0
-%             setDistributions = [setDistributions;rem(numel(parentSubs), numberOfThreads)]; %#ok<AGROW>
- %        end
         parentSubSets = cell(mat2cell(1:numel(parentSubs), 1, setDistributions));
         for setItr = 1:numel(parentSubSets)
             %% Step 2.1: If it has been too long, we need to finish execution.
@@ -197,35 +196,37 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                 end
                 
                 %% Step 2.3: Eliminate subs that match to more frequent subs.
-                numberOfChildSubs = numel(childSubs);
-                freqScores = zeros(numberOfChildSubs,1);
-                for subItr = 1:numberOfChildSubs
-                    freqScores(subItr) = size(childSubsFinal(subItr).instanceCenterIdx,1);
-                end
-                [~, sortIdx] = sort(freqScores, 'descend');
-                childSubsFinal = childSubsFinal(sortIdx);
-                childSubs = childSubs(sortIdx);
-                validSubs = ones(numel(childSubsFinal),1)>0;
-                edgeNodePairs = cat(1, childSubsFinal.edges);
-                numberOfEdgesPerSub = size(childSubsFinal(1).edges,1);
-                numberOfChildSubs = numel(childSubsFinal);
-                edgeNodePairs = edgeNodePairs(numberOfEdgesPerSub:numberOfEdgesPerSub:(numberOfChildSubs*numberOfEdgesPerSub), :);
-                for childItr = 1:(numberOfChildSubs-1)
-                    if validSubs(childItr)
-                        edgeNodePair1 = edgeNodePairs(childItr,:);
-                        for childItr2 = (childItr+1):numberOfChildSubs
-                            if validSubs(childItr2)
-                                edgeNodePair2 = edgeNodePairs(childItr2,:);
-                                if edgeDistanceMatrix(edgeNodePair1(1), edgeNodePair2(1)) + ...
-                                        nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) < adaptiveThreshold
-                                    validSubs(childItr2) = 0;
+                if threshold > singlePrecision
+                    numberOfChildSubs = numel(childSubs);
+                    freqScores = zeros(numberOfChildSubs,1);
+                    for subItr = 1:numberOfChildSubs
+                        freqScores(subItr) = size(childSubsFinal(subItr).instanceCenterIdx,1);
+                    end
+                    [~, sortIdx] = sort(freqScores, 'descend');
+                    childSubsFinal = childSubsFinal(sortIdx);
+                    childSubs = childSubs(sortIdx);
+                    validSubs = ones(numel(childSubsFinal),1)>0;
+                    edgeNodePairs = cat(1, childSubsFinal.edges);
+                    numberOfEdgesPerSub = size(childSubsFinal(1).edges,1);
+                    numberOfChildSubs = numel(childSubsFinal);
+                    edgeNodePairs = edgeNodePairs(numberOfEdgesPerSub:numberOfEdgesPerSub:(numberOfChildSubs*numberOfEdgesPerSub), :);
+                    for childItr = 1:(numberOfChildSubs-1)
+                        if validSubs(childItr)
+                            edgeNodePair1 = edgeNodePairs(childItr,:);
+                            for childItr2 = (childItr+1):numberOfChildSubs
+                                if validSubs(childItr2)
+                                    edgeNodePair2 = edgeNodePairs(childItr2,:);
+                                    if edgeDistanceMatrix(edgeNodePair1(1), edgeNodePair2(1)) + ...
+                                            nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) < adaptiveThreshold
+                                        validSubs(childItr2) = 0;
+                                    end
                                 end
                             end
                         end
                     end
+                    childSubs = childSubs(validSubs);
+                    childSubsFinal = childSubsFinal(validSubs);
                 end
-                childSubs = childSubs(validSubs);
-                childSubsFinal = childSubsFinal(validSubs);
 
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 childSubsFinal = evaluateSubs(childSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
@@ -361,8 +362,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     end
     clear vocabLevel graphLevel
     if numberOfInstances>0
-%        remainingBestSubs = 1:numberOfBestSubs;
-%        IA = 1:numberOfInstances;
+        %% Experimenting. We have an array to mark whether each node has been detected or not.
+         partFlagArr = zeros(numberOfBestSubs, 1);
+         nodeFlagArr = zeros(prevGraphNodeCount,1);
+
         %% First, we eliminate the instances having exactly the same node list.
         % Learn the maximum children count in instances.
         maxSubSize = 1;
@@ -390,6 +393,83 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
            remainingInstanceLabels(instanceOffset:instanceEndOffset) = bestSubItr;
            instanceOffset = instanceEndOffset + 1;
        end
+       
+       %% Experimenting. Now, we'll pick top N parts based on the reconstruction of the data.
+       finalSubList = zeros(numberOfFinalSubs, 1);
+       addedSubs = 1;
+       subLeafNodes = cell(numberOfBestSubs,1);
+       for bestSubItr = 1:numberOfBestSubs
+           subChildren = setdiff(unique(instanceChildrenDescriptors(remainingInstanceLabels == bestSubItr, :)),0);
+           subLeafNodes(bestSubItr) = {unique([allLeafNodes{subChildren}])};
+       end
+       
+       for bestSubItr = 1:numberOfFinalSubs
+            % Get the contribution of this sub in terms of number of leaf
+            % nodes.
+            tempFlagCount = nnz(nodeFlagArr);
+            curFlagArr = nodeFlagArr;
+            curBestSub = 0;
+            curBestValue = 0;
+            if rem(bestSubItr,10) == 0
+                display(['[SUBDUE] Selecting sub ' num2str(bestSubItr) '/' num2str(numberOfFinalSubs) ' out of ' num2str(numberOfBestSubs) '.. Current coverage: ' num2str(tempFlagCount/numel(nodeFlagArr)) '.']);
+            end
+            
+            % Compare the contribution of this node to the rest, and pick
+            % the next best one.
+            for bestSubItr2 = 1:numberOfBestSubs
+                
+                % The stopping criterion is set to covering 99.9 percent of all available
+                % leaf nodes.
+                if tempFlagCount/numel(nodeFlagArr) > 0.999
+                   break; 
+                end
+                
+                % If we've already marked this sub, go on.
+                if partFlagArr(bestSubItr2)
+                    continue; 
+                end
+                
+                % Continue if number of children for this node is less than
+                % current novel node count.
+                if (size(bestSubs(bestSubItr2).edges,1)+1) * ...
+                        size(bestSubs(bestSubItr2).instanceCenterIdx,1) < curBestValue
+                   continue; 
+                end
+                
+                % Calculate value of this node.
+                tempFlagArr = nodeFlagArr;
+                tempFlagArr(subLeafNodes{bestSubItr2}) = 1;
+                tempValue = nnz(tempFlagArr) - tempFlagCount;
+                
+                % If this node is a better choice, update next best sub.
+                if tempValue > curBestValue
+                    curBestSub = bestSubItr2;
+                    curBestValue = tempValue;
+                    curFlagArr = tempFlagArr;
+                end
+            end
+            
+            % Put the current best sub to the final sub list, and go on.
+            if curBestSub > 0
+                finalSubList(addedSubs) = curBestSub;
+                nodeFlagArr = curFlagArr;
+                partFlagArr(curBestSub) = 1;
+                addedSubs = addedSubs+1;
+            else
+                break;
+            end
+       end
+       finalSubList = finalSubList(finalSubList > 0);
+       finalSubList = sort(finalSubList);
+       
+       % Update instance children 
+       remainingIdx = ismember(remainingInstanceLabels, finalSubList);
+       instanceChildrenDescriptors = instanceChildrenDescriptors(remainingIdx,:);
+       remainingInstanceLabels = remainingInstanceLabels(remainingIdx);
+       [~, ~, remainingInstanceLabels] = unique(remainingInstanceLabels, 'stable');
+       bestSubs = bestSubs(finalSubList);
+         
+       %% Experimenting done, continue as usual.
        % Find unique rows, which correspond to unique instances.
        [~, IA, ~] = unique(instanceChildrenDescriptors, 'rows', 'stable');
        
@@ -397,9 +477,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
        remainingBestSubs = unique(remainingInstanceLabels(IA))';
        numberOfBestSubs = numel(remainingBestSubs);
        numberOfInstances = numel(IA);
+       instanceChildrenDescriptors = instanceChildrenDescriptors(IA,:);
+       
        %Allocate space for new graph/vocab level.
-        vocabLevel(numberOfBestSubs) = options.vocabNode;
-        graphLevel(numberOfInstances) = options.graphNode;
+       vocabLevel(numberOfBestSubs) = options.vocabNode;
+       graphLevel(numberOfInstances) = options.graphNode;
 
         %% Fill in vocabLevel and graphLevel.
         % First, we start with vocabLevel.
@@ -439,22 +521,16 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
 
                %% Create required fields such as centerIdx, edges, children and sign array to assign to instances.
                centerIdx = bestSubs(bestSubItr).instanceCenterIdx(remainingInstanceIdx,:);
-               centerIdxCellArr = num2cell(centerIdx);
                numberOfInstances = numel(centerIdx);
-               edges = {allEdges(centerIdx).adjInfo}';
-               edgeIdx = bestSubs(bestSubItr).instanceEdges(remainingInstanceIdx,:);
-               edgeIdx = mat2cell(edgeIdx, ones(numberOfInstances, 1), size(edgeIdx,2));
-               instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
-     %          clear edges edgeIdx;
-               instanceChildren = cellfun(@(x,y) [x, y(:,2)'], centerIdxCellArr, instanceEdges, 'UniformOutput', false);
-      %         clear centerIdxCellArr;
+               instanceChildren = instanceChildrenDescriptors(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
+               instanceChildren( :, all(~instanceChildren,1) ) = [];
+               instanceChildren = mat2cell(instanceChildren, ones(numberOfInstances,1), size(instanceChildren,2));
                instanceSigns = num2cell(allSigns(centerIdx));
 
                % Assign fields to graphs.
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).labelId] = deal(labelIds{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).children] = deal(instanceChildren{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).sign] = deal(instanceSigns{:});
-     %          clear labelIds instanceChildren instanceSigns centerIdx;
                instanceOffset = instanceEndOffset + 1;
                actualInstanceOffset = actualInstanceOffset + numberOfInstances;
                remainingSubItr = remainingSubItr + 1;
@@ -550,7 +626,9 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     allUsedEdgeIdx = sub.instanceEdges;
     if ~isempty(allUsedEdgeIdx)
         allUsedEdgeIdx = mat2cell(allUsedEdgeIdx, ones(size(allUsedEdgeIdx,1),1), size(allUsedEdgeIdx,2));
-        allUnusedEdges = cellfun(@(x,y) x(setdiff(1:size(x,1),y),:), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
+        allUnusedEdgeIdx = cellfun(@(x,y) setdiff(1:size(x,1),y), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
+        allUnusedEdges = cellfun(@(x,y) x(y,:), subAllEdges, allUnusedEdgeIdx, 'UniformOutput', false);
+        allUnusedEdgeIdx = [allUnusedEdgeIdx{:}]';
     else
         allUnusedEdges = subAllEdges;
     end
@@ -560,13 +638,13 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     allEdgeInstanceIds = zeros(sum(cellfun(@(x) size(x,1), allUnusedEdges)),1);
     allEdgePrevCosts = zeros(size(allEdgeInstanceIds), 'single');
     itrOffset = 1;
-    unusedEdgeCount = cellfun(@(x) size(x,1), allUnusedEdges);
+    unusedEdgeCounts = cellfun(@(x) size(x,1), allUnusedEdges);
     for itr = 1:numel(allUnusedEdges)
         beginOffset = itrOffset;
-        endOffset = (beginOffset+(unusedEdgeCount(itr)-1));
+        endOffset = (beginOffset+(unusedEdgeCounts(itr)-1));
         allEdgeInstanceIds(beginOffset:endOffset) = itr;
         allEdgePrevCosts(beginOffset:endOffset) = sub.instanceMatchCosts(itr);
-        itrOffset = itrOffset + unusedEdgeCount(itr);
+        itrOffset = itrOffset + unusedEdgeCounts(itr);
     end         
     allUnusedEdges = cat(1, allUnusedEdges{:});
     
@@ -592,7 +670,12 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         extendedSubs = [];
         return;
     end
-        
+    
+    % Save local indices for all edges, to be used later.
+    allLocalEdgeIdx = cellfun(@(x) 1:size(x,1), subAllEdges, 'UniformOutput', false);
+    allLocalEdgeIdx = [allLocalEdgeIdx{:}]';
+    
+    % Allocate space for new subs and fill them in.
     extendedSubs(numberOfEdgeTypes) = Substructure;
     for edgeTypeItr = 1:numberOfEdgeTypes
         % Assign sub-definition type and other info
@@ -610,7 +693,6 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
             edgeDistanceMatrix(allUnusedEdges(:,3), uniqueEdgeTypes(edgeTypeItr,1)) + ...
             nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2));
         edgesToExtendIdx = edgesToExtendCosts < threshold;
-        edgesToExtend = allUnusedEdges(edgesToExtendIdx,:);
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
         
         % Assign fields related to the new instances.
@@ -621,26 +703,22 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         existingEdges = sub.instanceEdges;
         combinedEdges = zeros(numel(edgeInstanceIds), size(existingEdges,2)+1, 'uint8');
         if ~isempty(existingEdges)
-            existingEdges = existingEdges(edgeInstanceIds);
+            existingEdges = existingEdges(edgeInstanceIds,:);
             combinedEdges(:, 1:size(existingEdges,2)) =  existingEdges;
         end
         
-        % Each added edge actually means a new instance. 
-        for instanceItr = 1:numel(edgeInstanceIds)
-            instanceEdges = allEdges(centerIdx(edgeInstanceIds(instanceItr))).adjInfo;
-            if isempty(instanceEdges)
-               continue; 
-            end
-            addedEdgeIdx = find(instanceEdges(:, 2) == edgesToExtend(instanceItr,2));
-            combinedEdges(instanceItr, end) = addedEdgeIdx;
+        % Adding the local edges to the instance edge lists.
+        if ~isempty(sub.edges)
+            relevantLocalEdgeIdx = allLocalEdgeIdx(allUnusedEdgeIdx(edgesToExtendIdx));
+        else
+            relevantLocalEdgeIdx = allLocalEdgeIdx(edgesToExtendIdx);
         end
+        combinedEdges(:,end) = relevantLocalEdgeIdx;
         newSub.instanceEdges = combinedEdges;
         
         % All instances assigned, good to go.
         extendedSubs(edgeTypeItr) = newSub;
- %       clear newInstances newSub edgesToExtendCosts edgesToExtendIdx edgesToExtend edgeInstanceIds instanceEdges;
     end
- %   clear subAllEdges;
 end
 
 %> Name: evaluateSubs
@@ -688,9 +766,11 @@ function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, all
         
         % We compress the object graph using the children, and the
         % edges they are involved. 
-        subScore = weight * getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
+        [subScore, sub] = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
            allSigns, mdlNodeWeight, mdlEdgeWeight, ....
             overlap, isMDLExact);
+        subScore = subScore * weight;
+        subs(subItr) = sub;
 
         %% Assign the score of the sub, as well as its normalized mdl score if applicable.
         subs(subItr).mdlScore = subScore;

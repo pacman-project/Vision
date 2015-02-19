@@ -42,58 +42,63 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     graphLevel = graphLevel(sortedIdx);
     
     %% Find the distance matrix among the remaining parts in vocabLevel.
-    edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
-    numberOfNodes = numel(vocabLevel);
-    vocabNodeLabels = {vocabLevel.children};
-    vocabNodeLabels = cellfun(@(x) double(x), vocabNodeLabels, 'UniformOutput', false);
-    vocabEdges = {vocabLevel.adjInfo};
-    vocabEdges = cellfun(@(x) double(x), vocabEdges, 'UniformOutput', false);
-    newEdge = size(edgeCoords,1);
-    vocabNeighborModes = cellfun(@(x) [newEdge; x(:,3)], vocabEdges, 'UniformOutput', false);
-    vocabNodePositions = cellfun(@(x) edgeCoords(x,:) - repmat(min(edgeCoords(x,:)), numel(x), 1), vocabNeighborModes, 'UniformOutput', false);
-    
-    % Sort the nodes inside each vocabulary description.
-    vocabSortOrder = cell(size(vocabLevel,1),1);
-    for vocabNodeItr = 1:numel(vocabLevel)
-        [~, vocabSortOrder{vocabNodeItr}] = sortrows(vocabNodePositions{vocabNodeItr});
-    end
-    vocabDescriptions = cellfun(@(x,y,z) [x(z)', y(z,:)], vocabNodeLabels, vocabNodePositions, vocabSortOrder, 'UniformOutput', false);
-    clear vocabNodeLabels vocabEdges vocabNeighborModes vocabNodePositions vocabSortOrder;
-    
-    newDistanceMatrix = zeros(numberOfNodes);
-    distMatEntries = cell(numberOfNodes,1);
-    for partItr1 = 1:(numberOfNodes-1)
-        newEntries = zeros(1, numberOfNodes);
-        description1 = vocabDescriptions{partItr1};
-        savedRows = unique(description1(:,1));
-        sparseNodeMat = zeros(size(nodeDistanceMatrix,1));
-        sparseNodeMat(savedRows,:) = nodeDistanceMatrix(savedRows,:);
-        sparseNodeMat = sparse(sparseNodeMat);
+    if options.subdue.threshold > 0
+        edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
+        numberOfNodes = numel(vocabLevel);
+        vocabNodeLabels = {vocabLevel.children};
+        vocabNodeLabels = cellfun(@(x) double(x), vocabNodeLabels, 'UniformOutput', false);
+        vocabEdges = {vocabLevel.adjInfo};
+        vocabEdges = cellfun(@(x) double(x), vocabEdges, 'UniformOutput', false);
+        newEdge = size(edgeCoords,1);
+        vocabNeighborModes = cellfun(@(x) [newEdge; x(:,3)], vocabEdges, 'UniformOutput', false);
+        vocabNodePositions = cellfun(@(x) edgeCoords(x,:) - repmat(min(edgeCoords(x,:)), numel(x), 1), vocabNeighborModes, 'UniformOutput', false);
 
-        parfor partItr2 = (partItr1+1):numberOfNodes
-            description2 = vocabDescriptions{partItr2};
-            adaptiveThreshold = single((max(size(description1, 1), size(description2,1))*2-1) * threshold) + singlePrecision;
-            matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat, adaptiveThreshold);
-            if matchingCost >0
-                newEntries(partItr2) = matchingCost;
-            end
+        % Sort the nodes inside each vocabulary description.
+        vocabSortOrder = cell(size(vocabLevel,1),1);
+        for vocabNodeItr = 1:numel(vocabLevel)
+            [~, vocabSortOrder{vocabNodeItr}] = sortrows(vocabNodePositions{vocabNodeItr});
         end
-        distMatEntries(partItr1) = {newEntries};
+        vocabDescriptions = cellfun(@(x,y,z) [x(z)', y(z,:)], vocabNodeLabels, vocabNodePositions, vocabSortOrder, 'UniformOutput', false);
+        clear vocabNodeLabels vocabEdges vocabNeighborModes vocabNodePositions vocabSortOrder;
+
+        newDistanceMatrix = zeros(numberOfNodes);
+        distMatEntries = cell(numberOfNodes,1);
+        for partItr1 = 1:(numberOfNodes-1)
+            newEntries = zeros(1, numberOfNodes);
+            description1 = vocabDescriptions{partItr1};
+            savedRows = unique(description1(:,1));
+            sparseNodeMat = zeros(size(nodeDistanceMatrix,1));
+            sparseNodeMat(savedRows,:) = nodeDistanceMatrix(savedRows,:);
+            sparseNodeMat = sparse(sparseNodeMat);
+
+            parfor partItr2 = (partItr1+1):numberOfNodes
+                description2 = vocabDescriptions{partItr2};
+                adaptiveThreshold = single((max(size(description1, 1), size(description2,1))*2-1) * threshold) + singlePrecision;
+                matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat, adaptiveThreshold);
+                if matchingCost >0
+                    newEntries(partItr2) = matchingCost;
+                end
+            end
+            distMatEntries(partItr1) = {newEntries};
+        end
+        if numberOfNodes>1
+            newDistanceMatrix(1:(numberOfNodes-1), :) = cat(1, distMatEntries{:});
+            newDistanceMatrix = newDistanceMatrix + newDistanceMatrix';
+        end
+
+        %% Normalize distances by the size of compared parts.
+        childrenCounts = {vocabLevel.children};
+        childrenCounts = cellfun(@(x) numel(x), childrenCounts);
+        for partItr = 1:numel(vocabLevel);
+            newDistanceMatrix(partItr,:) = newDistanceMatrix(partItr,:) ./ ...
+               (max(childrenCounts, repmat(childrenCounts(partItr), 1, numberOfNodes)) * 2 - 1);
+        end
+        newDistanceMatrix = newDistanceMatrix / max(max(newDistanceMatrix));
+        newDistanceMatrix = single(newDistanceMatrix);
+    else
+        newDistanceMatrix = ones(numel(vocabLevel), 'single');
+        newDistanceMatrix(1:numel(vocabLevel)+1:numel(vocabLevel)*numel(vocabLevel)) = 0;
     end
-    if numberOfNodes>1
-        newDistanceMatrix(1:(numberOfNodes-1), :) = cat(1, distMatEntries{:});
-        newDistanceMatrix = newDistanceMatrix + newDistanceMatrix';
-    end
-    
-    %% Normalize distances by the size of compared parts.
-    childrenCounts = {vocabLevel.children};
-    childrenCounts = cellfun(@(x) numel(x), childrenCounts);
-    for partItr = 1:numel(vocabLevel);
-        newDistanceMatrix(partItr,:) = newDistanceMatrix(partItr,:) ./ ...
-           (max(childrenCounts, repmat(childrenCounts(partItr), 1, numberOfNodes)) * 2 - 1);
-    end
-    newDistanceMatrix = newDistanceMatrix / max(max(newDistanceMatrix));
-    newDistanceMatrix = single(newDistanceMatrix);
 end
 
 %> Name: InexactMatch

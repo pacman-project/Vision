@@ -26,12 +26,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 18.09.2014
-function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
+function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                 allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact)
             
     % Read signs and edges of the instances.
-    instanceSigns = allSigns(sub.instanceCenterIdx);
-    if strcmp(evalMetric, 'mdl')
+     instanceSigns = allSigns(sub.instanceCenterIdx);
+%    if strcmp(evalMetric, 'mdl')
         centerIdx = sub.instanceCenterIdx;
         instanceEdges = {allEdges(centerIdx).adjInfo}';
         centerCellIdx = num2cell(centerIdx);
@@ -44,7 +44,6 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
         % Calculate outgoing nodes (destinations of edges where
         % instance's children are the source).
         instanceChildren = cellfun(@(x,y,z) sort([z; x(y,2)]), instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
-%        clear instanceEdges instanceUsedEdgeIdx centerCellIdx;
 
         % If overlaps are not allowed, filter out overlapping instances.
         if ~overlap
@@ -61,8 +60,15 @@ function subScore = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
             % Filter out data for invalid instances from existing data structures.
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances);
+            
+            %% Remove overlapping nodes.
+            sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
+            sub.instanceEdges = sub.instanceEdges(validInstances,:);
+            sub.instanceSigns = sub.instanceSigns(validInstances,:);
+            sub.instanceCategories = sub.instanceCategories(validInstances,:);
+            sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
         end
-    end
+%    end
     
     % Set constants for each instance. 1 if positive, -1 if negative.
     instanceConstants = ones(numel(instanceSigns),1);

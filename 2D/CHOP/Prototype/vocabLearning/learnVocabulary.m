@@ -44,6 +44,15 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));
     
+    % Open/close matlabpool to save memory. 
+    if options.parallelProcessing
+        s = matlabpool('size');
+        if s>0
+           matlabpool close; 
+        end
+        matlabpool('open', options.numberOfThreads);
+    end
+    
     %% Print first vocabulary and graph level.
     visualizeLevel( vocabulary{1}, [], [], 1, 0, options);
     if ~isempty(distanceMatrices{1})
@@ -55,6 +64,15 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
         visualizeCroppedImgs( vocabulary{1}, 1, options);
     end
     printCloseFilters(distanceMatrices{1}, 1, options);
+    
+    % Open/close matlabpool to save memory. 
+    if options.parallelProcessing
+        s = matlabpool('size');
+        if s>0
+           matlabpool close; 
+        end
+        matlabpool('open', options.numberOfThreads);
+    end
     
     %% Calculate statistics from this graph.
     display('........ Estimating statistics for level 1..');
@@ -108,8 +126,12 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
         % should introduce a novelty (cover a new area of the image). If it
         % fails to do so, the one which has a lower mdl ranking is
         % discarded. *Natural selection*
-        display('........ Applying inhibition..');
-        graphLevel=applyTestInhibition(graphLevel, options, levelItr);
+        if options.noveltyThr > 0
+            display('........ Applying inhibition..');
+            graphLevel=applyTestInhibition(graphLevel, options, levelItr);
+        else
+            display('........ No inhibition applied..');
+        end
         % Open/close matlabpool to save memory.
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
@@ -119,8 +141,8 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
         if ~isempty(vocabLevel)
             display('........ Calculating distance matrix among the vocabulary nodes..');
             [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, options);
-            distanceMatrices{levelItr} = newDistanceMatrix;
             graphLevelIndices{levelItr} = graphLabelAssgnArr;
+            distanceMatrices{levelItr} = newDistanceMatrix;
         else
             newDistanceMatrix = [];
         end
@@ -172,5 +194,9 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
             distanceMatrices = distanceMatrices(1:(levelItr),:);
             graphLevelIndices = graphLevelIndices(1:(levelItr),:);
         end
+        
+ %       %% As an experiment, we're increasing the threshold with each level.
+ %       options.subdue.threshold = options.subdue.threshold + 0.0033;
+        
     end
 end

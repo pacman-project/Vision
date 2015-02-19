@@ -30,7 +30,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                  
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;
-    options.numberOfThreads = min(feature('NumCores'),12); % For my macbook pro
+    options.numberOfThreads = min(feature('NumCores')*2-1,12); % For my macbook pro
     
     %% ========== DATASET-SPECIFIC PROGRAM PARAMETERS ==========
     % Learn dataset path relative to this m file
