@@ -1,3 +1,32 @@
+%> Name: postProcessParts
+%>
+%> Description: Finds the distance between the parts in vocabLevel.
+%> Additionally, it assumes that we have already removed/inhibited some nodes
+%> from graphLevel (object graphs), so it removes parts which do not have any
+%> instances from vocabLevel. Once they are removed, the parts are ordered by
+%> the number of occurences, while the original ordering is preserved in
+%> graphLabelAssgnArr to be used in inference. 
+%>
+%> @param vocabLevel Vocabulary level to be processed.
+%> @param graphLevel Object graphs, encoded in a node + adjacency list
+%> fashion.
+%> @param nodeDistanceMatrix The distance matrix of previous layer's nodes.
+%> @param options Program options.
+%>
+%> @retval vocabLevel Processed vocabulary level.
+%> @retval graphLevel Remaining nodes for object graphs, encoded in a 
+%> node + adjacency list fashion.
+%> @retval newDistanceMatrix Generated distance matrix of this layer's nodes.
+%> @retval graphLabelAssgnArr Original ordering of parts in vocabLevel 
+%> before occurence-based reordering.
+%>
+%> @retval lowestCost Minimum matching score.
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 06.05.2014
+%> Update on 23.02.2015 Added comments, performance boost.
 function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, options)
     edgeCoords = options.edgeCoords;
     edgeQuantize = options.edgeQuantize;
