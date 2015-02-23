@@ -175,7 +175,26 @@ function [ options ] = SetParametersmpeg7( datasetName, options )
                                  % will be favoured more, rather than those 
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
-    
+                                 
+    %% ========== RECONSTRUCTION PARAMETERS ==========
+    options.reconstruction.flag = true; % If this flag is true, a reconstructive 
+                                        % part selection scheme is run on the 
+                                        % set of subs SUBDUE has
+                                        % discovered. It tries to minimize
+                                        % the redundancy in the data by
+                                        % selecting an optimal set of parts
+                                        % to cover most of the training
+                                        % data.
+    options.reconstruction.stoppingCoverage = 1.00; % Between [0.00, 1.00].
+                                           % The default value is 0.99.
+                                           % When the training data
+                                           % coverage is reached to this
+                                           % percent, reconstructive part 
+                                           % selection stops.
+    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
+                                           % number of reconstructive parts
+                                           % that can be selected.
+        
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
                                            % selection in SUBDUE.

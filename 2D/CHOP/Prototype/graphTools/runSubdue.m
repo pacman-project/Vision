@@ -57,7 +57,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     nextGraphLevel = [];
     allLeafNodes = {graphLevel.leafNodes};
     prevGraphNodeCount = numel(unique([graphLevel.leafNodes]));
-    numberOfFinalSubs = 500;
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
@@ -75,6 +74,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
     threshold = single(options.subdue.threshold * regularizationParam) + options.singlePrecision; % Hard threshold for cost of matching two subs.
     singlePrecision = options.singlePrecision;
+    reconstructionFlag = options.reconstruction.flag;
+    stoppingCoverage = options.reconstruction.stoppingCoverage;
+    numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs;
+    
     
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
@@ -362,10 +365,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     end
     clear vocabLevel graphLevel
     if numberOfInstances>0
-        %% Experimenting. We have an array to mark whether each node has been detected or not.
-         partFlagArr = zeros(numberOfBestSubs, 1);
-         nodeFlagArr = zeros(prevGraphNodeCount,1);
-
         %% First, we eliminate the instances having exactly the same node list.
         % Learn the maximum children count in instances.
         maxSubSize = 1;
@@ -394,82 +393,14 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
            instanceOffset = instanceEndOffset + 1;
        end
        
-       %% Experimenting. Now, we'll pick top N parts based on the reconstruction of the data.
-       finalSubList = zeros(numberOfFinalSubs, 1);
-       addedSubs = 1;
-       subLeafNodes = cell(numberOfBestSubs,1);
-       for bestSubItr = 1:numberOfBestSubs
-           subChildren = setdiff(unique(instanceChildrenDescriptors(remainingInstanceLabels == bestSubItr, :)),0);
-           subLeafNodes(bestSubItr) = {unique([allLeafNodes{subChildren}])};
+       %% If required, we'll pick best parts based on the reconstruction of the data.
+       if reconstructionFlag
+           [bestSubs, instanceChildrenDescriptors, remainingInstanceLabels] = getReconstructiveParts(bestSubs, ...
+               instanceChildrenDescriptors, remainingInstanceLabels, allLeafNodes, prevGraphNodeCount, ...
+               stoppingCoverage, numberOfReconstructiveSubs);
        end
        
-       for bestSubItr = 1:numberOfFinalSubs
-            % Get the contribution of this sub in terms of number of leaf
-            % nodes.
-            tempFlagCount = nnz(nodeFlagArr);
-            curFlagArr = nodeFlagArr;
-            curBestSub = 0;
-            curBestValue = 0;
-            if rem(bestSubItr,10) == 0
-                display(['[SUBDUE] Selecting sub ' num2str(bestSubItr) '/' num2str(numberOfFinalSubs) ' out of ' num2str(numberOfBestSubs) '.. Current coverage: ' num2str(tempFlagCount/numel(nodeFlagArr)) '.']);
-            end
-            
-            % Compare the contribution of this node to the rest, and pick
-            % the next best one.
-            for bestSubItr2 = 1:numberOfBestSubs
-                
-                % The stopping criterion is set to covering 99.9 percent of all available
-                % leaf nodes.
-                if tempFlagCount/numel(nodeFlagArr) > 0.999
-                   break; 
-                end
-                
-                % If we've already marked this sub, go on.
-                if partFlagArr(bestSubItr2)
-                    continue; 
-                end
-                
-                % Continue if number of children for this node is less than
-                % current novel node count.
-                if (size(bestSubs(bestSubItr2).edges,1)+1) * ...
-                        size(bestSubs(bestSubItr2).instanceCenterIdx,1) < curBestValue
-                   continue; 
-                end
-                
-                % Calculate value of this node.
-                tempFlagArr = nodeFlagArr;
-                tempFlagArr(subLeafNodes{bestSubItr2}) = 1;
-                tempValue = nnz(tempFlagArr) - tempFlagCount;
-                
-                % If this node is a better choice, update next best sub.
-                if tempValue > curBestValue
-                    curBestSub = bestSubItr2;
-                    curBestValue = tempValue;
-                    curFlagArr = tempFlagArr;
-                end
-            end
-            
-            % Put the current best sub to the final sub list, and go on.
-            if curBestSub > 0
-                finalSubList(addedSubs) = curBestSub;
-                nodeFlagArr = curFlagArr;
-                partFlagArr(curBestSub) = 1;
-                addedSubs = addedSubs+1;
-            else
-                break;
-            end
-       end
-       finalSubList = finalSubList(finalSubList > 0);
-       finalSubList = sort(finalSubList);
-       
-       % Update instance children 
-       remainingIdx = ismember(remainingInstanceLabels, finalSubList);
-       instanceChildrenDescriptors = instanceChildrenDescriptors(remainingIdx,:);
-       remainingInstanceLabels = remainingInstanceLabels(remainingIdx);
-       [~, ~, remainingInstanceLabels] = unique(remainingInstanceLabels, 'stable');
-       bestSubs = bestSubs(finalSubList);
-         
-       %% Experimenting done, continue as usual.
+       %% Update data structures by selecting unique children.
        % Find unique rows, which correspond to unique instances.
        [~, IA, ~] = unique(instanceChildrenDescriptors, 'rows', 'stable');
        
