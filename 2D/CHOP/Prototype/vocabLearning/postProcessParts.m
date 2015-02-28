@@ -27,6 +27,7 @@
 %> Updates
 %> Ver 1.0 on 06.05.2014
 %> Update on 23.02.2015 Added comments, performance boost.
+%> Update on 25.02.2015 Added support for single node subs.
 function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, options)
     edgeCoords = options.edgeCoords;
     edgeQuantize = options.edgeQuantize;
@@ -79,7 +80,9 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
         vocabEdges = {vocabLevel.adjInfo};
         vocabEdges = cellfun(@(x) double(x), vocabEdges, 'UniformOutput', false);
         newEdge = size(edgeCoords,1);
-        vocabNeighborModes = cellfun(@(x) [newEdge; x(:,3)], vocabEdges, 'UniformOutput', false);
+        largeSubIdx = cellfun(@(x) ~isempty(x), vocabEdges);
+        vocabNeighborModes = num2cell(repmat(newEdge, 1, numel(vocabEdges)));
+        vocabNeighborModes(largeSubIdx) = cellfun(@(x,y) [y; x(:,3)], vocabEdges(largeSubIdx), vocabNeighborModes(largeSubIdx), 'UniformOutput', false);
         vocabNodePositions = cellfun(@(x) edgeCoords(x,:) - repmat(min(edgeCoords(x,:)), numel(x), 1), vocabNeighborModes, 'UniformOutput', false);
 
         % Sort the nodes inside each vocabulary description.
@@ -100,7 +103,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
             sparseNodeMat(savedRows,:) = nodeDistanceMatrix(savedRows,:);
             sparseNodeMat = sparse(sparseNodeMat);
 
-            parfor partItr2 = (partItr1+1):numberOfNodes
+            for partItr2 = (partItr1+1):numberOfNodes
                 description2 = vocabDescriptions{partItr2};
                 adaptiveThreshold = single((max(size(description1, 1), size(description2,1))*2-1) * threshold) + singlePrecision;
                 matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat, adaptiveThreshold);

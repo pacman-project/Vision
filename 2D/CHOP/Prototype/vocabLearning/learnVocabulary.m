@@ -196,7 +196,9 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
         end
         
  %       %% As an experiment, we're increasing the threshold with each level.
- %       options.subdue.threshold = options.subdue.threshold + 0.0033;
+        if options.subdue.threshold>0.1
+            options.subdue.threshold = options.subdue.threshold - 0.025;
+        end
         
     end
 end

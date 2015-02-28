@@ -95,18 +95,18 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.25;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.25;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 20;         % This parameter is used to quantize 
+    options.edgeQuantize = 5;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
@@ -134,17 +134,17 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                          % to be used in creation of the image
                                          % for every node in the vocabulary.
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
-    options.vis.visualizedNodes = 4; % Number of vocabulary nodes to be visualized.
+    options.vis.visualizedNodes = 256; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*4; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*4;
+        options.receptiveFieldSize = options.gaborFilterSize*3;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -190,12 +190,12 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
         
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -216,13 +216,13 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1800;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.2; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -233,9 +233,9 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                     % generalization ability of detected
                                     % parts.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.maxSize = 6; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

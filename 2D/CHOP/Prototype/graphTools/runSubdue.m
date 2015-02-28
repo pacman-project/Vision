@@ -71,13 +71,12 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     maxSize = options.subdue.maxSize;
     isSupervised = options.subdue.supervised;
     orgThreshold = single(options.subdue.threshold);
-    regularizationParam = (options.subdue.maxSize * 2) - 1; % Maximum size of a part (n nodes + n-1 edges)
+    regularizationParam = 1; % Maximum size of a part (n nodes + n-1 edges)
     threshold = single(options.subdue.threshold * regularizationParam) + options.singlePrecision; % Hard threshold for cost of matching two subs.
     singlePrecision = options.singlePrecision;
     reconstructionFlag = options.reconstruction.flag;
     stoppingCoverage = options.reconstruction.stoppingCoverage;
     numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs;
-    
     
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
@@ -122,7 +121,6 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     startTime = tic;
     % Let's find the adaptive threshold with the size of the minimum 
     currentSize = 2;
-    minMdlScoreFinal = 0; % Preserve memory by deleting unnecessary subs.
     
     while ~isempty(parentSubs)
         adaptiveThreshold = orgThreshold * (single(currentSize) * 2 - 1) + 0.0001;
@@ -140,11 +138,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         
         %% All good, execution.
         display(['[SUBDUE/Parallel] Expanding subs of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
-        childSubArrFinal = cell(numel(parentSubs),1);
-        childSubArrToExtend = cell(numel(parentSubs),1);
-        mdlScoreArrFinal = cell(numel(parentSubs),1);
-        mdlScoreArrToExtend = cell(numel(parentSubs),1);
-        minMdlScoreExt = 0;    % This  two will increase as more and more subs are discovered.
+        childSubArr = cell(numel(parentSubs),1);
         setDistributions = numel(parentSubs);
         parentSubSets = cell(mat2cell(1:numel(parentSubs), 1, setDistributions));
         for setItr = 1:numel(parentSubSets)
@@ -158,40 +152,30 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                 break;
             end
             
-            % All good, continue.
+            %% Evaluate single node subs, if required.
+            if minSize == 1
+                singleNodeSubsFinal = evaluateSubs(parentSubs, evalMetric, allEdges, allEdgeNodePairs, ...
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+                
+                %% Sort singleNodeSubsFinal by their scores and add them to bestSubs.
+                mdlScores = [singleNodeSubsFinal.mdlScore];
+                [~, sortIdx] = sort(mdlScores, 'descend');
+                singleNodeSubsFinal = singleNodeSubsFinal(sortIdx);
+                mdlScores = mdlScores(sortIdx);
+                validMdlScoreIdx = mdlScores>0;
+                singleNodeSubsFinal = singleNodeSubsFinal(validMdlScoreIdx);
+                bestSubs = addToQueue(singleNodeSubsFinal, bestSubs, nsubs); 
+            end
+            
+            %% All good, continue with the main algorithm.
             processedSet = parentSubSets{setItr};
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
-                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold);
+                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, adaptiveThreshold);
                 if isempty(childSubs) 
                     continue;
                 end
-                
-                % Here, we define two versions of childSubs, one for
-                % extension, and one for evaluation. The evaluation version
-                % has instances with a strict threshold. In order to
-                % provide for the next level of discovery, we also keep 
-                % one version for extension, which has instances found with
-                % a more loose threshold.
-                numberOfChildSubs = numel(childSubs);
-                childSubsFinal = childSubs;
-                validChildSubs = zeros(numberOfChildSubs,1)>0;
-                for childItr = 1:numberOfChildSubs
-                    validInstanceIdx = childSubsFinal(childItr).instanceMatchCosts < adaptiveThreshold;
-                    if nnz(validInstanceIdx)
-                        subFinal = childSubsFinal(childItr);
-                        validChildSubs(childItr) = 1;
-                        subFinal.instanceCenterIdx = subFinal.instanceCenterIdx(validInstanceIdx,:);
-                        subFinal.instanceEdges = subFinal.instanceEdges(validInstanceIdx,:);
-                        subFinal.instanceSigns = subFinal.instanceSigns(validInstanceIdx,:);
-                        subFinal.instanceCategories = subFinal.instanceCategories(validInstanceIdx,:);
-                        subFinal.instanceMatchCosts = subFinal.instanceMatchCosts(validInstanceIdx,:);
-                        childSubsFinal(childItr) = subFinal;
-                    end
-                end
-                childSubs = childSubs(validChildSubs);
-                childSubsFinal = childSubsFinal(validChildSubs);
                 
                 % If no subs are remaining, continue.
                 if isempty(childSubs) 
@@ -199,108 +183,29 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                 end
                 
                 %% Step 2.3: Eliminate subs that match to more frequent subs.
-                if threshold > singlePrecision
-                    numberOfChildSubs = numel(childSubs);
-                    freqScores = zeros(numberOfChildSubs,1);
-                    for subItr = 1:numberOfChildSubs
-                        freqScores(subItr) = size(childSubsFinal(subItr).instanceCenterIdx,1);
-                    end
-                    [~, sortIdx] = sort(freqScores, 'descend');
-                    childSubsFinal = childSubsFinal(sortIdx);
-                    childSubs = childSubs(sortIdx);
-                    validSubs = ones(numel(childSubsFinal),1)>0;
-                    edgeNodePairs = cat(1, childSubsFinal.edges);
-                    numberOfEdgesPerSub = size(childSubsFinal(1).edges,1);
-                    numberOfChildSubs = numel(childSubsFinal);
-                    edgeNodePairs = edgeNodePairs(numberOfEdgesPerSub:numberOfEdgesPerSub:(numberOfChildSubs*numberOfEdgesPerSub), :);
-                    for childItr = 1:(numberOfChildSubs-1)
-                        if validSubs(childItr)
-                            edgeNodePair1 = edgeNodePairs(childItr,:);
-                            for childItr2 = (childItr+1):numberOfChildSubs
-                                if validSubs(childItr2)
-                                    edgeNodePair2 = edgeNodePairs(childItr2,:);
-                                    if edgeDistanceMatrix(edgeNodePair1(1), edgeNodePair2(1)) + ...
-                                            nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) < adaptiveThreshold
-                                        validSubs(childItr2) = 0;
-                                    end
-                                end
-                            end
-                        end
-                    end
-                    childSubs = childSubs(validSubs);
-                    childSubsFinal = childSubsFinal(validSubs);
-                end
+                childSubs = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
+                    adaptiveThreshold, singlePrecision);
 
                 %% Step 2.4: Evaluate childSubs, find their instances.
-                childSubsFinal = evaluateSubs(childSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
+                childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
                 
                 % Assign mdl scores to childSubs, too.
-                for childItr = 1:numel(childSubsFinal)
-                    childSubs(childItr).mdlScore = childSubsFinal(childItr).mdlScore;
-                    childSubs(childItr).normMdlScore = childSubsFinal(childItr).normMdlScore;
+                for childItr = 1:numel(childSubs)
+                    childSubs(childItr).mdlScore = childSubs(childItr).mdlScore;
+                    childSubs(childItr).normMdlScore = childSubs(childItr).normMdlScore;
                 end
                 
-                %% Sort childSubs and childSubsFinal by the mdl scores.
+                %% Sort childSubs and childSubs by the mdl scores.
                 mdlScores = [childSubs.mdlScore];
                 [~, sortIdx] = sort(mdlScores, 'descend');
-                childSubsFinal = childSubsFinal(sortIdx);
                 childSubs = childSubs(sortIdx);
                 mdlScores = mdlScores(sortIdx);
                 validMdlScoreIdx = mdlScores>0;
                 childSubs = childSubs(validMdlScoreIdx);
-                childSubsFinal = childSubsFinal(validMdlScoreIdx);
-                mdlScores = mdlScores(validMdlScoreIdx);
-                
-                %% Finally, eliminate subs that will not be used later on. This is done to save memory.
-                mdlScoresFinal = mdlScores;
-                mdlScoresExt = mdlScores;
-                if currentSize == 2
-                    invalidFinalSubIdx = find(mdlScoresFinal < minMdlScoreFinal, 1, 'first');
-                    if ~isempty(invalidFinalSubIdx)
-                        if invalidFinalSubIdx == 1
-                            childSubsFinal = [];
-                            mdlScoresFinal = [];
-                        else
-                            childSubsFinal = childSubsFinal(1, 1:(invalidFinalSubIdx-1));
-                            mdlScoresFinal = mdlScoresFinal(1, 1:(invalidFinalSubIdx-1));
-                        end
-                    end
-                    invalidExtSubIdx = find(mdlScoresExt < minMdlScoreExt, 1, 'first');
-                    if ~isempty(invalidExtSubIdx)
-                        if invalidExtSubIdx == 1
-                            childSubs = [];
-                            mdlScoresExt = [];
-                        else
-                            childSubs = childSubs(1, 1:(invalidExtSubIdx-1));
-                            mdlScoresExt = mdlScoresExt(1, 1:(invalidExtSubIdx-1));
-                        end
-                    end
-                end
                 
                 %% Save childSubs and extended subs.
-                childSubArrFinal(parentItr) = {childSubsFinal};
-                childSubArrToExtend(parentItr) = {childSubs};
-                mdlScoreArrFinal(parentItr) = {mdlScoresFinal};
-                mdlScoreArrToExtend(parentItr) = {mdlScoresExt};
-            end
-            
-            % Update minimum limits for mdl scores for both beam and final
-            % queues, so that we do not need to keep low-ranked subs in the
-            % queues.
-            if currentSize == 2
-                allMdlScoresFinal = cat(2, mdlScoreArrFinal{:});
-                if ~isempty(allMdlScoresFinal)
-                    allMdlScoresFinal = sort(allMdlScoresFinal, 'descend');
-                    nsubsEnd = min(numel(allMdlScoresFinal), nsubs);
-                    minMdlScoreFinal = allMdlScoresFinal(nsubsEnd);
-                end
-                allMdlScoresExt = cat(2, mdlScoreArrToExtend{:});
-                if ~isempty(allMdlScoresExt)
-                    allMdlScoresExt = sort(allMdlScoresExt, 'descend');
-                    beamEnd = min(numel(allMdlScoresExt), beam);
-                    minMdlScoreExt = allMdlScoresExt(beamEnd);
-                end
+                childSubArr(parentItr) = {childSubs};
             end
         end
         
@@ -308,35 +213,33 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         display('[SUBDUE] Merging all children and putting them into bestSubs if they match final criteria.');
         extendedSubs = [];
         %% Step 2.4: Add childSubs to extendedSubs and bestSubs.
-        childSubArrFinal = cat(2,childSubArrFinal{:});
-        childSubArrToExtend = cat(2, childSubArrToExtend{:});
+        childSubArr = cat(2,childSubArr{:});
         % Add children to the both queues.
-        if ~isempty(childSubArrFinal)
+        if ~isempty(childSubArr)
             % Remove duplicate nodes from the children subs.
-            if size(childSubArrFinal(1).edges,1) > 1
+            if size(childSubArr(1).edges,1) > 1
                 % Eliminate duplicate subs in final array.
-                childSubEdges = cell(1, numel(childSubArrFinal));
-                for subItr = 1:numel(childSubArrFinal)
-                    childSubEdges(subItr) = {sortrows(childSubArrFinal(subItr).edges)};
+                childSubEdges = cell(1, numel(childSubArr));
+                for subItr = 1:numel(childSubArr)
+                    childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
                 end
-                subCenters = {childSubArrFinal.centerId};
+                subCenters = {childSubArr.centerId};
                 vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
                 [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
                 clear vocabDescriptors subCenters childSubEdges;
-                childSubArrFinal = childSubArrFinal(validChildrenIdx);
-                childSubArrToExtend = childSubArrToExtend(validChildrenIdx);
+                childSubArr = childSubArr(validChildrenIdx);
             end
         
             % Check for maxSize to put to extendedSubs (parentSubs for next level).
             if currentSize < maxSize
-                extendedSubs = addToQueue(childSubArrToExtend, extendedSubs, beam);
+                extendedSubs = addToQueue(childSubArr, extendedSubs, beam);
             end
             % Check for minSize to put to final sub array.
             if currentSize >= minSize
-                bestSubs = addToQueue(childSubArrFinal, bestSubs, nsubs); 
+                bestSubs = addToQueue(childSubArr, bestSubs, nsubs); 
             end
         end
-        clear childSubArrFinal childSubArrToExtend;
+        clear childSubArr childSubArr;
         
         %% Step 2.6: Swap expandedSubs with parentSubs.
         if haltedParent == -1
@@ -375,23 +278,36 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         % Find the children for each instance, and use it as a descriptor.
         % We'll then find unique descriptors, which is the initial phase of
         % inhibition.
-        remainingInstanceLabels = zeros(numberOfInstances, 1);
-        instanceChildrenDescriptors = zeros(numberOfInstances,maxSubSize, 'int32');
-       instanceOffset = 1;
+       subInstanceEdges = cell(numberOfBestSubs,1);
        for bestSubItr = 1:numberOfBestSubs
+           subInstanceEdges{bestSubItr} = {allEdges(bestSubs(bestSubItr).instanceCenterIdx).adjInfo}';
+       end
+       instanceChildrenDescriptors = cell(numberOfBestSubs,1);
+       remainingInstanceLabels = cell(numberOfBestSubs,1);
+       parfor bestSubItr = 1:numberOfBestSubs
            centerIdx = bestSubs(bestSubItr).instanceCenterIdx;
            centerIdxCellArr = num2cell(centerIdx);
-           edges = {allEdges(centerIdx).adjInfo}';
+           edges = subInstanceEdges{bestSubItr};
            edgeIdx = bestSubs(bestSubItr).instanceEdges;
            edgeIdx = mat2cell(edgeIdx, ones(size(edgeIdx,1),1), size(edgeIdx,2));
-           instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
-           instanceChildren = cellfun(@(x,y) sort([x, y(:,2)']), centerIdxCellArr, instanceEdges, 'UniformOutput', false);
-           instanceChildren = cat(1, instanceChildren{:});
-           instanceEndOffset = instanceOffset + numel(centerIdx) - 1;
-           instanceChildrenDescriptors(instanceOffset:instanceEndOffset, 1:size(instanceChildren,2)) = instanceChildren;
-           remainingInstanceLabels(instanceOffset:instanceEndOffset) = bestSubItr;
-           instanceOffset = instanceEndOffset + 1;
+           if isempty(bestSubs(bestSubItr).edges)
+               instanceChildren = cat(1, centerIdxCellArr{:});
+           else
+               instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
+               instanceChildren = cellfun(@(x,y) sort([x, y(:,2)']), centerIdxCellArr, instanceEdges, 'UniformOutput', false);
+               instanceChildren = cat(1, instanceChildren{:});
+           end
+           % Find children descriptors and save 'em.
+           childrenDescriptors = zeros(numel(centerIdx), maxSubSize, 'int32');
+           childrenDescriptors(:, 1:size(instanceChildren,2)) = instanceChildren;
+           instanceChildrenDescriptors{bestSubItr} = childrenDescriptors;
+           
+           % Find instance labels.
+           instanceLabels = repmat(bestSubItr, numel(centerIdx), 1);
+           remainingInstanceLabels{bestSubItr} = instanceLabels;
        end
+       instanceChildrenDescriptors = cat(1, instanceChildrenDescriptors{:});
+       remainingInstanceLabels = cat(1, remainingInstanceLabels{:});
        
        %% If required, we'll pick best parts based on the reconstruction of the data.
        if reconstructionFlag
@@ -741,4 +657,59 @@ function [queue] = addToQueue(subs, queue, maxSize)
     sortedQueue=addedQueue(sortedIdx);
     queue = sortedQueue(1:maxSize);
     clear sortedQueue addedQueue;
+end
+
+%> Name: getNonOverlappingSubs
+%>
+%> Description: Given the extended subs in childSubs, this function tries
+%> to eliminate the compositions which match (within the limits specified by
+%> adaptiveThreshold) to more frequent subs in childSubs. The purpose is to
+%> lower the computational complexity, without giving away too much in
+%> precision.
+%> 
+%> @param childSubs A list of substructures.
+%> @param nodeDistanceMatrix The distance matrix of the nodes in the
+%> previous layer. 
+%> @param edgeDistanceMatrix The edge distance matrix which shows how
+%> geometrically distant the edge types are.
+%> @param adaptiveThreshold The threshold that specifies elasticity. It is
+%> calculated using the size of the subs.
+%> @param singlePrecision Precision of the numeric values.
+%>
+%> @retval childSubs The list of unique substructures.
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 25.02.2015 (Converted to a standalone function)
+function childSubs = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, adaptiveThreshold, singlePrecision)
+    if adaptiveThreshold > singlePrecision
+        numberOfChildSubs = numel(childSubs);
+        freqScores = zeros(numberOfChildSubs,1);
+        for subItr = 1:numberOfChildSubs
+            freqScores(subItr) = size(childSubs(subItr).instanceCenterIdx,1);
+        end
+        [~, sortIdx] = sort(freqScores, 'descend');
+        childSubs = childSubs(sortIdx);
+        validSubs = ones(numel(childSubs),1)>0;
+        edgeNodePairs = cat(1, childSubs.edges);
+        numberOfEdgesPerSub = size(childSubs(1).edges,1);
+        numberOfChildSubs = numel(childSubs);
+        edgeNodePairs = edgeNodePairs(numberOfEdgesPerSub:numberOfEdgesPerSub:(numberOfChildSubs*numberOfEdgesPerSub), :);
+        for childItr = 1:(numberOfChildSubs-1)
+            if validSubs(childItr)
+                edgeNodePair1 = edgeNodePairs(childItr,:);
+                for childItr2 = (childItr+1):numberOfChildSubs
+                    if validSubs(childItr2)
+                        edgeNodePair2 = edgeNodePairs(childItr2,:);
+                        if edgeDistanceMatrix(edgeNodePair1(1), edgeNodePair2(1)) + ...
+                                nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) < adaptiveThreshold
+                            validSubs(childItr2) = 0;
+                        end
+                    end
+                end
+            end
+        end
+        childSubs = childSubs(validSubs);
+    end
 end

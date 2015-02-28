@@ -28,7 +28,7 @@
 %> Ver 1.0 on 18.09.2014
 function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                 allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact)
-            
+     isMultiNodeSub = ~isempty(sub.edges);
     % Read signs and edges of the instances.
      instanceSigns = allSigns(sub.instanceCenterIdx);
 %    if strcmp(evalMetric, 'mdl')
@@ -43,10 +43,28 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
 
         % Calculate outgoing nodes (destinations of edges where
         % instance's children are the source).
-        instanceChildren = cellfun(@(x,y,z) sort([z; x(y,2)]), instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
-
+        if isMultiNodeSub
+            instanceChildren = cellfun(@(x,y,z) sort([z; x(y,2)]), instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
+        else
+            instanceChildren = centerCellIdx;
+        end
+        
+        % If this is a single sub, we only take instances with no POSSIBLE
+        % edges into account. If we do not do that, they end up clogging
+        % top spots in bestSubs as they usually cover a lot more area than
+        % their children.
+        if ~isMultiNodeSub && ~strcmp(evalMetric, 'mdl')
+            validInstances = cellfun(@(x) isempty(x), instanceEdges);
+            instanceSigns = instanceSigns(validInstances);
+            instanceChildren = instanceChildren(validInstances);
+            sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
+            sub.instanceSigns = sub.instanceSigns(validInstances,:);
+            sub.instanceCategories = sub.instanceCategories(validInstances,:);
+            sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
+        end
+        
         % If overlaps are not allowed, filter out overlapping instances.
-        if ~overlap
+        if isMultiNodeSub && ~overlap
             % Find overlapping instances and remove them by marking as invalid.
             matchedNodes = zeros(numberOfNodes,1)>0;
             validInstances = zeros(numberOfInstances,1) > 0;
@@ -68,7 +86,6 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
             sub.instanceCategories = sub.instanceCategories(validInstances,:);
             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
         end
-%    end
     
     % Set constants for each instance. 1 if positive, -1 if negative.
     instanceConstants = ones(numel(instanceSigns),1);

@@ -36,7 +36,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
-    options.gabor.sigma = 0.5;            % Gabor filter parameters
+    options.gabor.sigma = 1;            % Gabor filter parameters
     options.gabor.theta = 0;
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
@@ -222,7 +222,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.1; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -232,10 +232,10 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                     % together in order to increase
                                     % generalization ability of detected
                                     % parts.
-    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 5; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 30000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
+    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 300;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
