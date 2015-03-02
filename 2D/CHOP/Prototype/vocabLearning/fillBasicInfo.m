@@ -35,7 +35,7 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, number
                nodeLeafNodes(childItr) = {previousLevel(nodeChildren(childItr)).leafNodes}; 
             end
             nodeLeafNodes = unique([nodeLeafNodes{:}]);
-            subLevel(newNodeItr).position = int32(round(sum(cat(1, leafNodes(nodeLeafNodes,2:3))) / numel(nodeLeafNodes)));
+            subLevel(newNodeItr).position = int32(round(sum(cat(1, leafNodes(nodeLeafNodes,2:3)),1) / numel(nodeLeafNodes)));
             subLevel(newNodeItr).leafNodes = nodeLeafNodes;
         end
         nodeSets(setItr) = {subLevel};

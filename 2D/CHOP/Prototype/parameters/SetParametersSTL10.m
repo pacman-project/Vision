@@ -232,7 +232,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                     % together in order to increase
                                     % generalization ability of detected
                                     % parts.
-    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
+    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 6; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.

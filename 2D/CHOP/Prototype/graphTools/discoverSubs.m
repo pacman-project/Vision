@@ -39,7 +39,19 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, nodeDi
         % It'll be unhid as soon as possible.
         graphLevel = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, threshold);
     else
-        [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options);
+        %% We're experimenting here. Instead of setting a human-set threshold for similarity, 
+        % we try to limit the number of compositions at each layer.
+        % Then, we search an optimal threshold value (Using sort-of a binary search).
+        hiddenNodeCount = options.reconstruction.numberOfReconstructiveSubs;  
+        minThr = 0;
+        midThr = 0.25;
+        maxThr = 0.5;
+        currentDepth = 1;
+        maxDepth = 5;
+        
+        while (currentDepth <= maxDepth)
+            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options);
+        end
     end
     
     % Show time elapsed.

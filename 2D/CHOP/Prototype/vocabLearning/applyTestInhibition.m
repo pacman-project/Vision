@@ -28,7 +28,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
         return;
     end
     
-    confidenceArr = [graphLevel.confidence];
+ %   confidenceArr = [graphLevel.confidence];
     % If confidences are marked, we do elimination based on them, not mdl
     % scores of matching subs.
  %   if ~isempty(confidenceArr)

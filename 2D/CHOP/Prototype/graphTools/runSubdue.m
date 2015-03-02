@@ -76,7 +76,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     singlePrecision = options.singlePrecision;
     reconstructionFlag = options.reconstruction.flag;
     stoppingCoverage = options.reconstruction.stoppingCoverage;
-    numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs;
+    
+    % At this point we get more subs than we need, since we're trying to
+    % optimize based on the number of subs.
+    numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs * 2;
     
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
@@ -116,6 +119,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         nodeDistanceMatrix, categoryArrIdx, threshold);
  %   parentSubs = addToQueue(singleNodeSubs, parentSubs, numel(singleNodeSubs));
     parentSubs = addToQueue(singleNodeSubs, parentSubs, options.subdue.beam);
+    singleNodeSubsFinal = [];
     
     %% Step 2: Main loop
     startTime = tic;
@@ -154,17 +158,25 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
             
             %% Evaluate single node subs, if required.
             if minSize == 1
-                singleNodeSubsFinal = evaluateSubs(parentSubs, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
-                
-                %% Sort singleNodeSubsFinal by their scores and add them to bestSubs.
-                mdlScores = [singleNodeSubsFinal.mdlScore];
-                [~, sortIdx] = sort(mdlScores, 'descend');
-                singleNodeSubsFinal = singleNodeSubsFinal(sortIdx);
-                mdlScores = mdlScores(sortIdx);
-                validMdlScoreIdx = mdlScores>0;
-                singleNodeSubsFinal = singleNodeSubsFinal(validMdlScoreIdx);
-                bestSubs = addToQueue(singleNodeSubsFinal, bestSubs, nsubs); 
+                if currentSize == 2
+                    singleNodeSubsFinal = evaluateSubs(parentSubs, evalMetric, allEdges, allEdgeNodePairs, ...
+                        allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+
+                    %% Remove those with no instances. 
+                    centerIdxArr = {singleNodeSubsFinal.instanceCenterIdx};
+                    validSingleSubs = cellfun(@(x) ~isempty(x), centerIdxArr);
+                    singleNodeSubsFinal = singleNodeSubsFinal(validSingleSubs);
+
+                    %% Sort singleNodeSubsFinal by their scores and add them to bestSubs.
+                    mdlScores = [singleNodeSubsFinal.mdlScore];
+                    [~, sortIdx] = sort(mdlScores, 'descend');
+                    singleNodeSubsFinal = singleNodeSubsFinal(sortIdx);
+                    mdlScores = mdlScores(sortIdx);
+                    validMdlScoreIdx = mdlScores>0;
+                    singleNodeSubsFinal = singleNodeSubsFinal(validMdlScoreIdx);
+                end
+            else
+                singleNodeSubsFinal = [];
             end
             
             %% All good, continue with the main algorithm.
@@ -250,6 +262,11 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         else
             break;
         end
+    end
+    
+    %% At this point, we add single node subs to the list of known subs.
+    if ~isempty(singleNodeSubsFinal)
+        bestSubs = addToQueue(singleNodeSubsFinal, bestSubs, nsubs + numel(singleNodeSubsFinal)); 
     end
     
     display('[SUBDUE] Processing has finished. Writing all to output and quitting.');
