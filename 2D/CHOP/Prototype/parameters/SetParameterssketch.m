@@ -232,6 +232,16 @@ function [ options ] = SetParameterssketch( datasetName, options )
                                     % together in order to increase
                                     % generalization ability of detected
                                     % parts.
+                                    % Ignored if reconstruction flag is
+                                    % true, since an optimal threshold is
+                                    % searched within the limits specified
+                                    % by minThreshold and maxThreshold.
+    % The following min/max threshold values limit the area in which an
+    % optimal elasticity threshold is going to be searched. 
+    options.subdue.minThreshold = 0.01; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.25; % Max threshold for elastic part matching. 
+    options.subdue.thresholdSearchMaxDepth = 3; % The depth of binary search 
+                                % when looking for an optimal threshold.
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.

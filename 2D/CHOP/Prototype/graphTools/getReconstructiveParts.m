@@ -30,19 +30,22 @@
 %> @param numberOfFinalSubs Selection will stop if the number of selected
 %> subs exceeds numberOfFinalSubs. 
 %>
-%> @param bestSubs Final set of best substructures.
-%> @param instanceChildrenDescriptors N_instance x maxNumberOfChildren
+%> @retval bestSubs Final set of best substructures.
+%> @retval instanceChildrenDescriptors N_instance x maxNumberOfChildren
 %> array that has an ordered list of children from the previous level for
 %> each instance.
-%> @param remainingInstanceLabels N_instance x 1 array that marks the part
+%> @retval remainingInstanceLabels N_instance x 1 array that marks the part
 %> label for each instance.
 %>
 %> Author: Rusen
 %>
 %> Updates
 %> Ver 1.0 on 23.02.2015
-function [bestSubs, instanceChildrenDescriptors, remainingInstanceLabels] = getReconstructiveParts(bestSubs, ...
+function [bestSubs, instanceChildrenDescriptors, remainingInstanceLabels, isCoverageOptimal] = getReconstructiveParts(bestSubs, ...
     instanceChildrenDescriptors, remainingInstanceLabels, allLeafNodes, prevGraphNodeCount, stoppingCoverage, numberOfFinalSubs)
+
+   % We have a flag to indicate if we have close-to-optimal coverage. 
+   isCoverageOptimal = false;
 
     % We have an array to mark whether each leaf node has been detected or not.
    nodeFlagArr = zeros(prevGraphNodeCount,1) > 0;
@@ -74,7 +77,8 @@ function [bestSubs, instanceChildrenDescriptors, remainingInstanceLabels] = getR
 
         % The stopping criterion is set to covering stoppingCoverage percent of all available
         % leaf nodes.
-        if tempFlagCount/numel(nodeFlagArr) >= stoppingCoverage
+        if tempFlagCount/numel(nodeFlagArr) >= stoppingCoverage            
+           isCoverageOptimal = true;
            break; 
         end
         
@@ -110,9 +114,15 @@ function [bestSubs, instanceChildrenDescriptors, remainingInstanceLabels] = getR
             addedSubs = addedSubs+1;
         else
             % No new info can be introduced by any subs, just stop.
+            isCoverageOptimal = true;
             break;
         end
    end
+   % If everything is covered, we mark coverage flag as true.
+   if nnz(nodeFlagArr) == numel(nodeFlagArr)
+       isCoverageOptimal = true;
+   end
+   
    % Update final part list.
    finalSubList = finalSubList(finalSubList > 0);
    finalSubList = sort(finalSubList);

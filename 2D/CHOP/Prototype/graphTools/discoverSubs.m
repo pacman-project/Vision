@@ -43,15 +43,54 @@ function [vocabLevel, graphLevel] = discoverSubs( vocabLevel, graphLevel, nodeDi
         % we try to limit the number of compositions at each layer.
         % Then, we search an optimal threshold value (Using sort-of a binary search).
         hiddenNodeCount = options.reconstruction.numberOfReconstructiveSubs;  
-        minThr = 0;
-        midThr = 0.25;
-        maxThr = 0.5;
+        minThr =  options.subdue.minThreshold; % Minimum threshold for elastic matching.
+        maxThr = options.subdue.maxThreshold; % Max threshold for elastic part matching. 
+        midThr = (minThr + maxThr) / 2;
         currentDepth = 1;
-        maxDepth = 5;
+        maxDepth = options.subdue.thresholdSearchMaxDepth;
         
+        display(['[SUBDUE] Starting threshold search with ' num2str(midThr) '. We are limited to ' num2str(hiddenNodeCount) ' compositions.']);
         while (currentDepth <= maxDepth)
-            [vocabLevel, graphLevel] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options);
+            options.subdue.threshold = midThr;
+%            [T, tmpVocabLevel, tmpGraphLevel, isCoverageOptimal] = evalc('runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options);');
+            [tmpVocabLevel, tmpGraphLevel, isCoverageOptimal] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options);
+            % Depending on which side we are on the ideal hidden node count, 
+            % we make a binary search on the "good" threshold.
+            if numel(tmpVocabLevel) == hiddenNodeCount && isCoverageOptimal
+                % If we've found the perfect number of hidden nodes, exit.
+                display(['[SUBDUE] Found perfect similarity threshold: ' num2str(midThr) '! Quitting..']);
+                break;
+            elseif numel(tmpVocabLevel) < hiddenNodeCount
+                maxThr = midThr;
+                midThr = (maxThr + minThr) / 2;
+                display(['[SUBDUE] Too few generated compositions (' num2str(numel(tmpVocabLevel)) ').' ...
+                    ' Lowering the threshold to ' num2str(midThr) ' and continuing to search..']);
+            else
+                % We have far too many hidden nodes. Make threshold
+                % smaller.                              
+                minThr = midThr;
+                midThr = (maxThr + minThr) / 2;
+                display(['[SUBDUE] Too many generated compositions (' num2str(numel(tmpVocabLevel)) ').' ...
+                    ' Increasing the threshold to ' num2str(midThr) ' and continuing to search..']);
+            end
+            currentDepth = currentDepth + 1;
+            % Open threads for parallel processing.
+            if options.parallelProcessing
+                s = matlabpool('size');
+                if s>0
+                   matlabpool close; 
+                end
+                matlabpool('open', options.numberOfThreads);
+            end
         end
+%        display(T);
+        if currentDepth>maxDepth && numel(tmpVocabLevel) ~= hiddenNodeCount
+            display(['[SUBDUE] Maximum depth reached. Best approximation for similarity threshold:' num2str(midThr)]);
+        end
+        display('[SUBDUE] Saving the vocabulary, instances and the threshold.');
+        % Save vocabLevel and graphLevel.
+        vocabLevel = tmpVocabLevel;
+        graphLevel = tmpGraphLevel;
     end
     
     % Show time elapsed.

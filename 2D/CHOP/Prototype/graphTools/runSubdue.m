@@ -46,7 +46,7 @@
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
-function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options)
+function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -76,13 +76,14 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
     singlePrecision = options.singlePrecision;
     reconstructionFlag = options.reconstruction.flag;
     stoppingCoverage = options.reconstruction.stoppingCoverage;
+    isCoverageOptimal = true;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
-    numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs * 2;
+    numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs;
     
     %% Initialize data structures.
-    display('[SUBDUE] Initializing data structures for internal use..');
+    fprintf('[SUBDUE] Initializing data structures for internal use..');
     % Helper data structures.
     assignedEdges = {graphLevel.adjInfo};    
     if isempty(assignedEdges) 
@@ -167,13 +168,12 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                     validSingleSubs = cellfun(@(x) ~isempty(x), centerIdxArr);
                     singleNodeSubsFinal = singleNodeSubsFinal(validSingleSubs);
 
-                    %% Sort singleNodeSubsFinal by their scores and add them to bestSubs.
+                    %% Sort singleNodeSubsFinal by their scores.
+                    % We do not eliminate nodes with negative mdl scores,
+                    % as single node subs do not provide any compression.
                     mdlScores = [singleNodeSubsFinal.mdlScore];
                     [~, sortIdx] = sort(mdlScores, 'descend');
                     singleNodeSubsFinal = singleNodeSubsFinal(sortIdx);
-                    mdlScores = mdlScores(sortIdx);
-                    validMdlScoreIdx = mdlScores>0;
-                    singleNodeSubsFinal = singleNodeSubsFinal(validMdlScoreIdx);
                 end
             else
                 singleNodeSubsFinal = [];
@@ -184,7 +184,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
-                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, adaptiveThreshold);
+                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, overlap, adaptiveThreshold);
                 if isempty(childSubs) 
                     continue;
                 end
@@ -199,8 +199,10 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
                     adaptiveThreshold, singlePrecision);
 
                 %% Step 2.4: Evaluate childSubs, find their instances.
+                % Setting overlap to 1, since we've already checked for it
+                % in extendSub.
                 childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+                    allSigns, graphSize, 1, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
                 
                 % Assign mdl scores to childSubs, too.
                 for childItr = 1:numel(childSubs)
@@ -228,20 +230,19 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
         childSubArr = cat(2,childSubArr{:});
         % Add children to the both queues.
         if ~isempty(childSubArr)
-            % Remove duplicate nodes from the children subs.
-            if size(childSubArr(1).edges,1) > 1
-                % Eliminate duplicate subs in final array.
-                childSubEdges = cell(1, numel(childSubArr));
-                for subItr = 1:numel(childSubArr)
-                    childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
-                end
-                subCenters = {childSubArr.centerId};
-                vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
-                [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
-                clear vocabDescriptors subCenters childSubEdges;
-                childSubArr = childSubArr(validChildrenIdx);
+            %% A substructure has many different parse trees at this point.
+            % We find matching parse trees, and combine their instances.
+            numberOfChildSubs = numel(childSubArr);
+            [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr);
+            
+            % If the set of subs to be re-evaluated is not empty, we
+            % evaluate them again, and 
+            if ~isempty(childSubArrToEvaluate)
+                childSubArrToEvaluate = evaluateSubs(childSubArrToEvaluate, evalMetric, allEdges, allEdgeNodePairs, ...
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+                childSubArr = addToQueue(childSubArrToEvaluate, childSubArr, numberOfChildSubs);
             end
-        
+            
             % Check for maxSize to put to extendedSubs (parentSubs for next level).
             if currentSize < maxSize
                 extendedSubs = addToQueue(childSubArr, extendedSubs, beam);
@@ -328,7 +329,7 @@ function [nextVocabLevel, nextGraphLevel] = runSubdue(vocabLevel, graphLevel, no
        
        %% If required, we'll pick best parts based on the reconstruction of the data.
        if reconstructionFlag
-           [bestSubs, instanceChildrenDescriptors, remainingInstanceLabels] = getReconstructiveParts(bestSubs, ...
+           [bestSubs, instanceChildrenDescriptors, remainingInstanceLabels, isCoverageOptimal] = getReconstructiveParts(bestSubs, ...
                instanceChildrenDescriptors, remainingInstanceLabels, allLeafNodes, prevGraphNodeCount, ...
                stoppingCoverage, numberOfReconstructiveSubs);
        end
@@ -483,7 +484,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold)
+function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, overlap, threshold)
     centerIdx = sub.instanceCenterIdx;
     subAllEdges = {allEdges(centerIdx).adjInfo}';
     % Get unused edges from sub's instances.
@@ -492,11 +493,24 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         allUsedEdgeIdx = mat2cell(allUsedEdgeIdx, ones(size(allUsedEdgeIdx,1),1), size(allUsedEdgeIdx,2));
         allUnusedEdgeIdx = cellfun(@(x,y) setdiff(1:size(x,1),y), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
         allUnusedEdges = cellfun(@(x,y) x(y,:), subAllEdges, allUnusedEdgeIdx, 'UniformOutput', false);
+        allUsedEdges = cellfun(@(x,y) x(y,:), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
         allUnusedEdgeIdx = [allUnusedEdgeIdx{:}]';
     else
         allUnusedEdges = subAllEdges;
+        allUnusedEdgeIdx = [];
+        allUsedEdges = [];
     end
- %   clear allUsedEdgeIdx subAllEdges;
+    
+    % Here, we mark used nodes for this sub.
+    if ~overlap
+        validNodeArr = ones(numel(allEdges),1, 'uint8')>0;
+        validNodeArr(centerIdx) = 0;
+        if ~isempty(allUsedEdges)
+            allUsedEdges = cat(1, allUsedEdges{:});
+            allUsedEdges = allUsedEdges(:,2);
+            validNodeArr(allUsedEdges) = 0;
+        end
+    end
     
     % Record which edge belongs to which instance. 
     allEdgeInstanceIds = zeros(sum(cellfun(@(x) size(x,1), allUnusedEdges)),1);
@@ -516,6 +530,13 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     if isempty(allUnusedEdges)
         extendedSubs = [];
         return; 
+    end
+    
+    % Remove edges leading to duplicate node use.
+    if ~overlap
+        validEdgeIdx = validNodeArr(allUnusedEdges(:,2));
+        allUnusedEdges = allUnusedEdges(validEdgeIdx,:);
+        allEdgePrevCosts = allEdgePrevCosts(validEdgeIdx);
     end
     
     % Get unique rows of [edgeLabel, secondVertexLabel]
@@ -538,6 +559,15 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     % Save local indices for all edges, to be used later.
     allLocalEdgeIdx = cellfun(@(x) 1:size(x,1), subAllEdges, 'UniformOutput', false);
     allLocalEdgeIdx = [allLocalEdgeIdx{:}]';
+    if ~overlap
+        if size(validEdgeIdx,1) == size(allLocalEdgeIdx,1)
+            allLocalEdgeIdx = allLocalEdgeIdx(validEdgeIdx);
+        end
+        allEdgeInstanceIds = allEdgeInstanceIds(validEdgeIdx);
+        if ~isempty(allUnusedEdgeIdx)
+            allUnusedEdgeIdx = allUnusedEdgeIdx(validEdgeIdx);
+        end
+    end
     
     % Allocate space for new subs and fill them in.
     extendedSubs(numberOfEdgeTypes) = Substructure;
@@ -557,6 +587,20 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
             edgeDistanceMatrix(allUnusedEdges(:,3), uniqueEdgeTypes(edgeTypeItr,1)) + ...
             nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2));
         edgesToExtendIdx = edgesToExtendCosts < threshold;
+        
+        % Remove instances leading to duplicate use.
+        if ~overlap
+            % We check for overlaps among center nodes/added nodes.
+            idx = find(edgesToExtendIdx);
+            bothNodes = allUnusedEdges(edgesToExtendIdx,1:2);
+            edgesToExtendIdx(edgesToExtendIdx) = 0;
+            [~, uniqueCenterNodeIdx, ~] = unique(bothNodes(:,1), 'stable');
+            [~, uniqueSecondNodeIdx, ~] = unique(bothNodes(uniqueCenterNodeIdx,2), 'stable');
+            idx = idx(uniqueCenterNodeIdx(uniqueSecondNodeIdx));
+            edgesToExtendIdx(idx) = 1;
+        end
+      
+        % Save instance ids.
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
         
         % Assign fields related to the new instances.
@@ -573,7 +617,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         
         % Adding the local edges to the instance edge lists.
         if ~isempty(sub.edges)
-            relevantLocalEdgeIdx = allLocalEdgeIdx(allUnusedEdgeIdx(edgesToExtendIdx));
+            relevantLocalEdgeIdx = allUnusedEdgeIdx(edgesToExtendIdx);
         else
             relevantLocalEdgeIdx = allLocalEdgeIdx(edgesToExtendIdx);
         end
@@ -728,5 +772,73 @@ function childSubs = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDi
             end
         end
         childSubs = childSubs(validSubs);
+    end
+end
+
+%> Name: removeDuplicateSubs
+%>
+%> Description: Given the child subs in childSubArr, this function removes
+%> duplicate substructures from childSubArr, and combines the instances of
+%> matching subs. If an instance can be parsed in different ways (i.e.
+%> matches multiple duplicate subs), the minimum matching cost of matching is
+%> saved. 
+%> 
+%> @param childSubArr A list of children substructures.
+%>
+%> @retval childSubArr The list of unique substructures.
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 01.03.2015 (Converted to a standalone function, added instance augmentation)
+function [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr)
+    childSubArrToEvaluate = [];
+    if size(childSubArr(1).edges,1) > 1
+        % Eliminate duplicate subs in final array.
+        childSubEdges = cell(1, numel(childSubArr));
+        for subItr = 1:numel(childSubArr)
+            childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
+        end
+        subCenters = {childSubArr.centerId};
+        vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
+        [~, validChildrenIdx, IC] = unique(vocabDescriptors, 'stable');
+        clear vocabDescriptors subCenters childSubEdges;
+        
+        % For every sub seen more than once in IC, we merge instances of
+        % all matching subs.
+        selectedSubs = hist(IC, numel(validChildrenIdx));
+        selectedSubs = find(selectedSubs > 1);
+        for selSub = selectedSubs
+            selSubIdx = IC == selSub;
+            % Read data for all instances.
+            allInstanceCenterIdx = cat(1, childSubArr(selSubIdx).instanceCenterIdx);
+            allInstanceEdges = cat(1, childSubArr(selSubIdx).instanceEdges);
+            allInstanceMatchCosts = cat(1, childSubArr(selSubIdx).instanceMatchCosts);
+            allInstanceCategories = cat(1, childSubArr(selSubIdx).instanceCategories);
+            allInstanceSigns = cat(1, childSubArr(selSubIdx).instanceSigns);
+            allInstanceDescriptors = [allInstanceCenterIdx, sort(allInstanceEdges, 2)];
+            
+            % Get unique instances, update minimum matching costs and write
+            % everything back.
+            [~, IA, IC2] = unique(allInstanceDescriptors, 'rows', 'stable');
+            childSubArr(selSub).instanceCenterIdx = allInstanceCenterIdx(IA);
+            childSubArr(selSub).instanceEdges = allInstanceEdges(IA, :);
+            instanceCount = numel(IA);
+            minMatchingCosts = zeros(instanceCount,1, 'single');
+            % Calculate minimum matching cost for each instance.
+            for instItr = 1:instanceCount
+                minMatchingCosts(instItr) = min(allInstanceMatchCosts(IC2 == instItr));
+            end
+            childSubArr(selSub).instanceMatchCosts = minMatchingCosts;
+            childSubArr(selSub).instanceCategories = allInstanceCategories(IA);
+            childSubArr(selSub).instanceSigns = allInstanceSigns(IA);
+        end
+        
+        % We return unchanged subs in childSubArr, and the subs to be
+        % re-evaluated in childSubArrToEvaluate.
+        if ~isempty(selectedSubs)
+            childSubArrToEvaluate = childSubArr(selectedSubs);
+            childSubArr = childSubArr(setdiff(IC, selectedSubs));
+        end
     end
 end

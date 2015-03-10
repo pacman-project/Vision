@@ -18,7 +18,7 @@ function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords ] = findEdgeDistanceMatr
     % Find the distance matrix with respect to pairs of individual
     % relations.
     points = [xArr(relations), yArr(relations)];
-    distMatrix = single(squareform(pdist(points)));
+    distMatrix = single(pdist2(points, points, 'euclidean'));
     edgeDistanceMatrix = distMatrix / max(max(distMatrix));
 end
 

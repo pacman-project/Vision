@@ -95,13 +95,13 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.25;           % The novelty threshold used in the 
+    options.noveltyThr = 0.0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.25;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -112,7 +112,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                         % grows, each relation is scaled
                                         % down to this window, and then
                                         % quantized. 
-    options.scaling = 0.67;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -190,7 +190,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
         
@@ -216,7 +216,7 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 1800;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 300;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -232,10 +232,20 @@ function [ options ] = SetParametersSTL10( datasetName, options )
                                     % together in order to increase
                                     % generalization ability of detected
                                     % parts.
+                                    % Ignored if reconstruction flag is
+                                    % true, since an optimal threshold is
+                                    % searched within the limits specified
+                                    % by minThreshold and maxThreshold.
+    % The following min/max threshold values limit the area in which an
+    % optimal elasticity threshold is going to be searched. 
+    options.subdue.minThreshold = 0.01; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.25; % Max threshold for elastic part matching. 
+    options.subdue.thresholdSearchMaxDepth = 3; % The depth of binary search 
+                                % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 6; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

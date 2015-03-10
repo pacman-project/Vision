@@ -169,12 +169,6 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         realCoordIdx1 = idx1 + halfSize - 1;
         realCoordIdx2 = idx2 + halfSize - 1;
         responseImgs(realCoordIdx1, realCoordIdx2, :) = reshape(responses, [numel(idx1), numel(idx2), filterCount]);
-        
-        % Remove responses resulting from dead features. (Will be replaced 
-        % by a better method in the future)
-%         for deadFeature = deadFeatures
-%             responseImgs(:,:,deadFeature) = 0;
-%         end
     end
     
     %% We apply a minimum response threshold over response image.
