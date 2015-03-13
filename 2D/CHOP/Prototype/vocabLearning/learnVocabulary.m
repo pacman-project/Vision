@@ -23,7 +23,7 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
+function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLevelIndices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
                                                             options, fileList)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
@@ -31,6 +31,7 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
     mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
     graphLevelIndices = cell(options.maxLevels,1);
+    optimalThresholds = single(repmat(options.subdue.threshold, options.maxLevels,1));
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
@@ -85,8 +86,9 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-        [vocabLevel, graphLevel] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
+        [vocabLevel, graphLevel, optimalThreshold] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
             options, false, options.subdue.threshold, levelItr-1);
+        optimalThresholds(levelItr) = optimalThreshold;
         
         % Open/close matlabpool to save memory.
         matlabpool close;
@@ -99,6 +101,7 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
            graphLevelIndices = graphLevelIndices(1:(levelItr-1),:);
+           optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            break; 
         end
         
@@ -115,6 +118,7 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
         if isempty(vocabLevel)
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
+           optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
            graphLevelIndices = graphLevelIndices(1:(levelItr-1),:);
@@ -190,15 +194,10 @@ function [ vocabulary, mainGraph, distanceMatrices, graphLevelIndices] = learnVo
         newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));
         if ~newEdgesAvailable
             vocabulary = vocabulary(1:(levelItr),:);
+            optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
             graphLevelIndices = graphLevelIndices(1:(levelItr),:);
         end
-        
- %       %% As an experiment, we're increasing the threshold with each level.
-        if options.subdue.threshold>0.1
-            options.subdue.threshold = options.subdue.threshold - 0.025;
-        end
-        
     end
 end

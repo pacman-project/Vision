@@ -46,7 +46,7 @@
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
-function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options)
+function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -71,19 +71,25 @@ function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLe
     maxSize = options.subdue.maxSize;
     isSupervised = options.subdue.supervised;
     orgThreshold = single(options.subdue.threshold);
-    regularizationParam = 1; % Maximum size of a part (n nodes + n-1 edges)
-    threshold = single(options.subdue.threshold * regularizationParam) + options.singlePrecision; % Hard threshold for cost of matching two subs.
+    maxThreshold = options.subdue.maxThreshold;
+    minThreshold = options.subdue.minThreshold;
+    maxDepth = options.subdue.thresholdSearchMaxDepth;
     singlePrecision = options.singlePrecision;
     reconstructionFlag = options.reconstruction.flag;
     stoppingCoverage = options.reconstruction.stoppingCoverage;
-    isCoverageOptimal = true;
+    optimalThreshold = orgThreshold;
+    if reconstructionFlag
+        singleNodeThreshold = maxThreshold + singlePrecision;
+    else
+        singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
+    end
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
     numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs;
     
     %% Initialize data structures.
-    fprintf('[SUBDUE] Initializing data structures for internal use..');
+    display('[SUBDUE] Initializing data structures for internal use..');
     % Helper data structures.
     assignedEdges = {graphLevel.adjInfo};    
     if isempty(assignedEdges) 
@@ -117,8 +123,7 @@ function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLe
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
     display('[SUBDUE] Creating single node subs..');
     singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, ...
-        nodeDistanceMatrix, categoryArrIdx, threshold);
- %   parentSubs = addToQueue(singleNodeSubs, parentSubs, numel(singleNodeSubs));
+        nodeDistanceMatrix, categoryArrIdx, singleNodeThreshold);
     parentSubs = addToQueue(singleNodeSubs, parentSubs, options.subdue.beam);
     singleNodeSubsFinal = [];
     
@@ -126,9 +131,20 @@ function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLe
     startTime = tic;
     % Let's find the adaptive threshold with the size of the minimum 
     currentSize = 2;
+    minMdlScore = 0; % This two will increase as more and more subs are discovered.
     
     while ~isempty(parentSubs)
-        adaptiveThreshold = orgThreshold * (single(currentSize) * 2 - 1) + 0.0001;
+        % If we're building a reconstructive hierarchy, we do not want to
+        % eliminate subs, as we may need them later. That's why we are
+        % setting adaptiveMinThreshold to the minimum value.
+        if reconstructionFlag
+            adaptiveThreshold = maxThreshold * (single(currentSize) * 2 - 1) + singlePrecision;
+            adaptiveMinThreshold = minThreshold * (single(currentSize) * 2 - 1) + singlePrecision;
+        else
+            adaptiveThreshold = orgThreshold * (single(currentSize) * 2 - 1) + singlePrecision;
+            adaptiveMinThreshold = adaptiveThreshold;
+        end
+        
         % Check time. If it took too long, end processing. 
         % Check parent's size. If it is too large, end processing.
         elapsedTime = toc(startTime);
@@ -195,8 +211,8 @@ function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLe
                 end
                 
                 %% Step 2.3: Eliminate subs that match to more frequent subs.
-                childSubs = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
-                    adaptiveThreshold, singlePrecision);
+                [childSubs, ~] = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
+                    adaptiveMinThreshold, singlePrecision);
 
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 % Setting overlap to 1, since we've already checked for it
@@ -204,19 +220,20 @@ function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLe
                 childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, 1, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
                 
-                % Assign mdl scores to childSubs, too.
-                for childItr = 1:numel(childSubs)
-                    childSubs(childItr).mdlScore = childSubs(childItr).mdlScore;
-                    childSubs(childItr).normMdlScore = childSubs(childItr).normMdlScore;
+                %% Eliminate childSubs which will render useless to preserve memory.
+                mdlScores = [childSubs.mdlScore];
+                validMdlScoreIdx = mdlScores > minMdlScore;
+                childSubs = childSubs(validMdlScoreIdx);
+                
+                % If no subs are remaining, continue.
+                if isempty(childSubs) 
+                    continue;
                 end
                 
                 %% Sort childSubs and childSubs by the mdl scores.
                 mdlScores = [childSubs.mdlScore];
                 [~, sortIdx] = sort(mdlScores, 'descend');
                 childSubs = childSubs(sortIdx);
-                mdlScores = mdlScores(sortIdx);
-                validMdlScoreIdx = mdlScores>0;
-                childSubs = childSubs(validMdlScoreIdx);
                 
                 %% Save childSubs and extended subs.
                 childSubArr(parentItr) = {childSubs};
@@ -249,7 +266,10 @@ function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLe
             end
             % Check for minSize to put to final sub array.
             if currentSize >= minSize
-                bestSubs = addToQueue(childSubArr, bestSubs, nsubs); 
+                bestSubs = addToQueue(childSubArr, bestSubs, nsubs);
+                if numel(bestSubs) == nsubs
+                    minMdlScore = min([bestSubs.mdlScore]);
+                end
             end
         end
         clear childSubArr childSubArr;
@@ -286,54 +306,42 @@ function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLe
     end
     clear vocabLevel graphLevel
     if numberOfInstances>0
-        %% First, we eliminate the instances having exactly the same node list.
+       %% If required, we'll pick best parts based on the reconstruction of the data.
+       if reconstructionFlag
+           [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
+               allLeafNodes, prevGraphNodeCount, nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
+               stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, maxDepth);
+           bestSubs = evaluateSubs(bestSubs, evalMetric, allEdges, allEdgeNodePairs, ...
+                    allSigns, graphSize, 1, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised); 
+       end
+       
+        numberOfBestSubs = numel(bestSubs);
         % Learn the maximum children count in instances.
         maxSubSize = 1;
         for bestSubItr = 1:numberOfBestSubs
             maxSubSize = max(maxSubSize, (size(bestSubs(bestSubItr).edges,1)+1));
         end
-        
+
         % Find the children for each instance, and use it as a descriptor.
         % We'll then find unique descriptors, which is the initial phase of
         % inhibition.
-       subInstanceEdges = cell(numberOfBestSubs,1);
-       for bestSubItr = 1:numberOfBestSubs
-           subInstanceEdges{bestSubItr} = {allEdges(bestSubs(bestSubItr).instanceCenterIdx).adjInfo}';
-       end
-       instanceChildrenDescriptors = cell(numberOfBestSubs,1);
-       remainingInstanceLabels = cell(numberOfBestSubs,1);
-       parfor bestSubItr = 1:numberOfBestSubs
-           centerIdx = bestSubs(bestSubItr).instanceCenterIdx;
-           centerIdxCellArr = num2cell(centerIdx);
-           edges = subInstanceEdges{bestSubItr};
-           edgeIdx = bestSubs(bestSubItr).instanceEdges;
-           edgeIdx = mat2cell(edgeIdx, ones(size(edgeIdx,1),1), size(edgeIdx,2));
-           if isempty(bestSubs(bestSubItr).edges)
-               instanceChildren = cat(1, centerIdxCellArr{:});
-           else
-               instanceEdges = cellfun(@(x,y) x(y,:), edges, edgeIdx, 'UniformOutput', false);
-               instanceChildren = cellfun(@(x,y) sort([x, y(:,2)']), centerIdxCellArr, instanceEdges, 'UniformOutput', false);
-               instanceChildren = cat(1, instanceChildren{:});
-           end
+        instanceChildrenDescriptors = cell(numberOfBestSubs,1);
+        remainingInstanceLabels = cell(numberOfBestSubs,1);
+        parfor bestSubItr = 1:numberOfBestSubs
+           instanceChildren = bestSubs(bestSubItr).instanceChildren;
+           numberOfInstances = size(instanceChildren,1);
            % Find children descriptors and save 'em.
-           childrenDescriptors = zeros(numel(centerIdx), maxSubSize, 'int32');
+           childrenDescriptors = zeros(numberOfInstances, maxSubSize, 'int32');
            childrenDescriptors(:, 1:size(instanceChildren,2)) = instanceChildren;
            instanceChildrenDescriptors{bestSubItr} = childrenDescriptors;
-           
+
            % Find instance labels.
-           instanceLabels = repmat(bestSubItr, numel(centerIdx), 1);
+           instanceLabels = repmat(int32(bestSubItr), numberOfInstances, 1);
            remainingInstanceLabels{bestSubItr} = instanceLabels;
-       end
-       instanceChildrenDescriptors = cat(1, instanceChildrenDescriptors{:});
-       remainingInstanceLabels = cat(1, remainingInstanceLabels{:});
-       
-       %% If required, we'll pick best parts based on the reconstruction of the data.
-       if reconstructionFlag
-           [bestSubs, instanceChildrenDescriptors, remainingInstanceLabels, isCoverageOptimal] = getReconstructiveParts(bestSubs, ...
-               instanceChildrenDescriptors, remainingInstanceLabels, allLeafNodes, prevGraphNodeCount, ...
-               stoppingCoverage, numberOfReconstructiveSubs);
-       end
-       
+        end
+        instanceChildrenDescriptors = cat(1, instanceChildrenDescriptors{:});
+        remainingInstanceLabels = cat(1, remainingInstanceLabels{:});
+
        %% Update data structures by selecting unique children.
        % Find unique rows, which correspond to unique instances.
        [~, IA, ~] = unique(instanceChildrenDescriptors, 'rows', 'stable');
@@ -407,7 +415,7 @@ function [nextVocabLevel, nextGraphLevel, isCoverageOptimal] = runSubdue(vocabLe
     end
    
     
-   clear allEdges allEdgeNodePairs allSigns bestSubs;
+   clear allEdges allEdgeNodePairs allSigns bestSubs remainingInstanceLabels instanceChildrenDescriptors;
    nextVocabLevel = vocabLevel;
    nextGraphLevel = graphLevel;
    clear vocabLevel graphLevel;
@@ -456,6 +464,7 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
             instanceSigns = allSigns(subCenterIdx,1);
             instanceDistances = distances(subCenterIdx);
             singleNodeSubs(subItr).instanceCenterIdx = instances;
+            singleNodeSubs(subItr).instanceChildren = instances;
             singleNodeSubs(subItr).instanceCategories = categoryIdx;
             singleNodeSubs(subItr).instanceMatchCosts = instanceDistances;
             singleNodeSubs(subItr).instanceSigns = instanceSigns;
@@ -605,6 +614,8 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         
         % Assign fields related to the new instances.
         newSub.instanceCenterIdx = sub.instanceCenterIdx(edgeInstanceIds);
+        newSub.instanceChildren = sortrows([sub.instanceChildren(edgeInstanceIds,:), ...
+            allUnusedEdges(edgesToExtendIdx,2)]);
         newSub.instanceSigns = sub.instanceSigns(edgeInstanceIds);
         newSub.instanceCategories = sub.instanceCategories(edgeInstanceIds);
         newSub.instanceMatchCosts = edgesToExtendCosts(edgesToExtendIdx);
@@ -720,61 +731,6 @@ function [queue] = addToQueue(subs, queue, maxSize)
     clear sortedQueue addedQueue;
 end
 
-%> Name: getNonOverlappingSubs
-%>
-%> Description: Given the extended subs in childSubs, this function tries
-%> to eliminate the compositions which match (within the limits specified by
-%> adaptiveThreshold) to more frequent subs in childSubs. The purpose is to
-%> lower the computational complexity, without giving away too much in
-%> precision.
-%> 
-%> @param childSubs A list of substructures.
-%> @param nodeDistanceMatrix The distance matrix of the nodes in the
-%> previous layer. 
-%> @param edgeDistanceMatrix The edge distance matrix which shows how
-%> geometrically distant the edge types are.
-%> @param adaptiveThreshold The threshold that specifies elasticity. It is
-%> calculated using the size of the subs.
-%> @param singlePrecision Precision of the numeric values.
-%>
-%> @retval childSubs The list of unique substructures.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 25.02.2015 (Converted to a standalone function)
-function childSubs = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, adaptiveThreshold, singlePrecision)
-    if adaptiveThreshold > singlePrecision
-        numberOfChildSubs = numel(childSubs);
-        freqScores = zeros(numberOfChildSubs,1);
-        for subItr = 1:numberOfChildSubs
-            freqScores(subItr) = size(childSubs(subItr).instanceCenterIdx,1);
-        end
-        [~, sortIdx] = sort(freqScores, 'descend');
-        childSubs = childSubs(sortIdx);
-        validSubs = ones(numel(childSubs),1)>0;
-        edgeNodePairs = cat(1, childSubs.edges);
-        numberOfEdgesPerSub = size(childSubs(1).edges,1);
-        numberOfChildSubs = numel(childSubs);
-        edgeNodePairs = edgeNodePairs(numberOfEdgesPerSub:numberOfEdgesPerSub:(numberOfChildSubs*numberOfEdgesPerSub), :);
-        for childItr = 1:(numberOfChildSubs-1)
-            if validSubs(childItr)
-                edgeNodePair1 = edgeNodePairs(childItr,:);
-                for childItr2 = (childItr+1):numberOfChildSubs
-                    if validSubs(childItr2)
-                        edgeNodePair2 = edgeNodePairs(childItr2,:);
-                        if edgeDistanceMatrix(edgeNodePair1(1), edgeNodePair2(1)) + ...
-                                nodeDistanceMatrix(edgeNodePair1(2), edgeNodePair2(2)) < adaptiveThreshold
-                            validSubs(childItr2) = 0;
-                        end
-                    end
-                end
-            end
-        end
-        childSubs = childSubs(validSubs);
-    end
-end
-
 %> Name: removeDuplicateSubs
 %>
 %> Description: Given the child subs in childSubArr, this function removes
@@ -808,31 +764,44 @@ function [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr)
         % all matching subs.
         selectedSubs = hist(IC, numel(validChildrenIdx));
         selectedSubs = find(selectedSubs > 1);
-        for selSub = selectedSubs
-            selSubIdx = IC == selSub;
+        selectedSubBins = cell(numel(selectedSubs),1);
+        for selSubItr = 1:numel(selectedSubs)
+            selSubIdx = IC == selectedSubs(selSubItr);
+            selectedSubBins{selSubItr} = childSubArr(selSubIdx);
+        end
+        updatedSubs = childSubArr(selectedSubs);
+        
+        parfor selSubItr = 1:numel(selectedSubs)
             % Read data for all instances.
-            allInstanceCenterIdx = cat(1, childSubArr(selSubIdx).instanceCenterIdx);
-            allInstanceEdges = cat(1, childSubArr(selSubIdx).instanceEdges);
-            allInstanceMatchCosts = cat(1, childSubArr(selSubIdx).instanceMatchCosts);
-            allInstanceCategories = cat(1, childSubArr(selSubIdx).instanceCategories);
-            allInstanceSigns = cat(1, childSubArr(selSubIdx).instanceSigns);
+            allInstanceCenterIdx = cat(1, selectedSubBins{selSubItr}.instanceCenterIdx);
+            allInstanceChildren = cat(1, selectedSubBins{selSubItr}.instanceChildren);
+            allInstanceEdges = cat(1, selectedSubBins{selSubItr}.instanceEdges);
+            allInstanceMatchCosts = cat(1, selectedSubBins{selSubItr}.instanceMatchCosts);
+            allInstanceCategories = cat(1, selectedSubBins{selSubItr}.instanceCategories);
+            allInstanceSigns = cat(1, selectedSubBins{selSubItr}.instanceSigns);
             allInstanceDescriptors = [allInstanceCenterIdx, sort(allInstanceEdges, 2)];
             
             % Get unique instances, update minimum matching costs and write
             % everything back.
-            [~, IA, IC2] = unique(allInstanceDescriptors, 'rows', 'stable');
-            childSubArr(selSub).instanceCenterIdx = allInstanceCenterIdx(IA);
-            childSubArr(selSub).instanceEdges = allInstanceEdges(IA, :);
-            instanceCount = numel(IA);
-            minMatchingCosts = zeros(instanceCount,1, 'single');
-            % Calculate minimum matching cost for each instance.
-            for instItr = 1:instanceCount
-                minMatchingCosts(instItr) = min(allInstanceMatchCosts(IC2 == instItr));
-            end
-            childSubArr(selSub).instanceMatchCosts = minMatchingCosts;
-            childSubArr(selSub).instanceCategories = allInstanceCategories(IA);
-            childSubArr(selSub).instanceSigns = allInstanceSigns(IA);
+             [~, IA, IC2] = unique(allInstanceDescriptors, 'rows', 'stable');
+             updatedSubs(selSubItr).instanceCenterIdx = allInstanceCenterIdx(IA);
+             updatedSubs(selSubItr).instanceChildren = allInstanceChildren(IA, :);
+             updatedSubs(selSubItr).instanceEdges = allInstanceEdges(IA, :);
+             instanceCount = numel(IA);
+             minMatchingCosts = zeros(instanceCount,1, 'single');
+             % Calculate minimum matching cost for each instance.
+             for instItr = 1:instanceCount
+                 minMatchingCosts(instItr) = min(allInstanceMatchCosts(IC2 == instItr));
+             end
+            % TODO: Make matching costs optimal. Right now, they are not.
+            % For the sake of efficiency, we are not looking for the minimum 
+            % cost of matching for a specific instance.
+%            minMatchingCosts = allInstanceMatchCosts(IA);
+            updatedSubs(selSubItr).instanceMatchCosts = minMatchingCosts;
+            updatedSubs(selSubItr).instanceCategories = allInstanceCategories(IA);
+            updatedSubs(selSubItr).instanceSigns = allInstanceSigns(IA);
         end
+        childSubArr(selectedSubs) = updatedSubs;
         
         % We return unchanged subs in childSubArr, and the subs to be
         % re-evaluated in childSubArrToEvaluate.
@@ -842,3 +811,26 @@ function [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr)
         end
     end
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

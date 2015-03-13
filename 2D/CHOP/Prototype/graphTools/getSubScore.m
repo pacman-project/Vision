@@ -64,6 +64,7 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances);
             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
+            sub.instanceChildren = sub.instanceChildren(validInstances,:);
             sub.instanceSigns = sub.instanceSigns(validInstances,:);
             sub.instanceCategories = sub.instanceCategories(validInstances,:);
             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
@@ -82,18 +83,13 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
                 end
             end
 
-            % Give an error message if there are any duplicate instances
-            % remaining.
-            if nnz(validInstances) ~= numel(validInstances)
-                display('Error! Duplicate instances.The should have been eliminated in extendSubs.');
-            end
-
             % Filter out data for invalid instances from existing data structures.
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances);
 
             %% Remove overlapping nodes.
             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
+            sub.instanceChildren = sub.instanceChildren(validInstances,:);
             sub.instanceEdges = sub.instanceEdges(validInstances,:);
             sub.instanceSigns = sub.instanceSigns(validInstances,:);
             sub.instanceCategories = sub.instanceCategories(validInstances,:);

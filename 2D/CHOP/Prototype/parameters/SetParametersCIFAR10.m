@@ -95,13 +95,13 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -144,7 +144,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
@@ -238,13 +238,13 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                     % by minThreshold and maxThreshold.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.01; % Minimum threshold for elastic matching.
+    options.subdue.minThreshold = 0.15; % Minimum threshold for elastic matching.
     options.subdue.maxThreshold = 0.25; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 4; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 300;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
