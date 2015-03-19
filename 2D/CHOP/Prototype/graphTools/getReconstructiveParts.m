@@ -42,7 +42,7 @@
 %> Updates
 %> Ver 1.0 on 23.02.2015
 function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
-    allLeafNodes, prevGraphNodeCount, nodeDistanceMatrix, edgeDistanceMatrix, ...
+    allLeafNodes, prevGraphNodeCount, maxPrevGraphNodeId, nodeDistanceMatrix, edgeDistanceMatrix, ...
     singlePrecision, stoppingCoverage, numberOfFinalSubs, minThreshold, maxThreshold, maxDepth)
 
     numberOfBestSubs = numel(bestSubs);
@@ -68,6 +68,7 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
    end
    
    display(['[SUBDUE] Starting threshold search with ' num2str(midThr) '. We are limited to ' num2str(hiddenNodeCount) ' compositions.']);
+   display(['[SUBDUE] Initially, we have ' num2str(numberOfBestSubs) ' subs to consider.']);
    %% Searching for optimal threshold using a binary search mechanism.
    while (currentDepth <= maxDepth)
        %% Optimality logic is implemented here. We're searching for an optimal threshold.
@@ -75,7 +76,7 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
        isCoverageOptimal = false;
 
         % We have an array to mark whether each leaf node has been detected or not.
-       nodeFlagArr = zeros(prevGraphNodeCount,1) > 0;
+       nodeFlagArr = zeros(maxPrevGraphNodeId,1) > 0;
        numberOfBestSubs = numel(bestSubs);
 
        % Calculate which leaf nodes are covered.
@@ -84,11 +85,12 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
        addedSubs = 1;
        subLeafNodes = cell(numberOfBestSubs,1);
        for bestSubItr = 1:numberOfBestSubs
-           validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < (midThr * (size(bestSubs(bestSubItr).edges,1) * 2 - 1));
+           validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);
            allLeafNodes = leafNodeArr(bestSubs(bestSubItr).instanceChildren(validInstanceIdx, :), :);
+           allLeafNodes = allLeafNodes(:);
            subLeafNodes(bestSubItr) = {allLeafNodes(allLeafNodes>0)};
        end
-
+       
        % partLeafCounts holds the latest info for all parts. It tracks the maximum 
        % number of novel leaf nodes can introduce to the system by adding it, 
        % but the actual number of leaf nodes that are new is likely to be lower.
@@ -101,8 +103,10 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
        % thus we will have less subs to evaluate.]
        validSubIdx = getDisjointSubs(bestSubs(partLeafCountOrder), ...
            nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, midThr);
+       numberOfRemainingBestSubs = nnz(validSubIdx);
+       display(['[SUBDUE] Eliminating overlapping subs. We are down to ' num2str(numberOfRemainingBestSubs) ' subs.']);
        % Eliminating invalid subs by setting their contributions to zero.
- %      partLeafCounts(~validSubIdx) = 0;
+       partLeafCounts(~validSubIdx) = 0;
        
        % Go ahead and select parts.
        for bestSubItr = 1:numberOfFinalSubs
@@ -110,13 +114,13 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
             % nodes.
             tempFlagCount = nnz(nodeFlagArr);
             if rem(bestSubItr,10) == 0
-                display(['[SUBDUE] Selecting sub ' num2str(bestSubItr) '/' num2str(numberOfFinalSubs) ...
-                    ' out of ' num2str(numberOfBestSubs) '.. Current coverage: ' num2str(tempFlagCount/numel(nodeFlagArr)) '.']);
+                display(['[SUBDUE] Selecting sub ' num2str(bestSubItr) '/' num2str(numberOfRemainingBestSubs) ...
+                    ' out of ' num2str(numberOfBestSubs) '.. Current coverage: ' num2str(tempFlagCount/prevGraphNodeCount) '.']);
             end
 
             % The stopping criterion is set to covering stoppingCoverage percent of all available
             % leaf nodes.
-            if tempFlagCount/numel(nodeFlagArr) >= stoppingCoverage            
+            if tempFlagCount/prevGraphNodeCount >= stoppingCoverage            
                isCoverageOptimal = true;
                break; 
             end
@@ -166,7 +170,7 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
        end
        
        % If everything is covered, we mark coverage flag as true.
-       if nnz(nodeFlagArr) == numel(nodeFlagArr)
+       if nnz(nodeFlagArr) == prevGraphNodeCount
            isCoverageOptimal = true;
        end
        
@@ -174,40 +178,44 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
        finalSubList = finalSubList(finalSubList > 0);
        finalSubList = sort(finalSubList);
        finalSubList = partLeafCountOrder(finalSubList);
+       optimalThreshold = midThr;
     
        %% Depending on the feedback, we're continuing or stopping the search.
         % Depending on which side we are on the ideal hidden node count, 
         % we make a binary search on the "good" threshold.
-        if numel(finalSubList) == hiddenNodeCount && isCoverageOptimal
-            % If we've found the perfect number of hidden nodes, exit.
-            display(['[SUBDUE] Found perfect similarity threshold: ' num2str(midThr) '! Quitting..']);
-            break;
-        elseif numel(finalSubList) < hiddenNodeCount
-            maxThr = midThr;
-            midThr = (maxThr + minThr) / 2;
-            display(['[SUBDUE] Too few generated compositions (' num2str(numel(finalSubList)) ').' ...
-                ' Lowering the threshold to ' num2str(midThr) ' and continuing to search..']);
-        else
-            % We have few hidden nodes. Make threshold
-            % larger.                              
-            minThr = midThr;
-            midThr = (maxThr + minThr) / 2;
-            display(['[SUBDUE] Too many generated compositions (' num2str(numel(finalSubList)) ').' ...
-                ' Increasing the threshold to ' num2str(midThr) ' and continuing to search..']);
-        end
         currentDepth = currentDepth + 1;
+        if (currentDepth <= maxDepth)
+            if numel(finalSubList) == hiddenNodeCount && isCoverageOptimal
+                % If we've found the perfect number of hidden nodes, exit.
+                display(['[SUBDUE] Found perfect similarity threshold: ' num2str(midThr) '! Quitting..']);
+                break;
+            elseif numel(finalSubList) < hiddenNodeCount
+                maxThr = midThr;
+                midThr = (maxThr + minThr) / 2;
+                display(['[SUBDUE] Too few generated compositions (' num2str(numel(finalSubList)) ').' ...
+                    ' Lowering the threshold to ' num2str(midThr) ' and continuing to search..']);
+            else
+                % We have few hidden nodes. Make threshold
+                % larger.                              
+                minThr = midThr;
+                midThr = (maxThr + minThr) / 2;
+                display(['[SUBDUE] Too many generated compositions (' num2str(numel(finalSubList)) ').' ...
+                    ' Increasing the threshold to ' num2str(midThr) ' and continuing to search..']);
+            end
+        end
    end
 
    % Update instance information.
-   optimalThreshold = midThr;
    bestSubs = bestSubs(finalSubList);
    % Update bestSubs instances by taking the new threshold into account.
    for bestSubItr = 1:numel(bestSubs)
         sub = bestSubs(bestSubItr);
-        validInstances = sub.instanceMatchCosts < ((size(sub.edges,1)*2+1) * midThr + singlePrecision);
+        validInstances = sub.instanceMatchCosts < ((size(sub.edges,1)*2+1) * optimalThreshold + singlePrecision);
         sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
         sub.instanceChildren = sub.instanceChildren(validInstances,:);
-        sub.instanceEdges = sub.instanceEdges(validInstances,:);
+        if ~isempty(sub.edges)
+            sub.instanceEdges = sub.instanceEdges(validInstances,:);
+        end
         sub.instanceSigns = sub.instanceSigns(validInstances,:);
         sub.instanceCategories = sub.instanceCategories(validInstances,:);
         sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);

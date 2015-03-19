@@ -12,7 +12,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersCIFAR10( datasetName, options )
+function [ options ] = SetParametersCALTECH101_small( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -20,7 +20,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
@@ -47,14 +47,14 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 11;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-2;
     options.autoFilterThr = 0.1;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 200000; % Number of random patches used 
+    options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
@@ -67,7 +67,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'rank'; % If 'euc': Euclidean distance 
+    options.distType = 'euc'; % If 'euc': Euclidean distance 
                                                    % (normalized by number
                                                    % of nonzero pixels)
                                                    % will define the
@@ -95,13 +95,13 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -136,9 +136,9 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
     options.vis.visualizedNodes = 100; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*3; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*2.5; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*3;
+        options.receptiveFieldSize = options.gaborFilterSize*2.5;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -146,7 +146,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                          % 1/scaling.
     options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
+    options.maxImageDim = options.receptiveFieldSize*6; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in
                                        % the dataset is larger than this
@@ -190,7 +190,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
         
@@ -216,7 +216,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 1200;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -243,7 +243,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
     options.subdue.thresholdSearchMaxDepth = 4; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

@@ -153,7 +153,10 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
        
        if ~isempty(edges)
            for nodeItr = 1:numberOfNodes
-               curGraphNodes(nodeItr).adjInfo = edges(edges(:,1) == (nodeItr + imageNodeOffset),:);
+               edgeIdx = edges(:,1) == (nodeItr + imageNodeOffset);
+               if nnz(edgeIdx) > 0
+                   curGraphNodes(nodeItr).adjInfo = edges(edgeIdx,:);
+               end
            end
        end
        imageGraphNodeSets(imageItr) = {curGraphNodes};

@@ -57,6 +57,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             return;
         end
         trainingFileNames = fileNames;
+        if isempty(trainingFileNames)
+           display(['Unable to find training images. Possibly you forgot to put the images under ./input/' datasetName '/vocab/ or defined the extension wrong.']);  
+        end
 
         %% Step 0.2: Allocate space to keep names of corresponding gt files.
         gtFileNames = cell(numel(trainingFileNames),1);
