@@ -247,6 +247,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
                     %% Print the files to output folders.
                     if nodeInstanceItr == 1
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_' num2str(currentLevel(nodeSet(nodeItr)).mdlScore) '.png']);
                         imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
                     else
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_var_ ' num2str(nodeInstanceItr) '.png']);

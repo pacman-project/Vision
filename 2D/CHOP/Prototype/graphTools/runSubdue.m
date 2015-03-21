@@ -197,9 +197,10 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
         if numberOfParentSubs > 50
             setDistributions = 1:50:numberOfParentSubs;
             if setDistributions(end) ~= numberOfParentSubs
-                setDistributions = [setDistributions, (numberOfParentSubs+1)]; %#ok<AGROW>
+                setDistributions = [setDistributions, numberOfParentSubs]; %#ok<AGROW>
             end
             setDistributions = setDistributions(2:(end)) - setDistributions(1:(end-1));
+            setDistributions(end) = setDistributions(end) + 1;
         else
             setDistributions = numberOfParentSubs;
         end
@@ -217,7 +218,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
             
             %% All good, continue with the main algorithm.
             processedSet = parentSubSets{setItr};
-            parfor parentItr = processedSet
+            for parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
                 childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, overlap, adaptiveThreshold);
@@ -226,19 +227,19 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
                 end
                 
                 %% Step 2.3: Eliminate subs that match to more frequent subs.
-                [childSubs, ~] = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
-                    adaptiveMinThreshold, singlePrecision);
+                 [childSubs, ~] = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
+                     adaptiveMinThreshold, singlePrecision);
 
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 % Setting overlap to 1, since we've already checked for it
                 % in extendSub.
                 childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+                    allSigns, graphSize, 1, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
                 
                 %% Eliminate childSubs which will render useless to preserve memory.
-                mdlScores = [childSubs.mdlScore];
-                validMdlScoreIdx = mdlScores > minMdlScore;
-                childSubs = childSubs(validMdlScoreIdx);
+ %               mdlScores = [childSubs.mdlScore];
+ %               validMdlScoreIdx = mdlScores > minMdlScore;
+ %               childSubs = childSubs(validMdlScoreIdx);
                     
                 % If no subs are remaining, continue.
                 if isempty(childSubs) 
@@ -344,6 +345,12 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
                stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, maxDepth);
            bestSubs = evaluateSubs(bestSubs, evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, 1, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised); 
+           for bestSubItr = 1:numel(bestSubs)
+               bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
+           end
+           mdlScores = [bestSubs.mdlScore];
+           [~, mdlSortIdx] = sort(mdlScores, 'descend');
+           bestSubs = bestSubs(mdlSortIdx);
        end
        
         numberOfBestSubs = numel(bestSubs);

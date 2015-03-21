@@ -101,12 +101,13 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
        % Eliminate subs that match to better subs. We'll have subs that are
        % far away from each other (in terms of pairwise distances), and
        % thus we will have less subs to evaluate.]
-       validSubIdx = getDisjointSubs(bestSubs(partLeafCountOrder), ...
-           nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, midThr);
-       numberOfRemainingBestSubs = nnz(validSubIdx);
+ %      validSubIdx = getDisjointSubs(bestSubs(partLeafCountOrder), ...
+ %          nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, midThr);
+ %      numberOfRemainingBestSubs = nnz(validSubIdx);
+       numberOfRemainingBestSubs = numberOfBestSubs;
        display(['[SUBDUE] Eliminating overlapping subs. We are down to ' num2str(numberOfRemainingBestSubs) ' subs.']);
        % Eliminating invalid subs by setting their contributions to zero.
-       partLeafCounts(~validSubIdx) = 0;
+%       partLeafCounts(~validSubIdx) = 0;
        
        % Go ahead and select parts.
        for bestSubItr = 1:numberOfFinalSubs

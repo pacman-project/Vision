@@ -95,7 +95,7 @@ function [ options ] = SetParametersCALTECH101_small( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.25;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -106,13 +106,13 @@ function [ options ] = SetParametersCALTECH101_small( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 5;         % This parameter is used to quantize 
+    options.edgeQuantize = 7;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
                                         % down to this window, and then
                                         % quantized. 
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.7;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -144,7 +144,7 @@ function [ options ] = SetParametersCALTECH101_small( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*6; %Max dimension of the 
                                        % images the algorithm will work
@@ -190,12 +190,12 @@ function [ options ] = SetParametersCALTECH101_small( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
         
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -216,7 +216,7 @@ function [ options ] = SetParametersCALTECH101_small( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 120;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -244,8 +244,8 @@ function [ options ] = SetParametersCALTECH101_small( datasetName, options )
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 200;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
