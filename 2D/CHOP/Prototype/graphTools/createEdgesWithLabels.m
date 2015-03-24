@@ -44,32 +44,37 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     
     %% Put each image's node set into a different bin.
     numberOfImages = max(imageIds);
+    imageNodeIdxSets = cell(numberOfImages, 1);
+    imageNodeOffsets = zeros(numberOfImages, 1, 'int32');
     imageGraphNodeSets = cell(numberOfImages, 1);
     imageNodeIdArr = cell(numberOfImages,1);
     imageNodeCoordArr = cell(numberOfImages,1);
+    nodeOffset = 0;
     for imageItr = 1:max(imageIds)
-       imageNodeIdx = imageIds == imageItr;
+       imageNodeIdx = find(imageIds == imageItr)';
+       imageNodeIdxSets(imageItr) = {imageNodeIdx};
        imageGraphNodeSets(imageItr) = {currentLevel(imageIds == imageItr)};
        imageNodeIdArr(imageItr) = {nodeIds(imageNodeIdx)};
        imageNodeCoordArr(imageItr) = {nodeCoords(imageNodeIdx,:)};
+       imageNodeOffsets(imageItr) = nodeOffset;
+       nodeOffset = nodeOffset + nnz(imageNodeIdx);
     end
     
     
     %% Process each image separately (and in parallel)
     parfor imageItr = 1:numberOfImages
-        imageNodeOffset = numel(find(imageIds < imageItr));
-        imageNodeIdx = imageIds == imageItr;
+        imageNodeOffset = imageNodeOffsets(imageItr);
+        imageNodeIdx = imageNodeIdxSets{imageItr};
+        numberOfNodes = numel(imageNodeIdx);
 
         % If there are no nodes in this image, move on.
-        if nnz(imageNodeIdx) == 0
+        if numberOfNodes == 0
            continue; 
         end
         
         % Get data structures containing information about the nodes in this image.
         curNodeIds = imageNodeIdArr{imageItr};
         curNodeCoords = imageNodeCoordArr{imageItr};
-        imageNodeIdx = find(imageNodeIdx)';
-        numberOfNodes = numel(imageNodeIdx);
         curGraphNodes = imageGraphNodeSets{imageItr};
         curLeafNodes = {curGraphNodes.leafNodes};
         maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeNoveltyThr;
@@ -104,7 +109,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
            end
            
            %% Assign final adjacent nodes.
-           curAdjacentNodes(nodeItr) = {[repmat(nodeItr, numel(adjacentNodes),1), adjacentNodes]}; 
+           curAdjacentNodes(nodeItr) = {[repmat(int32(nodeItr), numel(adjacentNodes),1), adjacentNodes]}; 
         end
         
         % Get rid of empty entries in curAdjacentNodes.

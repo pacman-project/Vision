@@ -28,7 +28,7 @@ function [childSubs, validSubs] = getNonOverlappingSubs(childSubs, nodeDistanceM
         
         % If they have not been evaluated yet, we order them by occurence
         % counts.
-        if isempty(childSubs(1).mdlScore)
+        if isempty(childSubs(1).normMdlScore)
             freqScores = zeros(numberOfChildSubs,1);
             for subItr = 1:numberOfChildSubs
                 freqScores(subItr) = size(childSubs(subItr).instanceCenterIdx,1);
