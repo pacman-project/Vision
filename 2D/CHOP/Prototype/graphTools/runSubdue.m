@@ -134,7 +134,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     startTime = tic;
     % Let's find the adaptive threshold with the size of the minimum 
     currentSize = 2;
-    minMdlScore = 0; % This two will increase as more and more subs are discovered.
+    minMdlScore = -inf; % This two will increase as more and more subs are discovered.
     bestMdlScores = [];
     
     while ~isempty(parentSubs)
@@ -234,12 +234,12 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
                 % Setting overlap to 1, since we've already checked for it
                 % in extendSub.
                 childSubs = evaluateSubs(childSubs, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, 1, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
                 
                 %% Eliminate childSubs which will render useless to preserve memory.
- %               mdlScores = [childSubs.mdlScore];
- %               validMdlScoreIdx = mdlScores > minMdlScore;
- %               childSubs = childSubs(validMdlScoreIdx);
+                mdlScores = [childSubs.mdlScore];
+                validMdlScoreIdx = mdlScores > minMdlScore;
+                childSubs = childSubs(validMdlScoreIdx);
                     
                 % If no subs are remaining, continue.
                 if isempty(childSubs) 
@@ -263,7 +263,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
             end
             
             % In addition, remove the subs that have low mdl scores.
-            if minMdlScore > 0
+            if minMdlScore ~= -inf
                 validBestSubIdx = bestMdlScores >= minMdlScore;
                 bestSubs = bestSubs(validBestSubIdx);
                 nonemptyArrIdx = cellfun(@(x) ~isempty(x), childSubArr);
@@ -531,7 +531,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, ~, threshold)
+function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, overlap, threshold)
     centerIdx = sub.instanceCenterIdx;
     subAllEdges = {allEdges(centerIdx).adjInfo}';
     % Get unused edges from sub's instances.
@@ -548,7 +548,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
 %        allUsedEdges = [];
     end
     
-    % Here, we mark used nodes for this sub.
+%     % Here, we mark used nodes for this sub.
 %     if ~overlap
 %         validNodeArr = ones(numel(allEdges),1, 'uint8')>0;
 %         validNodeArr(centerIdx) = 0;
@@ -636,17 +636,17 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         edgesToExtendIdx = edgesToExtendCosts < threshold;
         
         % Remove instances leading to duplicate use.
-%         if ~overlap
-%             % We check for overlaps among center nodes/added nodes.
-%             idx = find(edgesToExtendIdx);
-%             bothNodes = allUnusedEdges(edgesToExtendIdx,1:2);
-%             edgesToExtendIdx(edgesToExtendIdx) = 0;
-%             [~, uniqueCenterNodeIdx, ~] = unique(bothNodes(:,1), 'stable');
-%             [~, uniqueSecondNodeIdx, ~] = unique(bothNodes(uniqueCenterNodeIdx,2), 'stable');
-%             idx = idx(uniqueCenterNodeIdx(uniqueSecondNodeIdx));
-%             edgesToExtendIdx(idx) = 1;
-%         end
-%       
+        if ~overlap
+            % We check for overlaps among center nodes/added nodes.
+            idx = find(edgesToExtendIdx);
+            bothNodes = allUnusedEdges(edgesToExtendIdx,1:2);
+            edgesToExtendIdx(edgesToExtendIdx) = 0;
+            [~, uniqueCenterNodeIdx, ~] = unique(bothNodes(:,1), 'stable');
+            [~, uniqueSecondNodeIdx, ~] = unique(bothNodes(uniqueCenterNodeIdx,2), 'stable');
+            idx = idx(uniqueCenterNodeIdx(uniqueSecondNodeIdx));
+            edgesToExtendIdx(idx) = 1;
+        end
+      
         % Save instance ids.
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
         allChildren = [sub.instanceChildren(edgeInstanceIds,:), ...

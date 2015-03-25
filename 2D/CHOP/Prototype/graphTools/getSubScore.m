@@ -40,20 +40,12 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
             (isMultiNodeSub && strcmp(evalMetric, 'mdl')) % multi node + mdl
         centerIdx = sub.instanceCenterIdx;
         instanceEdges = {allEdges(centerIdx).adjInfo}';
-        centerCellIdx = num2cell(centerIdx);
         
         % Calculate outgoing nodes (destinations of edges where
         % instance's children are the source).
-        if isMultiNodeSub
-            instanceUsedEdgeIdx = sub.instanceEdges;
-            instanceUsedEdgeIdx = mat2cell(instanceUsedEdgeIdx, ones(size(instanceUsedEdgeIdx,1),1), size(instanceUsedEdgeIdx,2));
-            numberOfNodes = numel(allEdges);
-            numberOfInstances = numel(instanceSigns);   % Beware: Changes if overlap not allowed!
-            instanceChildren = cellfun(@(x,y,z) sort([z; x(y,2)]), instanceEdges, instanceUsedEdgeIdx, centerCellIdx, 'UniformOutput', false);
-        else
-            % Single node sub.
-            instanceChildren = centerCellIdx;
-        end
+        instanceChildren = sub.instanceChildren;
+        numberOfNodes = numel(allEdges);
+        numberOfInstances = numel(instanceSigns);   % Beware: Changes if overlap not allowed!
 
         % If this is a single sub, we only take instances with no POSSIBLE
         % edges into account. If we do not do that, they end up clogging
@@ -76,8 +68,8 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
             matchedNodes = zeros(numberOfNodes,1)>0;
             validInstances = zeros(numberOfInstances,1) > 0;
             for instItr = 1:numberOfInstances
-                children = instanceChildren{instItr};
-                if nnz(matchedNodes(instanceChildren{instItr})) == 0
+                children = instanceChildren(instItr,:);
+                if nnz(matchedNodes(instanceChildren(instItr,:))) == 0
                     matchedNodes(children) = 1;
                     validInstances(instItr) = 1;
                 end
@@ -85,7 +77,7 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
 
             % Filter out data for invalid instances from existing data structures.
             instanceSigns = instanceSigns(validInstances);
-            instanceChildren = instanceChildren(validInstances);
+            instanceChildren = instanceChildren(validInstances, :);
 
             %% Remove overlapping nodes.
             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
@@ -112,7 +104,11 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
                subScore = 0;
             else
               % Get average degree of children.
-                uniqueNodes = unique(cat(1, instanceChildren{:}));
+                if overlap
+                    uniqueNodes = unique(instanceChildren);
+                else
+                    uniqueNodes = sort(instanceChildren(:), 'ascend');
+                end
                 uniqueEdgeList = {allEdges(uniqueNodes).adjInfo};
                 avgDegree = mean(cellfun(@(x) size(x,1), uniqueEdgeList));
 
@@ -156,8 +152,8 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
                         % background instances, the exact mdl calculation can
                         % be greatly simplified, resulting in a faster process.
                         instChildrenIds = 1:numberOfNodes;
-                        for instItr = 1:numel(instanceChildren)
-                            instChildrenIds(instanceChildren{instItr}) = instItr;
+                        for instItr = 1:size(instanceChildren, 1)
+                            instChildrenIds(instanceChildren(instItr, :)) = instItr;
                         end
                         instanceNeighbors = allEdgeNodePairs(xor(ismembc(allEdgeNodePairs(:,1), uniqueNodes), ismember(allEdgeNodePairs(:,2),uniqueNodes)),:);
                         instanceNeighbors = instChildrenIds(instanceNeighbors);

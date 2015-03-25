@@ -122,11 +122,18 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
         %% Normalize distances by the size of compared parts.
         childrenCounts = {vocabLevel.children};
         childrenCounts = cellfun(@(x) numel(x), childrenCounts);
-        for partItr = 1:numel(vocabLevel);
-            newDistanceMatrix(partItr,:) = newDistanceMatrix(partItr,:) ./ ...
-               (max(childrenCounts, repmat(childrenCounts(partItr), 1, numberOfNodes)) * 2 - 1);
+        % Normalize distances for multiple-node subs, considering number of
+        % children and max distance.
+        maxChildrenCountMatrix = repmat(childrenCounts, numel(vocabLevel), 1);
+        maxChildrenCountMatrix = max(maxChildrenCountMatrix, maxChildrenCountMatrix');
+        newDistanceMatrix = newDistanceMatrix ./ maxChildrenCountMatrix;
+        multipleNodeIdx = maxChildrenCountMatrix > 1;
+        normConstant = max(max(newDistanceMatrix(multipleNodeIdx)));
+        if ~isempty(normConstant)
+            if normConstant>0
+                newDistanceMatrix(multipleNodeIdx) = newDistanceMatrix(multipleNodeIdx) / normConstant;
+            end
         end
-        newDistanceMatrix = newDistanceMatrix / max(max(newDistanceMatrix));
         newDistanceMatrix = single(newDistanceMatrix);
     else
         newDistanceMatrix = ones(numel(vocabLevel), 'single');
