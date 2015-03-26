@@ -20,7 +20,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
@@ -190,7 +190,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
         
@@ -216,7 +216,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 1200;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 120;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -244,8 +244,8 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 300;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, options)
+function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, optimalThresholds, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -39,7 +39,7 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, option
     % Assign nodes their image ids.
     nodes = zeros(size(cellNodes,1), 3, 'int32');
     nodes(:,1:3) = cell2mat(cellNodes);
-    exportArr = inferSubs(vocabulary, nodes, distanceMatrices, options);
+    exportArr = inferSubs(vocabulary, nodes, distanceMatrices, optimalThresholds, options);
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' fileName '_test.mat'], 'file')

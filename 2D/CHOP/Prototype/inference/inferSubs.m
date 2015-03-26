@@ -15,9 +15,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, options)
+function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThresholds, options)
     % Read data into helper data structures.
-    threshold = options.subdue.threshold;
     scaling = options.scaling;
     edgeQuantize = options.edgeQuantize;
     downEdgeRadius = floor((edgeQuantize-1)/2);
@@ -33,6 +32,8 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, options)
     nodes(:,2:3) = (nodes(:,2:3)) * (downEdgeRadius / edgeRadius);
     allNodes = cell(numel(vocabulary),1);
     allNodes(1) = {nodes};
+    leafNodeArr = 1:size(nodes,1)';
+    
     for vocabLevelItr = 2:numel(vocabulary)
         % First, downsample nodes.
         if vocabLevelItr>2
@@ -45,7 +46,7 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, options)
         vocabRealizationsConfidence = cell(numel(vocabLevel),1);
         nodeDistanceMatrix = distanceMatrices{vocabLevelItr-1};
         for vocabItr = 1:numel(vocabLevel)
-             adaptiveThreshold = single(threshold * ((size(vocabLevel(vocabItr).adjInfo,1)+1)*2-1)) + 0.0001; % Hard threshold for cost of matching two subs.
+             adaptiveThreshold = single(optimalThresholds(vocabLevelItr) * ((size(vocabLevel(vocabItr).adjInfo,1)+1)*2-1)) + 0.0001; % Hard threshold for cost of matching two subs.
              %% Subgraph matching.
              % Start with the center.
              centerId = vocabLevel(vocabItr).children(1);
@@ -78,7 +79,7 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, options)
                     neighborPosDiff = nodes(:,2:3) - repmat(nodes(instanceChildren(parentItr,1),2:3), numberOfNodes, 1);
                     nodeDistances = sum(neighborPosDiff.^2, 2);
                     validNeighbors = find(nodeDistances <= downEdgeRadius^2);
-                    validNeighbors = setdiff(validNeighbors, instanceChildren(parentItr,1));
+                    validNeighbors = setdiff(validNeighbors, instanceChildren(parentItr,:));
                     neighborPosDiff = neighborPosDiff(validNeighbors,:);
                     edgeIdPos = fix(neighborPosDiff) + downEdgeRadius + 1;
                     neighborEdgeIdx = sub2ind([edgeQuantize, edgeQuantize], edgeIdPos(:,1), edgeIdPos(:,2));
@@ -101,8 +102,24 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, options)
                 instanceChildren = cat(1, childInstances{:});
                 instanceMatchCosts = cat(1, childMatchingCosts{:});
             end
+            
+            numberOfInstances = size(instanceChildren,1);
+%            validInstances = ones(numberOfInstances,1) > 0;
+            % Finally, we eliminate nstances that share nodes between them.
+            matchedNodes = zeros(numberOfNodes,1)>0;
+            validInstances = zeros(numberOfInstances,1) > 0;
+            for instItr = 1:numberOfInstances
+                children = instanceChildren(instItr,:);
+                if nnz(matchedNodes(instanceChildren(instItr,:))) == 0
+                    matchedNodes(children) = 1;
+                    validInstances(instItr) = 1;
+                end
+            end
+            instanceChildren = instanceChildren(validInstances,:);
+            
+           % Save the instances.
            vocabRealizations(vocabItr) = {instanceChildren};
-           instanceConfidences = (adaptiveThreshold - instanceMatchCosts )/ adaptiveThreshold;
+           instanceConfidences = (adaptiveThreshold - instanceMatchCosts(validInstances))/ adaptiveThreshold;
            vocabRealizationsConfidence(vocabItr) = {instanceConfidences};
         end
 
