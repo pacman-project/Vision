@@ -79,13 +79,13 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances, :);
 
-            %% Remove overlapping nodes.
-            sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
-            sub.instanceChildren = sub.instanceChildren(validInstances,:);
-            sub.instanceEdges = sub.instanceEdges(validInstances,:);
-            sub.instanceSigns = sub.instanceSigns(validInstances,:);
-            sub.instanceCategories = sub.instanceCategories(validInstances,:);
-            sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
+%             %% Remove overlapping nodes.
+%             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
+%             sub.instanceChildren = sub.instanceChildren(validInstances,:);
+%             sub.instanceEdges = sub.instanceEdges(validInstances,:);
+%             sub.instanceSigns = sub.instanceSigns(validInstances,:);
+%             sub.instanceCategories = sub.instanceCategories(validInstances,:);
+%             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
         end
     end
     
@@ -100,7 +100,7 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
         case 'size'
             subScore = sum(instanceConstants) * (size(sub.edges,1) + 1);
         case 'mdl'
-            if isempty(sub.instanceCenterIdx)
+            if isempty(instanceChildren)
                subScore = 0;
             else
               % Get average degree of children.
