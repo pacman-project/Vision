@@ -195,7 +195,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                            % that can be selected.
         
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -239,12 +239,12 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.15; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.2; % Max threshold for elastic part matching. 
+    options.subdue.maxThreshold = 0.25; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 5; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 200000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 400000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

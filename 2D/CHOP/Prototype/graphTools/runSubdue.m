@@ -209,7 +209,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
             %% Step 2.1: If it has been too long, we need to finish execution.
             elapsedTime = toc(startTime);
             haltedParent = -1;
-            if elapsedTime > maxTime
+            if elapsedTime > maxTime && currentSize > 2
                 haltedParent = parentSubSets{setItr}(1);
                 display(['[SUBDUE] Time is up! Breaking from process before ' ...
                     'extending parent ' num2str(haltedParent) ' of size ' num2str(size(parentSubs(1).edges,1)+1) '..']);
@@ -344,7 +344,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
                allLeafNodes, prevGraphNodeCount, maxPrevGraphNodeId, nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
                stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, maxDepth);
            bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, 1, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised); 
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
            for bestSubItr = 1:numel(bestSubs)
                bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
            end

@@ -32,7 +32,7 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
     nodes(:,2:3) = (nodes(:,2:3)) * (downEdgeRadius / edgeRadius);
     allNodes = cell(numel(vocabulary),1);
     allNodes(1) = {nodes};
-    leafNodeArr = 1:size(nodes,1)';
+    leafNodeArr = num2cell((1:size(nodes,1))');
     
     for vocabLevelItr = 2:numel(vocabulary)
         % First, downsample nodes.
@@ -103,34 +103,86 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
                 instanceMatchCosts = cat(1, childMatchingCosts{:});
             end
             
-            numberOfInstances = size(instanceChildren,1);
-%            validInstances = ones(numberOfInstances,1) > 0;
-            % Finally, we eliminate nstances that share nodes between them.
-            matchedNodes = zeros(numberOfNodes,1)>0;
-            validInstances = zeros(numberOfInstances,1) > 0;
-            for instItr = 1:numberOfInstances
-                children = instanceChildren(instItr,:);
-                if nnz(matchedNodes(instanceChildren(instItr,:))) == 0
-                    matchedNodes(children) = 1;
-                    validInstances(instItr) = 1;
-                end
-            end
-            instanceChildren = instanceChildren(validInstances,:);
-            
+%             numberOfInstances = size(instanceChildren,1);
+% %            validInstances = ones(numberOfInstances,1) > 0;
+%             % Finally, we eliminate instances that share nodes between them.
+%             matchedNodes = zeros(numberOfNodes,1)>0;
+%             validInstances = zeros(numberOfInstances,1) > 0;
+%             for instItr = 1:numberOfInstances
+%                 children = instanceChildren(instItr,:);
+%                 if nnz(matchedNodes(instanceChildren(instItr,:))) == 0
+%                     matchedNodes(children) = 1;
+%                     validInstances(instItr) = 1;
+%                 end
+%             end
+
+%             instanceChildren = instanceChildren(validInstances,:);
+           if isempty(vocabEdges)
+               validInstances = zeros(size(instanceChildren,1),1) > 0;
+               for parentItr = 1:size(instanceChildren,1)
+                    neighborPosDiff = nodes(:,2:3) - repmat(nodes(instanceChildren(parentItr,1),2:3), numberOfNodes, 1);
+                    nodeDistances = sum(neighborPosDiff.^2, 2);
+                    validNeighbors = find(nodeDistances <= downEdgeRadius^2);
+                    validNeighbors = setdiff(validNeighbors, instanceChildren(parentItr,:));
+                    if isempty(validNeighbors)
+                       validInstances(parentItr) = 1;
+                    end
+               end
+               
+               % Eliminate instances which have edges leading out.
+               if nnz(validInstances) > 0    
+                   instanceChildren = instanceChildren(validInstances, :);
+                   instanceMatchCosts = instanceMatchCosts(validInstances, :);
+               else
+                   instanceChildren = [];
+                   instanceMatchCosts = [];
+               end
+           end
+
            % Save the instances.
            vocabRealizations(vocabItr) = {instanceChildren};
-           instanceConfidences = (adaptiveThreshold - instanceMatchCosts(validInstances))/ adaptiveThreshold;
+           instanceConfidences = (adaptiveThreshold - instanceMatchCosts)/ adaptiveThreshold;
            vocabRealizationsConfidence(vocabItr) = {instanceConfidences};
         end
 
         % Get confidences.
         confidenceArr = double(cat(1, vocabRealizationsConfidence{:}));
-        confidenceArrCell = num2cell(confidenceArr);
         numberOfInstances =numel(confidenceArr);
         
         if numberOfInstances == 0 || vocabLevelItr == numel(vocabulary)
             break;
         end
+        
+        %% We do two things here in order to eliminate number of nodes.]
+        % Step zero: Get the list of leaf nodes for every instance.
+        instanceOffset = 1;
+        newLeafNodes = cell(numberOfInstances,1);
+        for vocabNodeItr = 1:numel(vocabLevel)
+            if ~isempty(vocabRealizations{vocabNodeItr})
+                children = vocabRealizations{vocabNodeItr};
+                for instanceItr = 1:size(children,1)
+                    leafNodes = unique(cat(2, leafNodeArr{children(instanceItr,:)}));
+                    newLeafNodes{instanceOffset} = leafNodes;
+                    instanceOffset = instanceOffset + 1;
+                end
+            end
+        end
+        
+        
+        
+        % First, we assign each unique set of children to their best matches in the vocabulary.
+        allRealizations = {vocabRealizations{:}};
+        [~, sortIdx] = sort(confidenceArr, 'ascend');
+        
+        
+        
+        
+        % Second, we perform inhibition, which is practically the same
+        % procedure as training.
+        
+        
+        
+        
         
         %% Here, we'll form a new nodes array. 
         % Estimate a new confidence for each realization by propogating

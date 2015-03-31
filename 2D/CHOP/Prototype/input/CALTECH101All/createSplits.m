@@ -15,7 +15,7 @@
 function [ ] = createSplits(datasetFolder)
     numberOfRuns = 10;
 %    trainCounts = [1, 3, 5, 10, 15, 20, 30];
-    trainCounts = 15;
+    trainCounts = 5;
     testCount = 20;
     
     % Read names of classes.

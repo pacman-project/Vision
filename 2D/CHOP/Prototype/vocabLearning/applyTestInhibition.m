@@ -28,13 +28,13 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
         return;
     end
     
- %   confidenceArr = [graphLevel.confidence];
+    confidenceArr = [graphLevel.confidence];
     % If confidences are marked, we do elimination based on them, not mdl
     % scores of matching subs.
- %   if ~isempty(confidenceArr)
- %       [~, sortIdx] = sort(confidenceArr, 'descend');
- %       graphLevel = graphLevel(sortIdx);
- %   end
+   if ~isempty(confidenceArr)
+       [~, sortIdx] = sort(confidenceArr, 'descend');
+       graphLevel = graphLevel(sortIdx);
+   end
 
     % Fill in necessary internal structures.
     imageIds = [graphLevel.imageId];
@@ -88,5 +88,10 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     end
     preservedNodes = [preservedNodes{:}]>0;
     graphLevel = graphLevel(:,preservedNodes);
+    
+    % Rearrange graph level so it is sorted by image id.
+    arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];
+    [~, sortedIdx] = sortrows(arrayToSort);
+    graphLevel = graphLevel(sortedIdx);
     clear imageGraphLevels imageAllNodeCoords preservedNodes;
 end
