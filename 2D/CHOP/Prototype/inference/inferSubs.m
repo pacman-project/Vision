@@ -153,38 +153,7 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
             break;
         end
         
-        %% We do two things here in order to eliminate number of nodes.]
-        % Step zero: Get the list of leaf nodes for every instance.
-        instanceOffset = 1;
-        newLeafNodes = cell(numberOfInstances,1);
-        for vocabNodeItr = 1:numel(vocabLevel)
-            if ~isempty(vocabRealizations{vocabNodeItr})
-                children = vocabRealizations{vocabNodeItr};
-                for instanceItr = 1:size(children,1)
-                    leafNodes = unique(cat(2, leafNodeArr{children(instanceItr,:)}));
-                    newLeafNodes{instanceOffset} = leafNodes;
-                    instanceOffset = instanceOffset + 1;
-                end
-            end
-        end
-        
-        
-        
-        % First, we assign each unique set of children to their best matches in the vocabulary.
-        allRealizations = {vocabRealizations{:}};
-        [~, sortIdx] = sort(confidenceArr, 'ascend');
-        
-        
-        
-        
-        % Second, we perform inhibition, which is practically the same
-        % procedure as training.
-        
-        
-        
-        
-        
-        %% Here, we'll form a new nodes array. 
+        %% We'll form a new nodes array. 
         % Estimate a new confidence for each realization by propogating
         % from previous layers.
         newNodes = zeros(numberOfInstances,3);
@@ -200,6 +169,56 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
                startIdx = startIdx+1;
            end
         end
+        
+        %% We do two things here in order to eliminate number of nodes.]
+        % Step zero: Get the list of leaf nodes for every instance.
+        instanceOffset = 1;
+        newLeafNodes = cell(numberOfInstances,1);
+        for vocabNodeItr = 1:numel(vocabLevel)
+            if ~isempty(vocabRealizations{vocabNodeItr})
+                children = vocabRealizations{vocabNodeItr};
+                for instanceItr = 1:size(children,1)
+                    leafNodes = unique(cat(2, leafNodeArr{children(instanceItr,:)}));
+                    newLeafNodes{instanceOffset} = leafNodes;
+                    instanceOffset = instanceOffset + 1;
+                end
+            end
+        end
+        
+        % First, we assign each unique set of children to their best matches in the vocabulary.
+        [~, sortIdx] = sort(confidenceArr, 'descend');
+        sortedLeafNodeArr = newLeafNodes(sortIdx);
+        sortedNewNodes = newNodes(sortIdx, :);
+        imagePreservedNodes = ones(numberOfInstances,1)>0;
+        imageNodeCoords = sortedNewNodes(:,2:3);
+        maxSharedLeafNodes = cellfun(@(x) numel(x) * noveltyThr , sortedLeafNodeArr, 'UniformOutput', false);
+        for nodeItr = 1:(numberOfInstances-1)
+            %% If nobody has erased this node before, it has a right to be in the final graph.
+            if imagePreservedNodes(nodeItr) == 0
+                continue;
+            end
+           
+            %% Get each neighboring node.
+            thisNodeCoords = sortedNewNodes(nodeItr,2:3);
+            centerArr = repmat(thisNodeCoords, numberOfInstances, 1);
+            distances = sqrt(sum((centerArr - imageNodeCoords).^2, 2));
+            adjacentNodes = imagePreservedNodes & distances <= neighborhood; 
+            adjacentNodes(1:nodeItr) = 0;
+            selfLeafNodes = sortedLeafNodeArr{nodeItr};
+
+            %% Go over each adjacent node, and apply inhibition if their leaf nodes are too common under current novelty threshold.
+            imagePreservedNodes(adjacentNodes) = cellfun(@(x,y) sum(ismembc(x, selfLeafNodes)) <= y, ...
+              sortedLeafNodeArr(adjacentNodes), maxSharedLeafNodes(adjacentNodes));
+        end
+        
+        
+        % Second, we perform inhibition, which is practically the same
+        % procedure as training.
+        
+        
+        
+        
+        
         allNodes(vocabLevelItr) = {newNodes};
         nodes = newNodes;
     end
