@@ -60,7 +60,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
        nodeOffset = nodeOffset + nnz(imageNodeIdx);
     end
     
-    
     %% Process each image separately (and in parallel)
     parfor imageItr = 1:numberOfImages
         imageNodeOffset = imageNodeOffsets(imageItr);
@@ -83,7 +82,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
         %% Find all edges within this image.
         for nodeItr = 1:numberOfNodes
            centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
-           distances = sqrt(sum((centerArr - curNodeCoords).^2, 2));
+           distances = sqrt(sum((curNodeCoords - centerArr).^2, 2));
            adjacentNodes = distances <= neighborhood;
            
            %% Check for edge novelty.
@@ -127,7 +126,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
         node2Labels = curNodeIds(allEdges(:,2));
         node1Coords = curNodeCoords(allEdges(:,1),:);
         node2Coords = curNodeCoords(allEdges(:,2),:);
-        edgeCoords = node1Coords - node2Coords;
+        edgeCoords = node2Coords - node1Coords;
         
         % Remove edges between overlapping (same position) nodes having same id.
         labelEqualityArr = node1Labels == node2Labels;

@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThresholds, options)
+function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThresholds, options)
     % Read data into helper data structures.
     scaling = options.scaling;
     edgeQuantize = options.edgeQuantize;
@@ -23,22 +23,31 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
     edgeRadius = options.edgeRadius;
     edgeIdMatrix = options.edgeIdMatrix;
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
+    noveltyThr = 1 - options.noveltyThr;
+    halfMatrixSize = (options.edgeQuantize+1)/2;
+    matrixSize = [options.edgeQuantize, options.edgeQuantize];
     
     exportArr = [];
     if isempty(nodes) || isempty(vocabulary)
         return;
     end
     nodes = double(nodes);
-    nodes(:,2:3) = (nodes(:,2:3)) * (downEdgeRadius / edgeRadius);
     allNodes = cell(numel(vocabulary),1);
+    allConfidences = cell(numel(vocabulary),1);
     allNodes(1) = {nodes};
+    allConfidences(1) = {ones(size(nodes,1), 1, 'double')};
     leafNodeArr = num2cell((1:size(nodes,1))');
     
     for vocabLevelItr = 2:numel(vocabulary)
+        scale = (1/options.scaling)^(vocabLevelItr-1);
+        neighborhood = floor(options.edgeRadius * scale);
+        downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
+ %       scale = (1/options.scaling)^(vocabLevelItr-1);
+ %      neighborhood = fix(options.edgeRadius*scale);
         % First, downsample nodes.
-        if vocabLevelItr>2
-            nodes(:,2:3) = round(nodes(:,2:3)) * scaling;
-        end
+%         if vocabLevelItr>2
+%             nodes(:,2:3) = round(nodes(:,2:3)) * scaling;
+%         end
         
         %% Match subs from vocabLevel to their instance in graphLevel.
         vocabLevel = vocabulary{vocabLevelItr};
@@ -77,13 +86,18 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
                     % question. We're trying to match an edge to the data
                     % in hand.
                     neighborPosDiff = nodes(:,2:3) - repmat(nodes(instanceChildren(parentItr,1),2:3), numberOfNodes, 1);
-                    nodeDistances = sum(neighborPosDiff.^2, 2);
-                    validNeighbors = find(nodeDistances <= downEdgeRadius^2);
+                    nodeDistances = sqrt(sum(neighborPosDiff.^2, 2));
+                    validNeighbors = find(nodeDistances <= neighborhood);
                     validNeighbors = setdiff(validNeighbors, instanceChildren(parentItr,:));
+                    
+                    % TODO: Check edge novelty, as well as max number of
+                   % edges here.
+              
+                    % Find edge labels.
                     neighborPosDiff = neighborPosDiff(validNeighbors,:);
-                    edgeIdPos = fix(neighborPosDiff) + downEdgeRadius + 1;
-                    neighborEdgeIdx = sub2ind([edgeQuantize, edgeQuantize], edgeIdPos(:,1), edgeIdPos(:,2));
-                    neighborEdgeIds = edgeIdMatrix(neighborEdgeIdx);
+                    normalizedNeighborPosDiff = fix(fix(downsampleRatio * neighborPosDiff) + halfMatrixSize);
+                    matrixInd = sub2ind(matrixSize, normalizedNeighborPosDiff(:,1), normalizedNeighborPosDiff(:,2));
+                    neighborEdgeIds = edgeIdMatrix(matrixInd);
                     matchCosts = instanceMatchCosts(parentItr) + edgeDistanceMatrix(neighborEdgeIds, vocabEdges(edgeItr,3)) + ...
                                                                         nodeDistanceMatrix(nodes(validNeighbors,1), vocabLevel(vocabItr).children(vocabEdges(edgeItr,2)));
                                                                     
@@ -186,7 +200,7 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
         end
         
         % First, we assign each unique set of children to their best matches in the vocabulary.
-        [~, sortIdx] = sort(confidenceArr, 'descend');
+        [sortedConfidenceArr, sortIdx] = sort(confidenceArr, 'descend');
         sortedLeafNodeArr = newLeafNodes(sortIdx);
         sortedNewNodes = newNodes(sortIdx, :);
         imagePreservedNodes = ones(numberOfInstances,1)>0;
@@ -202,7 +216,7 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
             thisNodeCoords = sortedNewNodes(nodeItr,2:3);
             centerArr = repmat(thisNodeCoords, numberOfInstances, 1);
             distances = sqrt(sum((centerArr - imageNodeCoords).^2, 2));
-            adjacentNodes = imagePreservedNodes & distances <= neighborhood; 
+            adjacentNodes = imagePreservedNodes & distances <= edgeRadius; 
             adjacentNodes(1:nodeItr) = 0;
             selfLeafNodes = sortedLeafNodeArr{nodeItr};
 
@@ -210,18 +224,17 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
             imagePreservedNodes(adjacentNodes) = cellfun(@(x,y) sum(ismembc(x, selfLeafNodes)) <= y, ...
               sortedLeafNodeArr(adjacentNodes), maxSharedLeafNodes(adjacentNodes));
         end
+        sortedNewNodes = sortedNewNodes(imagePreservedNodes, :);
+        sortedLeafNodeArr = sortedLeafNodeArr(imagePreservedNodes, :);
+        sortedConfidenceArr = sortedConfidenceArr(imagePreservedNodes, :);
         
-        
-        % Second, we perform inhibition, which is practically the same
-        % procedure as training.
-        
-        
-        
-        
-        
-        allNodes(vocabLevelItr) = {newNodes};
-        nodes = newNodes;
+        % Write to output and move on to the next level.
+        allNodes(vocabLevelItr) = {sortedNewNodes};
+        allConfidences(vocabLevelItr) = {sortedConfidenceArr};
+        leafNodeArr = sortedLeafNodeArr;
+        nodes = sortedNewNodes;
     end
+    confidenceArr = cat(1, allConfidences{:});
     
     numberOfInstances = sum(cellfun(@(x) size(x,1), allNodes));
     %% If no instances have been found, exit.
@@ -239,8 +252,9 @@ function [exportArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThr
         if isempty(thisLevelNodes)
             break;
         end
-        allNodes(startIdx:(startIdx + numel(thisLevelNodes) - 1), 4) = vocabLevelItr;
-        allNodes(startIdx:(startIdx + numel(thisLevelNodes) - 1), 1:3) = thisLevelNodes;
+        exportArr(startIdx:(startIdx + size(thisLevelNodes,1) - 1), 4) = vocabLevelItr;
+        exportArr(startIdx:(startIdx + size(thisLevelNodes,1) - 1), 1:3) = thisLevelNodes;
+        startIdx = startIdx + size(thisLevelNodes,1);
     end
 end
 

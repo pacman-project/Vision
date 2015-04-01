@@ -39,7 +39,7 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, optima
     % Assign nodes their image ids.
     nodes = zeros(size(cellNodes,1), 3, 'int32');
     nodes(:,1:3) = cell2mat(cellNodes);
-    exportArr = inferSubs(vocabulary, nodes, distanceMatrices, optimalThresholds, options);
+    [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThresholds, options);
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' fileName '_test.mat'], 'file')

@@ -20,7 +20,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
     options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
@@ -54,9 +54,9 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 50000; % Number of random patches used 
+    options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
-    options.auto.stride = 4;           % Stride to use when extracting first-
+    options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
@@ -95,13 +95,13 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -144,9 +144,9 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 1000;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxImageDim = options.receptiveFieldSize*8; %Max dimension of the 
+    options.maxImageDim = options.receptiveFieldSize*5; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in
                                        % the dataset is larger than this
@@ -163,8 +163,8 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                        % edgeRadius grows at every level
                                        % with the same ratio as the
                                        % receptive field.
-    options.maxLevels = 20;    % The maximum level count for training.
-    options.maxInferenceLevels = 20; % The maximum level count for testing.
+    options.maxLevels = 2;    % The maximum level count for training.
+    options.maxInferenceLevels = 2; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -176,7 +176,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                  % Used in determining the category of a node.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.flag = true; % If this flag is true, a reconstructive 
+    options.reconstruction.flag = false; % If this flag is true, a reconstructive 
                                         % part selection scheme is run on the 
                                         % set of subs SUBDUE has
                                         % discovered. It tries to minimize
@@ -190,12 +190,12 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-        
+
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -216,13 +216,13 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 1800;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 120;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.0; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -238,14 +238,14 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                     % by minThreshold and maxThreshold.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.15; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.25; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 5; % The depth of binary search 
+    options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.15; % Max threshold for elastic part matching. 
+    options.subdue.thresholdSearchMaxDepth = 1; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 400000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.maxSize = 2; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 300;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
