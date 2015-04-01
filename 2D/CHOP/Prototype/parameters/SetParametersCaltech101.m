@@ -95,7 +95,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -163,8 +163,8 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                        % edgeRadius grows at every level
                                        % with the same ratio as the
                                        % receptive field.
-    options.maxLevels = 2;    % The maximum level count for training.
-    options.maxInferenceLevels = 2; % The maximum level count for testing.
+    options.maxLevels = 10;    % The maximum level count for training.
+    options.maxInferenceLevels = 10; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -222,7 +222,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.0; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -242,8 +242,8 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
     options.subdue.maxThreshold = 0.15; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 1; % The depth of binary search 
                                 % when looking for an optimal threshold.
-    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 2; % Maximum number of nodes in a composition.
+    options.subdue.minSize = 3; % Minimum number of nodes in a composition.
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 300;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

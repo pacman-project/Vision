@@ -137,7 +137,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
         
         % Update data structures based on removed edges.
         allEdges = allEdges(validEdges,:);
-        edgeCoords = edgeCoords(validEdges,:);
+        edgeCoords = double(edgeCoords(validEdges,:));
         normalizedEdgeCoords = fix(fix(downsampleRatio * edgeCoords) + halfMatrixSize);
         
         % Double check in order not to go out of bounds.

@@ -125,18 +125,18 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     
 %    % Find the total cost of matching considering the max size, and set the
 %    % threshold.
-%     if reconstructionFlag
-%             adaptiveThreshold = maxThreshold * (single(maxSize) * 2 - 1) + singlePrecision;
-%    else
-%             adaptiveThreshold = orgThreshold * (single(maxSize) * 2 - 1) + singlePrecision;
-%    end
+   if reconstructionFlag
+            adaptiveThreshold = maxThreshold * (single(maxSize) * 2 - 1) + singlePrecision;
+   else
+            adaptiveThreshold = orgThreshold * (single(maxSize) * 2 - 1) + singlePrecision;
+   end
    
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
     display('[SUBDUE] Creating single node subs..');
- %   singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, ...
-%        nodeDistanceMatrix, categoryArrIdx, adaptiveThreshold);
-      singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, ...
-        nodeDistanceMatrix, categoryArrIdx, singleNodeThreshold);
+    singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, ...
+        nodeDistanceMatrix, categoryArrIdx, adaptiveThreshold);
+%      singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, ...
+ %       nodeDistanceMatrix, categoryArrIdx, singleNodeThreshold);
 %    parentSubs = addToQueue(singleNodeSubs, parentSubs, options.subdue.beam);
     parentSubs = addToQueue(singleNodeSubs, parentSubs, numel(singleNodeSubs));
     singleNodeSubsFinal = [];
@@ -297,16 +297,16 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
         if ~isempty(childSubArr)
             %% A substructure has many different parse trees at this point.
             % We find matching parse trees, and combine their instances.
-            numberOfChildSubs = numel(childSubArr);
-            [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr);
-            
-            % If the set of subs to be re-evaluated is not empty, we
-            % evaluate them again, and 
-            if ~isempty(childSubArrToEvaluate)
-                childSubArrToEvaluate = evaluateSubs(childSubArrToEvaluate, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
-                childSubArr = addToQueue(childSubArrToEvaluate, childSubArr, numberOfChildSubs);
-            end
+%             numberOfChildSubs = numel(childSubArr);
+%             [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr);
+%             
+%             % If the set of subs to be re-evaluated is not empty, we
+%             % evaluate them again, and 
+%             if ~isempty(childSubArrToEvaluate)
+%                 childSubArrToEvaluate = evaluateSubs(childSubArrToEvaluate, evalMetric, allEdges, allEdgeNodePairs, ...
+%                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+%                 childSubArr = addToQueue(childSubArrToEvaluate, childSubArr, numberOfChildSubs);
+%             end
             
             % Check for maxSize to put to extendedSubs (parentSubs for next level).
             if currentSize < maxSize
@@ -361,15 +361,15 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
                stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, maxDepth);
        end
        
-%           %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
-%           bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
-%           allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
-%           for bestSubItr = 1:numel(bestSubs)
-%           bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
-%           end
-%           mdlScores = [bestSubs.mdlScore];
-%           [~, mdlSortIdx] = sort(mdlScores, 'descend');
-%           bestSubs = bestSubs(mdlSortIdx);
+        %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
+        bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
+        allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
+        for bestSubItr = 1:numel(bestSubs)
+        bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
+        end
+        mdlScores = [bestSubs.mdlScore];
+        [~, mdlSortIdx] = sort(mdlScores, 'descend');
+        bestSubs = bestSubs(mdlSortIdx);
        
        %% Eliminate duplicate entries among the sub children.
         numberOfBestSubs = numel(bestSubs);
@@ -564,7 +564,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, overlap, threshold)
+function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, ~, threshold)
     centerIdx = sub.instanceCenterIdx;
     subAllEdges = {allEdges(centerIdx).adjInfo}';
     % Get unused edges from sub's instances.
@@ -871,9 +871,9 @@ function [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr)
             selSubIdx = IC == selectedSubs(selSubItr);
             selectedSubBins{selSubItr} = childSubArr(selSubIdx);
         end
-        updatedSubs = childSubArr(selectedSubs);
+        updatedSubs = childSubArr(validChildrenIdx(selectedSubs));
         
-        parfor selSubItr = 1:numel(selectedSubs)
+        for selSubItr = 1:numel(selectedSubs)
             % Read data for all instances.
             allInstanceCenterIdx = cat(1, selectedSubBins{selSubItr}.instanceCenterIdx);
             allInstanceChildren = cat(1, selectedSubBins{selSubItr}.instanceChildren);
@@ -886,6 +886,9 @@ function [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr)
             % Get unique instances, update minimum matching costs and write
             % everything back.
              [~, IA, IC2] = unique(allInstanceDescriptors, 'rows', 'stable');
+             if ~isequal(selectedSubBins{selSubItr}(1).instanceChildren, selectedSubBins{selSubItr}(2).instanceChildren)
+                1 
+             end
              updatedSubs(selSubItr).instanceCenterIdx = allInstanceCenterIdx(IA);
              updatedSubs(selSubItr).instanceChildren = allInstanceChildren(IA, :);
              updatedSubs(selSubItr).instanceEdges = allInstanceEdges(IA, :);
@@ -899,7 +902,7 @@ function [childSubArr, childSubArrToEvaluate] = removeDuplicateSubs(childSubArr)
             updatedSubs(selSubItr).instanceCategories = allInstanceCategories(IA);
             updatedSubs(selSubItr).instanceSigns = allInstanceSigns(IA);
         end
-        childSubArr(selectedSubs) = updatedSubs;
+        childSubArr(validChildrenIdx(selectedSubs)) = updatedSubs;
         
         % We return unchanged subs in childSubArr, and the subs to be
         % re-evaluated in childSubArrToEvaluate.
