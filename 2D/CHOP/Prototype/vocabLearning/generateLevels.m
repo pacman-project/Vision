@@ -38,7 +38,7 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, signs, options)
     clear signArr;
     
     % Set confidence values.
-    [graphLevel.confidence] = deal(1);
+    [graphLevel.confidence] = deal(single(1));
     
     % Add leaf nodes.
     leafNodes = num2cell(int32(1:size(nodes,1)));

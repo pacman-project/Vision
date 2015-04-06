@@ -19,6 +19,8 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     noveltyThr = 1 - options.noveltyThr;
+    multiplier = round(1/options.singlePrecision);
+    singlePrecision = options.singlePrecision;
     
     exportArr = [];
     if isempty(nodes) || isempty(vocabulary)
@@ -46,7 +48,7 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
         
         %% Starting inference from layer 2. 
          for vocabItr = 1:numel(vocabLevel)
-             adaptiveThreshold = single(optimalThresholds(vocabLevelItr) * ((size(vocabLevel(vocabItr).adjInfo,1)+1)*2-1)) + 0.0001; % Hard threshold for cost of matching two subs.
+             adaptiveThreshold = single(optimalThresholds(vocabLevelItr) * ((size(vocabLevel(vocabItr).adjInfo,1)+1)*2-1)) + singlePrecision; % Hard threshold for cost of matching two subs.
              %% Subgraph matching.
              % Start with the center.
              centerId = vocabLevel(vocabItr).children(1);
@@ -76,6 +78,11 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
                     % question. We're trying to match an edge to the part
                     % being considered.
                     edges = allEdges{instanceChildren(parentItr)};
+                    if isempty(edges)
+                       continue; 
+                    end
+                    
+                    % Calculate match costs.
                     matchCosts = instanceMatchCosts(parentItr) + edgeDistanceMatrix(edges(:,2), vocabEdges(edgeItr,3)) + ...
                                                                         nodeDistanceMatrix(nodes(edges(:,1),1), ...
                                                                         vocabLevel(vocabItr).children(vocabEdges(edgeItr,2)));                                                                    
@@ -93,10 +100,39 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
                 end
                 instanceChildren = cat(1, childInstances{:});
                 instanceMatchCosts = cat(1, childMatchingCosts{:});
+                
+                % Delete instances with repetitive children.
+                numberOfChildren = size(instanceChildren,1);
+                validChildren = ones(numberOfChildren,1) > 0;
+                for instanceItr = 1:size(instanceChildren,1)
+                    if numel(instanceChildren(instanceItr,:)) > ...
+                            numel(unique(instanceChildren(instanceItr,:))) 
+                        validChildren(instanceItr) = 0;
+                    end
+                end
+                instanceChildren = instanceChildren(validChildren,:);
+                instanceMatchCosts = instanceMatchCosts(validChildren,:);
              end
-            
+             instanceChildren = sort(instanceChildren, 2);
+             
+           %% Eliminating duplicate entries in instanceChildren.
+            % We handle these cases by only keeping
+            % unique instances. In addition, for each instance, the minimum
+            % cost of matching is kept here.
+            [minMatchCosts, sortIdx] = sort(instanceMatchCosts, 'ascend');
+            sortedChildren = instanceChildren(sortIdx, :);
+            [~, validIdx, ~] = unique(sortedChildren, 'rows', 'stable');
+
+            % Get minimum matching costs and children.
+            instanceMatchCosts = minMatchCosts(validIdx, :);
+            sortedChildren = sortedChildren(validIdx, :);
+
+            % Finally, order children by rows.
+            [instanceChildren, idx] = sortrows(sortedChildren);
+            instanceMatchCosts = instanceMatchCosts(idx);
+           
           %% In case of single node subs, we eliminate instances which have outgoing edges.
-           if isempty(vocabEdges)
+           if isempty(vocabEdges) && ~isempty(instanceChildren)
                validInstances = cellfun(@(x) isempty(x), allEdges(instanceChildren));
                
                % Eliminate instances which have edges leading out.
@@ -111,12 +147,12 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
 
            % Save the instances.
            vocabRealizations(vocabItr) = {instanceChildren};
-           instanceConfidences = (adaptiveThreshold - instanceMatchCosts)/ adaptiveThreshold;
+           instanceConfidences = fix(multiplier * ((adaptiveThreshold - instanceMatchCosts) / adaptiveThreshold)) / multiplier;
            vocabRealizationsConfidence(vocabItr) = {instanceConfidences};
         end
 
         % Get confidences.
-        confidenceArr = double(cat(1, vocabRealizationsConfidence{:}));
+        confidenceArr = cat(1, vocabRealizationsConfidence{:});
         numberOfInstances =numel(confidenceArr);
         
         if numberOfInstances == 0
@@ -154,6 +190,12 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
                 end
             end
         end
+         maxSize = max(cellfun(@(x) size(x,2), vocabRealizations));
+         vocabRealizationsLabelIds = num2cell((1:numel(vocabLevel)))';
+         vocabRealizationsDescriptors = cellfun(@(x, y) ...
+             cat(2, ones(size(x,1), 1, 'int32') * y, x, zeros(size(x,1), maxSize - size(x,2), 'int32')), ...
+             vocabRealizations, vocabRealizationsLabelIds, 'UniformOutput', false);
+         vocabRealizationsDescriptors = cat(1, vocabRealizationsDescriptors{:});
         
         %% Inhibition! This is the inhibition step that is identical to applyTestInhibition procedure.
         % If that part changes, this should change as well.
@@ -162,6 +204,7 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
         [sortedConfidenceArr, sortIdx] = sort(confidenceArr, 'descend');
         sortedLeafNodeArr = newLeafNodes(sortIdx);
         sortedNewNodes = newNodes(sortIdx, :);
+        vocabRealizationsDescriptors = vocabRealizationsDescriptors(sortIdx, :);
         
         % Next, perform inhibition.
         if noveltyThr < 1
@@ -189,7 +232,14 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
             sortedNewNodes = sortedNewNodes(imagePreservedNodes, :);
             sortedLeafNodeArr = sortedLeafNodeArr(imagePreservedNodes, :);
             sortedConfidenceArr = sortedConfidenceArr(imagePreservedNodes, :);
+            vocabRealizationsDescriptors = vocabRealizationsDescriptors(imagePreservedNodes,:);
         end
+        
+        % Finally, sort everything back.
+        [~, idx] = sortrows(vocabRealizationsDescriptors);
+        sortedNewNodes = sortedNewNodes(idx, :);
+        sortedLeafNodeArr = sortedLeafNodeArr(idx,:);
+        sortedConfidenceArr = sortedConfidenceArr(idx,:);
         
         % Write to output and move on to the next level.
         allNodes(vocabLevelItr) = {sortedNewNodes};

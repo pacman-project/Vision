@@ -28,14 +28,6 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
         return;
     end
     
-    confidenceArr = [graphLevel.confidence];
-    % If confidences are marked, we do elimination based on them, not mdl
-    % scores of matching subs.
-   if ~isempty(confidenceArr)
-       [~, sortIdx] = sort(confidenceArr, 'descend');
-       graphLevel = graphLevel(sortIdx);
-   end
-
     % Fill in necessary internal structures.
     imageIds = [graphLevel.imageId];
     numberOfImages = max(imageIds);
@@ -49,17 +41,34 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     
     %% Prepare data structures for parallel processing.
     imageGraphLevels = cell(numberOfImages,1);
+    imageSortIdx = cell(numberOfImages,1);
     imageAllNodeCoords = cell(numberOfImages,1);
     for imageId = 1:numberOfImages
         imageNodeIdx = imageIds == imageId;
-        imageGraphLevels(imageId) = {graphLevel(1,imageNodeIdx)};
-        imageAllNodeCoords(imageId) = {nodeCoords(imageNodeIdx,:)}; 
+        imageNodeCoords = nodeCoords(imageNodeIdx,:);
+        if nnz(imageNodeIdx) == 0
+            break;
+        end
+        imageGraphLevel = graphLevel(1,imageNodeIdx);
+        
+        % Sort nodes based on their confidences, and preserve the ordering.
+        confidenceArr = [imageGraphLevel.confidence];
+        [~, sortIdx] = sort(confidenceArr, 'descend');
+        imageGraphLevels(imageId) = {imageGraphLevel};
+        imageSortIdx(imageId) = {sortIdx};
+        
+        % Save image coords.
+        imageAllNodeCoords(imageId) = {imageNodeCoords(sortIdx,:)}; 
     end
     
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
-    preservedNodes = cell(numberOfImages,1);
-    parfor imageId = 1:numberOfImages
-        imageGraphLevel = imageGraphLevels{imageId};
+    for imageId = 1:numberOfImages
+        sortIdx = imageSortIdx{imageId};
+        orgImageGraphLevel = imageGraphLevels{imageId};
+        imageGraphLevel = orgImageGraphLevel(sortIdx);
+        if isempty(imageGraphLevel)
+            continue;
+        end
         imageNodeCoords = imageAllNodeCoords{imageId};
         numberOfNodesInImage = numel(imageGraphLevel);
         imagePreservedNodes = ones(numberOfNodesInImage,1)>0;
@@ -84,10 +93,11 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
           imagePreservedNodes(adjacentNodes) = cellfun(@(x,y) sum(ismembc(x, selfLeafNodes)) <= y, ...
               imageLeafNodes(adjacentNodes), maxSharedLeafNodes(adjacentNodes));
         end
-        preservedNodes(imageId) = {imagePreservedNodes'};
+        sortIdx = sort(sortIdx(imagePreservedNodes));
+        imageGraphLevel = orgImageGraphLevel(sortIdx);
+        imageGraphLevels{imageId} = imageGraphLevel;
     end
-    preservedNodes = [preservedNodes{:}]>0;
-    graphLevel = graphLevel(:,preservedNodes);
+    graphLevel = [imageGraphLevels{:}];
     
     % Rearrange graph level so it is sorted by image id.
     arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];

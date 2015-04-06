@@ -164,6 +164,15 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
         
+        if levelItr == options.maxLevels
+            vocabulary = vocabulary(1:(levelItr),:);
+            optimalThresholds = optimalThresholds(1:(levelItr),:);
+            mainGraph = mainGraph(1:(levelItr),:);
+            distanceMatrices = distanceMatrices(1:(levelItr),:);
+            graphLevelIndices = graphLevelIndices(1:(levelItr),:);
+            break;
+        end
+        
         %% Step 2.5: Create object graphs G_(l+1) for the next level, l+1.
         % Extract the edges between new realizations to form the new object graphs.
         [mainGraph] = extractEdges(mainGraph, options, levelItr);

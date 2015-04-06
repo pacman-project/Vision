@@ -398,14 +398,16 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
            bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
                allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
             %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
-%           for bestSubItr = 1:numel(bestSubs)
-%                 bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
-%           end
+           for bestSubItr = 1:numel(bestSubs)
+           bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
+           end
            mdlScores = [bestSubs.mdlScore];
            [~, mdlSortIdx] = sort(mdlScores, 'descend');
            bestSubs = bestSubs(mdlSortIdx);
        end
        
+
+
        %% Eliminate duplicate entries among the sub children.
         numberOfBestSubs = numel(bestSubs);
         % Learn the maximum children count in instances.

@@ -48,7 +48,7 @@ function [ validSubIdx ] = getDisjointSubs( bestSubs, ...
     for subRootItr = subRootsToTest
         subsToTest = IC == subRootItr;
         subListToTest = bestSubs(subsToTest);
-        adaptiveThreshold = (2 * size(subListToTest(1).edges,1) + 1) * threshold;
+        adaptiveThreshold = (2 * size(subListToTest(1).edges,1) + 1) * threshold + singlePrecision;
         [~, remainingSubIdx] = getNonOverlappingSubs(bestSubs(subsToTest), ...
             nodeDistanceMatrix, edgeDistanceMatrix, adaptiveThreshold, singlePrecision);
         subsToTestIdx = find(subsToTest);

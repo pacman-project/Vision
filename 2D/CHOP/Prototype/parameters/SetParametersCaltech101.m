@@ -101,7 +101,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -144,7 +144,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 1000;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*5; %Max dimension of the 
                                        % images the algorithm will work
@@ -176,7 +176,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                  % Used in determining the category of a node.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.flag = false; % If this flag is true, a reconstructive 
+    options.reconstruction.flag = true; % If this flag is true, a reconstructive 
                                         % part selection scheme is run on the 
                                         % set of subs SUBDUE has
                                         % discovered. It tries to minimize
@@ -239,13 +239,13 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.15; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 1; % The depth of binary search 
+    options.subdue.maxThreshold = 0.1; % Max threshold for elastic part matching. 
+    options.subdue.thresholdSearchMaxDepth = 4; % The depth of binary search 
                                 % when looking for an optimal threshold.
-    options.subdue.minSize = 3; % Minimum number of nodes in a composition.
+    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 300;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

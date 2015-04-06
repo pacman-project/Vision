@@ -16,7 +16,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.02.2014
-function graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, numberOfThreads)
+function graphLevel = fillBasicInfo(previousLevel, graphLevel, ~, numberOfThreads)
     numberOfNodes = numel(graphLevel);
     nodeSets = repmat(ceil(numberOfNodes/numberOfThreads), numberOfThreads,1);
     setCountDiff = sum(nodeSets) - numberOfNodes;
@@ -28,7 +28,6 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, number
         for newNodeItr = 1:numel(subLevel)
             nodeChildren = subLevel(newNodeItr).children;
             numberOfChildren = numel(nodeChildren);
-            subLevel(newNodeItr).confidence = mean([previousLevel(nodeChildren).confidence]) * subLevel(newNodeItr).confidence;
             subLevel(newNodeItr).imageId = previousLevel(nodeChildren(1)).imageId;
             nodeLeafNodes = cell(numberOfChildren,1);
             for childItr = 1:numberOfChildren
