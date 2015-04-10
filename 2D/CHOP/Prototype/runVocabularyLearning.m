@@ -115,16 +115,18 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         %% Step 1.1: Extract a set of features from the input images.
         display('..... Level 1 Node Extraction started. This may take a while.');
         allNodes = cell(size(trainingFileNames,1),1);
+        allNodeActivations = cell(size(trainingFileNames,1),1);
         smoothedFolder = options.smoothedFolder;
-        parfor fileItr = 1:size(trainingFileNames,1)
+        for fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([processedFolder '/' fileName '.png']);
             
             % Get the Level 1 features.
-            [nodes, smoothedImg] = getNodes(img, gtFileNames{fileItr}, options);
+            [nodes, smoothedImg, nodeActivations] = getNodes(img, gtFileNames{fileItr}, options);
 
             % Keep nodes in the array.
             allNodes(fileItr) = {nodes};
+            allNodeActivations(fileItr) = {nodeActivations};
 
             % Save smoothed image.
             imwrite(smoothedImg, [smoothedFolder '/' fileName '.png']);
@@ -136,6 +138,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [~, sortedImageIdx] = sort(nodeCounts, 'descend');
         trainingFileNames = trainingFileNames(sortedImageIdx);
         allNodes = allNodes(sortedImageIdx);
+        allNodeActivations = allNodeActivations(sortedImageIdx);
 
         %% Learn category/pose of each image and and correct their order 
         % based on the sort order of the images.
@@ -176,6 +179,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Convert all node data into a single matrix.
         allNodes = cat(1, allNodes{:});
+        allNodeActivations = cat(1, allNodeActivations{:});
         imageIds = cat(1, imageIds{:});
         leafNodes = [allNodes, imageIds];
         leafNodes = int32(cell2mat(leafNodes));
@@ -192,7 +196,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         clear imageIds;
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        [vocabLevel, graphLevel] = generateLevels(leafNodes, leafNodeSigns, options);
+        [vocabLevel, graphLevel] = generateLevels(leafNodes, allNodeActivations, leafNodeSigns, options);
         
         %% Learn edge-based distance matrix once and for all.
         [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize);
@@ -220,14 +224,14 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
         % Export realizations into easily-readable arrays.
-        exportArr = exportRealizations(mainGraph); %#ok<NASGU>
+        [exportArr, activationArr] = exportRealizations(mainGraph); %#ok<ASGLU,NASGU>
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'optimalThresholds', 'distanceMatrices', 'graphLevelIndices', 'trainingFileNames', 'categoryNames');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'categoryArr', 'categoryArrIdx', 'poseArr', '-append'); 
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'poseArr', '-append'); 
     end
     
     % Close thread pool if opened.

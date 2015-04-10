@@ -12,12 +12,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersCaltech101( datasetName, options )
+function [ options ] = SetParametersWillow( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
-    options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
+    options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
@@ -47,7 +47,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 11;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
     options.autoFilterThr = 0.1;       % Min response threshold for convolved 
@@ -61,7 +61,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.                                 
-    options.auto.deadFeatureStd = 0.01; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.05; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
@@ -101,7 +101,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.0;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -163,8 +163,8 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                        % edgeRadius grows at every level
                                        % with the same ratio as the
                                        % receptive field.
-    options.maxLevels = 20;    % The maximum level count for training.
-    options.maxInferenceLevels = 20; % The maximum level count for testing.
+    options.maxLevels = 10;    % The maximum level count for training.
+    options.maxInferenceLevels = 10; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -184,7 +184,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                         % selecting an optimal set of parts
                                         % to cover most of the training
                                         % data.
-    options.reconstruction.stoppingCoverage = 1; % Between [0.00, 1.00].
+    options.reconstruction.stoppingCoverage = 0.99; % Between [0.00, 1.00].
                                            % The default value is 0.99.
                                            % When the training data
                                            % coverage is reached to this
@@ -193,9 +193,9 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
     options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-        
+
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -216,7 +216,7 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 120;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 300;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -238,14 +238,14 @@ function [ options ] = SetParametersCaltech101( datasetName, options )
                                     % by minThreshold and maxThreshold.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.15; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 5; % The depth of binary search 
+    options.subdue.minThreshold = 0.01; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.1; % Max threshold for elastic part matching. 
+    options.subdue.thresholdSearchMaxDepth = 4; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 300;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

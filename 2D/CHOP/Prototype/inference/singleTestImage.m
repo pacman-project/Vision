@@ -15,22 +15,19 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, optimalThresholds, options)
+function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, categoryName, optimalThresholds, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
     [~, fileName, ~] = fileparts(testFileName);
-    if options.debug
-        display(['Processing ' fileName '.']);
-    end
     % resize image if necessary.
     if max(size(img)) > options.maxImageDim
        img = imresize(img, options.maxImageDim/max(size(img)), 'bilinear'); 
     end
-%    imwrite(img, [options.processedFolder '/' fileName '.png']);
+    imwrite(img, [options.processedFolder '/' categoryName '_' fileName '.png']);
 
     %% Form the first level nodes.
-    [cellNodes, ~] = getNodes(img, [], options);
+    [cellNodes, ~, nodeActivations] = getNodes(img, [], options);
 %    imwrite(smoothedImg, [options.smoothedFolder '/' fileName '.png']);
     if isempty(cellNodes)
         return;
@@ -39,12 +36,12 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, optima
     % Assign nodes their image ids.
     nodes = zeros(size(cellNodes,1), 3, 'int32');
     nodes(:,1:3) = cell2mat(cellNodes);
-    [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThresholds, options);
+    [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivations, distanceMatrices, optimalThresholds, options); %#ok<ASGLU,NASGU>
     
     %% Print realizations in the desired format for inte2D/3D integration.
-    if exist([options.testInferenceFolder '/' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr', 'confidenceArr', '-append');
+    if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', '-append');
     else
-        save([options.testInferenceFolder '/' fileName '_test.mat'], 'exportArr', 'confidenceArr');
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr');
     end
 end

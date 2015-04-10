@@ -79,7 +79,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             if ~isempty(categoryLabel)
                 categoryArrIdx(fileItr) = categoryLabel;
             end
-            save([options.testInferenceFolder '/' fileName '_test.mat'], 'categoryLabel');
+            save([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'categoryLabel');
         end
         
         %% We have modified the ranking in vocabulary based on frequency, after learning them using MDL. 
@@ -95,15 +95,21 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             end
         end
         
+        % For some weird reason, Matlab workers cannot access variables
+        % read from the file. They have to be used in the code. Here's my
+        % workaround: 
+        distanceMatrices = distanceMatrices;
+        optimalThresholds = optimalThresholds;
+        categoryNames = categoryNames;
+        
         %% Step 1.2: Run inference on each test image.
-        totalInferenceTime = 0;
-        for testImgItr = 1:size(testFileNames,1) 
+        startTime = tic;
+        parfor testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            startTime = tic;
-            singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, optimalThresholds, options);
-            totalInferenceTime = totalInferenceTime + toc(startTime);
+            singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, options); 
         end
+        totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
     end
     

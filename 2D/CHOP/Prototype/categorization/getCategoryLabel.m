@@ -13,52 +13,40 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.07.2014
-function [ categoryLabel ] = getCategoryLabel(vocabulary, exportArr, confidenceArr, minLevels, maxLevels)
+function [ categoryLabel, decisionLevel ] = getCategoryLabel(vocabulary, exportArr, activationArr, minLevels, maxLevels)
 %    maxLevels = max(exportArr(:,4));
     categoryLabel = -1;
     numberOfCategories = numel(vocabulary{1}(1).categoryArr);
-    if ~isempty(confidenceArr)
-        confidenceArr = repmat(confidenceArr, 1, numberOfCategories);
+    if ~isempty(activationArr)
+        activationArr = repmat(activationArr, 1, numberOfCategories);
     end
-    categoryList = 1:numberOfCategories;
-    categoryDecisionArr = zeros(1, numberOfCategories, 'single');
-    bestCategories = [];
+    maxLevels = min(numel(vocabulary), maxLevels);
     for levelItr = maxLevels:-1:minLevels
+        categoryDecisionArr = zeros(1, numberOfCategories, 'single');
         vocabLevel = vocabulary{levelItr};
         categoryArrs = double(cat(1, vocabLevel.categoryArr)).^2;
         if isempty(categoryArrs) 
            break; 
         end
         nodes = exportArr(exportArr(:,4) == levelItr,:);
-        if ~isempty(confidenceArr)
-            nodeConfidences = confidenceArr(exportArr(:,4) == levelItr,:);
-            % Here, we set the maximum confidence as 1, and others as zero.
-            if size(nodeConfidences,1) > 1
-                [maxVal, ~] = max(max(nodeConfidences));
-                nodeConfidences(nodeConfidences<(maxVal-0.000001)) = 0;
-            end
+        if ~isempty(activationArr)
+             nodeActivations = activationArr(exportArr(:,4) == levelItr,:);
+%             % Here, we set the maximum activation as 1, and others as zero.
+%             if size(nodeActivations,1) > 1
+%                 [maxVal, ~] = max(max(nodeActivations));
+%                 nodeActivations(nodeActivations<(maxVal-0.000001)) = 0;
+%             end
         else
-            nodeConfidences = ones(size(exportArr,1),1);
+            nodeActivations = ones(size(exportArr,1),1);
         end
         if size(nodes,1)>0
-            categoryDecisionArr = categoryDecisionArr + sum(categoryArrs(nodes(:,1),:) .* nodeConfidences) / size(nodes,1);
-%           categoryDecisionArr = sum(categoryArrs(nodes(1,1),:),1);
-            % Mark previously considered best categories. We're selecting from
-            % them.
-            if ~isempty(bestCategories)
-                categoryDecisionArr(setdiff(categoryList, bestCategories)) = 0;
-            end
+            categoryDecisionArr = categoryDecisionArr + sum(categoryArrs(nodes(:,1),:) .* nodeActivations, 1);
             [~, newBestCategories] = find(categoryDecisionArr == max(categoryDecisionArr));
-            if ~isempty(bestCategories)
-                bestCategories = intersect(bestCategories, newBestCategories);
-            else
-                bestCategories = newBestCategories;
-            end
-            if numel(bestCategories) == 1
-                categoryLabel = bestCategories;
+            if numel(newBestCategories) == 1
+                categoryLabel = newBestCategories;
                 break;
             end 
         end
-%       
     end
+    decisionLevel = levelItr;
 end

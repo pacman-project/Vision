@@ -116,7 +116,9 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
        partNodeCounts(~validSubIdx) = 0;
        
        % Go ahead and select parts.
-       for bestSubItr = 1:numberOfFinalSubs
+       bestSubItr = 1;
+       while bestSubItr <= numberOfFinalSubs
+%       for bestSubItr = 1:numberOfFinalSubs
             % Get the contribution of this sub in terms of number of leaf
             % nodes.
             tempFlagCount = nnz(nodeFlagArr);
@@ -167,6 +169,15 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
             else
                 % No new info can be introduced by any subs, just stop.
                 break;
+            end
+            bestSubItr = bestSubItr + 1;
+            
+            % If we're at the end of the search, and optimal coverage has
+            % not been met, we increase final number of subs.
+            if bestSubItr == numberOfFinalSubs && ...
+                    currentDepth == maxDepth && ...
+                    ~isCoverageOptimal
+                numberOfFinalSubs = numberOfFinalSubs + 1;
             end
        end
        

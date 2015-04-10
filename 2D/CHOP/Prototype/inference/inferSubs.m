@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatrices, optimalThresholds, options)
+function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivations, distanceMatrices, optimalThresholds, options)
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     noveltyThr = 1 - options.noveltyThr;
@@ -28,19 +28,20 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
     end
 %    nodes = double(nodes);
     allNodes = cell(numel(vocabulary),1);
-    allConfidences = cell(numel(vocabulary),1);
+    allActivations = cell(numel(vocabulary),1);
     allNodes(1) = {nodes};
-    allConfidences(1) = {ones(size(nodes,1), 1, 'double')};
+    allActivations(1) = {nodeActivations};
     leafNodeArr = num2cell((1:size(nodes,1))');
     
     for vocabLevelItr = 2:numel(vocabulary)
+        prevActivations = allActivations{vocabLevelItr-1};
         scale = (1/options.scaling)^(vocabLevelItr-2);
         neighborhood = fix(options.edgeRadius * scale);
         
         %% Match subs from vocabLevel to their instance in graphLevel.
         vocabLevel = vocabulary{vocabLevelItr};
         vocabRealizations = cell(numel(vocabLevel),1);
-        vocabRealizationsConfidence = cell(numel(vocabLevel),1);
+        vocabRealizationsActivation = cell(numel(vocabLevel),1);
         nodeDistanceMatrix = distanceMatrices{vocabLevelItr-1};
         
        %% Here, we find edges for the nodes in the vocabulary. 
@@ -147,20 +148,33 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
 
            % Save the instances.
            vocabRealizations(vocabItr) = {instanceChildren};
-           instanceConfidences = fix(multiplier * ((adaptiveThreshold - instanceMatchCosts) / adaptiveThreshold)) / multiplier;
-           vocabRealizationsConfidence(vocabItr) = {instanceConfidences};
+           
+           % Calculating activations here.
+           if ~isempty(instanceChildren)
+               instanceMatchScores = fix(multiplier * ((adaptiveThreshold - instanceMatchCosts) / adaptiveThreshold)) / multiplier;
+               instancePrevActivations = prevActivations(instanceChildren);
+               if numel(instanceMatchScores)>1
+                   instanceMeanActivations = mean(instancePrevActivations,2);
+               else
+                   instanceMeanActivations = mean(instancePrevActivations);
+               end
+               
+               instanceActivations = instanceMatchScores .* instanceMeanActivations;
+    %           instanceActivations = instanceMatchCosts;
+               vocabRealizationsActivation(vocabItr) = {instanceActivations};
+           end
         end
 
-        % Get confidences.
-        confidenceArr = cat(1, vocabRealizationsConfidence{:});
-        numberOfInstances =numel(confidenceArr);
+        % Get activations.
+        activationArr = cat(1, vocabRealizationsActivation{:});
+        numberOfInstances =numel(activationArr);
         
         if numberOfInstances == 0
             break;
         end
         
         %% We'll form a new nodes array. 
-        % Estimate a new confidence for each realization by propogating
+        % Estimate a new activation for each realization by propogating
         % from previous layers.
         newNodes = zeros(numberOfInstances,3);
         startIdx = 1;
@@ -199,9 +213,9 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
         
         %% Inhibition! This is the inhibition step that is identical to applyTestInhibition procedure.
         % If that part changes, this should change as well.
-        % First, we sort nodes in descending order by their confidence
+        % First, we sort nodes in descending order by their activation
         % scores.
-        [sortedConfidenceArr, sortIdx] = sort(confidenceArr, 'descend');
+        [sortedActivationArr, sortIdx] = sort(activationArr, 'descend');
         sortedLeafNodeArr = newLeafNodes(sortIdx);
         sortedNewNodes = newNodes(sortIdx, :);
         vocabRealizationsDescriptors = vocabRealizationsDescriptors(sortIdx, :);
@@ -231,7 +245,7 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
             end
             sortedNewNodes = sortedNewNodes(imagePreservedNodes, :);
             sortedLeafNodeArr = sortedLeafNodeArr(imagePreservedNodes, :);
-            sortedConfidenceArr = sortedConfidenceArr(imagePreservedNodes, :);
+            sortedActivationArr = sortedActivationArr(imagePreservedNodes, :);
             vocabRealizationsDescriptors = vocabRealizationsDescriptors(imagePreservedNodes,:);
         end
         
@@ -239,15 +253,15 @@ function [exportArr, confidenceArr] = inferSubs(vocabulary, nodes, distanceMatri
         [~, idx] = sortrows(vocabRealizationsDescriptors);
         sortedNewNodes = sortedNewNodes(idx, :);
         sortedLeafNodeArr = sortedLeafNodeArr(idx,:);
-        sortedConfidenceArr = sortedConfidenceArr(idx,:);
+        sortedActivationArr = sortedActivationArr(idx,:);
         
         % Write to output and move on to the next level.
         allNodes(vocabLevelItr) = {sortedNewNodes};
-        allConfidences(vocabLevelItr) = {sortedConfidenceArr};
+        allActivations(vocabLevelItr) = {sortedActivationArr};
         leafNodeArr = sortedLeafNodeArr;
         nodes = sortedNewNodes;
     end
-    confidenceArr = cat(1, allConfidences{:});
+    activationArr = cat(1, allActivations{:});
     
     numberOfInstances = sum(cellfun(@(x) size(x,1), allNodes));
     %% If no instances have been found, exit.

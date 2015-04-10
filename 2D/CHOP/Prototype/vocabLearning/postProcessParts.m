@@ -129,26 +129,26 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
         newDistanceMatrix = newDistanceMatrix ./ maxChildrenCountMatrix;
         multipleNodeIdx = maxChildrenCountMatrix > 1;
         
-        % We normalize the distance matrix by dividing by the largest 
-        % possible distance. The maximum cost of transformation is
-        % estimated as follows: numberOfNodes + 1. The cost of node
-        % transformation is considered as 1 (Hence number of nodes). For
-        % edges, it's a bit more tricky. The total cost of moving nodes in
-        % a limited space is 1 no matter how many nodes there are. If we
-        % need to move more, it means our node mapping is wrong.
-        normConstants = maxChildrenCountMatrix + 1;
-        if ~isempty(normConstants)
-            newDistanceMatrix(multipleNodeIdx) = newDistanceMatrix(multipleNodeIdx) ./ normConstants(multipleNodeIdx);
-        end
-        
-%         % We normalize the distance matrix by dividing by the largest
-%         % element.
-%         normConstant = max(max(newDistanceMatrix(multipleNodeIdx)));
-%         if ~isempty(normConstant)
-%             if normConstant>0
-%                 newDistanceMatrix(multipleNodeIdx) = newDistanceMatrix(multipleNodeIdx) / normConstant;
-%             end
+%         % We normalize the distance matrix by dividing by the largest 
+%         % possible distance. The maximum cost of transformation is
+%         % estimated as follows: numberOfNodes + 1. The cost of node
+%         % transformation is considered as 1 (Hence number of nodes). For
+%         % edges, it's a bit more tricky. The total cost of moving nodes in
+%         % a limited space is 1 no matter how many nodes there are. If we
+%         % need to move more, it means our node mapping is wrong.
+%         normConstants = maxChildrenCountMatrix + 1;
+%         if ~isempty(normConstants)
+%             newDistanceMatrix(multipleNodeIdx) = newDistanceMatrix(multipleNodeIdx) ./ normConstants(multipleNodeIdx);
 %         end
+        
+        % We normalize the distance matrix by dividing by the largest
+        % element.
+        normConstant = max(max(newDistanceMatrix(multipleNodeIdx)));
+        if ~isempty(normConstant)
+            if normConstant>0
+                newDistanceMatrix(multipleNodeIdx) = newDistanceMatrix(multipleNodeIdx) / normConstant;
+            end
+        end
         
         % Convert to single.
         newDistanceMatrix = single(newDistanceMatrix);

@@ -12,11 +12,11 @@
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
-function [ ] = createSplits(datasetFolder)
-    numberOfRuns = 10;
+function [ ] = createSplits(datasetFolder, ext)
+    numberOfRuns = 1;
 %    trainCounts = [1, 3, 5, 10, 15, 20, 30];
-    trainCounts = 5;
-    testCount = 20;
+    trainCounts = 15;
+    testCount = 20; %If -1, use rest for testing.
     
     % Read names of classes.
     curFolder = pwd;
@@ -26,8 +26,12 @@ function [ ] = createSplits(datasetFolder)
     classNames=  {classList.name};
     cd(curFolder);
     
+    if ~exist([pwd '/logs'], 'dir')
+        mkdir([pwd '/logs']);
+    end
+    
     % Read training data.
-    fileNames = fuf([datasetFolder '/*.jpg' ], 1, 'detail');
+    fileNames = fuf([datasetFolder '/*' ext], 1, 'detail');
     % Assign image names into distinct classes.
     classImages = cell(numel(classNames),1);
     classImageIdx = cell(numel(classNames),1);
@@ -65,7 +69,12 @@ function [ ] = createSplits(datasetFolder)
                 numberOfImages = classImageCounts(classItr);
                 randOrder = randperm(numberOfImages, numberOfImages);
                 trainClassSet = randOrder(1:trainCount);
-                testClassSet = randOrder((trainCount+1):(min(numel(randOrder), testCount + trainCount)));
+                if testCount == -1
+                    classTestCount = numberOfImages-trainCount;
+                else
+                    classTestCount = testCount;
+                end
+                testClassSet = randOrder((trainCount+1):(min(numel(randOrder), classTestCount + trainCount)));
                 trainNames(classItr) = {trainClassSet};
                 testNames(classItr) = {testClassSet};
                 

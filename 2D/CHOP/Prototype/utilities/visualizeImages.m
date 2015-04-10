@@ -22,7 +22,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     backgroundDir = [options.outputFolder '/reconstruction/' type '/' options.backgroundClass];
     processedFolder = options.processedFolder;   
     reconstructionType = options.reconstructionType;
-    instancePerNode = options.vis.instancePerNode;
+    instancePerNode = options.vis.instancePerNode-1;
     printTrainRealizations = options.vis.printTrainRealizations;
     
     filter1 = options.filters{1};
@@ -62,6 +62,36 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     croppedOrgFolder = [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '/cropped'];
     if ~exist(croppedOrgFolder, 'dir')
        mkdir(croppedOrgFolder); 
+    end
+    
+    %% If not all realizations need to be printed, we only focus on a limited set. 
+    if ~printTrainRealizations
+        printedNodes = cell(numel(vocabLevel),1);
+        graphNodeIds = (1:numel(graphLevel))';
+        labelIds = cat(1, graphLevel.labelId); 
+        imageIds = cat(1, graphLevel.imageId);
+        activations = cat(1, graphLevel.activation);
+        for nodeItr = 1:numel(vocabLevel)
+            relevantIdx = labelIds == nodeItr;
+            nodeInstances = graphNodeIds(relevantIdx);
+            instanceActivations = activations(relevantIdx);
+            instanceImageIds = imageIds(relevantIdx);
+        
+            % We sort activations and get top ones.
+            if numel(instanceActivations)>instancePerNode
+                 % Get best instances to print.
+                 [~, sortIdx] = sort(instanceActivations, 'descend');
+                 [~, validSortIdx] = unique(instanceImageIds(sortIdx), 'stable');
+                 sortIdx = sortIdx(validSortIdx);
+                 if  numel(sortIdx) > instancePerNode
+                     sortIdx = sortIdx(1:instancePerNode);
+                 end
+                 nodeInstances = nodeInstances(sortIdx);
+            end
+            printedNodes{nodeItr} = nodeInstances;
+        end
+        printedNodes = sort(cat(1, printedNodes{:}));
+        graphLevel = graphLevel(printedNodes);
     end
     
     %% Put realizations into distinct sets so that each image has its own nodes in a set.

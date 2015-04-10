@@ -16,13 +16,13 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [exportArr, confidenceArr] = exportRealizations(mainGraph)
+function [exportArr, activationArr] = exportRealizations(mainGraph)
     %% Process mainGraph to export realizations in the desired format for inte2D/3D integration.
     % n x 5 array. Each row represents a realization. Format is:
     % labelId coordX coordY levelId imageId.
     allLevels = [mainGraph{:}];
     labelIds = [allLevels.labelId]';
-    confidenceArr = [allLevels.confidence]';
+    activationArr = [allLevels.activation]';
     positions = cat(1, allLevels.position);
     imageIds = [allLevels.imageId]';
     levelIds = zeros(numel(labelIds),1, 'int32');

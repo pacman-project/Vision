@@ -30,7 +30,7 @@ classdef GraphNode
         leafNodes@int32 % The leaf node ids (level 1 realizations) this node 
                   % corresponds to. Particularly important in visualization
                   % and calculation of coverage statistics.
-        confidence@single; % Used in inference. Signals our confidence in this node.
+        activation@single; % Used in inference. Signals our confidence in this node.
         sign % Sign of the node. Assigned 0 unless the corresponding image 
              % is in background class.   
     end

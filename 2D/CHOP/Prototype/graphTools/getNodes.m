@@ -20,7 +20,7 @@
 %> Ver 1.1 on 03.12.2013 Response inhibition added.
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
 %> Ver 1.3 on 17.01.2014 GT use implemented.
-function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
+function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, options )
     %% Step 1: Get grayscaled image and assign method parameters.
     if strcmp(options.filterType, 'gabor')
         if size(img,3)>1
@@ -29,8 +29,8 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
         
         %% Apply denoising to get better responses.
         for bandItr = 1:size(img,3);
-            myfilter = fspecial('gaussian',[3 3], 2);
-            img(:,:,bandItr) = imfilter(img(:,:,bandItr), myfilter, 'replicate', 'same', 'conv');
+    %        myfilter = fspecial('gaussian',[3 3], 2);
+    %        img(:,:,bandItr) = imfilter(img(:,:,bandItr), myfilter, 'replicate', 'same', 'conv');
             img(:,:,bandItr)=medfilt2(img(:,:,bandItr), [3,3]);
         end
         deadFeatures = [];
@@ -180,9 +180,9 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
        responseImgs(responseImgs<filterThr) = 0;
     end
     
-   %% Write smooth object boundaries to an image based on responseImgs.
-    smoothedImg = max(responseImgs,[],3);
-    smoothedImg = (smoothedImg - min(min(smoothedImg))) / (max(max(smoothedImg)) - min(min(smoothedImg)));
+%   %% Write smooth object boundaries to an image based on responseImgs.
+%    smoothedImg = max(responseImgs,[],3);
+%    smoothedImg = (smoothedImg - min(min(smoothedImg))) / (max(max(smoothedImg)) - min(min(smoothedImg)));
    
    %% Inhibit weak responses in vicinity of powerful peaks.
     if strcmp(options.filterType, 'gabor')
@@ -211,6 +211,7 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     responseImgs(orderedPeaks(~validPeaks)) = 0;
 
     % Write the responses in the final image.
+    activationImg = sum(responseImgs,3);
     responseImgs = double(responseImgs>0);
     for filtItr = 1:filterCount
       responseImgs(:,:,filtItr) = responseImgs(:,:,filtItr) .* filtItr;
@@ -218,6 +219,9 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     responseImg = sum(responseImgs,3);
     responseImg([1:halfSize, (end-halfSize):end],:) = 0;
     responseImg(:,[1:halfSize, (end-halfSize):end]) = 0;
+    activationImg([1:halfSize, (end-halfSize):end],:) = 0;
+    activationImg(:,[1:halfSize, (end-halfSize):end]) = 0;
+    activationImg = activationImg / max(max(activationImg));
 
     %% Eliminate nodes outside GT mask. If gt is not used, this does not have effect.
     responseImg(~gtMask) = 0;
@@ -225,6 +229,7 @@ function [ nodes, smoothedImg ] = getNodes( img, gtFileName, options )
     %% Out of this response image, we will create the nodes and output them.
     finalNodeIdx = find(responseImg);
     nodes = cell(numel(finalNodeIdx), 2);
+    nodeActivations = single(activationImg(finalNodeIdx(~ismembc(responseImg(finalNodeIdx), deadFeatures))));
     for nodeItr = 1:numel(finalNodeIdx)
        if ismember(responseImg(finalNodeIdx(nodeItr)), deadFeatures)
           continue; 

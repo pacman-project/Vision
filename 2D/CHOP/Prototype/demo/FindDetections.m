@@ -37,7 +37,7 @@ function [ finalPredictions, windowSizes, finalGroupMask] = FindDetections( expo
                                        % of the same class.
     minMeanLevel = 4; % Minimum level of compositions used to validate 
                         % windows based on their mean positions.
-    minPredConf = 0.0; % Minimum confidence of a detection.
+    minPredConf = 0.0; % Minimum activation of a detection.
     detectionDivertAllowance = 50;
     
     % Update feature parameters.
@@ -147,7 +147,7 @@ function [ finalPredictions, windowSizes, finalGroupMask] = FindDetections( expo
         
         %% Fill in coordinates and other info for each window.
         % Allocate space for predictions array.
-        % Format: [x, y, windowSizeItr, category, pose, confidence; ...]
+        % Format: [x, y, windowSizeItr, category, pose, activation; ...]
         predictions = zeros(numberOfWindows, 6);
         predictions(:,1:2) = windowCenters(validWindows, :);
         predictions(:,3) = windowSizeItr;
@@ -199,7 +199,7 @@ function [ finalPredictions, windowSizes, finalGroupMask] = FindDetections( expo
     for categoryItr = unique(allPredictions(:,4))'
         curPredictions = allPredictions(allPredictions(:,4) == categoryItr, :);
         
-        % Prepare helper matrices to estimate average pose and confidence.
+        % Prepare helper matrices to estimate average pose and activation.
         detImg = zeros(inputImgSize);
         poseImg = ones(inputImgSize);
         poseImg = poseImg * -1;
@@ -229,10 +229,10 @@ function [ finalPredictions, windowSizes, finalGroupMask] = FindDetections( expo
             % Take median value of poses.
             finalPoses(detItr) = mod(round(median(poses)),12);
             
-            % Learn mean confidence of overlapping detections.
-            confidences = confImg(detImg == detItr);
-            confidences = confidences(confidences>0);
-            finalConf(detItr) = mean(confidences);
+            % Learn mean activation of overlapping detections.
+            activations = confImg(detImg == detItr);
+            activations = activations(activations>0);
+            finalConf(detItr) = mean(activations);
         end
         finalPredictions(categoryItr) = {[centers(:,2), centers(:,1), ...
             repmat(curPredictions(1,3:4), size(centers,1), 1), finalPoses, finalConf]};

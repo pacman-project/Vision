@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numberOfPrevNodes, options)
+function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNodes, levelId, numberOfPrevNodes, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -31,6 +31,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
     else
         instanceImgDim = round(sqrt(instancePerNode));
     end
+    % We decrease this number by 1, since the best match is printed twice.
+    instancePerNode = instancePerNode-1;
     filterType = options.filterType;
     if strcmp(filterType, 'auto') && levelId == 1
         isAutoFilter = true;
@@ -44,6 +46,8 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
         leafNodeSets = {graphLevel.leafNodes}';
         centerPos = cat(1, graphLevel.position);
         nodeLabelIds = cat(1, graphLevel.labelId);
+        nodeImageIds = cat(1, graphLevel.imageId);
+        nodeActivations = cat(1, graphLevel.activation);
         leafNodeLabelIds = cat(1, leafNodes(:, 1));
         leafNodePos = cat(1,leafNodes(:,2:3));
     end
@@ -86,7 +90,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
             avgPrevNodeMasks(nodeItr) = {mean(tempImg,3)};
             patchHighDims(nodeItr,:) = floor([size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)]/2);
             patchLowDims(nodeItr,:) = ([size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)] - patchHighDims(nodeItr,:)) - 1;
-            lowResponseThrs(nodeItr) = max(max(max(tempImg)))/10;
+%            lowResponseThrs(nodeItr) = max(max(max(tempImg)))/10;
         end
         
         %% To parallelize things, we put vocabulary nodes in different sets, and give each to a thread.
@@ -108,7 +112,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
         setImgs = cell(numberOfThreadsUsed,1);
-        parfor setItr = 1:numberOfThreadsUsed
+        for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -118,14 +122,27 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
             for nodeItr = 1:numel(nodeSet)
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
                 labelId = vocabNodeSet(nodeItr);
-                nodeInstances = find(nodeLabelIds==labelId)';
+                nodeInstances = find(nodeLabelIds==labelId);
+                validIdx = nodeLabelIds==labelId;
+                instanceActivations = nodeActivations(validIdx);
+                instanceImageIds = nodeImageIds(validIdx);
+                [~, sortIdx] = sort(instanceActivations, 'descend');
+                bestNodeInstance = nodeInstances(sortIdx(1));
                 if numel(nodeInstances)>instancePerNode
-                     nodeInstances = nodeInstances(1:instancePerNode);   % Print a number of realizations for each node.
+                     % Get best instances to print.
+                     [~, validSortIdx] = unique(instanceImageIds(sortIdx), 'stable');
+                     sortIdx = sortIdx(validSortIdx);
+                     if numel(sortIdx) > instancePerNode
+                         sortIdx = sortIdx(1:instancePerNode);
+                     end
+                     nodeInstances = sort(nodeInstances(sortIdx));
                 end
+                nodeInstances = [bestNodeInstance; nodeInstances]; %#ok<AGROW>
                 
                 instanceImgs = cell(numel(nodeInstances),1);
                 for nodeInstanceItr = 1:numel(nodeInstances)
                     nodeInstance = nodeInstances(nodeInstanceItr);
+                    instanceLeafNodes = leafNodeSets{nodeInstance};
                     instancePos = mat2cell(centerPos(nodeInstance,:), ones(1, numel(nodeInstance)), 2);
                     instanceLeafNodeSets = leafNodeSets(nodeInstance,:);
                     instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
@@ -139,25 +156,6 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
                        children = children(1:childrenPerNode,:);
                        childrenCoords = childrenCoords(1:childrenPerNode,:);
                     end
-
-%                     %% Give weight the children to get a cleaner representation of the average image for the node.
-%                     % First, we learn base scores, which essentially describe
-%                     % how close each child is to each other. A child does
-%                     % contribute to itself.
-%                     distMatrix = squareform(pdist(childrenCoords));
-%                     maxDist = max(max(distMatrix));
-%                     scoreMatrix = exp(maxDist - distMatrix);
-%                     maxDist = max(max(scoreMatrix));
-%                     scoreMatrix = scoreMatrix / maxDist;
-% 
-%                     % Now, weight the scores by the similarity matrix entries.
-%                     weightMatrix = leafSimilarityMatrix(children, children);
-% 
-%                     % Multiply score matrix by weight matrix to get weighted
-%                     % scores (element by element).
-%                     scoreMatrix = scoreMatrix .* weightMatrix;
-%                     scoreMatrix = sum(scoreMatrix,1);
-%                     scoreMatrix = scoreMatrix / max(scoreMatrix);
 
                     %% At this point, we have the relative coordinates of all children. 
                     % All we will do is to create an empty mask large enough, and
@@ -201,9 +199,9 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
                         % Write the child's mask to the output.
                         currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                           (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:) = ...
-                          max(prevNodeMasks{children(childItr)}, ...
-                              currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                                  (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:));
+                          max(prevActivations(instanceLeafNodes(childItr)) * prevNodeMasks{children(childItr)}, ...
+                              (currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
+                                  (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:)));
 
                         currentFilledMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                               (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))) = 1;
@@ -219,7 +217,6 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
                     %% Add background to currentMask, and normalize it.
                     % Learn the median color to use as background.
                     validValues = currentMask(currentFilledMask>0);
-  %                  filledValue = 0;
                     filledValue = median(validValues);
 
                     % Assign filling value to each band.
@@ -273,6 +270,9 @@ function [] = visualizeLevel( currentLevel, graphLevel, leafNodes, levelId, numb
     % Learn number of rows/columns.
     colImgCount = ceil(sqrt(numberOfNodes));
     rowImgCount = ceil(numberOfNodes/colImgCount);
+    if numberOfNodes < visualizedNodes
+       visualizedNodes = numberOfNodes; 
+    end
     smallColImgCount = ceil(sqrt(visualizedNodes));
     smallRowImgCount = ceil(visualizedNodes/smallColImgCount);
 

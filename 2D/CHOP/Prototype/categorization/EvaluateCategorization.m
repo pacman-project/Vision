@@ -19,36 +19,40 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
         gtArr = NaN(size(fileNames,1), 1);
         detectionArr = NaN(size(fileNames,1), 1);
         w = warning('off', 'all');
+        decisionLevels = zeros(numel(fileNames),1);
         for fileItr = 1:numel(fileNames)
            estimatedCategoryLabel = NaN;
            load(fileNames{fileItr});
            % If this file has not been processed yet, move on.
            if isnan(estimatedCategoryLabel)
-               estimatedCategoryLabel = getCategoryLabel(vocabulary, exportArr, confidenceArr, minLevels, maxLevels);
+               [estimatedCategoryLabel, decisionLevel] = getCategoryLabel(vocabulary, exportArr, activationArr, minLevels, maxLevels);
+               decisionLevels(fileItr) = decisionLevel;
            end
            gtArr(fileItr) = categoryLabel;
            detectionArr(fileItr) = estimatedCategoryLabel;
         end
         warning(w);
     else
-        confidenceArr = [];
+        activationArr = [];
         load([options.outputFolder '/export.mat']);
         numberOfImages = max(exportArr(:,5));
         gtArr = categoryArrIdx;
         detectionArr = NaN(numberOfImages,1);
+        decisionLevels = zeros(numberOfImages,1);
         for imageItr = 1:numberOfImages
             exportArrImg = exportArr(exportArr(:,5) == imageItr,:);
-            detectionArr(imageItr) = getCategoryLabel(vocabulary, exportArrImg, confidenceArr, minLevels, maxLevels);
+            [detectionArr(imageItr), decisionLevels(imageItr)] = getCategoryLabel(vocabulary, exportArrImg, activationArr, minLevels, maxLevels);
         end
     end
+    avgDecisionLevel = mean(decisionLevels(decisionLevels>0));
     
-    if ~isempty(strfind(datasetName, 'MNIST'))
-        categoryNames = cellfun(@(x) str2double(x), categoryNames);
-        customOrder = zeros(size(categoryNames,1),1);
-        customOrder(categoryNames+1) = 1:size(categoryNames,1);
-    else
-        customOrder = [];
-    end
+%     if ~isempty(strfind(datasetName, 'MNIST'))
+%         categoryNames = cellfun(@(x) str2double(x), categoryNames);
+%         customOrder = zeros(size(categoryNames,1),1);
+%         customOrder(categoryNames+1) = 1:size(categoryNames,1);
+%     else
+%         customOrder = [];
+%     end
     
     % Find number of processed samples.
     processedSamples = ~isnan(detectionArr);
@@ -56,14 +60,23 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
     detectionArr = detectionArr(processedSamples);
     gtArr = gtArr(processedSamples);
     
+    levelWiseAccuracyArr = zeros(numel(vocabulary),1);
+    for levelItr = 1:numel(vocabulary)
+       validIdx = decisionLevels == levelItr;
+       tempNum = numel(find(processedSamples(validIdx)));
+       if tempNum>0
+           levelWiseAccuracyArr(levelItr) = numel(find(detectionArr(validIdx) == gtArr(validIdx))) / tempNum;
+       end
+    end
+    
     % Estimate performance, and find confusion matrix.
     accuracy = numel(find(detectionArr == gtArr)) / numberOfProcessedSamples;
     confMat = confusionmat(gtArr, detectionArr);
-    if ~isempty(customOrder)
-        confMat= confMat(customOrder, customOrder);
-    end
+%     if ~isempty(customOrder)
+%         confMat= confMat(customOrder, customOrder);
+%     end
     
-    save([options.outputFolder '/perf.mat'], 'accuracy', 'confMat');
+    save([options.outputFolder '/perf.mat'], 'accuracy', 'confMat', 'decisionLevels', 'avgDecisionLevel', 'levelWiseAccuracyArr');
     display(['Accuracy: ' num2str(accuracy)]);
     display('Confusion matrix:');
     display(mat2str(confMat));

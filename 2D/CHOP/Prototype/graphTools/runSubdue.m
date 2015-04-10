@@ -55,10 +55,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     parentSubs = [];
     nextVocabLevel = [];
     nextGraphLevel = [];
-    allLeafNodes = {graphLevel.leafNodes};
-    prevGraphNodes = unique([graphLevel.leafNodes]);
-    prevGraphNodeCount = numel(prevGraphNodes);
-    maxPrevGraphNodeId = max(prevGraphNodes);
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
@@ -107,6 +103,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     end
     nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), assignedEdges);
     allLabels = cat(1, graphLevel.labelId);
+    prevActivations = cat(1, graphLevel.activation);
     assignedEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
         assignedEdges(nonemptyEdgeIdx), 'UniformOutput', false);
     allEdges(numel(graphLevel)) = AdjInfo();
@@ -397,10 +394,12 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
            
            bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
                allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
-            %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
-%           for bestSubItr = 1:numel(bestSubs)
+%            %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
+%            for bestSubItr = 1:numel(bestSubs)
 %                 bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
-%           end
+%            end
+           
+           % Sort bestSubs by their mdl scores.
            mdlScores = [bestSubs.mdlScore];
            [~, mdlSortIdx] = sort(mdlScores, 'descend');
            bestSubs = bestSubs(mdlSortIdx);
@@ -419,7 +418,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
         % We'll then find unique descriptors, which is the initial phase of
         % inhibition.
         instanceChildrenDescriptors = cell(numberOfBestSubs,1);
-        instanceConfidences = cell(numberOfBestSubs,1);
+        instanceActivations = cell(numberOfBestSubs,1);
         remainingInstanceLabels = cell(numberOfBestSubs,1);
         for bestSubItr = 1:numberOfBestSubs
            instanceChildren = bestSubs(bestSubItr).instanceChildren;
@@ -429,8 +428,16 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
            childrenDescriptors(:, 1:size(instanceChildren,2)) = instanceChildren;
            instanceChildrenDescriptors{bestSubItr} = childrenDescriptors;
            adaptiveThreshold = single(optimalThreshold * ((size(bestSubs(bestSubItr).edges,1)+1)*2-1)) + singlePrecision;
-           confidences = fix(multiplier * ((adaptiveThreshold - bestSubs(bestSubItr).instanceMatchCosts) / adaptiveThreshold)) / multiplier;
-           instanceConfidences{bestSubItr} = confidences;
+           instanceMatchScores = fix(multiplier * ((adaptiveThreshold - bestSubs(bestSubItr).instanceMatchCosts) / adaptiveThreshold)) / multiplier;
+           % Calculate activations for the next level.
+           instancePrevActivations = prevActivations(instanceChildren);
+           if size(instanceChildren,1)>1
+               instanceMeanActivations = mean(instancePrevActivations,2);
+           else
+               instanceMeanActivations = mean(instancePrevActivations);
+           end
+           activations = instanceMatchScores .* instanceMeanActivations;
+           instanceActivations{bestSubItr} = activations;
            
            % Find instance labels.
            instanceLabels = repmat(int32(bestSubItr), tempNum, 1);
@@ -440,9 +447,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
         
         if noveltyThr > 0
            %        Alternative 2
-           instanceConfidences = cat(1, instanceConfidences{:});
+           instanceActivations = cat(1, instanceActivations{:});
            remainingInstanceLabels = cat(1, remainingInstanceLabels{:});
-           [~, sortIdx] = sort(instanceConfidences, 'descend');
+           [~, sortIdx] = sort(instanceActivations, 'descend');
            orderedInstanceChildrenDescriptors = instanceChildrenDescriptors(sortIdx,:);
 
            % Update data structures by selecting unique children.
@@ -507,16 +514,28 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
                centerIdx = bestSubs(bestSubItr).instanceCenterIdx(remainingInstanceIdx,:);
                matchCosts = bestSubs(bestSubItr).instanceMatchCosts(remainingInstanceIdx,:);
                adaptiveThreshold = single(optimalThreshold * ((size(bestSubs(bestSubItr).edges,1)+1)*2-1)) + singlePrecision;
-               instanceConfidences = num2cell(fix(multiplier * ((adaptiveThreshold - matchCosts)/ adaptiveThreshold)) / multiplier);
+               % Get graph match costs.
+               instanceMatchScores = fix(multiplier * ((adaptiveThreshold - matchCosts)/ adaptiveThreshold)) / multiplier;
                numberOfInstances = numel(centerIdx);
+               
+               % Get instance children
                instanceChildren = instanceChildrenDescriptors(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
                instanceChildren( :, all(~instanceChildren,1) ) = [];
+               
+               % Calculate activations for the next level.
+               instancePrevActivations = prevActivations(instanceChildren);
+               if numberOfInstances>1
+                   instanceMeanActivations = mean(instancePrevActivations,2);
+               else
+                   instanceMeanActivations = mean(instancePrevActivations);
+               end
+               instanceActivations = num2cell(instanceMatchScores .* instanceMeanActivations);
                instanceChildren = mat2cell(instanceChildren, ones(numberOfInstances,1), size(instanceChildren,2));
                instanceSigns = num2cell(allSigns(centerIdx));
 
                % Assign fields to graphs.
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).labelId] = deal(labelIds{:});
-               [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).confidence] = deal(instanceConfidences{:});
+               [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).activation] = deal(instanceActivations{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).children] = deal(instanceChildren{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).sign] = deal(instanceSigns{:});
                instanceOffset = instanceEndOffset + 1;

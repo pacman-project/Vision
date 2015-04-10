@@ -82,6 +82,25 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.singlePrecision = single(0.0001);
     
     %% ========== FILTER MATRIX & DATA STRUCTURES GENERATION ==========
+    % We create a feature matrix out of these filters for fast
+    % processing.
+    filterMatrix = zeros(options.numberOfFilters, numel(filters{1}));
+    stDevs = zeros(options.numberOfFilters,1);
+    if size(filterMatrix,2) >0
+        for filtItr = 1:options.numberOfFilters
+            filter1 = filters{filtItr};
+            filterMatrix(filtItr,:) = filter1(:);
+            stDev = 0;
+            for bandItr = 1:size(filter1,3)
+                bandImg = filter1(:,:,bandItr);
+                stDev = stDev + std(bandImg(:));
+            end
+            stDevs(filtItr) = stDev / size(filter1,3);
+        end
+    end
+    options.filterMatrix = filterMatrix;
+    stDevs = stDevs / max(stDevs);
+    
     if strcmp(options.filterType, 'auto') 
         if exist([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'file') 
             load([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'whMat', 'mu', 'invMat');
@@ -89,24 +108,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
             options.auto.invMat = invMat;
             options.auto.mu = mu;
 
-            % We create a feature matrix out of these filters for fast
-            % processing.
-            filterMatrix = zeros(options.numberOfFilters, numel(filters{1}));
-            stDevs = zeros(options.numberOfFilters,1);
-            if size(filterMatrix,2) >0
-                for filtItr = 1:options.numberOfFilters
-                    filter1 = filters{filtItr};
-                    filterMatrix(filtItr,:) = filter1(:);
-                    stDev = 0;
-                    for bandItr = 1:size(filter1,3)
-                        bandImg = filter1(:,:,bandItr);
-                        stDev = stDev + std(bandImg(:));
-                    end
-                    stDevs(filtItr) = stDev / size(filter1,3);
-                end
-            end
-            options.filterMatrix = filterMatrix;
-            stDevs = stDevs / max(stDevs);
             % Mark dead features.
             options.auto.deadFeatures = find(stDevs < options.auto.deadFeatureStd );
         else

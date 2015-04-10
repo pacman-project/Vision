@@ -96,7 +96,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
 
         %% Cluster whitened samples to get cluster centers.
         display('Clustering features...');
-        opts = statset('MaxIter', 500);
+        opts = statset('MaxIter', 300);
         [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', ...
             'EmptyAction', 'Singleton', 'Replicates', 3, 'Display', 'iter', 'Options', opts);
 

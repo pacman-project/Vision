@@ -51,9 +51,9 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
         end
         imageGraphLevel = graphLevel(1,imageNodeIdx);
         
-        % Sort nodes based on their confidences, and preserve the ordering.
-        confidenceArr = [imageGraphLevel.confidence];
-        [~, sortIdx] = sort(confidenceArr, 'descend');
+        % Sort nodes based on their activations, and preserve the ordering.
+        activationArr = [imageGraphLevel.activation];
+        [~, sortIdx] = sort(activationArr, 'descend');
         imageGraphLevels(imageId) = {imageGraphLevel};
         imageSortIdx(imageId) = {sortIdx};
         
