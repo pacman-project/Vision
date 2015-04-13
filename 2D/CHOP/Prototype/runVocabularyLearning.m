@@ -218,8 +218,14 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         %% Here, we select the validation set.
         if options.validationFlag
-            numberOfImages = numel(imageSigns);
-        
+            validationIdx = zeros(numel(imageSigns),1) > 0;
+            for categoryItr = 1:numel(categoryNames)
+                categoryImageIdx = find(categoryArrIdx == categoryItr);
+                categoryValidationImageIdx = sort(datasample(categoryImageIdx, ...
+                    round(options.validationRatio * numel(categoryImageIdx)), 'Replace', false));
+                validationIdx(categoryValidationImageIdx) = 1;
+            end
+            options.validationIdx = validationIdx;
         end
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
@@ -237,7 +243,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'optimalThresholds', 'distanceMatrices', 'graphLevelIndices', 'trainingFileNames', 'categoryNames');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'poseArr', '-append'); 
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'validationIdx', 'poseArr', '-append'); 
     end
     
     % Close thread pool if opened.
