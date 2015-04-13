@@ -15,20 +15,27 @@
 %> Ver 1.0 on 18.02.2015
 function [] = createGeometryDataset( )
     % Here, we define the objects. 
-    rotationCount = 50;
-    scaleCount = 2;
+    rotationCount = 23;
+    scaleCount = 3;
     scaleStep = 1.2;
     initialSize = 40;
     imageSize = 300;
     imageValidSize = 120;
     translateCount = 1;
     dilation = 1;
-    noiseDev = 0.05;
+    noiseDev = 0.1;
+    trainImgPercentage = 0.5;
     objects = {'square', 'triangle', 'star', 'circle'};
     
     rotationAngles = 0:ceil(360/rotationCount):360;
     imgItr = 1;
     for objectItr = 1:numel(objects)
+        % Make a separation between training/test images.
+        numberOfObjectImages = numel(rotationAngles) * scaleCount;
+        randOrder = datasample(1:numberOfObjectImages, numberOfObjectImages, 'Replace', false);
+        separator = fix(trainImgPercentage * numberOfObjectImages);
+        trainIdx = randOrder(1:separator) + imgItr - 1;
+        
         for angle = rotationAngles
             for scaleItr = 1:scaleCount
                 % Find random translateCount suitable translations.
@@ -36,9 +43,6 @@ function [] = createGeometryDataset( )
                     round(imageValidSize)/2;
                 for translateItr = 1:translateCount
                     object = GeometryObject(objects{objectItr}, imageSize);
-                    
-                    
-                    
                     
                     % Calculate necessary transformations.
                     % Adding some gaussian noise to the transformation
@@ -53,11 +57,19 @@ function [] = createGeometryDataset( )
                     img = object.render();
                     img = imdilate(img, strel('disk', dilation));
                     
-                    % Write the generated image to a file.
-                    if ~exist(['./Geometry/vocab/' objects{objectItr}], 'dir')
-                        mkdir(['./Geometry/vocab/' objects{objectItr}]);
+                    if ismember(imgItr, trainIdx)
+                        % Write the generated image to a file.
+                        if ~exist(['./Geometry/vocab/' objects{objectItr}], 'dir')
+                            mkdir(['./Geometry/vocab/' objects{objectItr}]);
+                        end
+                        imwrite(img, ['./Geometry/vocab/' objects{objectItr} '/' num2str(imgItr) '.png']);
+                    else
+                        % Write the generated image to a file.
+                        if ~exist(['./Geometry/test/' objects{objectItr}], 'dir')
+                            mkdir(['./Geometry/test/' objects{objectItr}]);
+                        end
+                        imwrite(img, ['./Geometry/test/' objects{objectItr} '/' num2str(imgItr) '.png']);
                     end
-                    imwrite(img, ['./Geometry/vocab/' objects{objectItr} '/' num2str(imgItr) '.png']);
                     
                     % Increment image iterator.
                     imgItr = imgItr + 1;
