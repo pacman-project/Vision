@@ -117,7 +117,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         allNodes = cell(size(trainingFileNames,1),1);
         allNodeActivations = cell(size(trainingFileNames,1),1);
         smoothedFolder = options.smoothedFolder;
-        for fileItr = 1:size(trainingFileNames,1)
+        parfor fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([processedFolder '/' fileName '.png']);
             
@@ -215,6 +215,12 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % in categoryNames.
         [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); %#ok<NASGU>
         categoryNames = categoryArr(categoryNames); %#ok<NASGU>
+        
+        %% Here, we select the validation set.
+        if options.validationFlag
+            numberOfImages = numel(imageSigns);
+        
+        end
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  

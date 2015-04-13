@@ -112,7 +112,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
         setImgs = cell(numberOfThreadsUsed,1);
-        for setItr = 1:numberOfThreadsUsed
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};

@@ -1,16 +1,23 @@
+%> Name: AnalyzeNodes
+%>
+%> Description: This function analyzes the posterior probabilities of
+%> classes given features. A confusion matrix is created after the process. 
+%> For every feature P in the vocabulary, we consider the classes {C_i} where
+%> P(C_i|P) > 0. 
+%>
+%> @param vocabulary Learned vocabulary including category probabilities for 
+%> each node.
+%> @param exportArr Set of realizations.
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 04.07.2014
 function [] = AnalyzeNodes(datasetName)
 
     % Load relevant info.
     load([pwd '/output/' datasetName '/vb.mat']);
     load([pwd '/output/' datasetName '/export.mat']);
-    if ~isempty(strfind(datasetName, 'MNIST'))
-        categoryNames = cellfun(@(x) str2double(x), categoryNames);
-        customOrder = zeros(size(categoryNames,1),1);
-        customOrder(categoryNames+1) = 1:size(categoryNames,1);
-    else
-        customOrder = [];
-    end
-
     % Extract simple features from images.
     featureDims = cellfun(@(x) numel(x), vocabulary);
     featureDim = sum(featureDims);
@@ -51,9 +58,6 @@ function [] = AnalyzeNodes(datasetName)
             for entryItr = entries
                 categoryConfMax(entryItr, entryItr) = categoryConfMax(entryItr, entryItr) + levelDistArr(featureItr, entryItr);
             end
-        end
-        if ~isempty(customOrder)
-            categoryConfMax = categoryConfMax(customOrder, customOrder);
         end
         if ~exist([pwd '/categorization/analysis/' datasetName], 'dir')
             mkdir([pwd '/categorization/analysis/' datasetName]);
