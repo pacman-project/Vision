@@ -25,6 +25,7 @@ classdef Instance
         sign@uint8; % Signature of the instance, which typically should set 
                    % to 1 unless the relevant image is of background class.
         category@uint8; % Category of the the image this instance belongs to. ( This means max 255 categories are supported for now).
+        isValidation@uint8 % If true, this node is part of the validation data.
         matchCost@single; % Matching cost of this instance to the vocabulary part.
     end
 end

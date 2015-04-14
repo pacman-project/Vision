@@ -46,7 +46,7 @@
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
-function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options)
+function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -115,6 +115,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     % If no edges are present, time to return.
     allSigns = uint8(cat(1, graphLevel.sign));
     categoryArrIdx = uint8(categoryArrIdx(cat(1, graphLevel.imageId)))';
+    validationIdx = uint8(validationIdx(cat(1, graphLevel.imageId)))';
     
     % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
     graphSize = numberOfAllEdges * mdlEdgeWeight + ...
@@ -131,7 +132,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     %% Step 1:Find single-vertex subs, and put them into beamSubs.
     display('[SUBDUE] Creating single node subs..');
     singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, ...
-        nodeDistanceMatrix, categoryArrIdx, adaptiveThreshold);
+        nodeDistanceMatrix, categoryArrIdx, validationIdx, adaptiveThreshold);
     parentSubs = addToQueue(singleNodeSubs, parentSubs, numel(singleNodeSubs));
     singleNodeSubsFinal = [];
     
@@ -184,7 +185,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
             if currentSize == 2
                  % Find single node subs.
                  singleNodeSubsFinal = getSingleNodeSubs(allLabels, allSigns, ...
-                    nodeDistanceMatrix, categoryArrIdx, singleNodeThreshold);
+                    nodeDistanceMatrix, categoryArrIdx, validationIdx, singleNodeThreshold);
                
                % Evaluate them.
                 singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
@@ -388,7 +389,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     if numberOfInstances>0
        %% If required, we'll pick best parts based on the reconstruction of the data.
        if reconstructionFlag
-           [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
+           [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
                nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
                stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, maxDepth);
            
@@ -564,6 +565,8 @@ end
 %> @param allLabels Labels for every graph node.
 %> @param allSigns Signs for every graph node.
 %> @param categoryArrIdx Categories for every graph node.
+%> @param validationIdx Binary array showing if each node is part 
+%> of the validation data or not.
 %>
 %> @retval singleNodeSubs Substructure list of single-node subs.
 %> 
@@ -572,7 +575,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMatrix, categoryArrIdx, threshold)
+function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMatrix, categoryArrIdx, validationIdx, threshold)
     numberOfSubs = max(allLabels);
     singleNodeSubs(numberOfSubs) = Substructure();
     validSubs = ones(numberOfSubs,1)>0;
@@ -595,13 +598,25 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
             if size(categoryIdx,1) == 1
                 categoryIdx = categoryIdx';
             end
+            instanceValidationIdx = validationIdx(subCenterIdx);
             instanceSigns = allSigns(subCenterIdx,1);
             instanceDistances = distances(subCenterIdx);
+            
+            % We check if this sub has exact-matching instances in the
+            % training set (not validation set). If not, it is not
+            % considered for further expansion.
+            if nnz(instanceDistances == 0 & (instanceValidationIdx == 0)') == 0
+                 singleNodeSubs(subItr).mdlScore = 0;
+                 continue;
+            end
+            
+            % Assign fields of the sub.
             singleNodeSubs(subItr).instanceCenterIdx = instances;
             singleNodeSubs(subItr).instanceChildren = instances;
             singleNodeSubs(subItr).instanceCategories = categoryIdx;
             singleNodeSubs(subItr).instanceMatchCosts = instanceDistances;
             singleNodeSubs(subItr).instanceSigns = instanceSigns;
+            singleNodeSubs(subItr).instanceValidationIdx = instanceValidationIdx';
         else
             validSubs(subItr) = 0;
         end
@@ -630,6 +645,8 @@ end
 function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, threshold)
     
     centerIdx = sub.instanceCenterIdx;
+    centerTrainingIdx = zeros(max(centerIdx),1)>0;
+    centerTrainingIdx(centerIdx) = ~(sub.instanceValidationIdx>0)';
     subAllEdges = {allEdges(centerIdx).adjInfo}';
     % Get unused edges from sub's instances.
     allUsedEdgeIdx = sub.instanceEdges;
@@ -663,8 +680,13 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         return; 
     end
     
+    % Eliminate the edges which exist only in validation data. We do not
+    % enumerate any edges which do not exist in training data.
+    enumeratedEdges = allUnusedEdges(allEdgePrevCosts < singlePrecision, :);
+    enumeratedEdges = enumeratedEdges(centerTrainingIdx(enumeratedEdges(:,1)), 3:4);
+    
     % Get unique rows of [edgeLabel, secondVertexLabel]
-    uniqueEdgeTypes = unique(allUnusedEdges(allEdgePrevCosts < singlePrecision, 3:4), 'rows');
+    uniqueEdgeTypes = unique(enumeratedEdges, 'rows');
     
     % Discard any edge types already existing in sub definition.
     if ~isempty(sub.edges)
@@ -739,6 +761,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         newSub.instanceSigns = sub.instanceSigns(edgeInstanceIds);
         newSub.instanceCategories = sub.instanceCategories(edgeInstanceIds);
         newSub.instanceMatchCosts = minMatchCosts(idx,:);
+        newSub.instanceValidationIdx = sub.instanceValidationIdx(edgeInstanceIds);
         
         % Add the edge to the definition.
         existingEdges = sub.instanceEdges;

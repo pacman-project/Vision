@@ -13,6 +13,7 @@ function [childSubsFinal, childSubs] = getFinalSubs(childSubs, adaptiveThreshold
         childSubsFinal(childSubItr).instanceEdges = childSubsFinal(childSubItr).instanceEdges(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceMatchCosts = childSubsFinal(childSubItr).instanceMatchCosts(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceSigns = childSubsFinal(childSubItr).instanceSigns(validInstanceIdx, :);
+        childSubsFinal(childSubItr).instanceValidationIdx = childSubsFinal(childSubItr).instanceValidationIdx(validInstanceIdx, :);
     end
     childSubsFinal = childSubsFinal(validSubs);
     childSubs = childSubs(validSubs);

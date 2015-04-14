@@ -30,7 +30,7 @@ function [vocabLevel, graphLevel, optimalThreshold] = discoverSubs( vocabLevel, 
     if ~preDefinedSearch
         display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
     end
-    load([options.currentFolder '/output/' options.datasetName '/export.mat'], 'categoryArrIdx');
+    load([options.currentFolder '/output/' options.datasetName '/export.mat'], 'categoryArrIdx', 'validationIdx');
     
     % Search for substructures.
     if preDefinedSearch
@@ -40,7 +40,7 @@ function [vocabLevel, graphLevel, optimalThreshold] = discoverSubs( vocabLevel, 
         % It'll be unhid as soon as possible.
         graphLevel = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, threshold);
     else
-        [vocabLevel, graphLevel, optimalThreshold] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, options);
+        [vocabLevel, graphLevel, optimalThreshold] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, options);
     end
     
     % Show time elapsed.

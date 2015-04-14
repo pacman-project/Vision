@@ -246,6 +246,7 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
         sub.instanceSigns = sub.instanceSigns(validInstances,:);
         sub.instanceCategories = sub.instanceCategories(validInstances,:);
         sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
+        sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
         bestSubs(bestSubItr) = sub;
    end
 end

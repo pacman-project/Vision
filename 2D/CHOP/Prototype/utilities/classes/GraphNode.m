@@ -33,5 +33,6 @@ classdef GraphNode
         activation@single; % Used in inference. Signals our confidence in this node.
         sign % Sign of the node. Assigned 0 unless the corresponding image 
              % is in background class.   
+        inValidationSet@logical % If this node is part of the validation data, this is set to 1. If it's in training, it's set to 0.
     end
 end

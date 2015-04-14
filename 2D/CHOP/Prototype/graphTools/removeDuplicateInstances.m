@@ -24,6 +24,7 @@ function [ bestSubs ] = removeDuplicateInstances( bestSubs )
         end
         bestSubs(bestSubItr).instanceCategories = bestSubs(bestSubItr).instanceCategories(sortIdx, :);
         bestSubs(bestSubItr).instanceSigns = bestSubs(bestSubItr).instanceSigns(sortIdx, :);
+        bestSubs(bestSubItr).instanceValidationIdx = bestSubs(bestSubItr).instanceValidationIdx(sortIdx, :);
     end
 end
 

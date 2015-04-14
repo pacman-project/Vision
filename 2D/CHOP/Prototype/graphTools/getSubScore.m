@@ -60,6 +60,7 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
             sub.instanceSigns = sub.instanceSigns(validInstances,:);
             sub.instanceCategories = sub.instanceCategories(validInstances,:);
             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
+            sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
         end
 
         % In multi-node case, if overlaps are not allowed, filter out overlapping instances.

@@ -28,5 +28,6 @@ classdef Substructure
        instanceSigns@uint8;
        instanceCategories@uint8;
        instanceMatchCosts@single;
+       instanceValidationIdx@uint8;
     end
 end

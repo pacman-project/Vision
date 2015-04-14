@@ -193,10 +193,28 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % graphs but not negative ones will be favoured.
         imageSigns = ~strcmp(categoryArr, options.backgroundClass);
         leafNodeSigns = imageSigns(cell2mat(imageIds));
-        clear imageIds;
+        
+        % Transform category array into an index-based one (having numbers
+        % instead of category strings). The category string labels is saved
+        % in categoryNames.
+        [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); 
+        categoryNames = categoryArr(categoryNames); 
+        
+        %% Here, we select the validation set.
+        if options.validationFlag
+            validationIdx = zeros(numel(imageSigns),1) > 0;
+            for categoryItr = 1:numel(categoryNames)
+                categoryImageIdx = find(categoryArrIdx == categoryItr);
+                categoryValidationImageIdx = sort(datasample(categoryImageIdx, ...
+                    round(options.validationRatio * numel(categoryImageIdx)), 'Replace', false));
+                validationIdx(categoryValidationImageIdx) = 1;
+            end
+            options.validationIdx = validationIdx;
+        end
+        assignedValidationIdx = validationIdx(cell2mat(imageIds));
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        [vocabLevel, graphLevel] = generateLevels(leafNodes, allNodeActivations, leafNodeSigns, options);
+        [vocabLevel, graphLevel] = generateLevels(leafNodes, allNodeActivations, leafNodeSigns, assignedValidationIdx, options);
         
         %% Learn edge-based distance matrix once and for all.
         [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize);
@@ -210,27 +228,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [mainGraph] = extractEdges(mainGraph, options, 1);
         graphLevel = mainGraph{1};
         
-        % Transform category array into an index-based one (having numbers
-        % instead of category strings). The category string labels is saved
-        % in categoryNames.
-        [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); %#ok<NASGU>
-        categoryNames = categoryArr(categoryNames); %#ok<NASGU>
-        
-        %% Here, we select the validation set.
-        if options.validationFlag
-            validationIdx = zeros(numel(imageSigns),1) > 0;
-            for categoryItr = 1:numel(categoryNames)
-                categoryImageIdx = find(categoryArrIdx == categoryItr);
-                categoryValidationImageIdx = sort(datasample(categoryImageIdx, ...
-                    round(options.validationRatio * numel(categoryImageIdx)), 'Replace', false));
-                validationIdx(categoryValidationImageIdx) = 1;
-            end
-            options.validationIdx = validationIdx;
-        end
-        
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryNames', 'categoryArrIdx');
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryNames', 'categoryArrIdx', 'validationIdx');
         [vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLevelIndices] = learnVocabulary(vocabLevel, graphLevel, leafNodes, ...
                                         options, trainingFileNames); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
