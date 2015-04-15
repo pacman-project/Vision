@@ -13,7 +13,7 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
     options = SetParameters(datasetName, 'train');
     load([options.outputFolder '/vb.mat']);
     outputFolder = options.testInferenceFolder;
-    vocabulary = vocabulary;
+    vocabulary = vocabulary; %#ok<NODEF>
     if strcmp(perfType, 'test') 
         fileNames = fuf([outputFolder '/*.mat'], 1, 'detail');
         gtArr = NaN(size(fileNames,1), 1);
@@ -21,15 +21,13 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
         w = warning('off', 'all');
         decisionLevels = zeros(numel(fileNames),1);
         for fileItr = 1:numel(fileNames)
-           estimatedCategoryLabel = NaN;
            load(fileNames{fileItr});
-           % If this file has not been processed yet, move on.
-           if isnan(estimatedCategoryLabel)
-               [estimatedCategoryLabel, decisionLevel] = getCategoryLabel(vocabulary, exportArr, activationArr, minLevels, maxLevels);
-               decisionLevels(fileItr) = decisionLevel;
-           end
+           % Process this image and estimate category label.
+           [estimatedCategoryLabel, decisionLevel] = getCategoryLabel(vocabulary, exportArr, activationArr, minLevels, maxLevels);
+           decisionLevels(fileItr) = decisionLevel;
            gtArr(fileItr) = categoryLabel;
            detectionArr(fileItr) = estimatedCategoryLabel;
+           save(fileNames{fileItr}, 'estimatedCategoryLabel', '-append');   
         end
         warning(w);
     else
@@ -44,15 +42,7 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
             [detectionArr(imageItr), decisionLevels(imageItr)] = getCategoryLabel(vocabulary, exportArrImg, activationArr, minLevels, maxLevels);
         end
     end
-    avgDecisionLevel = mean(decisionLevels(decisionLevels>0));
-    
-%     if ~isempty(strfind(datasetName, 'MNIST'))
-%         categoryNames = cellfun(@(x) str2double(x), categoryNames);
-%         customOrder = zeros(size(categoryNames,1),1);
-%         customOrder(categoryNames+1) = 1:size(categoryNames,1);
-%     else
-%         customOrder = [];
-%     end
+    avgDecisionLevel = mean(decisionLevels(decisionLevels>0)); %#ok<NASGU>
     
     % Find number of processed samples.
     processedSamples = ~isnan(detectionArr);

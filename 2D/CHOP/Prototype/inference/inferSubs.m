@@ -221,6 +221,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
         vocabRealizationsDescriptors = vocabRealizationsDescriptors(sortIdx, :);
         
         % Next, perform inhibition.
+%        if noveltyThr < 1 && vocabLevelItr < numel(vocabulary)
         if noveltyThr < 1
             imagePreservedNodes = ones(numberOfInstances,1)>0;
             imageNodeCoords = sortedNewNodes(:,2:3);

@@ -153,7 +153,9 @@ function [bestSubs, optimalThreshold] = getReconstructiveParts(bestSubs, ...
                 % Record the value for the end of iteration.
                 novelNodes(bestSubItr2) = tempValue;
                 valueArr(bestSubItr2) = tempValue;
-                curValue = tempValue;
+                if tempValue > curValue
+                    curValue = tempValue;
+                end
             end
             partNodeCounts = min(valueArr, partNodeCounts);
             valueArr(isinf(valueArr)) = 0;

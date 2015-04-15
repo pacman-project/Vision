@@ -84,23 +84,23 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% We have modified the ranking in vocabulary based on frequency, after learning them using MDL. 
         % Now, we revert back to the original ranking.
-        if numel(vocabulary)>1
+        if numel(vocabulary)>1 %#ok<NODEF>
             for levelItr = 2:numel(vocabulary)
                 vocabLevel = vocabulary{levelItr};
                 arrToSort = [vocabLevel.orgRank];
                 [~, sortIdx] = sort(arrToSort, 'ascend');
                 vocabLevel = vocabLevel(sortIdx);
                 % Assign labels.
-                vocabulary(levelItr) = {vocabLevel};
+                vocabulary(levelItr) = {vocabLevel}; %#ok<AGROW>
             end
         end
         
         % For some weird reason, Matlab workers cannot access variables
         % read from the file. They have to be used in the code. Here's my
         % workaround: 
-        distanceMatrices = distanceMatrices;
-        optimalThresholds = optimalThresholds;
-        categoryNames = categoryNames;
+        distanceMatrices = distanceMatrices; %#ok<NODEF,ASGSL>
+        optimalThresholds = optimalThresholds; %#ok<NODEF,ASGSL>
+        categoryNames = categoryNames; %#ok<ASGSL>
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;

@@ -197,9 +197,15 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
                     currentLabelMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
                     for childItr = 1:numel(children)
                         % Write the child's mask to the output.
+                        if nodeInstanceItr == 1
+                            assignedWeight = 1;
+                        else
+                            assignedWeight = prevActivations(instanceLeafNodes(childItr));
+                        end
+                        
                         currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                           (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:) = ...
-                          max(prevActivations(instanceLeafNodes(childItr)) * prevNodeMasks{children(childItr)}, ...
+                          max(assignedWeight * prevNodeMasks{children(childItr)}, ...
                               (currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                                   (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:)));
 

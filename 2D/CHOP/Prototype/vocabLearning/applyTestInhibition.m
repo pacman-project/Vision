@@ -47,7 +47,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
         imageNodeIdx = imageIds == imageId;
         imageNodeCoords = nodeCoords(imageNodeIdx,:);
         if nnz(imageNodeIdx) == 0
-            break;
+            continue;
         end
         imageGraphLevel = graphLevel(1,imageNodeIdx);
         
@@ -62,7 +62,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     end
     
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
-    for imageId = 1:numberOfImages
+    parfor imageId = 1:numberOfImages
         sortIdx = imageSortIdx{imageId};
         orgImageGraphLevel = imageGraphLevels{imageId};
         imageGraphLevel = orgImageGraphLevel(sortIdx);
