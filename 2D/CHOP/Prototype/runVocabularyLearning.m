@@ -200,21 +200,44 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); 
         categoryNames = categoryArr(categoryNames); 
         
-        %% Here, we select the validation set.
+        %% Here, we select the validation sets.
+        % We select options.validationFolds (number) non-overlapping sets
+        % from each category, and assign validation set indices for these
+        % images.
         if options.validationFlag
-            validationIdx = zeros(numel(imageSigns),1) > 0;
+            validationIdx = zeros(numel(imageSigns),1, 'uint8');
             for categoryItr = 1:numel(categoryNames)
                 categoryImageIdx = find(categoryArrIdx == categoryItr);
-                categoryValidationImageIdx = sort(datasample(categoryImageIdx, ...
-                    round(options.validationRatio * numel(categoryImageIdx)), 'Replace', false));
-                validationIdx(categoryValidationImageIdx) = 1;
+                
+                % Put images into separate folders for cross-validation in
+                % threshold selection.
+                validationSets = 0:(numel(categoryImageIdx)/options.validationFolds):numel(categoryImageIdx);
+                validationSets = round(validationSets);
+                validationSets = validationSets(2:(end)) - validationSets(1:(end-1));
+                if numel(validationSets) < options.validationFolds
+                   validationSets = [validationSets , numel(categoryImageIdx) - sum(validationSets)]; %#ok<AGROW>
+                end
+                
+                % Select images belonging to this category in random order.
+                categorySetsImageIdx = datasample(categoryImageIdx, ...
+                    numel(categoryImageIdx), 'Replace', false);
+                
+                % Assign set indices for cross-validation.
+                imgOffset = 1;
+                for valItr = 1:(options.validationFolds)
+                    validationIdx(categorySetsImageIdx(imgOffset:(imgOffset + (validationSets(valItr) - 1)))) = valItr;
+                    imgOffset = imgOffset + validationSets(valItr);
+                end
             end
-            options.validationIdx = validationIdx;
+        else
+            % If no cross-validation is desired, we're considering the
+            % training data as a single subset.
+            validationIdx = ones(numel(imageSigns),1, 'uint8');
         end
-        assignedValidationIdx = validationIdx(cell2mat(imageIds));
+        options.validationIdx = validationIdx;
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        [vocabLevel, graphLevel] = generateLevels(leafNodes, allNodeActivations, leafNodeSigns, assignedValidationIdx, options);
+        [vocabLevel, graphLevel] = generateLevels(leafNodes, allNodeActivations, leafNodeSigns, options);
         
         %% Learn edge-based distance matrix once and for all.
         [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize);
@@ -240,7 +263,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'optimalThresholds', 'distanceMatrices', 'graphLevelIndices', 'trainingFileNames', 'categoryNames');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'optimalThresholds', 'distanceMatrices', 'graphLevelIndices', 'trainingFileNames', 'categoryNames', 'options');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'validationIdx', 'poseArr', '-append'); 

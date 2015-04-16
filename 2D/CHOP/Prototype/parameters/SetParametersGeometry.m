@@ -240,7 +240,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
     % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.025; % Minimum threshold for elastic matching.
     options.subdue.maxThreshold = 0.15; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 4; % The depth of binary search 
+    options.subdue.thresholdSearchMaxDepth = 5; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.

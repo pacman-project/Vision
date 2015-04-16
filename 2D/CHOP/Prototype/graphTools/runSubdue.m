@@ -77,6 +77,11 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     stoppingCoverage = options.reconstruction.stoppingCoverage;
     optimalThreshold = orgThreshold;
     noveltyThr = options.noveltyThr;
+    if options.validationFlag
+        validationFolds = options.validationFolds;
+    else
+        validationFolds = 1; 
+    end
     if reconstructionFlag
         singleNodeThreshold = maxThreshold + singlePrecision;
     else
@@ -115,7 +120,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     % If no edges are present, time to return.
     allSigns = uint8(cat(1, graphLevel.sign));
     categoryArrIdx = uint8(categoryArrIdx(cat(1, graphLevel.imageId)))';
-    validationIdx = uint8(validationIdx(cat(1, graphLevel.imageId)))';
+    validationIdx = validationIdx(cat(1, graphLevel.imageId));
     
     % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
     graphSize = numberOfAllEdges * mdlEdgeWeight + ...
@@ -391,7 +396,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
        if reconstructionFlag
            [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
                nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
-               stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, maxDepth);
+               stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, ...
+               maxDepth, validationFolds);
            
            bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
                allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
@@ -430,6 +436,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
            instanceChildrenDescriptors{bestSubItr} = childrenDescriptors;
            adaptiveThreshold = single(optimalThreshold * ((size(bestSubs(bestSubItr).edges,1)+1)*2-1)) + singlePrecision;
            instanceMatchScores = fix(multiplier * ((adaptiveThreshold - bestSubs(bestSubItr).instanceMatchCosts) / adaptiveThreshold)) / multiplier;
+           
            % Calculate activations for the next level.
            instancePrevActivations = prevActivations(instanceChildren);
            if size(instanceChildren,1)>1
@@ -603,9 +610,8 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
             instanceDistances = distances(subCenterIdx);
             
             % We check if this sub has exact-matching instances in the
-            % training set (not validation set). If not, it is not
-            % considered for further expansion.
-            if nnz(instanceDistances == 0 & (instanceValidationIdx == 0)') == 0
+            % training set. If not, it is not considered for further expansion.
+            if nnz(instanceDistances == 0) == 0
                  singleNodeSubs(subItr).mdlScore = 0;
                  continue;
             end
@@ -616,7 +622,7 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
             singleNodeSubs(subItr).instanceCategories = categoryIdx;
             singleNodeSubs(subItr).instanceMatchCosts = instanceDistances;
             singleNodeSubs(subItr).instanceSigns = instanceSigns;
-            singleNodeSubs(subItr).instanceValidationIdx = instanceValidationIdx';
+            singleNodeSubs(subItr).instanceValidationIdx = instanceValidationIdx;
         else
             validSubs(subItr) = 0;
         end
@@ -645,8 +651,6 @@ end
 function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, threshold)
     
     centerIdx = sub.instanceCenterIdx;
-    centerTrainingIdx = zeros(max(centerIdx),1)>0;
-    centerTrainingIdx(centerIdx) = ~(sub.instanceValidationIdx>0)';
     subAllEdges = {allEdges(centerIdx).adjInfo}';
     % Get unused edges from sub's instances.
     allUsedEdgeIdx = sub.instanceEdges;
@@ -682,8 +686,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     
     % Eliminate the edges which exist only in validation data. We do not
     % enumerate any edges which do not exist in training data.
-    enumeratedEdges = allUnusedEdges(allEdgePrevCosts < singlePrecision, :);
-    enumeratedEdges = enumeratedEdges(centerTrainingIdx(enumeratedEdges(:,1)), 3:4);
+    enumeratedEdges = allUnusedEdges(allEdgePrevCosts < singlePrecision, 3:4);
     
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(enumeratedEdges, 'rows');

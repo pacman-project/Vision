@@ -35,9 +35,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % in Subdue is estimated
                                     % according to the validation
                                     % data.
-    options.validationRatio = 0.2; % The percentage of the data to 
-                                    % be used as validation set.
-                                    % Rest is used for training.
     options.validationFolds = 5;   % Number of random subsets of 
                                     % validation data which will
                                     % help finding an optimal
@@ -46,8 +43,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                     % all sets. Ideal threshold is
                                     % estimated as the average
                                     % value.
-    options.validationIdx = [];    %The indices of the images to be used 
-                                   % in validation.
+    options.validationIdx = [];    % The indices of the images to be used 
+                                   % in validation. ( Will be filled in 
+                                   % runVocabularyLearning.m). 
     
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;

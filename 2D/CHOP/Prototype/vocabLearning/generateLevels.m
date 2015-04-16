@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 03.02.2014
 %> Ver 1.1 on 01.09.2014 Adding negative signs.
-function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, validationIdx, options)
+function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, options)
     % Allocate space for both levels.
     vocabLevel(options.numberOfFilters) = options.vocabNode;
     graphLevel(size(nodes,1)) = options.graphNode;
@@ -40,10 +40,6 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, va
     % Set activation values.
     activationArr = num2cell(activations);
     [graphLevel.activation] = deal(activationArr{:});
-    
-    % Set validation data flags.
-    validationIdx = num2cell(validationIdx);
-    [graphLevel.inValidationSet] = deal(validationIdx{:});
     
     % Add leaf nodes.
     leafNodes = num2cell(int32(1:size(nodes,1)));

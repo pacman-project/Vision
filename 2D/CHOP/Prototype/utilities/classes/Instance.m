@@ -19,13 +19,10 @@ classdef Instance
                     % does not encode all connections in the center node's
                     % receptive graph. It only retains the ones that are
                     % required to match this realization's graph
-                    % instance to its linked part's graph description. Is
-                    % of the form (v2, edgeId, isDirected; 
-                    % v3, edgeId, isDirected; ...]
+                    % instance to its linked part's graph description. 
         sign@uint8; % Signature of the instance, which typically should set 
                    % to 1 unless the relevant image is of background class.
         category@uint8; % Category of the the image this instance belongs to. ( This means max 255 categories are supported for now).
-        isValidation@uint8 % If true, this node is part of the validation data.
         matchCost@single; % Matching cost of this instance to the vocabulary part.
     end
 end

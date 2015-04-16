@@ -15,15 +15,15 @@
 %> Ver 1.0 on 18.02.2015
 function [] = createGeometryDataset( )
     % Here, we define the objects. 
-    rotationCount = 23;
+    rotationCount = 37;
     scaleCount = 3;
-    scaleStep = 1.2;
+    scaleStep = 1.4;
     initialSize = 40;
     imageSize = 300;
     imageValidSize = 120;
     translateCount = 1;
     dilation = 1;
-    noiseDev = 0.1;
+    noiseDev = 0.2;
     trainImgPercentage = 0.5;
     objects = {'square', 'triangle', 'star', 'circle'};
     
