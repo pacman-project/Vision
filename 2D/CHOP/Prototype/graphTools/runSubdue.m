@@ -372,8 +372,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     if ~isempty(singleNodeSubsFinal)
         bestSubs = addToQueue(singleNodeSubsFinal, bestSubs, nsubs + numel(singleNodeSubsFinal)); 
     end
-    
-    display('[SUBDUE] Processing has finished. Writing all to output and quitting.');
     %% Step 3: Create nextVocabLevel and nextGraphLevel from bestSubs.
     numberOfBestSubs = numel(bestSubs);
     
@@ -383,6 +381,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     end
     
     % Remove duplicate instances from each sub.
+    display('[SUBDUE/Parallel] Removing duplicate instances from each sub, and updating their match scores..');
     bestSubs = removeDuplicateInstances(bestSubs);
     
     %% Allocate space for new graphLevel and vocabLevel.
@@ -412,7 +411,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
            bestSubs = bestSubs(mdlSortIdx);
        end
        
-       %% Eliminate duplicate entries among the sub children.
+       %% Learn activations for instances, and save the children for future use.
+        display('[SUBDUE/Parallel] Calculating activations for each instance, and saving instance nodes for later use..');
         numberOfBestSubs = numel(bestSubs);
         % Learn the maximum children count in instances.
         maxSubSize = 1;
@@ -427,7 +427,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
         instanceChildrenDescriptors = cell(numberOfBestSubs,1);
         instanceActivations = cell(numberOfBestSubs,1);
         remainingInstanceLabels = cell(numberOfBestSubs,1);
-        for bestSubItr = 1:numberOfBestSubs
+        parfor bestSubItr = 1:numberOfBestSubs
            instanceChildren = bestSubs(bestSubItr).instanceChildren;
            tempNum = size(instanceChildren,1);
            % Find children descriptors and save 'em.
@@ -438,7 +438,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
            instanceMatchScores = fix(multiplier * ((adaptiveThreshold - bestSubs(bestSubItr).instanceMatchCosts) / adaptiveThreshold)) / multiplier;
            
            % Calculate activations for the next level.
-           instancePrevActivations = prevActivations(instanceChildren);
+           instancePrevActivations = prevActivations(instanceChildren); %#ok<PFBNS>
            if size(instanceChildren,1)>1
                instanceMeanActivations = mean(instancePrevActivations,2);
            else
@@ -453,7 +453,11 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
         end
         instanceChildrenDescriptors = cat(1, instanceChildrenDescriptors{:});
         
+        %% If inhibition is applied, we eliminate the instances which exist in multiple subs.
+        % For each unique instance (node set), we find the best matching
+        % sub, and assign the instance to that sub.
         if noveltyThr > 0
+           display('[SUBDUE] Performing initial inhibition. Eliminating duplicate instances among different subs..');
            %        Alternative 2
            instanceActivations = cat(1, instanceActivations{:});
            remainingInstanceLabels = cat(1, remainingInstanceLabels{:});
@@ -479,6 +483,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
         
         %% Fill in vocabLevel and graphLevel.
        %Allocate space for new graph/vocab level.
+       display('[SUBDUE] Processing has finished. Writing all to output and quitting.');
        vocabLevel(numberOfBestSubs) = options.vocabNode;
        graphLevel(numberOfInstances) = options.graphNode;
        

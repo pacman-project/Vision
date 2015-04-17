@@ -1,14 +1,10 @@
-function [validSubs, isSolutionOptimal, isCoverageOptimal, overallCoverage, overallMatchScore] = getReconstructiveParts(bestSubs, ...
+function [validSubs, overallCoverage, overallMatchScore] = getReconstructiveParts(bestSubs, ...
     numberOfFinalSubs, moreSubsAllowed, smartSubElimination, midThr, stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
     edgeDistanceMatrix, singlePrecision)
 
    numberOfBestSubs = numel(bestSubs);
    prevGraphNodeCount = numel(uniqueChildren);
-
-   % We have a flag to indicate if we have close-to-optimal coverage. 
-   isSolutionOptimal = false;
-   isCoverageOptimal = false;
-
+   
    % Calculate which leaf nodes are covered.
    subNodes = cell(numberOfBestSubs,1);
    subMatchScores = cell(numberOfBestSubs,1);
@@ -36,7 +32,7 @@ function [validSubs, isSolutionOptimal, isCoverageOptimal, overallCoverage, over
    if smartSubElimination
        validSubIdx = getDisjointSubs(bestSubs, ...
            nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, midThr);
-       display(['[SUBDUE] Considering only disjoint examples, we are down to ' num2str(nnz(validSubIdx)) ' subs to consider.']);
+%       display(['[SUBDUE] Considering only disjoint examples, we are down to ' num2str(nnz(validSubIdx)) ' subs to consider.']);
    else
        validSubIdx = ones(numel(bestSubs),1) > 0;
    end
@@ -54,7 +50,7 @@ function [validSubs, isSolutionOptimal, isCoverageOptimal, overallCoverage, over
    selectedSubIdx = zeros(numberOfBestSubs,1) > 0;
    addedSubOffset = 1;
 %   numberOfRemainingBestSubs = numel(validSubs);
-   while addedSubOffset <= numberOfFinalSubs && ~isSolutionOptimal
+   while addedSubOffset <= numberOfFinalSubs
        numberOfCoveredNodes = nnz(nodeArr);
 
 %        % Print current progress.
@@ -132,7 +128,7 @@ function [validSubs, isSolutionOptimal, isCoverageOptimal, overallCoverage, over
    end
    
    % Printing.
-   display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
-        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average match score:' num2str(overallMatchScore) '.']);
+%   display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
+%        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average match score:' num2str(overallMatchScore) '.']);
 
 end

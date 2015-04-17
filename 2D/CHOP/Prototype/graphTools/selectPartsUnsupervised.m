@@ -40,6 +40,9 @@ function [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
     singlePrecision, stoppingCoverage, numberOfFinalSubs, minThreshold, ...
     maxThreshold, maxDepth, validationFolds)
     
+    % Warn the user. This may take a while.
+    display('[SUBDUE] Running unsupervised part selection. This may take a while..');
+
     % Keep best subs.
     orgBestSubs = bestSubs;
     
@@ -73,6 +76,11 @@ function [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
     % find an optimal threshold.
     crossValThresholds = zeros(validationFolds,1, 'single');
     subEliminationFlags = zeros(validationFolds,1);
+    if validationFolds > 1
+        display(['[SUBDUE/Parallel] Determining the optimal matching threshold with ' num2str(validationFolds) '-fold cross-validation.']); 
+    else
+        display('[SUBDUE] Finding an optimal matching threshold based on the training data. This may lead to over-fitting! Performing cross-validation is recommended.');
+    end
     parfor valItr = 1:validationFolds
         % We exclude the subs which have zero-cost matchs on this subset,
         % but not on other subsets.
@@ -108,11 +116,13 @@ function [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
        currentDepth = 1;
        moreSubsAllowed = 0;
        smartSubElimination = 1;
+       isSolutionOptimal = false;
+       isCoverageOptimal = false;
 
-       display(['[SUBDUE] Starting threshold search with ' num2str(midThr) '. We are limited to ' num2str(numberOfFinalSubs) ' compositions.']);
-       display(['[SUBDUE] Initially, we have ' num2str(numberOfBestSubs) ' subs to consider.']);
+%       display(['[SUBDUE] Starting threshold search with ' num2str(midThr) '. We are limited to ' num2str(numberOfFinalSubs) ' compositions.']);
+%       display(['[SUBDUE] Initially, we have ' num2str(numberOfBestSubs) ' subs to consider.']);
        %% Searching for optimal threshold using a binary search mechanism.
-       while (currentDepth <= maxDepth)
+       while (currentDepth <= maxDepth) && ~isSolutionOptimal
            % If this is the final leg of search, we allow part selection to
            % have more subs than the max number.
            if currentDepth == maxDepth
@@ -121,7 +131,7 @@ function [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
            
            %% Optimality logic is implemented here. We're searching for an optimal threshold.
            % First, we obtain non-overlapping, minimal set of subs.
-           [validSubs, isSolutionOptimal, isCoverageOptimal, overallCoverage, overallMatchScore] = getReconstructiveParts(bestSubs, ...
+           [validSubs, overallCoverage, overallMatchScore] = getReconstructiveParts(bestSubs, ...
                 numberOfFinalSubs, moreSubsAllowed, smartSubElimination, midThr, ...
                 stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
                 edgeDistanceMatrix, singlePrecision);
@@ -135,7 +145,7 @@ function [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
            unsupMetric = overallCoverage * overallMatchScore;
 
            % If the score is ideal, we mark solution flag as true.
-           if unsupMetric > stoppingCoverage
+           if unsupMetric >= stoppingCoverage
                isSolutionOptimal = true;
            end
 
@@ -149,28 +159,28 @@ function [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
             if (currentDepth <= maxDepth)
                 if isSolutionOptimal
                     % If we've found the perfect number of hidden nodes, exit.
-                    display(['[SUBDUE] Found a perfect similarity threshold: ' num2str(midThr) '! Quitting..']);
+%                     display(['[SUBDUE] Found a perfect similarity threshold: ' num2str(midThr) '! Quitting..']);
                 elseif numel(validSubs) < numberOfFinalSubs && ~isCoverageOptimal
                     if smartSubElimination
                         smartSubElimination = 0;
                         currentDepth = currentDepth - 1;
-                        display('[SUBDUE] Not optimal coverage. Disabling smart sub elimination and trying again.');
+%                         display('[SUBDUE] Not optimal coverage. Disabling smart sub elimination and trying again.');
                     else
                         minThr = midThr;
                         midThr = (maxThr + minThr) / 2;
-                        display(['[SUBDUE] Not optimal coverage. ' ...
-                        ' Increasing the threshold to ' num2str(midThr) ' and continuing to search..']);
+%                         display(['[SUBDUE] Not optimal coverage. ' ...
+%                         ' Increasing the threshold to ' num2str(midThr) ' and continuing to search..']);
                     end
                 elseif ~isCoverageOptimal
-                        minThr = midThr;
-                        midThr = (maxThr + minThr) / 2;
-                        display(['[SUBDUE] Not optimal coverage. ' ...
-                        ' Increasing the threshold to ' num2str(midThr) ' and continuing to search..']);
+                    minThr = midThr;
+                    midThr = (maxThr + minThr) / 2;
+%                     display(['[SUBDUE] Not optimal coverage. ' ...
+%                     ' Increasing the threshold to ' num2str(midThr) ' and continuing to search..']);
                 else
                     maxThr = midThr;
                     midThr = (maxThr + minThr) / 2;
-                    display(['[SUBDUE] Trying to reduce matching costs.' ...
-                        ' Lowering the threshold to ' num2str(midThr) ' and continuing to search..']);
+%                     display(['[SUBDUE] Trying to reduce matching costs.' ...
+%                         ' Lowering the threshold to ' num2str(midThr) ' and continuing to search..']);
                 end
             end
        end
@@ -184,13 +194,15 @@ function [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
     if validationFolds > 1
         display(['[SUBDUE] Thresholds learned from cross-validation folds: ' ...
             mat2str(crossValThresholds) ', with mean: ' num2str(mean(crossValThresholds)) '.']);
+    else
+        display(['[SUBDUE] Matching threshold is determined as ' num2str(mean(crossValThresholds))]); 
     end
     optimalThreshold = mean(crossValThresholds);
     smartSubElimination = round(mean(subEliminationFlags));
     uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
     
     % Get a new set of subs.
-   [finalSubList, ~, ~, ~, ~] = getReconstructiveParts(bestSubs, ...
+   [finalSubList, ~, ~] = getReconstructiveParts(bestSubs, ...
     numberOfFinalSubs, 1, smartSubElimination, optimalThreshold, ...
     stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
     edgeDistanceMatrix, singlePrecision);
@@ -198,7 +210,7 @@ function [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
    % Update instance information.
    bestSubs = bestSubs(finalSubList);
    % Update bestSubs instances by taking the new threshold into account.
-   for bestSubItr = 1:numel(bestSubs)
+   parfor bestSubItr = 1:numel(bestSubs)
         sub = bestSubs(bestSubItr);
         validInstances = sub.instanceMatchCosts < ((size(sub.edges,1)*2+1) * optimalThreshold + singlePrecision);
         sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);

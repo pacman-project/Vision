@@ -29,7 +29,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                             % training.
                                  
     %% ========== VALIDATION PARAMETERS ==========
-    options.validationFlag = true; % If true, a subset of the training
+    options.validationFlag = false; % If true, a subset of the training
                                     % set is used as a validation
                                     % set. The matching threshold
                                     % in Subdue is estimated

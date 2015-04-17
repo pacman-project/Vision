@@ -15,7 +15,7 @@
 %> Ver 1.0 on 18.02.2015
 function [] = createGeometryDataset( )
     % Here, we define the objects. 
-    rotationCount = 37;
+    rotationCount = 7;
     scaleCount = 3;
     scaleStep = 1.4;
     initialSize = 40;
