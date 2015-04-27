@@ -1,0 +1,43 @@
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+#Temporary files
+*~
+
+#BUILD Dirs
+
+BUILD/*
+CameraWrapper/BUILD/*
+
+#Qt Files
+*.user
+
+#Binary Files
+*.pdf
+
+#latex temporary files
+*.aux
+*.idx
+*.ilg
+*.ind
+*.log
+*.toc
