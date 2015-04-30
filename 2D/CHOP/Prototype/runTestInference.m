@@ -62,7 +62,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         % manner that allows measuring performance.
         categoryArrIdx = zeros(numel(testFileNames),1);
         for fileItr = 1:numel(testFileNames)
-            categoryLabel = -1;
+            categoryLabel = 1;
             fullName = testFileNames{fileItr};
             [~, fileName, ext] = fileparts(testFileNames{fileItr});
             strLength = numel([options.currentFolder '/input/' options.datasetName '/test/']);

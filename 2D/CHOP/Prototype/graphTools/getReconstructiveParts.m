@@ -8,7 +8,7 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
    % Calculate which leaf nodes are covered.
    subNodes = cell(numberOfBestSubs,1);
    subMatchScores = cell(numberOfBestSubs,1);
-   for bestSubItr = 1:numberOfBestSubs
+   parfor bestSubItr = 1:numberOfBestSubs
        adaptiveThreshold = ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);
        validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold;
        nodes = bestSubs(bestSubItr).instanceChildren(validInstanceIdx, :);
@@ -42,10 +42,18 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
    % by their contributions. Ideally, we can replace this step with
    % an optimization problem solver such as a genetic algorithm, or
    % simulated annealing.
-   maxContributions = cellfun(@(x) numel(x), subNodes);
-   maxContributions(~validSubIdx) = 0;
    subMeanMatchScores = cellfun(@(x) mean(x), subMatchScores);
    subMeanMatchScores(isnan(subMeanMatchScores)) = 0;
+   
+   % Let's calculate an array containing maximum contributions of each sub,
+   % which is numberOfLeafNodes * meanMatchScore.
+   maxContributions = cellfun(@(x) numel(x), subNodes);
+   maxContributions(~validSubIdx) = 0;
+   maxContributions = maxContributions .* subMeanMatchScores;
+   
+   %% Start the main loop. We select subs one by one.
+   % This is a greedy selection algorithm. Each new sub's evaluation
+   % depends on the previous set, i.e. it shows how much novelty it can bring to the table.
    nodeArr = zeros(max(uniqueChildren),1) > 0;
    selectedSubIdx = zeros(numberOfBestSubs,1) > 0;
    addedSubOffset = 1;
@@ -68,6 +76,7 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
        valueArr = inf(numberOfBestSubs,1);
        curValue = 0;
        for bestSubItr = 1:numberOfBestSubs
+           
             % If we've already marked this sub or it is not promising, go on.
             if maxContributions(bestSubItr) <= curValue
                 continue; 
@@ -128,7 +137,7 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
    end
    
    % Printing.
-%   display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
-%        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average match score:' num2str(overallMatchScore) '.']);
+   display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
+        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average match score:' num2str(overallMatchScore) '.']);
 
 end

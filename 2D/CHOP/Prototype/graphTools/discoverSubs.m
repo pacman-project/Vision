@@ -23,7 +23,8 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel, optimalThreshold] = discoverSubs( vocabLevel, graphLevel, nodeDistanceMatrix, options, preDefinedSearch, threshold, levelItr)
+function [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs( vocabLevel, graphLevel, ...
+    nodeDistanceMatrix, options, preDefinedSearch, threshold, levelItr, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy)
     startTime = tic;
     optimalThreshold = threshold;
     edgeDistanceMatrix = options.edgeDistanceMatrix;
@@ -40,7 +41,9 @@ function [vocabLevel, graphLevel, optimalThreshold] = discoverSubs( vocabLevel, 
         % It'll be unhid as soon as possible.
         graphLevel = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, threshold);
     else
-        [vocabLevel, graphLevel, optimalThreshold] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, options);
+        [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, graphLevel, ...
+            nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, ...
+            supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, options);
     end
     
     % Show time elapsed.

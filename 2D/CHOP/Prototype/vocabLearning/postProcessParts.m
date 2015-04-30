@@ -96,7 +96,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
 
         newDistanceMatrix = zeros(numberOfNodes);
         distMatEntries = cell(numberOfNodes,1);
-        for partItr1 = 1:(numberOfNodes-1)
+        parfor partItr1 = 1:(numberOfNodes-1)
             newEntries = zeros(1, numberOfNodes);
             description1 = vocabDescriptions{partItr1};
             savedRows = unique(description1(:,1));
@@ -105,7 +105,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
             sparseNodeMat = sparse(sparseNodeMat);
 
             for partItr2 = (partItr1+1):numberOfNodes
-                description2 = vocabDescriptions{partItr2};
+                description2 = vocabDescriptions{partItr2}; %#ok<PFBNS>
                 adaptiveThreshold = single((max(size(description1, 1), size(description2,1))*2-1) * threshold) + singlePrecision;
                 matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat, adaptiveThreshold);
                 if matchingCost >0

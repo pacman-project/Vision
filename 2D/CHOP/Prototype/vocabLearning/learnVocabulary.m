@@ -84,11 +84,20 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     load([options.currentFolder '/output/' options.datasetName '/export.mat']);
     prevActivations = cat(1, mainGraph{1}.activation);
     
+    % Read supervision flag for optimal threshold search.
+    supervisedSelectionFlag = options.supervisedSelectionFlag;
+    supervisedSelectionMode = options.supervisedSelectionMode;
+    isSupervisedSelectionRunning = false;
+    if strcmp(supervisedSelectionMode, 'manual')
+        isSupervisedSelectionRunning = true;
+    end
+    previousAccuracy = 0;
+    
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-        [vocabLevel, graphLevel, optimalThreshold] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
-            options, false, options.subdue.threshold, levelItr-1);
+        [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
+            options, false, options.subdue.threshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy);
         optimalThresholds(levelItr) = optimalThreshold;
         
         % Open/close matlabpool to save memory.
@@ -144,7 +153,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
-            display('........ Calculating distance matrix among the vocabulary nodes..');
+            display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
             [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, options);
             graphLevelIndices{levelItr} = graphLabelAssgnArr;
             distanceMatrices{levelItr} = newDistanceMatrix;

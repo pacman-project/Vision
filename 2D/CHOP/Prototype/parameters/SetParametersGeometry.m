@@ -25,7 +25,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.2; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.25; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
@@ -95,7 +95,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.4;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -184,7 +184,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                         % selecting an optimal set of parts
                                         % to cover most of the training
                                         % data.
-    options.reconstruction.stoppingCoverage = 1; % Between [0.00, 1.00].
+    options.reconstruction.stoppingCoverage = 0.99; % Between [0.00, 1.00].
                                            % The default value is 0.99.
                                            % When the training data
                                            % coverage is reached to this
@@ -205,12 +205,12 @@ function [ options ] = SetParametersGeometry( datasetName, options )
     options.subdue.isMDLExact = false;     % If true, exact mdl is calculated.
                                            % Otherwise, approximate mdl is
                                            % calculated (faster).
-    options.subdue.mdlNodeWeight = 8;      % Weight of a node in DL calculations 
+    options.subdue.mdlNodeWeight = 12;      % Weight of a node in DL calculations 
                                            % in MDL-based evaluation
                                            % metric. Cost of a node =
                                            % labelId (int, 4 byte) + pointer to
                                            % edges (int, 4 byte) = 8.
-    options.subdue.mdlEdgeWeight = 9;      % Weight of an edge in DL calculations 
+    options.subdue.mdlEdgeWeight = 8;      % Weight of an edge in DL calculations 
                                            % in MDL-based evaluation
                                            % metric. Cost of an edge =
                                            % edgeLabelId (int, 4 byte) + 
@@ -238,9 +238,9 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                     % by minThreshold and maxThreshold.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.025; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.15; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 5; % The depth of binary search 
+    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.4; % Max threshold for elastic part matching. 
+    options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.

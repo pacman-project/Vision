@@ -29,13 +29,13 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                             % training.
                                  
     %% ========== VALIDATION PARAMETERS ==========
-    options.validationFlag = false; % If true, a subset of the training
+    options.validationFlag = true; % If true, a subset of the training
                                     % set is used as a validation
                                     % set. The matching threshold
                                     % in Subdue is estimated
                                     % according to the validation
                                     % data.
-    options.validationFolds = 5;   % Number of random subsets of 
+    options.validationFolds = 4;   % Number of random subsets of 
                                     % validation data which will
                                     % help finding an optimal
                                     % matching threshold. The
@@ -46,6 +46,13 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.validationIdx = [];    % The indices of the images to be used 
                                    % in validation. ( Will be filled in 
                                    % runVocabularyLearning.m). 
+    options.supervisedSelectionFlag = true; % If true, the algorithm will 
+                                   % switch to supervised part selection.
+    options.supervisedSelectionMode = 'auto'; % If 'auto', the system will 
+                                   % switch to discriminative threshold search 
+                                   % after first performance drop in
+                                   % unsupervised learning. If 'manual', it
+                                   % will go supervised since level 2.
     
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;

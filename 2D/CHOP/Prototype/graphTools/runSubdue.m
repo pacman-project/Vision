@@ -46,7 +46,9 @@
 %> Ver 1.0 on 05.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
-function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, options)
+function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, ...
+    graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, ...
+    supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -87,6 +89,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     else
         singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
     end
+    parentsPerSet = 20;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
@@ -119,6 +122,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     
     % If no edges are present, time to return.
     allSigns = uint8(cat(1, graphLevel.sign));
+    imageIdx = cat(1, graphLevel.imageId);
     categoryArrIdx = uint8(categoryArrIdx(cat(1, graphLevel.imageId)))';
     validationIdx = validationIdx(cat(1, graphLevel.imageId));
     
@@ -219,8 +223,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
         mdlScoreArrFinal = cell(numel(parentSubs),1);
         mdlScoreArrExtend = cell(numel(parentSubs),1);
         numberOfParentSubs = numel(parentSubs);
-        if numberOfParentSubs > 50
-            setDistributions = 1:50:numberOfParentSubs;
+        if numberOfParentSubs > parentsPerSet
+            setDistributions = 1:parentsPerSet:numberOfParentSubs;
             if setDistributions(end) ~= numberOfParentSubs
                 setDistributions = [setDistributions, numberOfParentSubs]; %#ok<AGROW>
             end
@@ -393,11 +397,27 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold] = runSubdue(vocabLev
     if numberOfInstances>0
        %% If required, we'll pick best parts based on the reconstruction of the data.
        if reconstructionFlag
-           [bestSubs, optimalThreshold] = selectPartsUnsupervised(bestSubs, ...
+           [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, ...
                nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
                stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, ...
-               maxDepth, validationFolds);
+               maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, isSupervisedSelectionRunning);
            
+           % If supervision flag is set, and the performance has dropped
+           % since the previous iteration, we switch to supervision.
+           if supervisedSelectionFlag && ~isSupervisedSelectionRunning && ...
+               optimalAccuracy < previousAccuracy
+               isSupervisedSelectionRunning = true;
+               [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, ...
+                   nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
+                   stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, ...
+                   maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, isSupervisedSelectionRunning);
+           else
+               previousAccuracy = optimalAccuracy;
+           end
+           bestSubs = selectedSubs;
+           optimalThreshold = selectedThreshold;
+           
+           % Re-evaluate best subs.
            bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
                allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
 %            %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
