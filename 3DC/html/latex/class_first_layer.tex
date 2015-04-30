@@ -1,0 +1,566 @@
+\hypertarget{class_first_layer}{\section{First\-Layer Class Reference}
+\label{class_first_layer}\index{First\-Layer@{First\-Layer}}
+}
+
+
+{\ttfamily \#include $<$First\-Layer.\-h$>$}
+
+\subsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\hyperlink{class_first_layer_a2c91a3e201cb46ef6f597cefe87b35a0}{First\-Layer} ()
+\begin{DoxyCompactList}\small\item\em Constructor. \end{DoxyCompactList}\item 
+\hyperlink{class_first_layer_a6cec9185f94b6bf4c99b6eda97e4d73b}{$\sim$\-First\-Layer} ()
+\begin{DoxyCompactList}\small\item\em Destructor. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_aa6c046c60d3b3269e93955b07b15986b}{matrix\-To\-Txt\-File} (const Mat \&m, string filename)
+\begin{DoxyCompactList}\small\item\em Writes a matrix to the text file. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a14e6821bc705c01d174685335b20322a}{vector\-To\-Txt\-File} (const vector$<$ vector$<$ double $>$ $>$ data, string filename)
+\begin{DoxyCompactList}\small\item\em Writes a vector of vectors to the text file. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a7a31ab9f8833c145dc2b94cba91f3d70}{vector\-To\-Txt\-File} (const vector$<$ vector$<$ float $>$ $>$ data, string filename)
+\begin{DoxyCompactList}\small\item\em Writes a vector of vectors to the text file. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_aba8577b4d6cb790edc7bd04446727f28}{calc\-Gradient} (const Mat \&m, Mat \&grad\-X, Mat \&grad\-Y, Mat \&grad\-Orient, Mat \&grad\-Magnit)
+\begin{DoxyCompactList}\small\item\em Calculates the gradient of the depth image. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a2a88c95e693b614a27be5bb5c536d41c}{calc\-Histogram} (const Mat \&m, Mat \&hist)
+\begin{DoxyCompactList}\small\item\em Calculates histogram of the depth image. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a485d0275f548130fad99051cb8736dc5}{calc\-Color\-Map} (const Mat \&m, Mat \&color\-Map)
+\begin{DoxyCompactList}\small\item\em Calculates color mapping for displaying depth images. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a62260984a4e3d9c473234e4b48610974}{calc\-Recpt\-Field} (const Mat \&m, Mat \&recept, int rec\-Field\-Size)
+\begin{DoxyCompactList}\small\item\em Calculates receptive field without overlap. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a6cf9ba54ebcb3d63a6fe84d5dc4d50dc}{segment\-Parts} (vector$<$ vector$<$ double $>$ $>$ \&data, Mat \&output, int layer\-Num, int difference)
+\begin{DoxyCompactList}\small\item\em Segments parts according to distance measure. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_ac0013ac908aa60b6fbb791998f845a5c}{calc\-Distance\-Measure} (const Mat \&m, vector$<$ vector$<$ double $>$ $>$ \&data, int rec\-Field\-Size)
+\begin{DoxyCompactList}\small\item\em Calculates distance between patches at the first layer. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a1c6b8fed0cde49a767acbc38dfa521f7}{calc\-Distance\-Measure\-Sec} (const Mat \&m, vector$<$ vector$<$ double $>$ $>$ \&data, int layer\-Num, int rec\-Field\-Size)
+\begin{DoxyCompactList}\small\item\em Calculates distance between patches at the second layer and above. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a5660027541994b18f6be950ff73bb403}{precompute\-Distance} (int layer\-Num, int rec\-Field\-Size)
+\begin{DoxyCompactList}\small\item\em Precomputes the distance between parts on arbitrary layer. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_abe9d6d5d83ef778ea076140cc9ecc9e2}{calc\-Recpt\-Field\-Overlap} (const Mat \&m\-Orient, const Mat \&m\-Magnit, Mat \&recept, int rec\-Field\-Size)
+\begin{DoxyCompactList}\small\item\em Calculates receptive field with overlap. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_abcfc2aa2add70a95cab3e6d5c6bde6a7}{calc\-Normals} (const Mat \&grad\-X, const Mat \&grad\-Y, Mat \&normals)
+\begin{DoxyCompactList}\small\item\em Calculates normals using gradients calculated in X and Y direction. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_a028b3d6af0b7196ef5478c45bbda9e97}{calc\-Normals\-P\-C\-A} (const Mat \&m, Mat \&normals, int rec\-Field\-Size)
+\begin{DoxyCompactList}\small\item\em Calculates normals using P\-C\-A. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_ae5981a6b0f49fd66692da5001ff4b021}{calc\-Distance\-Measure\-Normals} (const Mat \&m, vector$<$ vector$<$ float $>$ $>$ \&data)
+\begin{DoxyCompactList}\small\item\em Calculates distance measure between normals. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_ad26c3c16c6dd6050d17ce6165ce58bef}{calc\-Derivatives} (const Mat \&m, Mat \&grad\-X, Mat \&grad\-Y, Mat \&grad\-X\-X, Mat \&grad\-Y\-Y, Mat \&grad\-X\-Y, char kernel\-Size)
+\begin{DoxyCompactList}\small\item\em Calculates discrete versions of derivatives using Sobel mask. \end{DoxyCompactList}\item 
+int \hyperlink{class_first_layer_ab2bfbc1a96cfb52b73594d57124e1bf3}{calc\-H\-Kmap} (const Mat \&grad\-X, const Mat \&grad\-Y, const Mat \&grad\-X\-X, const Mat \&grad\-Y\-Y, const Mat \&grad\-X\-Y, Mat \&H, Mat \&K, Mat \&H\-S, Mat \&K\-S, Mat \&H\-K)
+\begin{DoxyCompactList}\small\item\em Calculates discrete versions of local surface curvature descriptor. \end{DoxyCompactList}\end{DoxyCompactItemize}
+\subsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+vector$<$ unordered\-\_\-map$<$ int, Mat $>$ $>$ \hyperlink{class_first_layer_a7818bd290e7b21a32b3d150941ab55df}{\-\_\-layer\-Map}
+\begin{DoxyCompactList}\small\item\em Mapping from Layer to Layer. \end{DoxyCompactList}\item 
+vector$<$ unordered\-\_\-map$<$ int, int $>$ $>$ \hyperlink{class_first_layer_a63f941b882ec8f2c8d92b454ec4114c0}{\-\_\-layer\-Map\-Frequency}
+\begin{DoxyCompactList}\small\item\em Frequency of each part at each layer. \end{DoxyCompactList}\item 
+vector$<$ unordered\-\_\-map$<$ int, \\*
+unordered\-\_\-map$<$ int, int $>$ $>$ $>$ \hyperlink{class_first_layer_abd09e90b6c65da988079abe99f3b5e34}{\-\_\-layer\-Distance}
+\end{DoxyCompactItemize}
+
+
+\subsection{Constructor \& Destructor Documentation}
+\hypertarget{class_first_layer_a2c91a3e201cb46ef6f597cefe87b35a0}{\index{First\-Layer@{First\-Layer}!First\-Layer@{First\-Layer}}
+\index{First\-Layer@{First\-Layer}!FirstLayer@{First\-Layer}}
+\subsubsection[{First\-Layer}]{\setlength{\rightskip}{0pt plus 5cm}First\-Layer\-::\-First\-Layer (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a2c91a3e201cb46ef6f597cefe87b35a0}
+
+
+Constructor. 
+
+\hypertarget{class_first_layer_a6cec9185f94b6bf4c99b6eda97e4d73b}{\index{First\-Layer@{First\-Layer}!$\sim$\-First\-Layer@{$\sim$\-First\-Layer}}
+\index{$\sim$\-First\-Layer@{$\sim$\-First\-Layer}!FirstLayer@{First\-Layer}}
+\subsubsection[{$\sim$\-First\-Layer}]{\setlength{\rightskip}{0pt plus 5cm}First\-Layer\-::$\sim$\-First\-Layer (
+\begin{DoxyParamCaption}
+{}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a6cec9185f94b6bf4c99b6eda97e4d73b}
+
+
+Destructor. 
+
+
+
+\subsection{Member Function Documentation}
+\hypertarget{class_first_layer_a485d0275f548130fad99051cb8736dc5}{\index{First\-Layer@{First\-Layer}!calc\-Color\-Map@{calc\-Color\-Map}}
+\index{calc\-Color\-Map@{calc\-Color\-Map}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Color\-Map}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Color\-Map (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{Mat \&}]{color\-Map}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a485d0275f548130fad99051cb8736dc5}
+
+
+Calculates color mapping for displaying depth images. 
+
+This method is map 16-\/bit image into color map for visualization purposes 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image) \\
+\hline
+{\em color\-Map} & storage for a histogram \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_ad26c3c16c6dd6050d17ce6165ce58bef}{\index{First\-Layer@{First\-Layer}!calc\-Derivatives@{calc\-Derivatives}}
+\index{calc\-Derivatives@{calc\-Derivatives}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Derivatives}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Derivatives (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{Mat \&}]{grad\-X, }
+\item[{Mat \&}]{grad\-Y, }
+\item[{Mat \&}]{grad\-X\-X, }
+\item[{Mat \&}]{grad\-Y\-Y, }
+\item[{Mat \&}]{grad\-X\-Y, }
+\item[{char}]{kernel\-Size}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_ad26c3c16c6dd6050d17ce6165ce58bef}
+
+
+Calculates discrete versions of derivatives using Sobel mask. 
+
+The method allows to obtain discrete values of the derivates of the input image. Sobel mask was used, hence the scaling is performed after first derivative is obtained and passed to the second derivative. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image) \\
+\hline
+{\em grad\-X} & storage for calculated first derivative along X direction \\
+\hline
+{\em grad\-Y} & storage for calculated first derivative along Y direction \\
+\hline
+{\em grad\-X\-X} & storage for calculated second derivative along X direction \\
+\hline
+{\em grad\-Y\-Y} & storage for calculated second derivative along Y direction \\
+\hline
+{\em grad\-X\-Y} & storage for calculated mixed derivative first (X) second (Y) \\
+\hline
+{\em kernel\-Size} & size of the kernel used for derivative \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_ac0013ac908aa60b6fbb791998f845a5c}{\index{First\-Layer@{First\-Layer}!calc\-Distance\-Measure@{calc\-Distance\-Measure}}
+\index{calc\-Distance\-Measure@{calc\-Distance\-Measure}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Distance\-Measure}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Distance\-Measure (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{vector$<$ vector$<$ double $>$ $>$ \&}]{data, }
+\item[{int}]{rec\-Field\-Size}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_ac0013ac908aa60b6fbb791998f845a5c}
+
+
+Calculates distance between patches at the first layer. 
+
+This method allows to obtain the distances between all the patches of size (receptive\-Field x receptive\-Field)present in the image of the first layer. Only at the first layer calculation are performed on the on actual data. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image of the selected layer) \\
+\hline
+{\em data} & storage for calculated distance measure for all the parts (output) \\
+\hline
+{\em rec\-Field\-Size} & size of the receptive field for the current layer \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_ae5981a6b0f49fd66692da5001ff4b021}{\index{First\-Layer@{First\-Layer}!calc\-Distance\-Measure\-Normals@{calc\-Distance\-Measure\-Normals}}
+\index{calc\-Distance\-Measure\-Normals@{calc\-Distance\-Measure\-Normals}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Distance\-Measure\-Normals}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Distance\-Measure\-Normals (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{vector$<$ vector$<$ float $>$ $>$ \&}]{data}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_ae5981a6b0f49fd66692da5001ff4b021}
+
+
+Calculates distance measure between normals. 
+
+Use this method together with \hyperlink{class_first_layer_a028b3d6af0b7196ef5478c45bbda9e97}{calc\-Normals\-P\-C\-A()}. This function calculate difference between all the patches of size (receptive\-Field x receptive\-Field) present in the image and computed by \hyperlink{class_first_layer_a028b3d6af0b7196ef5478c45bbda9e97}{calc\-Normals\-P\-C\-A()}. Distance is obtained as a dot product between two patches. The function is a resource consuming. While calculate all the possible combintations between parts. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (normals image) \\
+\hline
+{\em data} & storage for calculated distance measure for all the parts (output) \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_a1c6b8fed0cde49a767acbc38dfa521f7}{\index{First\-Layer@{First\-Layer}!calc\-Distance\-Measure\-Sec@{calc\-Distance\-Measure\-Sec}}
+\index{calc\-Distance\-Measure\-Sec@{calc\-Distance\-Measure\-Sec}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Distance\-Measure\-Sec}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Distance\-Measure\-Sec (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{vector$<$ vector$<$ double $>$ $>$ \&}]{data, }
+\item[{int}]{layer\-Num, }
+\item[{int}]{rec\-Field\-Size}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a1c6b8fed0cde49a767acbc38dfa521f7}
+
+
+Calculates distance between patches at the second layer and above. 
+
+Use this method together with precompute\-Distance. This function calculate difference between all the patches of size (receptive\-Field x receptive\-Field) present in the image at the current layer and returns it to vector of vectors. Distances are measured for the parts projected to the first layer. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image of the selected layer) \\
+\hline
+{\em data} & storage for calculated distance measure for all the parts (output) \\
+\hline
+{\em layer\-Num} & number of layer which is currently processed \\
+\hline
+{\em rec\-Field\-Size} & size of the receptive field for the current layer \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_aba8577b4d6cb790edc7bd04446727f28}{\index{First\-Layer@{First\-Layer}!calc\-Gradient@{calc\-Gradient}}
+\index{calc\-Gradient@{calc\-Gradient}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Gradient}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Gradient (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{Mat \&}]{grad\-X, }
+\item[{Mat \&}]{grad\-Y, }
+\item[{Mat \&}]{grad\-Orient, }
+\item[{Mat \&}]{grad\-Magnit}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_aba8577b4d6cb790edc7bd04446727f28}
+
+
+Calculates the gradient of the depth image. 
+
+This method is calculating the gradient of the image using S\-C\-H\-A\-R\-R mask. Gradient orientation is calculated but not its magnitude. Method includes initial smoothing with Gaussian Filter. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image) \\
+\hline
+{\em grad\-X} & storage for gradient X-\/gradient \\
+\hline
+{\em grad\-Y} & storage for gradient Y-\/gradient \\
+\hline
+{\em grad\-Orient} & storage for gradient orientation \\
+\hline
+{\em grad\-Magnit} & storage for gradient magnitude \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_a2a88c95e693b614a27be5bb5c536d41c}{\index{First\-Layer@{First\-Layer}!calc\-Histogram@{calc\-Histogram}}
+\index{calc\-Histogram@{calc\-Histogram}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Histogram}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Histogram (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{Mat \&}]{hist}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a2a88c95e693b614a27be5bb5c536d41c}
+
+
+Calculates histogram of the depth image. 
+
+This method is calculating the Histogram of the gradient. All the parameters are set using class variables. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image) \\
+\hline
+{\em hist} & storage for a histogram \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_ab2bfbc1a96cfb52b73594d57124e1bf3}{\index{First\-Layer@{First\-Layer}!calc\-H\-Kmap@{calc\-H\-Kmap}}
+\index{calc\-H\-Kmap@{calc\-H\-Kmap}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-H\-Kmap}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-H\-Kmap (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{grad\-X, }
+\item[{const Mat \&}]{grad\-Y, }
+\item[{const Mat \&}]{grad\-X\-X, }
+\item[{const Mat \&}]{grad\-Y\-Y, }
+\item[{const Mat \&}]{grad\-X\-Y, }
+\item[{Mat \&}]{H, }
+\item[{Mat \&}]{K, }
+\item[{Mat \&}]{H\-S, }
+\item[{Mat \&}]{K\-S, }
+\item[{Mat \&}]{H\-K}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_ab2bfbc1a96cfb52b73594d57124e1bf3}
+
+
+Calculates discrete versions of local surface curvature descriptor. 
+
+Use this method together with \hyperlink{class_first_layer_ad26c3c16c6dd6050d17ce6165ce58bef}{calc\-Derivatives()}. The method allows to obtain Gaussian and mean curvature of the surfaces. These are the local measures of surface shape. Due to the computation of second derivativea they are very sensitive to noise. Intensive smoothing is required. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image) \\
+\hline
+{\em grad\-X} & input first derivative along X direction \\
+\hline
+{\em grad\-Y} & input first derivative along Y direction \\
+\hline
+{\em grad\-X\-X} & input second derivative along X direction \\
+\hline
+{\em grad\-Y\-Y} & input second derivative along Y direction \\
+\hline
+{\em grad\-X\-Y} & input mixed derivative first (X) second (Y) \\
+\hline
+{\em H} & storage for computed values of mean curvature \\
+\hline
+{\em K} & storage for computed values of Gaussian curvature \\
+\hline
+{\em H\-S} & storage for computed signs of mean curvature \\
+\hline
+{\em K\-S} & storage for computed signs of Gaussian curvature \\
+\hline
+{\em H\-K} & storage for computed H\-K-\/map \\
+\hline
+{\em kernel\-Size} & size of the kernel used for derivative \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_abcfc2aa2add70a95cab3e6d5c6bde6a7}{\index{First\-Layer@{First\-Layer}!calc\-Normals@{calc\-Normals}}
+\index{calc\-Normals@{calc\-Normals}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Normals}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Normals (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{grad\-X, }
+\item[{const Mat \&}]{grad\-Y, }
+\item[{Mat \&}]{normals}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_abcfc2aa2add70a95cab3e6d5c6bde6a7}
+
+
+Calculates normals using gradients calculated in X and Y direction. 
+
+It is not the best way of calculating normals. Not whole information is available since the projection from sphere into circle. 
+\begin{DoxyParams}{Parameters}
+{\em grad\-X} & input matrix with calculated values of gradient in X direction \\
+\hline
+{\em grad\-Y} & input matrix with calculated values of gradient in Y direction \\
+\hline
+{\em normals} & storage for calculated normals \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_a028b3d6af0b7196ef5478c45bbda9e97}{\index{First\-Layer@{First\-Layer}!calc\-Normals\-P\-C\-A@{calc\-Normals\-P\-C\-A}}
+\index{calc\-Normals\-P\-C\-A@{calc\-Normals\-P\-C\-A}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Normals\-P\-C\-A}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Normals\-P\-C\-A (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{Mat \&}]{normals, }
+\item[{int}]{rec\-Field\-Size}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a028b3d6af0b7196ef5478c45bbda9e97}
+
+
+Calculates normals using P\-C\-A. 
+
+This method uses P\-C\-A to obtain the proper values of normals. The normals are calculated using covariance matrix computed for the window on depth data. The vector associated with the smallest eigen value is the normal. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image) \\
+\hline
+{\em normals} & storage for calculated normals \\
+\hline
+{\em rec\-Field\-Size} & size of the receptive field \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_a62260984a4e3d9c473234e4b48610974}{\index{First\-Layer@{First\-Layer}!calc\-Recpt\-Field@{calc\-Recpt\-Field}}
+\index{calc\-Recpt\-Field@{calc\-Recpt\-Field}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Recpt\-Field}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Recpt\-Field (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{Mat \&}]{recept, }
+\item[{int}]{rec\-Field\-Size}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a62260984a4e3d9c473234e4b48610974}
+
+
+Calculates receptive field without overlap. 
+
+Receptive field at the botom layer is calculated as a mean of values in the neighbourhood specified by the receptive field size. Border is replicated on the right and bottom part of the image. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image) \\
+\hline
+{\em recept} & storage for an image after contraction \\
+\hline
+{\em rec\-Field\-Size} & size of the receptive field \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_abe9d6d5d83ef778ea076140cc9ecc9e2}{\index{First\-Layer@{First\-Layer}!calc\-Recpt\-Field\-Overlap@{calc\-Recpt\-Field\-Overlap}}
+\index{calc\-Recpt\-Field\-Overlap@{calc\-Recpt\-Field\-Overlap}!FirstLayer@{First\-Layer}}
+\subsubsection[{calc\-Recpt\-Field\-Overlap}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::calc\-Recpt\-Field\-Overlap (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m\-Orient, }
+\item[{const Mat \&}]{m\-Magnit, }
+\item[{Mat \&}]{recept, }
+\item[{int}]{rec\-Field\-Size}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_abe9d6d5d83ef778ea076140cc9ecc9e2}
+
+
+Calculates receptive field with overlap. 
+
+Receptive field at the botom layer is calculated as a median of values in the neighbourhood specified by the receptive field size. Border is replicated on the right and bottom part of the image. 
+\begin{DoxyParams}{Parameters}
+{\em m} & input matrix (image) \\
+\hline
+{\em recept} & storage for an image after contraction \\
+\hline
+{\em rec\-Field\-Size} & size of the receptive field \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_aa6c046c60d3b3269e93955b07b15986b}{\index{First\-Layer@{First\-Layer}!matrix\-To\-Txt\-File@{matrix\-To\-Txt\-File}}
+\index{matrix\-To\-Txt\-File@{matrix\-To\-Txt\-File}!FirstLayer@{First\-Layer}}
+\subsubsection[{matrix\-To\-Txt\-File}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::matrix\-To\-Txt\-File (
+\begin{DoxyParamCaption}
+\item[{const Mat \&}]{m, }
+\item[{string}]{filename}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_aa6c046c60d3b3269e93955b07b15986b}
+
+
+Writes a matrix to the text file. 
+
+This method is storing a matrix in a text file in order to get better view at the exact values at certain locations. 
+\begin{DoxyParams}{Parameters}
+{\em m} & matrix to be stored in the text file \\
+\hline
+{\em file} & name of the text file \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_a5660027541994b18f6be950ff73bb403}{\index{First\-Layer@{First\-Layer}!precompute\-Distance@{precompute\-Distance}}
+\index{precompute\-Distance@{precompute\-Distance}!FirstLayer@{First\-Layer}}
+\subsubsection[{precompute\-Distance}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::precompute\-Distance (
+\begin{DoxyParamCaption}
+\item[{int}]{layer\-Num = {\ttfamily 2}, }
+\item[{int}]{rec\-Field\-Size = {\ttfamily 3}}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a5660027541994b18f6be950ff73bb403}
+
+
+Precomputes the distance between parts on arbitrary layer. 
+
+The method allows to obtain ceratain speed up in calculating the distance between patches on the higher layers. Distances are measured for the parts projected to the first layer. Data are stored in the member variable layer\-Distance 
+\begin{DoxyParams}{Parameters}
+{\em layer\-Num} & number of layer which is currently processed \\
+\hline
+{\em rec\-Field\-Size} & size of the receptive field for the current layer \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_a6cf9ba54ebcb3d63a6fe84d5dc4d50dc}{\index{First\-Layer@{First\-Layer}!segment\-Parts@{segment\-Parts}}
+\index{segment\-Parts@{segment\-Parts}!FirstLayer@{First\-Layer}}
+\subsubsection[{segment\-Parts}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::segment\-Parts (
+\begin{DoxyParamCaption}
+\item[{vector$<$ vector$<$ double $>$ $>$ \&}]{data, }
+\item[{Mat \&}]{output, }
+\item[{int}]{layer\-Num, }
+\item[{int}]{difference}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a6cf9ba54ebcb3d63a6fe84d5dc4d50dc}
+
+
+Segments parts according to distance measure. 
+
+Use this function together with calc\-Distance\-Measure. Segmentation is performed according to distance measure defined in calc\-Distance\-Measure. List of parts obtained from calc\-Distance\-Measure is stored in \-\_\-parts\mbox{[}layer\-Number\mbox{]}\mbox{[}part\-Number\mbox{]} temporary to count all the parts Store the relation on the current layer \-\_\-layer\-Map\mbox{[}layer\-Number\mbox{]}\mbox{[}part\-Number\mbox{]}; 
+\begin{DoxyParams}{Parameters}
+{\em data} & calculated distance measure for all the parts \\
+\hline
+{\em output} & storage for the image after segmentation \\
+\hline
+{\em layer\-Num} & number of layer which is currently processed \\
+\hline
+{\em difference} & threshold used for comparing similarity of parts \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_a14e6821bc705c01d174685335b20322a}{\index{First\-Layer@{First\-Layer}!vector\-To\-Txt\-File@{vector\-To\-Txt\-File}}
+\index{vector\-To\-Txt\-File@{vector\-To\-Txt\-File}!FirstLayer@{First\-Layer}}
+\subsubsection[{vector\-To\-Txt\-File}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::vector\-To\-Txt\-File (
+\begin{DoxyParamCaption}
+\item[{const vector$<$ vector$<$ double $>$ $>$}]{data, }
+\item[{string}]{filename}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a14e6821bc705c01d174685335b20322a}
+
+
+Writes a vector of vectors to the text file. 
+
+This method is storing a vector of vectors in a text file in order to get better view at the exact values at certain locations. 
+\begin{DoxyParams}{Parameters}
+{\em data} & vector to be stored in the text file \\
+\hline
+{\em file} & name of the text file \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+\hypertarget{class_first_layer_a7a31ab9f8833c145dc2b94cba91f3d70}{\index{First\-Layer@{First\-Layer}!vector\-To\-Txt\-File@{vector\-To\-Txt\-File}}
+\index{vector\-To\-Txt\-File@{vector\-To\-Txt\-File}!FirstLayer@{First\-Layer}}
+\subsubsection[{vector\-To\-Txt\-File}]{\setlength{\rightskip}{0pt plus 5cm}int First\-Layer\-::vector\-To\-Txt\-File (
+\begin{DoxyParamCaption}
+\item[{const vector$<$ vector$<$ float $>$ $>$}]{data, }
+\item[{string}]{filename}
+\end{DoxyParamCaption}
+)}}\label{class_first_layer_a7a31ab9f8833c145dc2b94cba91f3d70}
+
+
+Writes a vector of vectors to the text file. 
+
+This method is storing a vector of vectors in a text file in order to get better view at the exact values at certain locations. 
+\begin{DoxyParams}{Parameters}
+{\em data} & vector to be stored in the text file \\
+\hline
+{\em file} & name of the text file \\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+0 for success return 
+\end{DoxyReturn}
+
+
+\subsection{Member Data Documentation}
+\hypertarget{class_first_layer_abd09e90b6c65da988079abe99f3b5e34}{\index{First\-Layer@{First\-Layer}!\-\_\-layer\-Distance@{\-\_\-layer\-Distance}}
+\index{\-\_\-layer\-Distance@{\-\_\-layer\-Distance}!FirstLayer@{First\-Layer}}
+\subsubsection[{\-\_\-layer\-Distance}]{\setlength{\rightskip}{0pt plus 5cm}vector$<$unordered\-\_\-map$<$int, unordered\-\_\-map$<$int,int$>$ $>$ $>$ First\-Layer\-::\-\_\-layer\-Distance}}\label{class_first_layer_abd09e90b6c65da988079abe99f3b5e34}
+Member variable for storring the precalculated distances for each layer \-\_\-layer\-Distance\mbox{[}layer\-Number\mbox{]}\mbox{[}first\-Part\-Number\mbox{]}\mbox{[}second\-Part\-Number\mbox{]} = distance \hypertarget{class_first_layer_a7818bd290e7b21a32b3d150941ab55df}{\index{First\-Layer@{First\-Layer}!\-\_\-layer\-Map@{\-\_\-layer\-Map}}
+\index{\-\_\-layer\-Map@{\-\_\-layer\-Map}!FirstLayer@{First\-Layer}}
+\subsubsection[{\-\_\-layer\-Map}]{\setlength{\rightskip}{0pt plus 5cm}vector$<$unordered\-\_\-map$<$int,Mat$>$ $>$ First\-Layer\-::\-\_\-layer\-Map}}\label{class_first_layer_a7818bd290e7b21a32b3d150941ab55df}
+
+
+Mapping from Layer to Layer. 
+
+\hypertarget{class_first_layer_a63f941b882ec8f2c8d92b454ec4114c0}{\index{First\-Layer@{First\-Layer}!\-\_\-layer\-Map\-Frequency@{\-\_\-layer\-Map\-Frequency}}
+\index{\-\_\-layer\-Map\-Frequency@{\-\_\-layer\-Map\-Frequency}!FirstLayer@{First\-Layer}}
+\subsubsection[{\-\_\-layer\-Map\-Frequency}]{\setlength{\rightskip}{0pt plus 5cm}vector$<$unordered\-\_\-map$<$int,int$>$ $>$ First\-Layer\-::\-\_\-layer\-Map\-Frequency}}\label{class_first_layer_a63f941b882ec8f2c8d92b454ec4114c0}
+
+
+Frequency of each part at each layer. 
+
+
+
+The documentation for this class was generated from the following files\-:\begin{DoxyCompactItemize}
+\item 
+include/\hyperlink{_first_layer_8h}{First\-Layer.\-h}\item 
+src/\hyperlink{_first_layer_8cpp}{First\-Layer.\-cpp}\end{DoxyCompactItemize}
