@@ -42,7 +42,6 @@ function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, 
         filterMatrix = options.filterMatrix;
     else
         nodes = [];
-        smoothedImg = [];
         display('Feature type not implemented (in getNodes.m).');
         return;
     end
@@ -193,13 +192,18 @@ function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, 
     responseImgs([1:inhibitionHalfSize, (end-inhibitionHalfSize):end],:) = 0;
     responseImgs(:,[1:inhibitionHalfSize, (end-inhibitionHalfSize):end]) = 0;
 
+    % Each response will clear other weak responses at the very same pixel.
+    % Use this feature to get rid of most peaks.
+    [activationImg, nodeIdImg] = max(responseImgs, [], 3);
+    clear responseImgs;
+    peaks = find(activationImg);
+    
     %% Here, we will run a loop till we clear all weak responses.
-    peaks = find(responseImgs);
     peakCount = numel(peaks);
-    [~, orderedPeakIdx] = sort(responseImgs(peaks), 'descend');
+    [~, orderedPeakIdx] = sort(activationImg(peaks), 'descend');
     orderedPeaks = peaks(orderedPeakIdx);
     validPeaks = ones(size(orderedPeaks))>0;
-    [xInd, yInd, ~] = ind2sub(size(responseImgs), orderedPeaks);
+    [xInd, yInd, ~] = ind2sub(size(activationImg), orderedPeaks);
     for peakItr = 1:(peakCount-1)
        if validPeaks(peakItr)
            nextPeakItr = peakItr+1;
@@ -208,15 +212,11 @@ function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, 
            validPeaks(nextPeakItr:end) = nearbyPeakIdx & validPeaks(nextPeakItr:end);
        end
     end
-    responseImgs(orderedPeaks(~validPeaks)) = 0;
+    activationImg(orderedPeaks(~validPeaks)) = 0;
 
     % Write the responses in the final image.
-    activationImg = sum(responseImgs,3);
-    responseImgs = double(responseImgs>0);
-    for filtItr = 1:filterCount
-      responseImgs(:,:,filtItr) = responseImgs(:,:,filtItr) .* filtItr;
-    end
-    responseImg = sum(responseImgs,3);
+    responseImg = zeros(size(activationImg));
+    responseImg(orderedPeaks(validPeaks)) = nodeIdImg(orderedPeaks(validPeaks));
     responseImg([1:halfSize, (end-halfSize):end],:) = 0;
     responseImg(:,[1:halfSize, (end-halfSize):end]) = 0;
     activationImg([1:halfSize, (end-halfSize):end],:) = 0;
@@ -227,13 +227,12 @@ function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, 
     responseImg(~gtMask) = 0;
 
     %% Out of this response image, we will create the nodes and output them.
+    responseImg(ismember(responseImg, deadFeatures)) = 0;
+    activationImg(responseImg == 0) = 0;
     finalNodeIdx = find(responseImg);
     nodes = cell(numel(finalNodeIdx), 2);
-    nodeActivations = single(activationImg(finalNodeIdx(~ismembc(responseImg(finalNodeIdx), deadFeatures))));
+    nodeActivations = single(activationImg(finalNodeIdx));
     for nodeItr = 1:numel(finalNodeIdx)
-       if ismember(responseImg(finalNodeIdx(nodeItr)), deadFeatures)
-          continue; 
-       end
        [centerX, centerY] = ind2sub(size(responseImg), finalNodeIdx(nodeItr));
        nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY])};
     end

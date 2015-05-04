@@ -48,7 +48,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                    % runVocabularyLearning.m). 
     options.supervisedSelectionFlag = true; % If true, the algorithm will 
                                    % switch to supervised part selection.
-    options.supervisedSelectionMode = 'auto'; % If 'auto', the system will 
+    options.supervisedSelectionMode = 'manual'; % If 'auto', the system will 
                                    % switch to discriminative threshold search 
                                    % after first performance drop in
                                    % unsupervised learning. If 'manual', it

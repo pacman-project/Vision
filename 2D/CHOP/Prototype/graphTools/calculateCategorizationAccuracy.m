@@ -1,4 +1,4 @@
-function [accuracy] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, imageIdx, validationIdx, valItr)
+function [bestAcc] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision)
     % Initialize data structures.
     categoryArrIdx = categoryArrIdx';
     numberOfBestSubs = numel(bestSubs);
@@ -6,9 +6,11 @@ function [accuracy] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, 
     % Put the instances ([labelId, imageId, validationIdx] triple) into an array.
     allInstances = cell(numel(bestSubs),1);
     for bestSubItr = 1:numel(bestSubs)
-       allInstances{bestSubItr} = [imageIdx(bestSubs(bestSubItr).instanceCenterIdx),...
-           repmat(bestSubItr, numel(bestSubs(bestSubItr).instanceCenterIdx), 1), ...
-           bestSubs(bestSubItr).instanceValidationIdx];
+       adaptiveThreshold = ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);       
+       validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold;
+       allInstances{bestSubItr} = [imageIdx(bestSubs(bestSubItr).instanceCenterIdx(validInstanceIdx, :)),...
+           repmat(bestSubItr, numel(bestSubs(bestSubItr).instanceCenterIdx(validInstanceIdx, :)), 1), ...
+           bestSubs(bestSubItr).instanceValidationIdx(validInstanceIdx, :)];
     end
     allInstances = cat(1, allInstances{:});
     allInstances = sortrows(allInstances);
@@ -54,11 +56,18 @@ function [accuracy] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, 
     trainLabels = trainLabels(validTrainingRows, :);
     
     % Finally, we classify the validation data and return the performance.
-    bestc = 1;
-    cmd = ['-t 0 -c ', num2str(bestc), ' -q '];
-    learnedModel = svmtrain(double(trainLabels), trainFeatures, cmd);
-    cmd = '-q';
-    [predLabels,~, ~] = svmpredict(double(validationLabels), validationFeatures, learnedModel, cmd);
-    predLabels(~validValidationRows) = -1;
-    accuracy = nnz(predLabels == validationLabels) / numel(validationLabels);
+%    bestc = 1;
+    bestAcc = 0;
+    for log2c = [1/128, 1/64, 1/32, 1/16, 1/8,1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
+        cmd = ['-t 0 -c ', num2str(log2c), ' -q '];
+        learnedModel = svmtrain(double(trainLabels), trainFeatures, cmd);
+        cmd = '-q';
+        [predLabels,~, ~] = svmpredict(double(validationLabels), validationFeatures, learnedModel, cmd);
+        predLabels(~validValidationRows) = -1;
+        accuracy = nnz(predLabels == validationLabels) / numel(validationLabels);
+        if accuracy > bestAcc
+%            bestc = log2c;
+            bestAcc = accuracy;
+        end
+    end
 end

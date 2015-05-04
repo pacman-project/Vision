@@ -32,7 +32,7 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 8;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 6;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -190,7 +190,7 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -205,12 +205,12 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
     options.subdue.isMDLExact = false;     % If true, exact mdl is calculated.
                                            % Otherwise, approximate mdl is
                                            % calculated (faster).
-    options.subdue.mdlNodeWeight = 8;      % Weight of a node in DL calculations 
+    options.subdue.mdlNodeWeight = 12;      % Weight of a node in DL calculations 
                                            % in MDL-based evaluation
                                            % metric. Cost of a node =
                                            % labelId (int, 4 byte) + pointer to
                                            % edges (int, 4 byte) = 8.
-    options.subdue.mdlEdgeWeight = 9;      % Weight of an edge in DL calculations 
+    options.subdue.mdlEdgeWeight = 8;      % Weight of an edge in DL calculations 
                                            % in MDL-based evaluation
                                            % metric. Cost of an edge =
                                            % edgeLabelId (int, 4 byte) + 
@@ -238,13 +238,13 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                     % by minThreshold and maxThreshold.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.03; % Minimum threshold for elastic matching.
+    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
     options.subdue.maxThreshold = 0.1; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 5; % The depth of binary search 
+    options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

@@ -106,7 +106,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 7;         % This parameter is used to quantize 
+    options.edgeQuantize = 15;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
@@ -144,7 +144,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*8; %Max dimension of the 
                                        % images the algorithm will work
@@ -184,7 +184,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                         % selecting an optimal set of parts
                                         % to cover most of the training
                                         % data.
-    options.reconstruction.stoppingCoverage = 0.99; % Between [0.00, 1.00].
+    options.reconstruction.stoppingCoverage = 0.98; % Between [0.00, 1.00].
                                            % The default value is 0.99.
                                            % When the training data
                                            % coverage is reached to this
@@ -195,7 +195,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                            % that can be selected.
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -238,8 +238,8 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                     % by minThreshold and maxThreshold.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.4; % Max threshold for elastic part matching. 
+    options.subdue.minThreshold = 0.01; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.4   ; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.

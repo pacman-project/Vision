@@ -92,7 +92,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     end
     uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
     
-    parfor valItr = 1:validationFolds
+    for valItr = 1:validationFolds
         % We exclude the subs which have zero-cost matchs on this subset,
         % but not on other subsets.
         validSubIdx = ones(numel(orgBestSubs),1) > 0;
@@ -171,7 +171,8 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
            % In order to measure the discrimination capabilities of our
            % system, we estimate the discrimination performance of the
            % selected subs. 
-           accuracy = calculateCategorizationAccuracy(bestSubs(validSubs), categoryArrIdx, imageIdx, validationIdx, valItr);
+           accuracy = calculateCategorizationAccuracy(bestSubs(validSubs), categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
+%          accuracy = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
            
            %% We determine optimality of the solution based on the criterion.
            % If supervisionFlag is true, our criterion is classification
@@ -300,6 +301,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     optimalAccuracy = mean(crossValAccuracy);
     smartSubElimination = mean(subEliminationFlags) > 0;
     uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
+    display(['[SUBDUE] Mean cross-validation accuracy on the data: %' num2str(100 * optimalAccuracy) '.']); 
     
     % Get a new set of subs.
    [finalSubList, ~, ~] = getReconstructiveParts(bestSubs, ...

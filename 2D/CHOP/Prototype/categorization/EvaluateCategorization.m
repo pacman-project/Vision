@@ -60,13 +60,17 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
     end
     
     % Estimate performance, and find confusion matrix.
-    accuracy = numel(find(detectionArr == gtArr)) / numberOfProcessedSamples;
+    classAcc = zeros(numel(unique(gtArr)),1);
+    for catItr = 1:numel(unique(gtArr))
+        classAcc(catItr) = nnz(detectionArr == gtArr & gtArr == catItr) / nnz(gtArr == catItr);
+    end
+    accuracy = mean(classAcc);
     confMat = confusionmat(gtArr, detectionArr);
 %     if ~isempty(customOrder)
 %         confMat= confMat(customOrder, customOrder);
 %     end
     
-    save([options.outputFolder '/perf.mat'], 'accuracy', 'confMat', 'decisionLevels', 'avgDecisionLevel', 'levelWiseAccuracyArr');
+    save([options.outputFolder '/perf.mat'], 'accuracy', 'classAcc', 'confMat', 'decisionLevels', 'avgDecisionLevel', 'levelWiseAccuracyArr');
     display(['Accuracy: ' num2str(accuracy)]);
     display('Confusion matrix:');
     display(mat2str(confMat));

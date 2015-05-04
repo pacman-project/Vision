@@ -33,6 +33,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     edgeQuantize = options.edgeQuantize;
     threshold = options.subdue.threshold;
     singlePrecision = options.singlePrecision;
+    distType = options.distType;
     % Assign new labels of the remaining realizations.
     
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);
@@ -107,7 +108,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
             for partItr2 = (partItr1+1):numberOfNodes
                 description2 = vocabDescriptions{partItr2}; %#ok<PFBNS>
                 adaptiveThreshold = single((max(size(description1, 1), size(description2,1))*2-1) * threshold) + singlePrecision;
-                matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat, adaptiveThreshold);
+                matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat);
                 if matchingCost >0
                     newEntries(partItr2) = matchingCost;
                 end
@@ -152,6 +153,21 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
         
         % Convert to single.
         newDistanceMatrix = single(newDistanceMatrix);
+    
+        % If ranks are needed, we calculate them.
+        if strcmp(distType, 'rank')
+            newDistMat = zeros(size(newDistanceMatrix));
+            sortAssgnArr = 1:size(newDistanceMatrix,1);
+            for nodeItr = 1:size(newDistanceMatrix,1)
+                distances = newDistanceMatrix(nodeItr,:);
+                [~, rankings] = sort(distances, 'ascend');
+                [~,assgnArr] = ismember(sortAssgnArr, rankings);
+                newDistMat(nodeItr, :) = newDistMat(nodeItr, :) + assgnArr;
+                newDistMat(:, nodeItr) = newDistMat(:, nodeItr) + assgnArr';
+            end
+            newDistanceMatrix = newDistMat - 2;
+            newDistanceMatrix = single(newDistanceMatrix / max(max(newDistanceMatrix)));
+        end
     else
         newDistanceMatrix = ones(numel(vocabLevel), 'single');
         newDistanceMatrix(1:numel(vocabLevel)+1:numel(vocabLevel)*numel(vocabLevel)) = 0;
@@ -181,7 +197,7 @@ end
 %>
 %> Updates
 %> Ver 1.0 on 06.05.2014
-function [lowestCost] = InexactMatch(description, description2, maxDistance, distanceMatrix, adaptiveThreshold)
+function [lowestCost] = InexactMatch(description, description2, maxDistance, distanceMatrix)
     % Get both descriptions to the same size.
     firstDesSize = size(description,1);
     secDesSize = size(description2,1);
@@ -223,10 +239,6 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
         % Assign lowest cost if current cost is smaller.
         if currentCost<lowestCost
             lowestCost = currentCost;
-            if lowestCost < adaptiveThreshold
-                lowestCost = 0;
-               break; 
-            end
         end
     end
 end

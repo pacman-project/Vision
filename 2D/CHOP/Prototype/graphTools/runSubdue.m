@@ -406,6 +406,10 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            % since the previous iteration, we switch to supervision.
            if supervisedSelectionFlag && ~isSupervisedSelectionRunning && ...
                optimalAccuracy < previousAccuracy
+           
+           
+               display(['[SUBDUE] Validation accuracy has dropped from %' num2str(100 * previousAccuracy) ' to %' num2str(100 * optimalAccuracy) '.']);
+               display('[SUBDUE] We switch to supervised learning from now on.');
                isSupervisedSelectionRunning = true;
                [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, ...
                    nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
