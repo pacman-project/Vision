@@ -19,6 +19,11 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     noveltyThr = 1 - options.noveltyThr;
+    
+    % If fast inference is not required, we do not perform inhibition.
+    if ~(options.fastInference)
+       noveltyThr = 1; 
+    end
     multiplier = round(1/options.singlePrecision);
     singlePrecision = options.singlePrecision;
     
@@ -26,7 +31,6 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
     if isempty(nodes) || isempty(vocabulary)
         return;
     end
-%    nodes = double(nodes);
     allNodes = cell(numel(vocabulary),1);
     allActivations = cell(numel(vocabulary),1);
     allNodes(1) = {nodes};

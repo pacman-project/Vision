@@ -58,7 +58,8 @@ function [bestAcc] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, i
     % Finally, we classify the validation data and return the performance.
 %    bestc = 1;
     bestAcc = 0;
-    for log2c = [1/128, 1/64, 1/32, 1/16, 1/8,1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
+ %   for log2c = [1/128, 1/64, 1/32, 1/16, 1/8,1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
+    for log2c = 1
         cmd = ['-t 0 -c ', num2str(log2c), ' -q '];
         learnedModel = svmtrain(double(trainLabels), trainFeatures, cmd);
         cmd = '-q';

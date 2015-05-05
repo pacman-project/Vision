@@ -85,6 +85,8 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     crossValThresholds = zeros(validationFolds,1, 'single');
     crossValAccuracy = zeros(validationFolds,1);
     subEliminationFlags = zeros(validationFolds,1);
+    valEvaluatedAccs = cell(validationFolds,1);
+    valEvaluatedThrs = cell(validationFolds,1);
     if validationFolds > 1
         display(['[SUBDUE/Parallel] Determining the optimal matching threshold with ' num2str(validationFolds) '-fold cross-validation.']); 
     else
@@ -142,7 +144,8 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
        evaluatedThrs = [];
        evaluatedAccs = [];
        if supervisionFlag
-           thrStack = [(minThr + midThr)/2, midThr, (midThr + maxThr)/2, maxThr];
+           thrStack = [(minThr + midThr)/4, (minThr + midThr)/2, ((minThr + midThr)*3)/4, midThr, ...
+               midThr + (maxThr - midThr)/4, (midThr + maxThr)/2, maxThr - (maxThr - midThr)/4, maxThr];
            midThr = minThr;
        else
            thrStack = [];
@@ -281,6 +284,8 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
               optimalThreshold = evaluatedThrs(maxThrIdx);
           end
           crossValAccuracy(valItr) = optimalAccuracy;
+          valEvaluatedAccs(valItr) = {evaluatedAccs};
+          valEvaluatedThrs(valItr) = {evaluatedThrs};
        else
           crossValAccuracy(valItr) = accuracy;
        end
@@ -288,17 +293,32 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
        subEliminationFlags(valItr) = smartSubElimination;
     end
     
+    %% Given the trials, we extract an optimal threshold.
+    if supervisionFlag
+        sampleThrs = minThr:0.002:maxThr;
+        valEstimatedAccs = zeros(validationFolds, numel(sampleThrs));
+        for valItr = 1:validationFolds
+            fitObject = polyfit(valEvaluatedThrs{valItr}, valEvaluatedAccs{valItr}, 5);
+            valEstimatedAccs(valItr,:) = polyval(fitObject, sampleThrs);
+        end
+        avgEstimatedAccs = mean(valEstimatedAccs,1);
+        [optimalAccuracy, estimatedThrIdx] = max(avgEstimatedAccs);
+        optimalThreshold = sampleThrs(estimatedThrIdx);
+    else
+        optimalThreshold = median(crossValThresholds);
+        optimalAccuracy = mean(crossValAccuracy);
+    end
+    
     %% We have found the optimal threshold. 
     % Now, we obtain the subs one final time using the new threshold, and exit.
     bestSubs = orgBestSubs;
     if validationFolds > 1
         display(['[SUBDUE] Thresholds learned from cross-validation folds: ' ...
-            mat2str(crossValThresholds) ', with mean: ' num2str(median(crossValThresholds)) '.']);
+            mat2str(crossValThresholds) ', with aggregated threshold: ' num2str(optimalThreshold) '.']);
     else
-        display(['[SUBDUE] Matching threshold is determined as ' num2str(median(crossValThresholds))]); 
+        display(['[SUBDUE] Matching threshold is determined as ' num2str(optimalThreshold)]); 
     end
-    optimalThreshold = median(crossValThresholds);
-    optimalAccuracy = mean(crossValAccuracy);
+
     smartSubElimination = mean(subEliminationFlags) > 0;
     uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
     display(['[SUBDUE] Mean cross-validation accuracy on the data: %' num2str(100 * optimalAccuracy) '.']); 

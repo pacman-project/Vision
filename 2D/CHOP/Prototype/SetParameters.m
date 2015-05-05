@@ -21,7 +21,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
         options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end                             
-    options.vis.printTrainRealizations = false;
+    options.vis.printTrainRealizations = true;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
@@ -48,7 +48,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                    % runVocabularyLearning.m). 
     options.supervisedSelectionFlag = true; % If true, the algorithm will 
                                    % switch to supervised part selection.
-    options.supervisedSelectionMode = 'manual'; % If 'auto', the system will 
+    options.supervisedSelectionMode = 'auto'; % If 'auto', the system will 
                                    % switch to discriminative threshold search 
                                    % after first performance drop in
                                    % unsupervised learning. If 'manual', it

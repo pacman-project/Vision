@@ -36,7 +36,11 @@ function [nodeEdges] = extractEdgesInference(nodes, leafNodeArr, options, curren
     downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
     
     %% Program options into variables.
-    edgeNoveltyThr = 1-options.edgeNoveltyThr;
+    if options.fastInference
+        edgeNoveltyThr = 1-options.edgeNoveltyThr;
+    else
+        edgeNoveltyThr = 1;
+    end
     maxNodeDegree = options.maxNodeDegree;
     % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
     averageNodeDegree = maxNodeDegree;

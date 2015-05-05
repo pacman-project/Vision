@@ -112,7 +112,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                         % grows, each relation is scaled
                                         % down to this window, and then
                                         % quantized. 
-    options.scaling = 0.7;            % Each successive layer is downsampled 
+    options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -167,7 +167,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
     options.maxInferenceLevels = 10; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
-    options.fastInference = true; % If set, faster inference (involves 
+    options.fastInference = false; % If set, faster inference (involves 
                                   % inhibition) is performed.
     options.favorParam = 1;      % Between 1:100, if it increases, category 
                                  % nodes with peaks towards a single category 
@@ -222,7 +222,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.01; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -240,11 +240,12 @@ function [ options ] = SetParametersGeometry( datasetName, options )
     % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.01; % Minimum threshold for elastic matching.
     options.subdue.maxThreshold = 0.4   ; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
+    options.subdue.thresholdSearchMaxDepth = 12; % The depth of binary search 
                                 % when looking for an optimal threshold.
+                                % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
