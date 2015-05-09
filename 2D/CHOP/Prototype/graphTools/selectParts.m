@@ -84,8 +84,10 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     % find an optimal threshold.
     crossValThresholds = zeros(validationFolds,1, 'single');
     crossValAccuracy = zeros(validationFolds,1);
+    crossValPrecision = zeros(validationFolds,1);
     subEliminationFlags = zeros(validationFolds,1);
     valEvaluatedAccs = cell(validationFolds,1);
+    valEvaluatedPrecisions = cell(validationFolds,1);
     valEvaluatedThrs = cell(validationFolds,1);
     if validationFolds > 1
         display(['[SUBDUE/Parallel] Determining the optimal matching threshold with ' num2str(validationFolds) '-fold cross-validation.']); 
@@ -113,6 +115,10 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
         end
         bestSubs = orgBestSubs(validSubIdx);
         numberOfBestSubs = numel(bestSubs);
+        if numberOfBestSubs == 0
+           continue; 
+        end
+        
         remainingChildren = fastsortedunique(sort(cat(1, allChildren{validSubIdx}))); %#ok<PFBNS>
         
         % If the maximum possible coverage has dropped, we should signal
@@ -135,14 +141,20 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
        midThr = (minThr + maxThr) / 2;
        optimalThreshold = midThr;
        currentDepth = 1;
-       moreSubsAllowed = 0;
-       smartSubElimination = 1;
+       if supervisionFlag
+           moreSubsAllowed = 0;
+           smartSubElimination = 1;
+       else
+           moreSubsAllowed = 0;
+           smartSubElimination = 1;
+       end
        isSolutionOptimal = false;
        
        % For discriminative search, we need more than min, max and mid
        % values. Let's keep everything. 
        evaluatedThrs = [];
        evaluatedAccs = [];
+       evaluatedPrecisions = [];
        if supervisionFlag
            thrStack = [(minThr + midThr)/4, (minThr + midThr)/2, ((minThr + midThr)*3)/4, midThr, ...
                midThr + (maxThr - midThr)/4, (midThr + maxThr)/2, maxThr - (maxThr - midThr)/4, maxThr];
@@ -166,25 +178,32 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
            % We're searching for an optimal threshold.
            % First, we obtain non-overlapping, minimal set of subs 
            % (common in both supervised and unsupervised learning)..
-           [validSubs, overallCoverage, overallMatchScore] = getReconstructiveParts(bestSubs, ...
-                numberOfFinalSubs, moreSubsAllowed, smartSubElimination, midThr, ...
-                stoppingCoverage, remainingChildren, nodeDistanceMatrix, ...
-                edgeDistanceMatrix, singlePrecision);
+            if supervisionFlag
+                [validSubs, overallCoverage, overallMatchScore] = getDiscriminativeParts(bestSubs, valItr, categoryArrIdx, ...
+                     numberOfFinalSubs, smartSubElimination, midThr, ...
+                     remainingChildren, nodeDistanceMatrix, ...
+                     edgeDistanceMatrix, singlePrecision);
+            else
+               [validSubs, overallCoverage, overallMatchScore] = getReconstructiveParts(bestSubs, ...
+                    numberOfFinalSubs, moreSubsAllowed, smartSubElimination, midThr, ...
+                    stoppingCoverage, remainingChildren, nodeDistanceMatrix, ...
+                    edgeDistanceMatrix, singlePrecision);
+           end
+            
+           if nnz(validSubs) == 0
+              display('Error here! We should have selected at least 1 sub.'); 
+           end
             
            % In order to measure the discrimination capabilities of our
            % system, we estimate the discrimination performance of the
            % selected subs. 
-           accuracy = calculateCategorizationAccuracy(bestSubs(validSubs), categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
+           [accuracy, precision] = calculateCategorizationAccuracy(bestSubs(validSubs), categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
 %          accuracy = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
            
            %% We determine optimality of the solution based on the criterion.
            % If supervisionFlag is true, our criterion is classification
            % accuracy. Otherwise, we focus on coverage on the data.
-           if supervisionFlag
-               if accuracy > 1 - singlePrecision
-                  isSolutionOptimal = true; 
-               end
-           else
+           if ~supervisionFlag
                % If the coverage is good, mark the corresponding flag.
                if overallCoverage >= stoppingCoverage
                   isCoverageOptimal = true; 
@@ -241,6 +260,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
                     % threshold search is driven by classification error.
                     evaluatedThrs = [evaluatedThrs; midThr]; %#ok<AGROW>
                     evaluatedAccs = [evaluatedAccs; accuracy]; %#ok<AGROW>
+                    evaluatedPrecisions = [evaluatedPrecisions; precision]; %#ok<AGROW>
                     if ~isempty(thrStack)
                         midThr = thrStack(1);
                         thrStack = thrStack(2:end);
@@ -279,15 +299,21 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
        if supervisionFlag
           [optimalAccuracy, maxThrIdx] = max(evaluatedAccs);
           if nnz(evaluatedAccs == optimalAccuracy) > 1
-              optimalThreshold = min(evaluatedThrs(evaluatedAccs == optimalAccuracy));
+              candidateThrIdx = find(evaluatedAccs == optimalAccuracy);
+              [optimalThreshold, tempIdx] = min(evaluatedThrs(candidateThrIdx));
+              optimalPrecision = evaluatedPrecisions(candidateThrIdx(tempIdx));
           else
               optimalThreshold = evaluatedThrs(maxThrIdx);
+              optimalPrecision = evaluatedPrecisions(maxThrIdx);
           end
           crossValAccuracy(valItr) = optimalAccuracy;
+          crossValPrecision(valItr) = optimalPrecision;
           valEvaluatedAccs(valItr) = {evaluatedAccs};
+          valEvaluatedPrecisions(valItr) = {evaluatedPrecisions};
           valEvaluatedThrs(valItr) = {evaluatedThrs};
        else
           crossValAccuracy(valItr) = accuracy;
+          crossValPrecision(valItr) = precision;
        end
        crossValThresholds(valItr) = optimalThreshold;
        subEliminationFlags(valItr) = smartSubElimination;
@@ -295,17 +321,36 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     
     %% Given the trials, we extract an optimal threshold.
     if supervisionFlag
-        sampleThrs = minThr:0.002:maxThr;
+        sampleThrs = minThreshold:0.002:maxThreshold;
+        
+        % Fit a polynomial model to the accuracy and precision samples.
+        % Accuracy model
         valEstimatedAccs = zeros(validationFolds, numel(sampleThrs));
         for valItr = 1:validationFolds
+            if isempty(valEvaluatedThrs{valItr})
+                continue;
+            end
             fitObject = polyfit(valEvaluatedThrs{valItr}, valEvaluatedAccs{valItr}, 5);
             valEstimatedAccs(valItr,:) = polyval(fitObject, sampleThrs);
         end
+        
+        % Precision model
+        valEstimatedPrecs = zeros(validationFolds, numel(sampleThrs));
+        for valItr = 1:validationFolds
+            if isempty(valEvaluatedThrs{valItr})
+                continue;
+            end
+            fitObject = polyfit(valEvaluatedThrs{valItr}, valEvaluatedPrecisions{valItr}, 5);
+            valEstimatedPrecs(valItr,:) = polyval(fitObject, sampleThrs);
+        end
         avgEstimatedAccs = mean(valEstimatedAccs,1);
-        [optimalAccuracy, estimatedThrIdx] = max(avgEstimatedAccs);
+        avgEstimatedPrecs = mean(valEstimatedPrecs,1);
+        [optimalPrecision, estimatedThrIdx] = max(avgEstimatedPrecs);
+        optimalAccuracy = avgEstimatedAccs(estimatedThrIdx);
         optimalThreshold = sampleThrs(estimatedThrIdx);
     else
         optimalThreshold = median(crossValThresholds);
+        optimalPrecision = mean(crossValPrecision);
         optimalAccuracy = mean(crossValAccuracy);
     end
     
@@ -321,13 +366,22 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
 
     smartSubElimination = mean(subEliminationFlags) > 0;
     uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
-    display(['[SUBDUE] Mean cross-validation accuracy on the data: %' num2str(100 * optimalAccuracy) '.']); 
+    display(['[SUBDUE] Mean cross-validation accuracy on the data: %' num2str(100 * optimalAccuracy) ' and precision: %' num2str(100 * optimalPrecision) '.']); 
     
     % Get a new set of subs.
-   [finalSubList, ~, ~] = getReconstructiveParts(bestSubs, ...
-    numberOfFinalSubs, 1, smartSubElimination, optimalThreshold, ...
-    stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
-    edgeDistanceMatrix, singlePrecision);
+    
+   if supervisionFlag
+        [finalSubList, ~, ~] = getDiscriminativeParts(bestSubs, -1, categoryArrIdx, ...
+            numberOfFinalSubs, smartSubElimination, optimalThreshold, ...
+            uniqueChildren, nodeDistanceMatrix, ...
+            edgeDistanceMatrix, singlePrecision);
+   else
+        [finalSubList, ~, ~] = getReconstructiveParts(bestSubs, ...
+            numberOfFinalSubs, 1, smartSubElimination, optimalThreshold, ...
+            stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
+            edgeDistanceMatrix, singlePrecision);
+   end
+
 
    % Update instance information.
    bestSubs = bestSubs(finalSubList);

@@ -88,7 +88,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     supervisedSelectionFlag = options.supervisedSelectionFlag;
     supervisedSelectionMode = options.supervisedSelectionMode;
     isSupervisedSelectionRunning = false;
-    if strcmp(supervisedSelectionMode, 'manual')
+    if supervisedSelectionFlag && strcmp(supervisedSelectionMode, 'manual')
         isSupervisedSelectionRunning = true;
     end
     previousAccuracy = 0;

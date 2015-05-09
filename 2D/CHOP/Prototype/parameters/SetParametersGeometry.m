@@ -106,7 +106,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 15;         % This parameter is used to quantize 
+    options.edgeQuantize = 11;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
@@ -167,7 +167,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
     options.maxInferenceLevels = 10; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
-    options.fastInference = false; % If set, faster inference (involves 
+    options.fastInference = true; % If set, faster inference (involves 
                                   % inhibition) is performed.
     options.favorParam = 1;      % Between 1:100, if it increases, category 
                                  % nodes with peaks towards a single category 
@@ -190,7 +190,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -243,7 +243,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
     options.subdue.thresholdSearchMaxDepth = 12; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
-    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
+    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 100000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.

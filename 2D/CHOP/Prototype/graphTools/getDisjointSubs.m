@@ -42,6 +42,8 @@ function [ validSubIdx ] = getDisjointSubs( bestSubs, ...
     % been seen more than once, we will run an elimination of overlapping
     % subs.
     occurenceArr = hist(IC, 1:numel(validChildrenIdx));
+    subRootsValid = occurenceArr == 1;
+    validSubIdx(validChildrenIdx(subRootsValid)) = 1;
     subRootsToTest = find(occurenceArr > 1 & cellfun(@(x) ~isempty(x), subRoots));
     
     % Go through every possible root, and eliminate overlapping subs.

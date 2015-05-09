@@ -25,14 +25,14 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.05; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.15; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 6;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 10;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -40,7 +40,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
     options.gabor.theta = 0;
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
-    options.gabor.gamma = 0.2;
+    options.gabor.gamma = 0.25;
     options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)-1;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
@@ -50,7 +50,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
     options.autoFilterSize = 10;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
-    options.autoFilterThr = 0.1;       % Min response threshold for convolved 
+    options.autoFilterThr = 0.02;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 200;      % Number of auto-detected filters.
@@ -67,7 +67,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'rank'; % If 'euc': Euclidean distance 
+    options.distType = 'euc'; % If 'euc': Euclidean distance 
                                                    % (normalized by number
                                                    % of nonzero pixels)
                                                    % will define the
@@ -95,7 +95,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5001;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -106,13 +106,13 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 15;         % This parameter is used to quantize 
+    options.edgeQuantize = 9;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
                                         % down to this window, and then
                                         % quantized. 
-    options.scaling = 0.9;            % Each successive layer is downsampled 
+    options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -144,9 +144,9 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxImageDim = options.receptiveFieldSize*10; %Max dimension of the 
+    options.maxImageDim = options.receptiveFieldSize*8; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in
                                        % the dataset is larger than this
@@ -190,7 +190,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 2000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -216,13 +216,13 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 120;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.01; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -238,11 +238,12 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                     % by minThreshold and maxThreshold.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.01; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.05; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 8; % The depth of binary search 
+    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.2   ; % Max threshold for elastic part matching. 
+    options.subdue.thresholdSearchMaxDepth = 12; % The depth of binary search 
                                 % when looking for an optimal threshold.
-    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
+                                % (min 10).
+    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.

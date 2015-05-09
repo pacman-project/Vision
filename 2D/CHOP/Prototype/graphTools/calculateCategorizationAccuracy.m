@@ -1,4 +1,4 @@
-function [bestAcc] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision)
+function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision)
     % Initialize data structures.
     categoryArrIdx = categoryArrIdx';
     numberOfBestSubs = numel(bestSubs);
@@ -31,12 +31,11 @@ function [bestAcc] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, i
     
     % Learn train/validation features, and assign labels.
     for bestSubItr = 1:numberOfBestSubs
-        instanceCenterIdx = bestSubs(bestSubItr).instanceCenterIdx;
-        instanceImageIdx = imageIdx(instanceCenterIdx);
+        instanceImageIdx = allInstances(allInstances(:,2) == bestSubItr, 1);
         
         % For every instance of every sub in every image, we add 1 to the 
         % corresponding counter location.
-        for instanceItr = 1:numel(instanceCenterIdx)
+        for instanceItr = 1:numel(instanceImageIdx)
             allFeatures(instanceImageIdx(instanceItr), bestSubItr) = ...
                 allFeatures(instanceImageIdx(instanceItr), bestSubItr) + 1;
         end
@@ -55,9 +54,15 @@ function [bestAcc] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, i
     trainFeatures = trainFeatures(validTrainingRows, :);
     trainLabels = trainLabels(validTrainingRows, :);
     
+    % Combine training and validation sets to evaluate the learned model.
+    validationFeatures = [validationFeatures; trainFeatures];
+    validationLabels = [validationLabels; trainLabels];
+    validValidationRows = [validValidationRows; validTrainingRows];
+    
     % Finally, we classify the validation data and return the performance.
 %    bestc = 1;
     bestAcc = 0;
+    bestPrecision = 0;
  %   for log2c = [1/128, 1/64, 1/32, 1/16, 1/8,1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
     for log2c = 1
         cmd = ['-t 0 -c ', num2str(log2c), ' -q '];
@@ -66,9 +71,11 @@ function [bestAcc] = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, i
         [predLabels,~, ~] = svmpredict(double(validationLabels), validationFeatures, learnedModel, cmd);
         predLabels(~validValidationRows) = -1;
         accuracy = nnz(predLabels == validationLabels) / numel(validationLabels);
+        precision = nnz(predLabels == validationLabels) / nnz(predLabels~=-1);
         if accuracy > bestAcc
 %            bestc = log2c;
             bestAcc = accuracy;
+            bestPrecision = precision;
         end
     end
 end
