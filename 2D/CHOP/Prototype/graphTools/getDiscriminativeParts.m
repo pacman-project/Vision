@@ -82,9 +82,9 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
    subScores = subScores/max(subScores);
    thr = graythresh(subScores);
    orderedSubIdx = orderedSubIdx(subScores >= thr);
-   if numel(orderedSubIdx)>numberOfFinalSubs
-       orderedSubIdx = orderedSubIdx(1:numberOfFinalSubs);
-   end
+%    if numel(orderedSubIdx)>numberOfFinalSubs
+%        orderedSubIdx = orderedSubIdx(1:numberOfFinalSubs);
+%    end
    validSubs = sort(validSubIdx(orderedSubIdx));
    
    % Mark remaining instance nodes.

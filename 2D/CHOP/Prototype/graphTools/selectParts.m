@@ -349,10 +349,10 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
         end
         avgEstimatedAccs = mean(valEstimatedAccs,1);
         avgEstimatedPrecs = mean(valEstimatedPrecs,1);
-%         [optimalPrecision, estimatedThrIdx] = max(avgEstimatedPrecs);
-%         optimalAccuracy = avgEstimatedAccs(estimatedThrIdx);
-        [optimalAccuracy, estimatedThrIdx] = max(avgEstimatedAccs);
-        optimalPrecision = avgEstimatedPrecs(estimatedThrIdx);
+         [optimalPrecision, estimatedThrIdx] = max(avgEstimatedPrecs);
+         optimalAccuracy = avgEstimatedAccs(estimatedThrIdx);
+%        [optimalAccuracy, estimatedThrIdx] = max(avgEstimatedAccs);
+%        optimalPrecision = avgEstimatedPrecs(estimatedThrIdx);
         optimalThreshold = sampleThrs(estimatedThrIdx);
     else
         optimalThreshold = median(crossValThresholds);
