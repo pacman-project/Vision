@@ -1,3 +1,21 @@
+%> Name: getDiscriminativeParts
+%>
+%> Description: This function is used to select a number of discriminative
+%> parts from bestSubs. 
+%>
+%> @param bestSubs The list of selected subs so far. We will further
+%> select a subset of this set, based on dicrimination.
+%>
+%> @retval validSubs Array that includes linear ids of selected subs in
+%> bestSubs.
+%> @retval overallCoverage The coverage of the data using the selected subs.
+%> @retval overallMatchScore The average matching cost of parts in the
+%> selected set, and the instances in the data.
+%>
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 12.05.2015
 function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativeParts(bestSubs, valItr, categoryArrIdx, ...
     numberOfFinalSubs, smartSubElimination, midThr, uniqueChildren, nodeDistanceMatrix, ...
     edgeDistanceMatrix, singlePrecision)
@@ -28,7 +46,6 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
        matchCosts = bestSubs(bestSubItr).instanceMatchCosts(validInstanceIdx, :);
        subMatchScores(bestSubItr) = {(adaptiveThreshold - matchCosts) / adaptiveThreshold};
    end
-   
    
    % Calculate which leaf nodes are covered.;
    subDiscriminativeScores = zeros(numberOfBestSubs,1);
@@ -61,7 +78,10 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
    validSubIdx = find(validSubIdx);
    
    %% Get top N discriminative subs.
-   [~, orderedSubIdx] = sort(subDiscriminativeScores(validSubIdx), 'descend');
+   [subScores, orderedSubIdx] = sort(subDiscriminativeScores(validSubIdx), 'descend');
+   subScores = subScores/max(subScores);
+   thr = graythresh(subScores);
+   orderedSubIdx = orderedSubIdx(subScores >= thr);
    if numel(orderedSubIdx)>numberOfFinalSubs
        orderedSubIdx = orderedSubIdx(1:numberOfFinalSubs);
    end

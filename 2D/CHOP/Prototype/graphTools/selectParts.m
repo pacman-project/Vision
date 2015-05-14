@@ -49,7 +49,11 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     maxThreshold, maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, supervisionFlag)
     
     % Warn the user. This may take a while.
-    display('[SUBDUE] Running unsupervised part selection. This may take a while..');
+    if supervisionFlag
+        display('[SUBDUE] Running supervised part selection. This may take a while..');
+    else
+        display('[SUBDUE] Running unsupervised part selection. This may take a while..');
+    end
 
     % Keep best subs.
     orgBestSubs = bestSubs;
@@ -96,7 +100,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     end
     uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
     
-    for valItr = 1:validationFolds
+    parfor valItr = 1:validationFolds
         % We exclude the subs which have zero-cost matchs on this subset,
         % but not on other subsets.
         validSubIdx = ones(numel(orgBestSubs),1) > 0;
@@ -345,8 +349,10 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
         end
         avgEstimatedAccs = mean(valEstimatedAccs,1);
         avgEstimatedPrecs = mean(valEstimatedPrecs,1);
-        [optimalPrecision, estimatedThrIdx] = max(avgEstimatedPrecs);
-        optimalAccuracy = avgEstimatedAccs(estimatedThrIdx);
+%         [optimalPrecision, estimatedThrIdx] = max(avgEstimatedPrecs);
+%         optimalAccuracy = avgEstimatedAccs(estimatedThrIdx);
+        [optimalAccuracy, estimatedThrIdx] = max(avgEstimatedAccs);
+        optimalPrecision = avgEstimatedPrecs(estimatedThrIdx);
         optimalThreshold = sampleThrs(estimatedThrIdx);
     else
         optimalThreshold = median(crossValThresholds);

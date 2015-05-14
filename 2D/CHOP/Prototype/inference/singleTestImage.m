@@ -25,6 +25,10 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, catego
        img = imresize(img, options.maxImageDim/max(size(img)), 'bilinear'); 
     end
     imwrite(img, [options.processedFolder '/' categoryName '_' fileName '.png']);
+    imgSize = size(img);
+    if numel(imgSize) > 2
+        imgSize = imgSize(1:2); %#ok<NASGU>
+    end
 
     %% Form the first level nodes.
     [cellNodes, ~, nodeActivations] = getNodes(img, [], options);
@@ -40,8 +44,8 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, catego
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', '-append');
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', '-append');
     else
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr');
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize');
     end
 end
