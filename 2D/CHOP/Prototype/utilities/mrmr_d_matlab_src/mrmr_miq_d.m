@@ -40,52 +40,65 @@ function [fea] = mrmr_miq_d(d, f, K)
 % April 16, 2003
 %
 
-bdisp=0;
+bdisp=1;
 
 nd = size(d,2);
-nc = size(d,1);
 
 t1=cputime;
+t = zeros(nd, 1);
 for i=1:nd, 
    t(i) = mutualinfo(d(:,i), f);
 end; 
 fprintf('calculate the marginal dmi costs %5.1fs.\n', cputime-t1);
 
-[tmp, idxs] = sort(-t);
-fea_base = idxs(1:K);
+[~, idxs] = sort(-t);
 
-fea(1) = idxs(1);
+fea = zeros(min(K, nd),1);
 
-KMAX = min(1000,nd); %500 %20000
+if K < nd
+    fea(1) = idxs(1);
 
-idxleft = idxs(2:KMAX);
+    KMAX = min(1000,nd); %500 %20000
+    
+    if KMAX <= K
+        fea = idxs((1:K));
+        return;
+    end
 
-k=1;
-if bdisp==1,
-fprintf('k=1 cost_time=(N/A) cur_fea=%d #left_cand=%d\n', ...
-      fea(k), length(idxleft));
-end;
+    idxleft = idxs(2:KMAX);
 
-for k=2:K,
-   t1=cputime;
-   ncand = length(idxleft);
-   curlastfea = length(fea);
-   for i=1:ncand,
-      t_mi(i) = mutualinfo(d(:,idxleft(i)), f); 
-      mi_array(idxleft(i),curlastfea) = getmultimi(d(:,fea(curlastfea)), d(:,idxleft(i)));
-      c_mi(i) = mean(mi_array(idxleft(i), :)); 
-   end;
+    k=1;
+    if bdisp==1,
+    fprintf('k=1 cost_time=(N/A) cur_fea=%d #left_cand=%d\n', ...
+          fea(k), length(idxleft));
+    end;
 
-%   [tmp, fea(k)] = max(t_mi(1:ncand) ./ c_mi(1:ncand));
-   [tmp, fea(k)] = max(t_mi(1:ncand) ./ (c_mi(1:ncand) + 0.01));
+    mi_array = zeros(max(idxleft), K - 1);
+    
+    for k=2:K,
+       t1=cputime;
+       ncand = length(idxleft);
+       curlastfea = nnz(fea);
+       t_mi = t(idxleft);
+       c_mi = zeros(ncand, 1);
+       for i=1:ncand,
+          mi_array(idxleft(i),curlastfea) = getmultimi(d(:,fea(curlastfea)), d(:,idxleft(i)));
+          c_mi(i) = mean(mi_array(idxleft(i), 1:(k-1))); 
+       end;
+       
+    %   [tmp, fea(k)] = max(t_mi(1:ncand) ./ c_mi(1:ncand));
+       [~, fea(k)] = max(t_mi(1:ncand) ./ (c_mi(1:ncand) + 0.01));
 
-   tmpidx = fea(k); fea(k) = idxleft(tmpidx); idxleft(tmpidx) = [];
+       tmpidx = fea(k); fea(k) = idxleft(tmpidx); idxleft(tmpidx) = [];
 
-   if bdisp==1,
-   fprintf('k=%d cost_time=%5.4f cur_fea=%d #left_cand=%d\n', ...
-      k, cputime-t1, fea(k), length(idxleft));
-   end;
-end;
+       if bdisp==1 && rem(k, 100) == 0
+       fprintf('k=%d cost_time=%5.4f cur_fea=%d #left_cand=%d\n', ...
+          k, cputime-t1, fea(k), length(idxleft));
+       end
+    end
+else
+    fea = (1:nd)';
+end
 
 return;
 

@@ -36,17 +36,13 @@ function [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs,
     % Create the feature vectors to be classified.
     allFeatures = zeros(max(imageIdx), numberOfBestSubs);
     trainLabels = imageCategoryIdx(trainingImageIdx);
+    imageIds = unique(imageIdx);
     
     % Learn train/validation features, and assign labels.
-    for bestSubItr = 1:numberOfBestSubs
-        instanceImageIdx = allInstances(allInstances(:,2) == bestSubItr, 1);
-        
-        % For every instance of every sub in every image, we add 1 to the 
-        % corresponding counter location.
-        for instanceItr = 1:numel(instanceImageIdx)
-            allFeatures(instanceImageIdx(instanceItr), bestSubItr) = ...
-                allFeatures(instanceImageIdx(instanceItr), bestSubItr) + 1;
-        end
+    for imageItr = imageIds'
+        instanceImageIdx = allInstances(allInstances(:,1) == imageItr, 2);
+        featureArr = hist(instanceImageIdx, 1:numberOfBestSubs);
+        allFeatures(imageItr, :) = featureArr;
     end 
     
     % Assign train/test features and normalize them (converting them to
@@ -66,12 +62,9 @@ function [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs,
     validSubs = sort(validSubs);
     
     % Get train and validation accuracy for final evaluation.
-    [trainAccuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubs), ...
-       categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 0, true);
     [trueAccuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubs), ...
        categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
     display(['[SUBDUE] [Val ' num2str(valItr) '] Val accuracy after discriminative part selection : %' ...
         num2str(100 * trueAccuracy) ...
-        ', with training set accuracy : %' num2str(100 * trainAccuracy), ...
         ', having ' num2str(numel(validSubs)) ' subs.']);  
 end

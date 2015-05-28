@@ -29,17 +29,13 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
     allFeatures = zeros(max(imageIdx), numberOfBestSubs);
     trainLabels = imageCategoryIdx(trainingImageIdx);
     validationLabels = imageCategoryIdx(validationImageIdx);
+    imageIds = unique(imageIdx);
     
     % Learn train/validation features, and assign labels.
-    for bestSubItr = 1:numberOfBestSubs
-        instanceImageIdx = allInstances(allInstances(:,2) == bestSubItr, 1);
-        
-        % For every instance of every sub in every image, we add 1 to the 
-        % corresponding counter location.
-        for instanceItr = 1:numel(instanceImageIdx)
-            allFeatures(instanceImageIdx(instanceItr), bestSubItr) = ...
-                allFeatures(instanceImageIdx(instanceItr), bestSubItr) + 1;
-        end
+    for imageItr = imageIds'
+        instanceImageIdx = allInstances(allInstances(:,1) == imageItr, 2);
+        featureArr = hist(instanceImageIdx, 1:numberOfBestSubs);
+        allFeatures(imageItr, :) = featureArr;
     end 
     
     % Assign train/test features and normalize them (converting them to
