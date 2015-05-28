@@ -20,12 +20,12 @@ function [ options ] = SetParametersWillow( datasetName, options )
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.15; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.1; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
@@ -53,7 +53,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
     options.autoFilterThr = 0.02;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
-    options.autoFilterCount = 200;      % Number of auto-detected filters.
+    options.autoFilterCount = 100;      % Number of auto-detected filters.
     options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 2;           % Stride to use when extracting first-
@@ -95,7 +95,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5001;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -106,7 +106,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 9;         % This parameter is used to quantize 
+    options.edgeQuantize = 11;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
@@ -144,7 +144,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*8; %Max dimension of the 
                                        % images the algorithm will work
@@ -195,7 +195,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                            % that can be selected.
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -216,13 +216,13 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 120;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.01; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.03 ; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -240,12 +240,12 @@ function [ options ] = SetParametersWillow( datasetName, options )
     % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
     options.subdue.maxThreshold = 0.2   ; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 12; % The depth of binary search 
+    options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

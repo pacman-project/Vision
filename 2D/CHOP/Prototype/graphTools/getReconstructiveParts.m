@@ -1,5 +1,5 @@
-function [validSubs, overallCoverage, overallMatchScore] = getReconstructiveParts(bestSubs, ...
-    numberOfFinalSubs, moreSubsAllowed, smartSubElimination, midThr, stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
+function [validSubs, overallCoverage, overallMatchCost] = getReconstructiveParts(bestSubs, ...
+    numberOfFinalSubs, valItr, moreSubsAllowed, smartSubElimination, midThr, stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
     edgeDistanceMatrix, singlePrecision)
 
    numberOfBestSubs = numel(bestSubs);
@@ -7,6 +7,7 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
    
    % Calculate which leaf nodes are covered.
    subNodes = cell(numberOfBestSubs,1);
+   subMatchCosts = zeros(numberOfBestSubs,1);
    subMatchScores = cell(numberOfBestSubs,1);
    parfor bestSubItr = 1:numberOfBestSubs
        adaptiveThreshold = ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);
@@ -24,6 +25,7 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
        % We calculate match scores of the instances.
        matchCosts = bestSubs(bestSubItr).instanceMatchCosts(validInstanceIdx, :);
        subMatchScores(bestSubItr) = {(adaptiveThreshold - matchCosts) / adaptiveThreshold};
+       subMatchCosts(bestSubItr) = mean(matchCosts) / (size(bestSubs(bestSubItr).edges,1) * 2 + 1);
    end
 
    % Eliminate subs that match to better subs. We'll have subs that are
@@ -32,7 +34,7 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
    if smartSubElimination
        validSubIdx = getDisjointSubs(bestSubs, ...
            nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, midThr);
-%       display(['[SUBDUE] Considering only disjoint examples, we are down to ' num2str(nnz(validSubIdx)) ' subs to consider.']);
+       display(['[SUBDUE] [Val ' num2str(valItr) '] Considering only disjoint examples, we are down to ' num2str(nnz(validSubIdx)) ' subs to consider.']);
    else
        validSubIdx = ones(numel(bestSubs),1) > 0;
    end
@@ -57,15 +59,8 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
    nodeArr = zeros(max(uniqueChildren),1) > 0;
    selectedSubIdx = zeros(numberOfBestSubs,1) > 0;
    addedSubOffset = 1;
-%   numberOfRemainingBestSubs = numel(validSubs);
    while addedSubOffset <= numberOfFinalSubs
        numberOfCoveredNodes = nnz(nodeArr);
-
-%        % Print current progress.
-%        if rem(addedSubOffset,10) == 0
-%             display(['[SUBDUE] Selecting sub ' num2str(addedSubOffset) '/' num2str(numberOfRemainingBestSubs) ...
-%                 ' out of ' num2str(numberOfBestSubs) '.. Current coverage: ' num2str(numberOfCoveredNodes/prevGraphNodeCount) '.']);
-%        end
 
        % If we've covered enough nodes, stop.
        if numberOfCoveredNodes/prevGraphNodeCount >= stoppingCoverage
@@ -130,14 +125,10 @@ function [validSubs, overallCoverage, overallMatchScore] = getReconstructivePart
    % We calculate our optimality metric. For now, it's unsupervised,
    % and gives equal weight to coverage/mean match scores.
    overallCoverage = numel(remainingNodes) / prevGraphNodeCount;
-   overallMatchScore = sum(cellfun(@(x) sum(x), subMatchScores(validSubs)));
-   overallMatchScoreDenom = sum(cellfun(@(x) numel(x), subMatchScores(validSubs)));
-   if overallMatchScoreDenom ~= 0
-        overallMatchScore = overallMatchScore / overallMatchScoreDenom;
-   end
+   overallMatchCost = mean(subMatchCosts(validSubs));
    
    % Printing.
    display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
-        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average match score:' num2str(overallMatchScore) '.']);
+        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average normalized match cost:' num2str(overallMatchCost) '.']);
 
 end

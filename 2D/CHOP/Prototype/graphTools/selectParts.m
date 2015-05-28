@@ -93,6 +93,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     valEvaluatedAccs = cell(validationFolds,1);
     valEvaluatedPrecisions = cell(validationFolds,1);
     valEvaluatedThrs = cell(validationFolds,1);
+    valEvaluatedCounts = cell(validationFolds,1);
     if validationFolds > 1
         display(['[SUBDUE/Parallel] Determining the optimal matching threshold with ' num2str(validationFolds) '-fold cross-validation.']); 
     else
@@ -159,6 +160,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
        evaluatedThrs = [];
        evaluatedAccs = [];
        evaluatedPrecisions = [];
+       evaluatedCounts = [];
        if supervisionFlag
            thrStack = [(minThr + midThr)/4, (minThr + midThr)/2, ((minThr + midThr)*3)/4, midThr, ...
                midThr + (maxThr - midThr)/4, (midThr + maxThr)/2, maxThr - (maxThr - midThr)/4, maxThr];
@@ -167,10 +169,11 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
            thrStack = [];
        end
 
-       display(['[SUBDUE] Starting threshold search with ' num2str(midThr) '. We are limited to ' num2str(numberOfFinalSubs) ' compositions.']);
-       display(['[SUBDUE] Initially, we have ' num2str(numberOfBestSubs) ' subs to consider.']);
+       display(['[SUBDUE] [Val ' num2str(valItr) '] Starting threshold search with ' num2str(midThr) '. We are limited to ' num2str(numberOfFinalSubs) ' compositions.']);
+       display(['[SUBDUE] [Val ' num2str(valItr) '] Initially, we have ' num2str(numberOfBestSubs) ' subs to consider.']);
        %% Searching for optimal threshold using a binary search mechanism.
        while (currentDepth <= maxDepth) && ~isSolutionOptimal
+           
            isCoverageOptimal = false;
            % If this is the final leg of search, we allow part selection to
            % have more subs than the max number.
@@ -183,16 +186,20 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
            % First, we obtain non-overlapping, minimal set of subs 
            % (common in both supervised and unsupervised learning)..
             if supervisionFlag
-                [validSubs, overallCoverage, overallMatchScore] = getDiscriminativeParts(bestSubs, valItr, categoryArrIdx, ...
-                     numberOfFinalSubs, smartSubElimination, midThr, ...
-                     remainingChildren, nodeDistanceMatrix, ...
-                     edgeDistanceMatrix, singlePrecision);
+                [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs, numberOfFinalSubs, ...
+                    categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
+                
+%                 [validSubs, overallCoverage, overallMatchCost] = getDiscriminativeParts(bestSubs, numberOfFinalSubs, valItr, categoryArrIdx, ...
+%                      imageIdx, validationIdx, smartSubElimination, midThr, -1, ...
+%                      remainingChildren, nodeDistanceMatrix, ...
+%                      edgeDistanceMatrix, singlePrecision);
             else
-               [validSubs, overallCoverage, overallMatchScore] = getReconstructiveParts(bestSubs, ...
-                    numberOfFinalSubs, moreSubsAllowed, smartSubElimination, midThr, ...
+               [validSubs, overallCoverage, overallMatchCost] = getReconstructiveParts(bestSubs, ...
+                    numberOfFinalSubs, valItr, moreSubsAllowed, smartSubElimination, midThr, ...
                     stoppingCoverage, remainingChildren, nodeDistanceMatrix, ...
                     edgeDistanceMatrix, singlePrecision);
-           end
+            end
+           partCount = nnz(validSubs);
             
            if nnz(validSubs) == 0
               display('Error here! We should have selected at least 1 sub.'); 
@@ -201,9 +208,9 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
            % In order to measure the discrimination capabilities of our
            % system, we estimate the discrimination performance of the
            % selected subs. 
-           [accuracy, precision] = calculateCategorizationAccuracy(bestSubs(validSubs), categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
-%          accuracy = calculateCategorizationAccuracy(bestSubs, categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
-           
+           [accuracy, precision] = calculateCategorizationAccuracy(bestSubs(validSubs), ...
+               categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
+
            %% We determine optimality of the solution based on the criterion.
            % If supervisionFlag is true, our criterion is classification
            % accuracy. Otherwise, we focus on coverage on the data.
@@ -214,6 +221,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
                end
                
                % This is the multiplication to find our metric.
+               overallMatchScore = (midThr - overallMatchCost) / midThr;
                unsupMetric = overallCoverage * overallMatchScore;
 
                % If the score is ideal, we mark solution flag as true.
@@ -265,6 +273,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
                     evaluatedThrs = [evaluatedThrs; midThr]; %#ok<AGROW>
                     evaluatedAccs = [evaluatedAccs; accuracy]; %#ok<AGROW>
                     evaluatedPrecisions = [evaluatedPrecisions; precision]; %#ok<AGROW>
+                    evaluatedCounts = [evaluatedCounts; partCount]; %#ok<AGROW>
                     if ~isempty(thrStack)
                         midThr = thrStack(1);
                         thrStack = thrStack(2:end);
@@ -315,10 +324,12 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
           valEvaluatedAccs(valItr) = {evaluatedAccs};
           valEvaluatedPrecisions(valItr) = {evaluatedPrecisions};
           valEvaluatedThrs(valItr) = {evaluatedThrs};
+          valEvaluatedCounts(valItr) = {evaluatedCounts};
        else
           crossValAccuracy(valItr) = accuracy;
           crossValPrecision(valItr) = precision;
        end
+       
        crossValThresholds(valItr) = optimalThreshold;
        subEliminationFlags(valItr) = smartSubElimination;
     end
@@ -347,13 +358,26 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
             fitObject = polyfit(valEvaluatedThrs{valItr}, valEvaluatedPrecisions{valItr}, 5);
             valEstimatedPrecs(valItr,:) = polyval(fitObject, sampleThrs);
         end
+        
+        % Finally, we estimate the number of subs to be considered.
+        valEstimatedCounts = zeros(validationFolds, numel(sampleThrs));
+        for valItr = 1:validationFolds
+            if isempty(valEvaluatedThrs{valItr})
+                continue;
+            end
+            fitObject = polyfit(valEvaluatedThrs{valItr}, valEvaluatedCounts{valItr}, 5);
+            valEstimatedCounts(valItr,:) = polyval(fitObject, sampleThrs);
+        end
+        
         avgEstimatedAccs = mean(valEstimatedAccs,1);
         avgEstimatedPrecs = mean(valEstimatedPrecs,1);
-         [optimalPrecision, estimatedThrIdx] = max(avgEstimatedPrecs);
-         optimalAccuracy = avgEstimatedAccs(estimatedThrIdx);
+        avgEstimatedCounts = mean(valEstimatedCounts,1);
+        [optimalPrecision, estimatedThrIdx] = max(avgEstimatedPrecs);
+        optimalAccuracy = avgEstimatedAccs(estimatedThrIdx);
 %        [optimalAccuracy, estimatedThrIdx] = max(avgEstimatedAccs);
 %        optimalPrecision = avgEstimatedPrecs(estimatedThrIdx);
         optimalThreshold = sampleThrs(estimatedThrIdx);
+        optimalCount = round(avgEstimatedCounts(estimatedThrIdx));
     else
         optimalThreshold = median(crossValThresholds);
         optimalPrecision = mean(crossValPrecision);
@@ -377,17 +401,19 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     % Get a new set of subs.
     
    if supervisionFlag
-        [finalSubList, ~, ~] = getDiscriminativeParts(bestSubs, -1, categoryArrIdx, ...
-            numberOfFinalSubs, smartSubElimination, optimalThreshold, ...
-            uniqueChildren, nodeDistanceMatrix, ...
-            edgeDistanceMatrix, singlePrecision);
+        [finalSubList, ~, ~] = getMRMRParts(bestSubs, optimalCount, ...
+            categoryArrIdx, imageIdx, validationIdx, -1, optimalThreshold, singlePrecision);
+%         [finalSubList, ~, ~] = getDiscriminativeParts(bestSubs, numberOfFinalSubs, -1, ...
+%             categoryArrIdx, imageIdx, validationIdx, ...
+%             smartSubElimination, optimalThreshold, optimalCount, ...
+%             uniqueChildren, nodeDistanceMatrix, ...
+%             edgeDistanceMatrix, singlePrecision);
    else
         [finalSubList, ~, ~] = getReconstructiveParts(bestSubs, ...
-            numberOfFinalSubs, 1, smartSubElimination, optimalThreshold, ...
+            numberOfFinalSubs, -1, 1, smartSubElimination, optimalThreshold, ...
             stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
             edgeDistanceMatrix, singlePrecision);
    end
-
 
    % Update instance information.
    bestSubs = bestSubs(finalSubList);

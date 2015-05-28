@@ -1,6 +1,6 @@
-function [ ] = baselineClassification(datasetName)
+function [ ] = baselineClassification2(datasetName)
     %BASELINEFEATUREEXTRACTION Summary of this function goes here
-    poolSizes = [1];
+    poolSizes = [1, 2, 3];
     
     %   Detailed explanation goes here
     options = SetParameters(datasetName, true);
@@ -11,26 +11,16 @@ function [ ] = baselineClassification(datasetName)
     
     %% Step 1.1: Extract a set of features from the input images.
     display('..... Level 1 Feature Extraction started. This may take a while.');
-    categoryArrIdx = zeros(numel(trainingFileNames),1);
-    allFeatures = cell(numel(testFileNames), numel(vocabulary), numel(poolSizes));
-    maxLevels = 1;
-    for fileItr = 1:numel(testFileNames)
+    allFeatures = cell(numel(trainingFileNames), numel(vocabulary), numel(poolSizes));
+    for fileItr = 1:numel(trainingFileNames)
         
         % Get the size of the image.
-        load(testFileNames{fileItr}, 'imgSize', 'exportArr', 'categoryLabel');
-        categoryArrIdx(fileItr) = categoryLabel;
-        imgArr = exportArr;
-        if max(exportArr(:,4)) > maxLevels
-           maxLevels = max(exportArr(:,4)); 
+        img = imread(trainingFileNames{fileItr});
+        imgSize = size(img);
+        if numel(imgSize) > 2
+            imgSize = imgSize(1:2);
         end
-%         
-%         % Get the size of the image.
-%         img = imread(trainingFileNames{fileItr});
-%         imgSize = size(img);
-%         if numel(imgSize) > 2
-%             imgSize = imgSize(1:2);
-%         end
-%         imgArr = exportArr(exportArr(:,5) == fileItr, :);
+        imgArr = exportArr(exportArr(:,5) == fileItr, :);
         
         for levelItr = 1:numel(vocabulary)
             vocabLevel = vocabulary{levelItr};
@@ -70,7 +60,8 @@ function [ ] = baselineClassification(datasetName)
     
     %% Here, we will run training using the features learned.
     % A separate model is learned for every pooling & vocabulary level pair.
-    for levelItr = 1:maxLevels
+    
+    for levelItr = 1:numel(vocabulary)
         for poolSizeItr = 1:numel(poolSizes)
             relevantFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
             validRows = sum(relevantFeatures,2) > 0;
@@ -141,7 +132,7 @@ function [ ] = baselineClassification(datasetName)
     %% Finally, make predictions and estimate the accuracy.
     for poolSizeItr = 1:numel(poolSizes)
         existingPredLabels = -1 * ones(numel(testFileNames),1);
-        for levelItr = 1:maxLevels
+        for levelItr = 1:numel(vocabulary)
             curFeatures = cat(1, testFeatures{:, levelItr, poolSizeItr});
             validRows = sum(curFeatures,2) > 0;
             load([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel');
@@ -152,15 +143,8 @@ function [ ] = baselineClassification(datasetName)
             % Combine with existing labels.
             existingPredLabels(predLabels ~= -1) = predLabels(predLabels ~= -1);
             predLabels(predLabels == -1) = existingPredLabels(predLabels==-1);
-            
-            % Estimate performance, and find confusion matrix.
-            classAcc = zeros(numel(unique(testLabels)),1);
-            for catItr = 1:numel(unique(testLabels))
-                classAcc(catItr) = nnz(predLabels == testLabels & testLabels == catItr) / nnz(testLabels == catItr);
-            end
-            accuracy = mean(classAcc);
-            confMat = confusionmat(testLabels, predLabels);
-            
+            accuracy = nnz(predLabels == testLabels) / numel(testLabels); %#ok<NASGU>
+            confMat = confusionmat(testLabels, predLabels) %#ok<NASGU,NOPRT>
             % Mark invalid rows. 
             save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'accuracy', 'confMat', '-append');
         end

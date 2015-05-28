@@ -55,6 +55,7 @@ function [ ] = MarkCategoryLabels( datasetName )
             assgnArr = assgnArr .* normConstants;
             assgnArr(isnan(assgnArr)) = 0;
             assgnArr = assgnArr / sum(assgnArr);
+            assgnArr(isnan(assgnArr)) = 0;
             probArr{partItr} = assgnArr;
         end
         

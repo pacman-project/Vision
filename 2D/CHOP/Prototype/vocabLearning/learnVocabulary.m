@@ -218,11 +218,5 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
             distanceMatrices = distanceMatrices(1:(levelItr),:);
             graphLevelIndices = graphLevelIndices(1:(levelItr),:);
         end
-        
-%         %% Step 2.7 Change thresholds if necessary.
-%         if levelItr == 3
-%             options.subdue.minThreshold = 0.15; % Minimum threshold for elastic matching.
-%             options.subdue.maxThreshold = 0.2; % Max threshold for elastic part matching. 
-%         end
     end
 end

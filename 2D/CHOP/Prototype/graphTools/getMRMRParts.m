@@ -1,8 +1,17 @@
-function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ...
-    categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, includeValidationSet, optimizeSVM)
+function [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs, numberOfFinalSubs, ...
+    categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision)
+
+    if numel(bestSubs) < numberOfFinalSubs
+       numberOfFinalSubs = numel(bestSubs); 
+    end
+
+
     % Initialize data structures.
     categoryArrIdx = categoryArrIdx';
     numberOfBestSubs = numel(bestSubs);
+    overallCoverage = 0;
+    overallMatchCost = 0;
+    
     
     % Put the instances ([labelId, imageId, validationIdx] triple) into an array.
     allInstances = cell(numel(bestSubs),1);
@@ -18,7 +27,6 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
     
     % Get image ids for training and validation set.
     trainingImageIdx = unique(allInstances(allInstances(:,3) ~= valItr,1));
-    validationImageIdx = unique(imageIdx(validationIdx == valItr));
     
     % Obtain train/validation data labels.
     [uniqueImageIdx, IA, ~] = unique(imageIdx);
@@ -28,7 +36,6 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
     % Create the feature vectors to be classified.
     allFeatures = zeros(max(imageIdx), numberOfBestSubs);
     trainLabels = imageCategoryIdx(trainingImageIdx);
-    validationLabels = imageCategoryIdx(validationImageIdx);
     
     % Learn train/validation features, and assign labels.
     for bestSubItr = 1:numberOfBestSubs
@@ -46,49 +53,25 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
     % unit vectors).
     validRows = sum(allFeatures,2) ~= 0;
     allFeatures(validRows,:) = normr(allFeatures(validRows,:));
+    allFeatures = uint8(round(allFeatures * 255));
     trainFeatures = allFeatures(trainingImageIdx,:);
     validTrainingRows = sum(trainFeatures,2) ~= 0;
-    validationFeatures = allFeatures(validationImageIdx,:);
-    validValidationRows = sum(validationFeatures,2) ~= 0;
     
     % Get only valid rows for training.
     trainFeatures = trainFeatures(validTrainingRows, :);
     trainLabels = trainLabels(validTrainingRows, :);
     
-    % Combine training and validation sets to evaluate the learned model.
-    if includeValidationSet
-%        validationFeatures = [validationFeatures; trainFeatures];
-%        validationLabels = [validationLabels; trainLabels];
-%        validValidationRows = [validValidationRows; validTrainingRows];
-    else
-        validationFeatures = trainFeatures;
-        validationLabels = trainLabels;
-        validValidationRows = validTrainingRows;
-    end
+    % Here, we apply MR-MR based feature selection.
+    validSubs = mrmr_miq_d(trainFeatures, trainLabels, numberOfFinalSubs);
+    validSubs = sort(validSubs);
     
-    % Finally, we classify the validation data and return the performance.
-%    bestc = 1;
-    bestAcc = 0;
-    bestPrecision = 0;
-    if optimizeSVM
- %       log2cArr = [1/128, 1/64, 1/32, 1/16, 1/8,1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128];
-        log2cArr = [1/128, 1/32, 1/8, 1/2, 1, 4, 16, 64, 128];
-    else
-        log2cArr = 1;
-    end
-    
-    for log2c = log2cArr
-        cmd = ['-t 0 -c ', num2str(log2c), ' -q '];
-        learnedModel = svmtrain(double(trainLabels), trainFeatures, cmd);
-        cmd = '-q';
-        [predLabels,~, ~] = svmpredict(double(validationLabels), validationFeatures, learnedModel, cmd);
-        predLabels(~validValidationRows) = -1;
-        accuracy = nnz(predLabels == validationLabels) / numel(validationLabels);
-        precision = nnz(predLabels == validationLabels) / nnz(predLabels~=-1);
-        if accuracy > bestAcc
-%            bestc = log2c;
-            bestAcc = accuracy;
-            bestPrecision = precision;
-        end
-    end
+    % Get train and validation accuracy for final evaluation.
+    [trainAccuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubs), ...
+       categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 0, true);
+    [trueAccuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubs), ...
+       categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
+    display(['[SUBDUE] [Val ' num2str(valItr) '] Val accuracy after discriminative part selection : %' ...
+        num2str(100 * trueAccuracy) ...
+        ', with training set accuracy : %' num2str(100 * trainAccuracy), ...
+        ', having ' num2str(numel(validSubs)) ' subs.']);  
 end

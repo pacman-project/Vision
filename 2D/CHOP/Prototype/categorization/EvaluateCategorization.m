@@ -24,6 +24,10 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
            load(fileNames{fileItr});
            % Process this image and estimate category label.
            [estimatedCategoryLabel, decisionLevel] = getCategoryLabel(vocabulary, exportArr, activationArr, minLevels, maxLevels);
+           if estimatedCategoryLabel == -1
+              1 
+           end
+           
            decisionLevels(fileItr) = decisionLevel;
            gtArr(fileItr) = categoryLabel;
            detectionArr(fileItr) = estimatedCategoryLabel;

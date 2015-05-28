@@ -16,8 +16,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.05.2015
-function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativeParts(bestSubs, valItr, categoryArrIdx, ...
-    numberOfFinalSubs, smartSubElimination, midThr, uniqueChildren, nodeDistanceMatrix, ...
+function [validSubs, overallCoverage, overallMatchCost] = getDiscriminativeParts(bestSubs, numberOfFinalSubs, valItr, categoryArrIdx, ...
+    imageIdx, validationIdx, smartSubElimination, midThr, optimalCount, uniqueChildren, nodeDistanceMatrix, ...
     edgeDistanceMatrix, singlePrecision)
 
    numberOfBestSubs = numel(bestSubs);
@@ -27,11 +27,11 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
    prevGraphNodeCount = numel(uniqueChildren);
    
    % Calculate which leaf nodes are covered.
+   subMatchCosts = zeros(numberOfBestSubs,1);
    subNodes = cell(numberOfBestSubs,1);
-   subMatchScores = cell(numberOfBestSubs,1);
    parfor bestSubItr = 1:numberOfBestSubs
        adaptiveThreshold = ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);
-       validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold;
+       validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold & bestSubs(bestSubItr).instanceValidationIdx ~= valItr;
        nodes = bestSubs(bestSubItr).instanceChildren(validInstanceIdx, :);
        nodes = nodes(nodes > 0);
        nodes = nodes(:);
@@ -44,14 +44,15 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
 
        % We calculate match scores of the instances.
        matchCosts = bestSubs(bestSubItr).instanceMatchCosts(validInstanceIdx, :);
-       subMatchScores(bestSubItr) = {(adaptiveThreshold - matchCosts) / adaptiveThreshold};
+       subMatchCosts(bestSubItr) = mean(matchCosts) / (size(bestSubs(bestSubItr).edges,1) * 2 + 1);
    end
    
    % Calculate which leaf nodes are covered.;
    subDiscriminativeScores = zeros(numberOfBestSubs,1);
    parfor bestSubItr = 1:numberOfBestSubs
        adaptiveThreshold = ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);
-       validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold;
+       validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold & ...
+           bestSubs(bestSubItr).instanceValidationIdx ~= valItr;
        instanceCategories = bestSubs(bestSubItr).instanceCategories(validInstanceIdx, :);
        
        % Get posterior probabilities of classes given the part, and obtain
@@ -62,6 +63,7 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
        
        % Find sub score.
        subScore = (maxProb - minProb) * numel(instanceCategories);
+ %      subScore = maxProb - minProb;
        subDiscriminativeScores(bestSubItr) = subScore;
    end
 
@@ -71,7 +73,7 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
    if smartSubElimination
        validSubIdx = getDisjointSubs(bestSubs, ...
            nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, midThr);
-%       display(['[SUBDUE] Considering only disjoint examples, we are down to ' num2str(nnz(validSubIdx)) ' subs to consider.']);
+       display(['[SUBDUE] [Val ' num2str(valItr) ']Considering only disjoint examples, we are down to ' num2str(nnz(validSubIdx)) ' subs to consider.']);
    else
        validSubIdx = ones(numel(bestSubs),1) > 0;
    end
@@ -80,12 +82,49 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
    %% Get top N discriminative subs.
    [subScores, orderedSubIdx] = sort(subDiscriminativeScores(validSubIdx), 'descend');
    subScores = subScores/max(subScores);
-   thr = graythresh(subScores);
-   orderedSubIdx = orderedSubIdx(subScores >= thr);
-%    if numel(orderedSubIdx)>numberOfFinalSubs
-%        orderedSubIdx = orderedSubIdx(1:numberOfFinalSubs);
-%    end
-   validSubs = sort(validSubIdx(orderedSubIdx));
+   
+   % Greedily select best subs.
+   bestAcc = 0;
+   valAccuracyArr = zeros(numel(orderedSubIdx),1);
+   stepSize = 20;
+   if optimalCount == -1 && numel(orderedSubIdx) >= 100
+       subCheckPoints = stepSize:stepSize:min(numel(orderedSubIdx), numberOfFinalSubs);
+       for bestSubItr = stepSize:stepSize:min(numel(orderedSubIdx), numberOfFinalSubs)
+           [accuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubIdx(orderedSubIdx(1:bestSubItr))), ...
+               categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, false);
+           valAccuracyArr(bestSubItr) = accuracy;
+           if bestAcc < accuracy
+               bestAcc = accuracy;
+           end
+       end
+       
+       % We select a cutting point.
+       smoothingMask = makeGauss1D(1);
+       smoothingMask = smoothingMask(2:(end-1));
+       valAccuracyArrSmooth = convolve1D(valAccuracyArr(stepSize:stepSize:min(numel(orderedSubIdx), numberOfFinalSubs)), smoothingMask);
+       [~, maxLoc] = max(valAccuracyArrSmooth);
+       maxLoc = maxLoc + 2;
+       addedSubs = 1:subCheckPoints(maxLoc);
+       % Finally, select the subs.
+   elseif optimalCount > -1
+       addedSubs = 1:min(optimalCount, numel(orderedSubIdx));
+   else
+       addedSubs = 1:numel(orderedSubIdx);
+   end
+   
+    % Get train and validation accuracy for final evaluation.
+   [trainAccuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubIdx(orderedSubIdx(addedSubs))), ...
+       categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 0, true);
+   [trueAccuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubIdx(orderedSubIdx(addedSubs))), ...
+       categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
+   display(['[SUBDUE] [Val ' num2str(valItr) '] Val accuracy after discriminative part selection : %' num2str(100 * trueAccuracy) ...
+        ', with training set accuracy : %' num2str(100 * trainAccuracy), ...
+        ', having ' num2str(numel(addedSubs)) ' subs.']);    
+   validSubs = sort(validSubIdx(orderedSubIdx(addedSubs)));
+   
+   if isempty(validSubs)
+       validSubs = 1:numel(subScores);
+   end
    
    % Mark remaining instance nodes.
    remainingNodes = cat(1, subNodes{validSubs});
@@ -98,14 +137,10 @@ function [validSubs, overallCoverage, overallMatchScore] = getDiscriminativePart
    % We calculate our optimality metric. For now, it's unsupervised,
    % and gives equal weight to coverage/mean match scores.
    overallCoverage = numel(remainingNodes) / prevGraphNodeCount;
-   overallMatchScore = sum(cellfun(@(x) sum(x), subMatchScores(validSubs)));
-   overallMatchScoreDenom = sum(cellfun(@(x) numel(x), subMatchScores(validSubs)));
-   if overallMatchScoreDenom ~= 0
-        overallMatchScore = overallMatchScore / overallMatchScoreDenom;
-   end
+   overallMatchCost = mean(subMatchCosts(validSubs));
    
    % Printing.
-   display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
-        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average match score:' num2str(overallMatchScore) '.']);
+   display(['[SUBDUE] [Val ' num2str(valItr) '] We have selected  ' num2str(numel(validSubs)) ...
+        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average normalized match cost:' num2str(overallMatchCost) '.']);
 
 end
