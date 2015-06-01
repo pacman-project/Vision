@@ -58,7 +58,7 @@ fea = zeros(min(K, nd),1);
 if K < nd
     fea(1) = idxs(1);
 
-    KMAX = min(1000,nd); %500 %20000
+    KMAX = min(5000,nd); %500 %20000
     
     if KMAX <= K
         fea = idxs((1:K));
@@ -74,6 +74,7 @@ if K < nd
     end;
 
     mi_array = zeros(max(idxleft), K - 1);
+    valArr = zeros(K-1, 1);
     
     for k=2:K,
        t1=cputime;
@@ -87,8 +88,7 @@ if K < nd
        end;
        
     %   [tmp, fea(k)] = max(t_mi(1:ncand) ./ c_mi(1:ncand));
-       [~, fea(k)] = max(t_mi(1:ncand) ./ (c_mi(1:ncand) + 0.01));
-
+       [valArr(k-1), fea(k)] = max(t_mi(1:ncand) ./ (c_mi(1:ncand) + 0.01));
        tmpidx = fea(k); fea(k) = idxleft(tmpidx); idxleft(tmpidx) = [];
 
        if bdisp==1 && rem(k, 100) == 0
@@ -96,10 +96,20 @@ if K < nd
           k, cputime-t1, fea(k), length(idxleft));
        end
     end
+    
+%     %% Depending on valArr, we determine a cutoff point.
+%     figure, plot(1:numel(valArr), valArr);
+%     smoothingMask = makeGauss1D(5);
+%     valArrSmooth = convolve1D(valArr, smoothingMask);
+%     figure, plot(1:numel(valArrSmooth), valArrSmooth);
+%     
+%     valDiffArrSmooth = valArrSmooth(2:end) - valArrSmooth(1:(end-1));
+%     valDiffArrSmooth(valDiffArrSmooth) = 0;
+%     [~, maxLoc] = max(valArrSmooth);
+%     
 else
     fea = (1:nd)';
 end
-
 return;
 
 %===================================== 

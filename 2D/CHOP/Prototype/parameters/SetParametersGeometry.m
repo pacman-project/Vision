@@ -176,14 +176,6 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                  % Used in determining the category of a node.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.flag = true; % If this flag is true, a reconstructive 
-                                        % part selection scheme is run on the 
-                                        % set of subs SUBDUE has
-                                        % discovered. It tries to minimize
-                                        % the redundancy in the data by
-                                        % selecting an optimal set of parts
-                                        % to cover most of the training
-                                        % data.
     options.reconstruction.stoppingCoverage = 0.98; % Between [0.00, 1.00].
                                            % The default value is 0.99.
                                            % When the training data
@@ -222,7 +214,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.01; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.1; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 

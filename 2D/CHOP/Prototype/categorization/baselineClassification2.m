@@ -143,8 +143,13 @@ function [ ] = baselineClassification2(datasetName)
             % Combine with existing labels.
             existingPredLabels(predLabels ~= -1) = predLabels(predLabels ~= -1);
             predLabels(predLabels == -1) = existingPredLabels(predLabels==-1);
-            accuracy = nnz(predLabels == testLabels) / numel(testLabels); %#ok<NASGU>
-            confMat = confusionmat(testLabels, predLabels) %#ok<NASGU,NOPRT>
+            
+            classAcc = zeros(numel(unique(testLabels)),1);
+            for catItr = 1:numel(unique(testLabels))
+                classAcc(catItr) = nnz(predLabels == testLabels & testLabels == catItr) / nnz(testLabels == catItr);
+            end
+            accuracy = mean(classAcc); %#ok<NASGU>
+            confMat = confusionmat(testLabels, predLabels); %#ok<NASGU>
             % Mark invalid rows. 
             save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'accuracy', 'confMat', '-append');
         end

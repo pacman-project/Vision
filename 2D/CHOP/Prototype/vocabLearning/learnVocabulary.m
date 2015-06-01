@@ -95,9 +95,17 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
+        % Obtain the pre-set threshold for this level.
+        if levelItr > (numel(options.subdue.presetThresholds) + 1)
+            presetThreshold = options.subdue.threshold;
+        else
+            presetThreshold = options.subdue.presetThresholds(levelItr-1);
+        end
+        
+        
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
         [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
-            options, false, options.subdue.threshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy);
+            options, false, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy);
         optimalThresholds(levelItr) = optimalThreshold;
         
         % Open/close matlabpool to save memory.

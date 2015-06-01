@@ -46,6 +46,19 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.validationIdx = [];    % The indices of the images to be used 
                                    % in validation. ( Will be filled in 
                                    % runVocabularyLearning.m). 
+                                   
+    %% ========== PART SELECTION PARAMETERS ==========
+    options.partSelectionFlag = true; % When this flag is false, the default 
+                                      % part selection scheme is applied
+                                      % (MDL-based). If true, a second pass
+                                      % (either based on reconstruction or
+                                      % supervision) is applied to the
+                                      % shortlisted part candidates that
+                                      % are obtained using SUBDUE's default
+                                      % part selection mechanism.
+    options.optimizationFlag = false; % If this flag is true, threshold 
+                                     % optimization will take place at the 
+                                     % end of SUBDUE-based part search. 
     options.supervisedSelectionFlag = true; % If true, the algorithm will 
                                    % switch to supervised part selection.
     options.supervisedSelectionMode = 'manual'; % If 'auto', the system will 
@@ -53,7 +66,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                    % after first performance drop in
                                    % unsupervised learning. If 'manual', it
                                    % will go supervised since level 2.
-    
+    options.subdue.presetThresholds = []; % To be set later in parameter files.
+                                   
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;
     options.numberOfThreads = min(feature('NumCores')*2-1,12); % For my macbook pro

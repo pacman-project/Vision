@@ -176,14 +176,6 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                  % Used in determining the category of a node.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.flag = true; % If this flag is true, a reconstructive 
-                                        % part selection scheme is run on the 
-                                        % set of subs SUBDUE has
-                                        % discovered. It tries to minimize
-                                        % the redundancy in the data by
-                                        % selecting an optimal set of parts
-                                        % to cover most of the training
-                                        % data.
     options.reconstruction.stoppingCoverage = 0.98; % Between [0.00, 1.00].
                                            % The default value is 0.99.
                                            % When the training data
@@ -222,7 +214,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.03 ; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.2 ; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -236,6 +228,18 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
+    options.subdue.presetThresholds = [0.1, 0.15, 0.2]; % This array 
+                                    % is used to define a pre-defined set
+                                    % of thresholds to be used for graph
+                                    % mining. It's added in order to speed
+                                    % up the subgraph discovery process.
+                                    % The first entry belongs to level 2,
+                                    % while the Nth entry belongs to level
+                                    % N+1. If the number of levels the
+                                    % algorithm is supposed to perform is
+                                    % more than length(presetThresholds)+1,
+                                    % the default threshold is used for the
+                                    % rest of the way.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
@@ -245,7 +249,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                 % (min 10).
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
