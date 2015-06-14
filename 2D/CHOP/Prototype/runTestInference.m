@@ -84,11 +84,14 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% We have modified the ranking in vocabulary based on frequency, after learning them using MDL. 
         % Now, we revert back to the original ranking.
+        vocabUpdatedLabels = [];
         if numel(vocabulary)>1 %#ok<NODEF>
+            vocabUpdatedLabels = cell(numel(vocabulary)-1, 1);
             for levelItr = 2:numel(vocabulary)
                 vocabLevel = vocabulary{levelItr};
                 arrToSort = [vocabLevel.orgRank];
                 [~, sortIdx] = sort(arrToSort, 'ascend');
+                vocabUpdatedLabels(levelItr-1) = {sortIdx};
                 vocabLevel = vocabLevel(sortIdx);
                 % Assign labels.
                 vocabulary(levelItr) = {vocabLevel}; %#ok<AGROW>
@@ -104,10 +107,10 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
-        parfor testImgItr = 1:size(testFileNames,1) 
+        for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, options); 
+            singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, vocabUpdatedLabels, options); 
         end
         totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');

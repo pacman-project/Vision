@@ -34,7 +34,7 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
     % Learn train/validation features, and assign labels.
     for imageItr = imageIds'
         instanceImageIdx = allInstances(allInstances(:,1) == imageItr, 2);
-        featureArr = hist(instanceImageIdx, 1:numberOfBestSubs);
+        featureArr = hist(double(instanceImageIdx), 1:numberOfBestSubs);
         allFeatures(imageItr, :) = featureArr;
     end 
     

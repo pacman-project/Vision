@@ -199,7 +199,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                
                % Evaluate them.
                 singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, false);
 
                 %% Remove those with no instances. 
                 centerIdxArr = {singleNodeSubsFinal.instanceCenterIdx};
@@ -267,7 +267,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                  
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 childSubsFinal = evaluateSubs(childSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised);
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, false);
                 
                 % Assign mdl scores of subs chosen for extension as well. 
                 [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
@@ -425,11 +425,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            
            % Re-evaluate best subs.
            bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
-               allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
-%             %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
-%             for bestSubItr = 1:numel(bestSubs)
-%                  bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
-%             end
+               allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised, true); 
            
            % Sort bestSubs by their mdl scores.
            mdlScores = [bestSubs.mdlScore];
@@ -852,7 +848,7 @@ end
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised)
+function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, isMDLNormalized)
     numberOfSubs = numel(subs);
     parfor subItr = 1:numberOfSubs
         % Find the weight of this node, by taking the max of the category distribution. 
@@ -865,16 +861,23 @@ function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, all
         
         % We compress the object graph using the children, and the
         % edges they are involved. 
-        [subScore, sub] = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
+        [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
            allSigns, mdlNodeWeight, mdlEdgeWeight, ....
             overlap, isMDLExact);
         subScore = subScore * weight;
         subs(subItr) = sub;
+        
 
         %% Assign the score of the sub, as well as its normalized mdl score if applicable.
         subs(subItr).mdlScore = subScore;
         if strcmp(evalMetric, 'mdl')
             subs(subItr).normMdlScore = 1 - (subScore / graphSize);
+            
+            % If the normalized MDL score is being asked for, we divide
+            % subScore by the number of valid instances.
+            if isMDLNormalized
+                 subs(subItr).mdlScore = subs(subItr).mdlScore / numberOfNonoverlappingInstances;
+            end
         end
     end
 end

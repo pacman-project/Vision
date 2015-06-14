@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivations, distanceMatrices, optimalThresholds, options)
+function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivations, distanceMatrices, optimalThresholds, vocabUpdatedLabels, options)
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     noveltyThr = 1 - options.noveltyThr;
@@ -254,12 +254,19 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
             vocabRealizationsDescriptors = vocabRealizationsDescriptors(imagePreservedNodes,:);
         end
         
+        % Update the graph label ids, based on the new ranking.
+        % Compositions are ordered in a different way in the vocabulary. 
+        % Relevant info can be found in postProcessParts.m.
+        updatedOrdering = vocabUpdatedLabels{vocabLevelItr-1};
+        vocabRealizationsDescriptors(:,1) = updatedOrdering(vocabRealizationsDescriptors(:,1));
+        sortedNewNodes(:,1) = updatedOrdering(sortedNewNodes(:,1));
+        
         % Finally, sort everything back.
         [~, idx] = sortrows(vocabRealizationsDescriptors);
         sortedNewNodes = sortedNewNodes(idx, :);
         sortedLeafNodeArr = sortedLeafNodeArr(idx,:);
         sortedActivationArr = sortedActivationArr(idx,:);
-        
+       
         % Write to output and move on to the next level.
         allNodes(vocabLevelItr) = {sortedNewNodes};
         allActivations(vocabLevelItr) = {sortedActivationArr};
