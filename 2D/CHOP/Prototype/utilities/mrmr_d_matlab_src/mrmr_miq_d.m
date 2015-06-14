@@ -58,7 +58,7 @@ fea = zeros(min(K, nd),1);
 if K < nd
     fea(1) = idxs(1);
 
-    KMAX = min(5000,nd); %500 %20000
+    KMAX = min(10000,nd); %500 %20000
     
     if KMAX <= K
         fea = idxs((1:K));

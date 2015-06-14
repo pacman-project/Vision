@@ -46,15 +46,18 @@
 function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, ...
     nodeDistanceMatrix, edgeDistanceMatrix, ...
     singlePrecision, stoppingCoverage, numberOfFinalSubs, fixedThreshold, minThreshold, ...
-    maxThreshold, maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, supervisionFlag, optimizationFlag)
-    
+    maxThreshold, maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, ...
+    allSigns, supervisionFlag, optimizationFlag)
+
+    % Keep a list of positive children, if required.
+    posNodes = find(allSigns);
+
     % Warn the user. This may take a while.
     if supervisionFlag
         display('[SUBDUE] Running supervised part selection. This may take a while..');
     else
         display('[SUBDUE] Running unsupervised part selection. This may take a while..');
     end
-    smartSubElimination = 1;
 
     % Keep best subs.
     orgBestSubs = bestSubs;
@@ -105,6 +108,9 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
             display('[SUBDUE] Finding an optimal matching threshold based on the training data. This may lead to over-fitting! Performing cross-validation is recommended.');
         end
         uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
+        if ~supervisionFlag
+           uniqueChildren = intersect(uniqueChildren, posNodes);
+        end
 
         parfor valItr = 1:validationFolds
             % We exclude the subs which have zero-cost matchs on this subset,
@@ -130,6 +136,13 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
             end
 
             remainingChildren = fastsortedunique(sort(cat(1, allChildren{validSubIdx}))); %#ok<PFBNS>
+            
+            % If we are performing unsupervised selection, we do not need
+            % children with negative signs (that belong to the background
+            % images).
+            if ~supervisionFlag
+               remainingChildren = intersect(remainingChildren, posNodes);
+            end
 
             % If the maximum possible coverage has dropped, we should signal
             % that the matching threshold should be higher here.
@@ -191,7 +204,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
                % First, we obtain non-overlapping, minimal set of subs 
                % (common in both supervised and unsupervised learning)..
                 if supervisionFlag
-                    [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs, numberOfFinalSubs, ...
+                    [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs, numberOfFinalSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
                         categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision);
 
     %                 [validSubs, overallCoverage, overallMatchCost] = getDiscriminativeParts(bestSubs, numberOfFinalSubs, valItr, categoryArrIdx, ...
@@ -387,6 +400,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
             optimalThreshold = median(crossValThresholds);
             optimalPrecision = mean(crossValPrecision);
             optimalAccuracy = mean(crossValAccuracy);
+            optimalCount = numberOfFinalSubs;
         end
     else
         optimalThreshold = fixedThreshold;
@@ -397,34 +411,111 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     
     %% We have found the optimal threshold. 
     % Now, we obtain the subs one final time using the new threshold, and exit.
-    bestSubs = orgBestSubs;
     if optimizationFlag && validationFolds > 1
         display(['[SUBDUE] Thresholds learned from cross-validation folds: ' ...
             mat2str(crossValThresholds) ', with aggregated threshold: ' num2str(optimalThreshold) '.']);
-        smartSubElimination = mean(subEliminationFlags) > 0;    
         display(['[SUBDUE] Mean cross-validation accuracy on the data: %' num2str(100 * optimalAccuracy) ' and precision: %' num2str(100 * optimalPrecision) '.']); 
     else
         display(['[SUBDUE] Matching threshold is determined as ' num2str(optimalThreshold)]); 
     end
 
-    uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
+    %% Finally, given the optimal threshold, we select the best subs based on different validation sets and aggregate them.
+    aggregatedSubs = cell(validationFolds,1);
+    aggregatedAccuracy = zeros(validationFolds,1);
+    aggregatedPrecision = zeros(validationFolds,1);
+    parfor valItr = 1:validationFolds
+        % We exclude the subs which have zero-cost matchs on this subset,
+        % but not on other subsets.
+        validSubIdx = ones(numel(orgBestSubs),1) > 0;
 
-    % Get a new set of subs.
-   if supervisionFlag
-        [finalSubList, ~, ~] = getMRMRParts(bestSubs, optimalCount, ...
-            categoryArrIdx, imageIdx, validationIdx, -1, optimalThreshold, singlePrecision);
-%         [finalSubList, ~, ~] = getDiscriminativeParts(bestSubs, numberOfFinalSubs, -1, ...
-%             categoryArrIdx, imageIdx, validationIdx, ...
-%             smartSubElimination, optimalThreshold, optimalCount, ...
-%             uniqueChildren, nodeDistanceMatrix, ...
+        % If there's only one fold, or we do not wish to do
+        % cross-validation, we fit the training data.
+        if validationFolds > 1
+            for subItr = 1:numel(orgBestSubs)
+                instanceMatchCosts = orgBestSubs(subItr).instanceMatchCosts;
+                instanceValidationIdx = orgBestSubs(subItr).instanceValidationIdx;
+
+                if nnz(instanceMatchCosts == 0 & instanceValidationIdx ~= valItr) == 0
+                   validSubIdx(subItr) = 0; 
+                end
+            end
+        end
+        bestSubs = orgBestSubs(validSubIdx);
+        numberOfBestSubs = numel(bestSubs);
+        if numberOfBestSubs == 0
+           continue; 
+        end
+
+        % Select remaining children and filter negative nodes.
+        remainingChildren = fastsortedunique(sort(cat(1, allChildren{validSubIdx}))); %#ok<PFBNS>
+        if ~supervisionFlag
+            remainingChildren = intersect(remainingChildren, posNodes);
+        end
+        
+        validSubIdx = find(validSubIdx);
+        if supervisionFlag
+           moreSubsAllowed = 0;
+        else
+           moreSubsAllowed = 0;
+        end
+        
+        % Select subs.
+        if supervisionFlag
+            [validSubs, ~, ~] = getMRMRParts(bestSubs, optimalCount, nodeDistanceMatrix, edgeDistanceMatrix, ...
+                categoryArrIdx, imageIdx, validationIdx, valItr, optimalThreshold, singlePrecision);
+        else
+           [validSubs, ~, ~] = getReconstructiveParts(bestSubs, ...
+                optimalCount, valItr, moreSubsAllowed, 1, optimalThreshold, ...
+                stoppingCoverage, remainingChildren, nodeDistanceMatrix, ...
+                edgeDistanceMatrix, singlePrecision);
+        end
+        aggregatedSubs{valItr} = validSubIdx(validSubs);
+        
+        % Get accuracy here, and save it.
+        [aggregatedAccuracy(valItr), aggregatedPrecision(valItr)] = calculateCategorizationAccuracy(bestSubs(validSubs), ...
+           categoryArrIdx, imageIdx, validationIdx, valItr, optimalThreshold, singlePrecision, 1, true);
+    end
+    
+    % Finally, obtain a list of final subs and get their union.
+    finalSubList = unique(cat(1, aggregatedSubs{:}));
+    if validationFolds > 1
+        display(['[SUBDUE] Aggregated cross-validation accuracy on the data: %' num2str(100 * mean(aggregatedAccuracy)) ' and precision: %' num2str(100 * mean(aggregatedPrecision)) '.']); 
+    else
+        display(['[SUBDUE] Matching threshold is determined as ' num2str(optimalThreshold)]); 
+    end
+    bestSubs = orgBestSubs;
+    
+%         %% We have found the optimal threshold. 
+%     % Now, we obtain the subs one final time using the new threshold, and exit.
+%     bestSubs = orgBestSubs;
+%     if optimizationFlag && validationFolds > 1
+%         display(['[SUBDUE] Thresholds learned from cross-validation folds: ' ...
+%             mat2str(crossValThresholds) ', with aggregated threshold: ' num2str(optimalThreshold) '.']);
+%         smartSubElimination = mean(subEliminationFlags) > 0;    
+%         display(['[SUBDUE] Mean cross-validation accuracy on the data: %' num2str(100 * optimalAccuracy) ' and precision: %' num2str(100 * optimalPrecision) '.']); 
+%     else
+%         display(['[SUBDUE] Matching threshold is determined as ' num2str(optimalThreshold)]); 
+%     end
+% 
+%     uniqueChildren = fastsortedunique(sort(cat(1, allChildren{:})));
+% 
+%     % Get a new set of subs.
+%    if supervisionFlag
+%         [finalSubList, ~, ~] = getMRMRParts(bestSubs, optimalCount, ...
+%             categoryArrIdx, imageIdx, validationIdx, -1, optimalThreshold, singlePrecision);
+% %         [finalSubList, ~, ~] = getDiscriminativeParts(bestSubs, numberOfFinalSubs, -1, ...
+% %             categoryArrIdx, imageIdx, validationIdx, ...
+% %             smartSubElimination, optimalThreshold, optimalCount, ...
+% %             uniqueChildren, nodeDistanceMatrix, ...
+% %             edgeDistanceMatrix, singlePrecision);
+%    else
+%         [finalSubList, ~, ~] = getReconstructiveParts(bestSubs, ...
+%             numberOfFinalSubs, -1, 1, smartSubElimination, optimalThreshold, ...
+%             stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
 %             edgeDistanceMatrix, singlePrecision);
-   else
-        [finalSubList, ~, ~] = getReconstructiveParts(bestSubs, ...
-            numberOfFinalSubs, -1, 1, smartSubElimination, optimalThreshold, ...
-            stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
-            edgeDistanceMatrix, singlePrecision);
-   end
-
+%    end
+%     
+    
    % Update instance information.
    bestSubs = bestSubs(finalSubList);
    % Update bestSubs instances by taking the new threshold into account.

@@ -25,14 +25,14 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.05; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.15; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 6;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 5;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -144,7 +144,7 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = options.receptiveFieldSize*10; %Max dimension of the 
                                        % images the algorithm will work
@@ -230,13 +230,14 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                     % by minThreshold and maxThreshold.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.1; % Max threshold for elastic part matching. 
+    options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.15; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
-    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
+                                % (min 10).
+    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

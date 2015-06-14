@@ -89,7 +89,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     else
         singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
     end
-    parentsPerSet = 20;
+    parentsPerSet = 50;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
@@ -125,6 +125,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     imageIdx = cat(1, graphLevel.imageId);
     categoryArrIdx = uint8(categoryArrIdx(cat(1, graphLevel.imageId)))';
     validationIdx = validationIdx(cat(1, graphLevel.imageId));
+    posNodeIdx = allSigns;
     
     % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
     graphSize = numberOfAllEdges * mdlEdgeWeight + ...
@@ -257,8 +258,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                 end
                 
                 %% Step 2.3: Eliminate subs that match to more frequent subs.
-                [childSubs, ~] = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
-                     adaptiveMinThreshold, singlePrecision);
+                 [childSubs, ~] = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
+                      adaptiveMinThreshold, singlePrecision);
 
                  % Get the list of final subs and indices of subs chosen
                  % for extension. 
@@ -402,7 +403,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, ...
                nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
                stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, minThreshold, maxThreshold, ...
-               maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, isSupervisedSelectionRunning, optimizationFlag);
+               maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, isSupervisedSelectionRunning, optimizationFlag);
            
            % If supervision flag is set, and the performance has dropped
            % since the previous iteration, we switch to supervision.
@@ -414,8 +415,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                isSupervisedSelectionRunning = true;
                [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, ...
                    nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
-                   stoppingCoverage, numberOfReconstructiveSubs, minThreshold, maxThreshold, ...
-                   maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, isSupervisedSelectionRunning, optimizationFlag);
+                   stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, minThreshold, maxThreshold, ...
+                   maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, isSupervisedSelectionRunning, optimizationFlag);
            else
                previousAccuracy = optimalAccuracy;
            end
@@ -425,10 +426,10 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            % Re-evaluate best subs.
            bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
                allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised); 
-            %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
-            for bestSubItr = 1:numel(bestSubs)
-                 bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
-            end
+%             %% For now, we do mdl-based sorting. The mdl scores are normalized by the size of the bestSub.
+%             for bestSubItr = 1:numel(bestSubs)
+%                  bestSubs(bestSubItr).mdlScore = bestSubs(bestSubItr).mdlScore / numel(bestSubs(bestSubItr).instanceCenterIdx);
+%             end
            
            % Sort bestSubs by their mdl scores.
            mdlScores = [bestSubs.mdlScore];

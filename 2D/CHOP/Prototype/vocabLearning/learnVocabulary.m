@@ -59,21 +59,15 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     if ~isempty(distanceMatrices{1})
        imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
     end
+    
     if options.debug
+        matlabpool close; 
         display('........ Visualizing the realizations in the first level...');
         visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
         visualizeCroppedImgs( vocabulary{1}, 1, options);
-    end
-    printCloseFilters(distanceMatrices{1}, 1, options);
-    
-    % Open/close matlabpool to save memory. 
-    if options.parallelProcessing
-        s = matlabpool('size');
-        if s>0
-           matlabpool close; 
-        end
         matlabpool('open', options.numberOfThreads);
     end
+    printCloseFilters(distanceMatrices{1}, 1, options);
     
     %% Calculate statistics from this graph.
     display('........ Estimating statistics for level 1..');
@@ -95,13 +89,12 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
-        % Obtain the pre-set threshold for this level.
+        % Obtain the pre-set threshold for this level, if there is one.
         if levelItr > (numel(options.subdue.presetThresholds) + 1)
             presetThreshold = options.subdue.threshold;
         else
             presetThreshold = options.subdue.presetThresholds(levelItr-1);
         end
-        
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
         [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
@@ -206,8 +199,10 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
             if options.debug
                display('........ Visualizing realizations on images...');
                if ~isempty(vocabLevel)
+                    matlabpool close;
                     visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
                     visualizeCroppedImgs( vocabLevel, levelItr, options);
+                    matlabpool('open', options.numberOfThreads);
                end
             end
             printCloseFilters(newDistanceMatrix, levelItr, options); 

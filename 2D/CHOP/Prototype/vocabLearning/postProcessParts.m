@@ -53,8 +53,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     if numel(unique(labelIds)) == 1
         frequencies = numel(labelIds);
     else
-        frequencies = [vocabLevel.mdlScore];
-%        frequencies = hist(labelIds, 1:numel(vocabLevel));
+%        frequencies = [vocabLevel.mdlScore];
+        frequencies = hist(labelIds, 1:numel(vocabLevel));
     end
     [~, vocabLevelSortIdx] = sort(frequencies, 'descend');
     vocabLevel = vocabLevel(vocabLevelSortIdx);

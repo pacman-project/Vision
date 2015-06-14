@@ -21,7 +21,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
         options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end                             
-    options.vis.printTrainRealizations = false;
+    options.vis.printTrainRealizations = true;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
@@ -56,12 +56,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                       % shortlisted part candidates that
                                       % are obtained using SUBDUE's default
                                       % part selection mechanism.
-    options.optimizationFlag = false; % If this flag is true, threshold 
+    options.optimizationFlag = true; % If this flag is true, threshold 
                                      % optimization will take place at the 
                                      % end of SUBDUE-based part search. 
-    options.supervisedSelectionFlag = true; % If true, the algorithm will 
+    options.supervisedSelectionFlag = false; % If true, the algorithm will 
                                    % switch to supervised part selection.
-    options.supervisedSelectionMode = 'manual'; % If 'auto', the system will 
+    options.supervisedSelectionMode = 'auto'; % If 'auto', the system will 
                                    % switch to discriminative threshold search 
                                    % after first performance drop in
                                    % unsupervised learning. If 'manual', it

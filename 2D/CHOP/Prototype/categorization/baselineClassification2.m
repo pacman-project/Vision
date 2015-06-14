@@ -70,7 +70,7 @@ function [ ] = baselineClassification2(datasetName)
             
             bestcv = 0;
             bestc = -1;
-            for log2c = [1/64, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
+            for log2c = [1/128, 1/64, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128, 256]
                 cmd = ['-v 5 -t 0 -c ', num2str(log2c),' -q '];
                 cv = svmtrain(trainLabels, trainFeatures, cmd);
                 if (cv >= bestcv),

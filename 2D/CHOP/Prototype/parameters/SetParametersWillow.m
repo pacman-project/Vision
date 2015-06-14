@@ -101,7 +101,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -163,8 +163,8 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                        % edgeRadius grows at every level
                                        % with the same ratio as the
                                        % receptive field.
-    options.maxLevels = 5;    % The maximum level count for training.
-    options.maxInferenceLevels = 5; % The maximum level count for testing.
+    options.maxLevels = 10;    % The maximum level count for training.
+    options.maxInferenceLevels = 10; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -182,7 +182,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -228,7 +228,7 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = [0.1, 0.15, 0.2]; % This array 
+    options.subdue.presetThresholds = [0.1, 0.1, 0.15]; % This array 
                                     % is used to define a pre-defined set
                                     % of thresholds to be used for graph
                                     % mining. It's added in order to speed
@@ -242,14 +242,14 @@ function [ options ] = SetParametersWillow( datasetName, options )
                                     % rest of the way.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.2   ; % Max threshold for elastic part matching. 
+    options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.25   ; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
-    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
+    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 200;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

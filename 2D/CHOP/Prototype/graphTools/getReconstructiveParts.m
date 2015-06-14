@@ -11,7 +11,8 @@ function [validSubs, overallCoverage, overallMatchCost] = getReconstructiveParts
    subMatchScores = cell(numberOfBestSubs,1);
    parfor bestSubItr = 1:numberOfBestSubs
        adaptiveThreshold = ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);
-       validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold;
+       validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold & ...
+            bestSubs(bestSubItr).instanceSigns > 0;
        nodes = bestSubs(bestSubItr).instanceChildren(validInstanceIdx, :);
        nodes = nodes(nodes > 0);
        nodes = nodes(:);
