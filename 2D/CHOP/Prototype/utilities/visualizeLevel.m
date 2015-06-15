@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNodes, levelId, numberOfPrevNodes, options)
+function [] = visualizeLevel( currentLevel, graphLevel, firstActivations, leafNodes, levelId, numberOfFirstLevelNodes, numberOfPrevNodes, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -26,6 +26,17 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
     childrenPerNode = options.vis.nodeReconstructionChildren;
     instancePerNode = options.vis.instancePerNode;
     visualizedNodes = options.vis.visualizedNodes;
+    
+    % These parameter relate to drawing the approximate model of each node
+    % in the vocabulary.
+    edgeIdMatrix = options.edgeIdMatrix;
+    midPointEdgeIdMatrix = int32(round(size(edgeIdMatrix) / 2));
+    edgeIdMatrixSize = size(edgeIdMatrix);
+    scale = (1/options.scaling)^(levelId-2);
+    neighborhood = floor(options.edgeRadius * scale);
+    upsampleRatio = neighborhood / floor((options.edgeQuantize-1)/2);
+    
+    % For the first level, we only print a single instance.
     if levelId == 1
         instanceImgDim = 1; 
     else
@@ -75,22 +86,44 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
     else
         %% In other levels, combine the nodes of previous levels depending on mode info and visualize current level.
         % Read previous layer's masks.
-        prevLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(1) '/reconstruction/'];
+        firstLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(1) '/reconstruction/'];
+        prevLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId-1) '/reconstruction/'];
         numberOfNodes = numel(currentLevel);
+        firstNodeMasks = cell(numberOfFirstLevelNodes,1);
         prevNodeMasks = cell(numberOfPrevNodes,1);
+        avgFirstNodeMasks = cell(numberOfFirstLevelNodes,1);
         avgPrevNodeMasks = cell(numberOfPrevNodes,1);
-        patchLowDims = zeros(numberOfPrevNodes,2);
-        patchHighDims = zeros(numberOfPrevNodes,2);
-        lowResponseThrs = zeros(numberOfPrevNodes,1);
+        firstLevelPatchLowDims = zeros(numberOfFirstLevelNodes,2);
+        firstLevelPatchHighDims = zeros(numberOfFirstLevelNodes,2);
+        prevLevelPatchLowDims = zeros(numberOfPrevNodes,2);
+        prevLevelPatchHighDims = zeros(numberOfPrevNodes,2);
         
-        for nodeItr = 1:numberOfPrevNodes
-            tempImg = double(imread([prevLevelDir num2str(nodeItr) '.png']));
+        %% Collect patches for the first level (leaf nodes).
+        for nodeItr = 1:numberOfFirstLevelNodes
+            tempImg = double(imread([firstLevelDir num2str(nodeItr) '.png']));
             tempImg = (tempImg - min(min(min(tempImg)))) / (max(max(max(tempImg))) - min(min(min(tempImg))));
-            prevNodeMasks(nodeItr) = {tempImg};
-            avgPrevNodeMasks(nodeItr) = {mean(tempImg,3)};
-            patchHighDims(nodeItr,:) = floor([size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)]/2);
-            patchLowDims(nodeItr,:) = ([size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)] - patchHighDims(nodeItr,:)) - 1;
+            firstNodeMasks(nodeItr) = {tempImg};
+            avgFirstNodeMasks(nodeItr) = {mean(tempImg,3)};
+            firstLevelPatchHighDims(nodeItr,:) = floor([size(firstNodeMasks{nodeItr},1), size(firstNodeMasks{nodeItr},2)]/2);
+            firstLevelPatchLowDims(nodeItr,:) = ([size(firstNodeMasks{nodeItr},1), size(firstNodeMasks{nodeItr},2)] - firstLevelPatchHighDims(nodeItr,:)) - 1;
 %            lowResponseThrs(nodeItr) = max(max(max(tempImg)))/10;
+        end
+        
+        %% Collect patches for the previous level (for approximate model printing).
+        if levelId > 2
+             for nodeItr = 1:numberOfPrevNodes
+                   tempImg = double(imread([prevLevelDir num2str(nodeItr) '.png']));
+                   tempImg = (tempImg - min(min(min(tempImg)))) / (max(max(max(tempImg))) - min(min(min(tempImg))));
+                   prevNodeMasks(nodeItr) = {tempImg};
+                   avgPrevNodeMasks(nodeItr) = {mean(tempImg,3)};
+                   prevLevelPatchHighDims(nodeItr,:) = floor([size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)]/2);
+                   prevLevelPatchLowDims(nodeItr,:) = ([size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)] - prevLevelPatchHighDims(nodeItr,:)) - 1;
+             end
+        else
+             prevNodeMasks = firstNodeMasks;
+             avgPrevNodeMasks = avgFirstNodeMasks;
+             prevLevelPatchHighDims = firstLevelPatchHighDims;
+             prevLevelPatchLowDims = firstLevelPatchLowDims;
         end
         
         %% To parallelize things, we put vocabulary nodes in different sets, and give each to a thread.
@@ -112,7 +145,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
         setImgs = cell(numberOfThreadsUsed,1);
-        parfor setItr = 1:numberOfThreadsUsed
+        for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -140,27 +173,62 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
                 nodeInstances = [bestNodeInstance; nodeInstances]; %#ok<AGROW>
                 
                 instanceImgs = cell(numel(nodeInstances),1);
+                
+                %% Now, we print the rest of the instances.
                 for nodeInstanceItr = 1:numel(nodeInstances)
-                    nodeInstance = nodeInstances(nodeInstanceItr);
-                    instanceLeafNodes = leafNodeSets{nodeInstance};
-                    instancePos = mat2cell(centerPos(nodeInstance,:), ones(1, numel(nodeInstance)), 2);
-                    instanceLeafNodeSets = leafNodeSets(nodeInstance,:);
-                    instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
-                        repmat(y, numel(x), 1), instanceLeafNodeSets, instancePos, ...
-                        'UniformOutput', false);
-                    children = leafNodeLabelIds(cat(2, instanceLeafNodeSets{:}));
-                    childrenCoords= cat(1, instanceLeafNodePos{:});
+                     
+                     if nodeInstanceItr == 1
+                         %% Here, we get the description of the node, and print that.
+                         % It is supposed to provide an approximate view that the algorithm has learned.
+                        currentLevel(labelId).children;
+                        children = (currentLevel(labelId).children)';
+                        childrenCoords = zeros(numel(children), 2, 'int32');
+                        % Find the location of every child based on the
+                        % first one.
+                        nodeAdjInfo = currentLevel(labelId).adjInfo;
+                        for childItr = 2:numel(children)
+                             [childrenCoords(childItr, 1), childrenCoords(childItr,2)] = ind2sub(edgeIdMatrixSize, find(edgeIdMatrix == nodeAdjInfo(childItr-1, 3)));
+                             childrenCoords(childItr,:) = childrenCoords(childItr,:) - midPointEdgeIdMatrix;
+                        end
+                        % We scale the coordinates by a factor based on the
+                        % current level id. Then, we round them to get 
+                        % actual image coordinates (relative still).
+                        childrenCoords = int32(round(double(childrenCoords) * upsampleRatio));
+                        
+                        %% Finally, we use previous level's data structures for printing.
+                        patchLowDims = prevLevelPatchLowDims;
+                        patchHighDims = prevLevelPatchHighDims;
+                        avgNodeMasks = avgPrevNodeMasks;
+                        nodeMasks = prevNodeMasks;
+                     else
+                         nodeInstance = nodeInstances(nodeInstanceItr);
+                         instanceLeafNodes = leafNodeSets{nodeInstance};
+                         instancePos = mat2cell(centerPos(nodeInstance,:), ones(1, numel(nodeInstance)), 2);
+                         instanceLeafNodeSets = leafNodeSets(nodeInstance,:);
+                         instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
+                             repmat(y, numel(x), 1), instanceLeafNodeSets, instancePos, ...
+                             'UniformOutput', false);
+                         children = leafNodeLabelIds(cat(2, instanceLeafNodeSets{:}));
+                         childrenCoords= cat(1, instanceLeafNodePos{:});
 
-                    % Trim children if total number is more than a threshold.
-                    if numel(children) > childrenPerNode
-                       children = children(1:childrenPerNode,:);
-                       childrenCoords = childrenCoords(1:childrenPerNode,:);
-                    end
-
+                         % Trim children if total number is more than a threshold.
+                         if numel(children) > childrenPerNode
+                            children = children(1:childrenPerNode,:);
+                            childrenCoords = childrenCoords(1:childrenPerNode,:);
+                         end
+                     end
+                     
+                     %% We use first level's data structures for printing, when printing the instances.
+                     if nodeInstanceItr == 2
+                        patchLowDims = firstLevelPatchLowDims;
+                        patchHighDims = firstLevelPatchHighDims;
+                        avgNodeMasks = avgFirstNodeMasks;
+                        nodeMasks = firstNodeMasks;
+                     end
+                     
                     %% At this point, we have the relative coordinates of all children. 
                     % All we will do is to create an empty mask large enough, and
                     % write the children's masks over it.
-
                     % Determine the upper, lower, left and right bounds (extremes)
                     % of the mask required to hold this composition's mask.
                     maskMinX = 0;
@@ -200,12 +268,12 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
                         if nodeInstanceItr == 1
                             assignedWeight = 1;
                         else
-                            assignedWeight = prevActivations(instanceLeafNodes(childItr));
+                            assignedWeight = firstActivations(instanceLeafNodes(childItr));
                         end
                         
                         currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                           (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:) = ...
-                          max(assignedWeight * prevNodeMasks{children(childItr)}, ...
+                          max(assignedWeight * nodeMasks{children(childItr)}, ...
                               (currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                                   (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:)));
 
@@ -217,7 +285,7 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
                              (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))) = ...
                                      max(currentLabelMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
                              (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))), ...
-                             double(avgPrevNodeMasks{children(childItr)}>lowResponseThrs(children(childItr))) * childItr);
+                             double(avgNodeMasks{children(childItr)}>0.2) * childItr);
                     end
 
                     %% Add background to currentMask, and normalize it.
@@ -239,21 +307,35 @@ function [] = visualizeLevel( currentLevel, graphLevel, prevActivations, leafNod
                     dimRems = rem(size(currentMask),2);
                     if dimRems(1) == 0
                         currentMask = [currentMask; ones(1, size(currentMask,2), size(currentMask,3)) * filledValue];
+                        currentLabelMask = [currentLabelMask; ones(1, size(currentLabelMask,2), size(currentLabelMask,3)) * filledValue];
                     end
                     if dimRems(2) == 0
                         currentMask = [currentMask, ones(size(currentMask, 1), 1, size(currentMask,3)) * filledValue];
+                        currentLabelMask = [currentLabelMask, ones(size(currentLabelMask, 1), 1, size(currentLabelMask,3)) * filledValue];
                     end
 
                     % Assign currentMask to the label image.
                     currentLabelImg = currentMask;
-
+                    
                     %% Print the files to output folders.
                     if nodeInstanceItr == 1
+                        % Create a false color image.
+                        falseColorImg = double(label2rgb(int32(currentLabelMask), 'hot', 'k', 'shuffle'));
+                        if isequal(size(falseColorImg), size(currentMask))
+                             falseColorImg = uint8(round(falseColorImg .* currentMask));
+                        else
+                             for bandItr = 1:size(falseColorImg,3)
+                                  falseColorImg(:,:,bandItr) = currentMask(:,:,1) .* falseColorImg(:,:,bandItr);
+                             end
+                             falseColorImg = uint8(round(falseColorImg));
+                        end
+                        
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
+                        imwrite(falseColorImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_falseColor.png']);
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_' num2str(currentLevel(nodeSet(nodeItr)).mdlScore) '.png']);
                         imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
                     else
-                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_var_ ' num2str(nodeInstanceItr) '.png']);
+                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_var_' num2str(nodeInstanceItr) '.png']);
                     end
                     
                     % Save all instances. We'll print them to another

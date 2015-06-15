@@ -55,7 +55,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     end
     
     %% Print first vocabulary and graph level.
-    visualizeLevel( vocabulary{1}, [], [], [], 1, 0, options);
+    visualizeLevel( vocabulary{1}, [], [], [], 1, 0, 0, options);
     if ~isempty(distanceMatrices{1})
        imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
     end
@@ -76,7 +76,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     
     %% Load categories. Analyzing categorization properties of the nodes. 
     load([options.currentFolder '/output/' options.datasetName '/export.mat']);
-    prevActivations = cat(1, mainGraph{1}.activation);
+    firstLevelActivations = cat(1, mainGraph{1}.activation);
     
     % Read supervision flag for optimal threshold search.
     supervisedSelectionFlag = options.supervisedSelectionFlag;
@@ -195,7 +195,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         end
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
-            visualizeLevel( vocabLevel, graphLevel, prevActivations, leafNodes, levelItr, numel(vocabulary{1}), options);
+            visualizeLevel( vocabLevel, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             if options.debug
                display('........ Visualizing realizations on images...');
                if ~isempty(vocabLevel)

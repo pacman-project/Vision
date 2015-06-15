@@ -182,7 +182,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 20; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
