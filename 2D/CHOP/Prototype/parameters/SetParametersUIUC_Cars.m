@@ -32,7 +32,7 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 5;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 7;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -101,7 +101,7 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -176,13 +176,13 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
                                  % Used in determining the category of a node.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.stoppingCoverage = 0.99; % Between [0.00, 1.00].
+    options.reconstruction.stoppingCoverage = 0.98; % Between [0.00, 1.00].
                                            % The default value is 0.99.
                                            % When the training data
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 100; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -231,7 +231,7 @@ function [ options ] = SetParametersUIUC_Cars( datasetName, options )
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.15; % Max threshold for elastic part matching. 
+    options.subdue.maxThreshold = 0.2; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
