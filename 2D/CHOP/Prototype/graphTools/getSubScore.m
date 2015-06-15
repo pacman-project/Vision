@@ -26,11 +26,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 18.09.2014
-function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
+function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
                 allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact)
     isMultiNodeSub = ~isempty(sub.edges);
     % Read signs and edges of the instances.
     instanceSigns = allSigns(sub.instanceCenterIdx);
+    numberOfNonoverlappingInstances = numel(instanceSigns);
     
     % If we're doing something other than MDL: 'size' (sub. size x frequency)
     % or frequency based evaluation, we do not need to proceed with the
@@ -87,6 +88,7 @@ function [subScore, sub] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetr
 %             sub.instanceSigns = sub.instanceSigns(validInstances,:);
 %             sub.instanceCategories = sub.instanceCategories(validInstances,:);
 %             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
+          numberOfNonoverlappingInstances = nnz(validInstances);
         end
     end
     
