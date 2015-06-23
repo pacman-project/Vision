@@ -167,7 +167,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
             newDistanceMatrix = single(newDistanceMatrix / max(max(newDistanceMatrix)));
         end
     else
-        newDistanceMatrix = ones(numel(vocabLevel), 'single');
+        newDistanceMatrix = inf(numel(vocabLevel), 'single');
         newDistanceMatrix(1:numel(vocabLevel)+1:numel(vocabLevel)*numel(vocabLevel)) = 0;
     end
 end

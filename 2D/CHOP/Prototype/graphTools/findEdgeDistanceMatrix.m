@@ -55,7 +55,7 @@ function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords ] = findEdgeDistanceMatr
         edgeDistanceMatrix = distMatrix / max(max(distMatrix));
     else
         oneSide = size(distMatrix,1);
-        edgeDistanceMatrix = ones(oneSide, oneSide, 'single');
+        edgeDistanceMatrix = inf(oneSide, oneSide, 'single');
         edgeDistanceMatrix(1:(oneSide+1):oneSide*oneSide) = 0;
     end
 end

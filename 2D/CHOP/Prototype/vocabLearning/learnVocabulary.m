@@ -44,7 +44,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     else
         % Set dummy similarity matrix with only diagonals zero.
         numberOfNodes = numel(options.filters) - numel(options.auto.deadFeatures);
-        newDistanceMatrix = ones(numberOfNodes, numberOfNodes, 'single');
+        newDistanceMatrix = inf(numberOfNodes, numberOfNodes, 'single');
         newDistanceMatrix(1:(numberOfNodes+1):numberOfNodes*numberOfNodes) = 0;
         distanceMatrices(1) = {newDistanceMatrix};
     end

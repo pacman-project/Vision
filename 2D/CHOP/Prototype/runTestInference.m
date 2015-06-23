@@ -40,7 +40,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         %% Step 1.0: Read vocabulary if it exists.
         try
             testFileNames = fuf([options.currentFolder '/input/' datasetName '/test/*' ext], 1, 'detail');
-        catch
+        catch %#ok<CTCH>
            display('No files under /input/test folder. Please put your test images under this folder.'); 
            totalInferenceTime = 0;
            return;
@@ -107,7 +107,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
-        for testImgItr = 1:size(testFileNames,1) 
+        parfor testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, vocabUpdatedLabels, options); 
