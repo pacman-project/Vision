@@ -39,7 +39,15 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     mainGraph(1) = {graphLevel};
     
     %% Create distance matrices of the first level.
-    distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType, options.auto.deadFeatures)};
+    if options.nodeSimilarityAllowed
+        distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType, options.auto.deadFeatures)};
+    else
+        % Set dummy similarity matrix with only diagonals zero.
+        numberOfNodes = numel(options.filters) - numel(options.auto.deadFeatures);
+        newDistanceMatrix = ones(numberOfNodes, numberOfNodes, 'single');
+        newDistanceMatrix(1:(numberOfNodes+1):numberOfNodes*numberOfNodes) = 0;
+        distanceMatrices(1) = {newDistanceMatrix};
+    end
     newDistanceMatrix = distanceMatrices{1};
     
     %% Get number of valid images in which we get gabor responses.

@@ -4,7 +4,17 @@
 %> This function defines the similarity of level 1 parts, where 0 is the
 %> closest (itself) and 1 is farthest.
 %>
-%> @param options Program options.
+%> @param filters The masks of level 1 filters of the hierarchy in a cell %
+%> array.
+%> 
+%> @param distType If 'euc', Euclidean distances of two masks (after their
+%> centers of gravity are aligned), normalized by the max distance is used as
+%> pairwise node substitution cost. If 'rank', for each node, other nodes
+%> are ordered by their pairwise distances to this node, and their ranks are
+%> used as the distance function.
+%> 
+%> @param deadFeatures If non-empty, we eliminate the filters who have ids 
+%> in this array from our calculations. 
 %>
 %> @retval distMat Distance matrix of level 1 parts.
 %> 
@@ -12,6 +22,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 01.09.2014
+%> Comments updated on 23.06.2015
 function [ distMat ] = createDistanceMatrix( filters, distType, deadFeatures )
     cogFilters = cell(numel(filters),1);
     numberOfFilters = numel(filters);

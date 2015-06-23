@@ -95,7 +95,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -106,7 +106,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 11;         % This parameter is used to quantize 
+    options.edgeQuantize = 25;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
@@ -146,7 +146,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                          % 1/scaling.
     options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxImageDim = options.receptiveFieldSize*8; %Max dimension of the 
+    options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in
                                        % the dataset is larger than this
@@ -182,9 +182,25 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 20; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
+                                           
+    %% ========== GRAPH MATCHING PARAMETERS ==========
+    options.nodeSimilarityAllowed = false; % If true, node similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of node
+                                           % correspondance yields a cost
+                                           % of 1 (max value). 
+    options.edgeSimilarityAllowed = true;  % If true, edge similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of edge
+                                           % transformation yields a cost
+                                           % of 1 (max value). 
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.evalMetric = 'size';     % Evaluation metric for part 
@@ -208,7 +224,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 120;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 300;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -236,7 +252,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 5; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

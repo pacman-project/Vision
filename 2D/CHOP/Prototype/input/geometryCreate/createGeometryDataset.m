@@ -15,13 +15,13 @@
 %> Ver 1.0 on 18.02.2015
 function [] = createGeometryDataset( )
     % Here, we define the objects. 
-    rotationCount = 7;
-    scaleCount = 3;
-    scaleStep = 1.4;
+    rotationCount = 17;
+    scaleCount = 4;
+    scaleStep = 1.5;
     initialSize = 40;
-    imageSize = 300;
+    imageSize = 500;
     imageValidSize = 120;
-    translateCount = 1;
+    translateCount = 5;
     dilation = 1;
     noiseDev = 0.2;
     trainImgPercentage = 0.5;
@@ -31,7 +31,7 @@ function [] = createGeometryDataset( )
     imgItr = 1;
     for objectItr = 1:numel(objects)
         % Make a separation between training/test images.
-        numberOfObjectImages = numel(rotationAngles) * scaleCount;
+        numberOfObjectImages = numel(rotationAngles) * scaleCount * translateCount;
         randOrder = datasample(1:numberOfObjectImages, numberOfObjectImages, 'Replace', false);
         separator = fix(trainImgPercentage * numberOfObjectImages);
         trainIdx = randOrder(1:separator) + imgItr - 1;

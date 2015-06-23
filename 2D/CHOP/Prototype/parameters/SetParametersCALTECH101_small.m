@@ -186,6 +186,22 @@ function [ options ] = SetParametersCALTECH101_small( datasetName, options )
                                            % number of reconstructive parts
                                            % that can be selected.
         
+    %% ========== GRAPH MATCHING PARAMETERS ==========
+    options.nodeSimilarityAllowed = false; % If true, node similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of node
+                                           % correspondance yields a cost
+                                           % of 1 (max value). 
+    options.edgeSimilarityAllowed = true;  % If true, edge similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of edge
+                                           % transformation yields a cost
+                                           % of 1 (max value). 
+
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
                                            % selection in SUBDUE.
