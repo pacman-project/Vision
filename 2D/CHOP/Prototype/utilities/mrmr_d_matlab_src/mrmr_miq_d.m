@@ -97,7 +97,7 @@ if K < nd
        end
     end
     
-%     %% Depending on valArr, we determine a cutoff point.
+    %% Depending on valArr, we determine a cutoff point.
 %     figure, plot(1:numel(valArr), valArr);
 %     smoothingMask = makeGauss1D(5);
 %     valArrSmooth = convolve1D(valArr, smoothingMask);

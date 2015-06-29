@@ -22,7 +22,7 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 %> Separate mode learning from this function on 28.01.2014
-function [nodeEdges] = extractEdgesInference(nodes, leafNodeArr, options, currentLevelId)
+function [nodeEdges] = extractEdgesInference(nodes, leafNodeArr, firstLevelAdjNodes, options, currentLevelId)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
     scale = (1/options.scaling)^(currentLevelId-1);
@@ -34,6 +34,7 @@ function [nodeEdges] = extractEdgesInference(nodes, leafNodeArr, options, curren
     halfMatrixSize = (options.edgeQuantize+1)/2;
     matrixSize = [options.edgeQuantize, options.edgeQuantize];
     downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
+    edgeType = options.edgeType;
     
     %% Program options into variables.
     if options.fastInference
@@ -73,6 +74,14 @@ function [nodeEdges] = extractEdgesInference(nodes, leafNodeArr, options, curren
            adjacentNodes = adjacentNodeIdx;
        end
        adjacentNodes = adjacentNodes(adjacentNodes~=nodeItr);
+       
+      %% A further check is done to ensure boundary/surface continuity.
+       if strcmp(edgeType, 'continuity') && currentLevelId > 1
+           centerAdjNodes = sort(cat(1, firstLevelAdjNodes{centerLeafNodes}));
+           adjLeafNodes = leafNodeArr(adjacentNodes);
+           validAdjacentNodes = cellfun(@(x) nnz(ismembc(x, centerAdjNodes)), adjLeafNodes) > 0;
+           adjacentNodes = adjacentNodes(validAdjacentNodes);
+       end     
 
        %% Eliminate adjacent which are far away, if the node has too many neighbors.
        % Calculate scores (distances).
@@ -80,7 +89,7 @@ function [nodeEdges] = extractEdgesInference(nodes, leafNodeArr, options, curren
 
        % Eliminate nodes having lower scores.
        if numel(adjacentNodes)>averageNodeDegree
-            [idx] = getSmallestNElements(scores, averageNodeDegree);
+            [idx] = getLargestNElements(scores, averageNodeDegree);
             adjacentNodes = adjacentNodes(idx);
        end
 

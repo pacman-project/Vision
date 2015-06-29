@@ -70,16 +70,18 @@ function [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs,
     % like to maximize the performance with the least number of possible
     % subs.
     maxAcc = 0;
+    maxPrec = 0;
     maxAccItr = numel(validSubs);
     if valItr ~= -1
         accArr = zeros(numel(20:20:numel(validSubs)), 1);
         for subItr = 20:20:numel(validSubs)
-            [tempAccuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubs(1:subItr)), ...
+            [tempAccuracy, tempPrecision] = calculateCategorizationAccuracy(bestSubs(validSubs(1:subItr)), ...
                 categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
             accArr(round(subItr/20)) = tempAccuracy;
-            if tempAccuracy > maxAcc
+            if tempPrecision > maxPrec
                 maxAccItr = subItr;
-                maxAcc = tempAccuracy;
+                maxPrec = tempPrecision;
+%                maxAcc = tempAccuracy;
             end
         end
     end
@@ -87,10 +89,10 @@ function [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs,
 %    axis([20 numel(validSubs) 0 1]);
 %    hold off;
     validSubs = validSubs(1:maxAccItr);
-    [trueAccuracy, ~] = calculateCategorizationAccuracy(bestSubs(validSubs(1:maxAccItr)), ...
+    [trueAccuracy, truePrecision] = calculateCategorizationAccuracy(bestSubs(validSubs(1:maxAccItr)), ...
        categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
-    display(['[SUBDUE] [Val ' num2str(valItr) '] Val accuracy after discriminative part selection : %' ...
-        num2str(100 * trueAccuracy) ...
+    display(['[SUBDUE] [Val ' num2str(valItr) '] Val precision after discriminative part selection : %' ...
+        num2str(100 * truePrecision) ...
         ', having ' num2str(numel(validSubs)) ' subs.']);  
     
     % Return correct indices now.

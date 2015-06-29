@@ -95,13 +95,13 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.01;           % The novelty threshold used in the 
+    options.noveltyThr = 0.001;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.0;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -186,6 +186,22 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                            % number of reconstructive parts
                                            % that can be selected.
 
+    %% ========== GRAPH MATCHING PARAMETERS ==========
+    options.nodeSimilarityAllowed = true; % If true, node similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of node
+                                           % correspondance yields a cost
+                                           % of 1 (max value). 
+    options.edgeSimilarityAllowed = true;  % If true, edge similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of edge
+                                           % transformation yields a cost
+                                           % of 1 (max value). 
+
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.evalMetric = 'size';     % Evaluation metric for part 
                                            % selection in SUBDUE.
@@ -228,7 +244,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = [0.05, 0.1, 0.15]; % To be set later in parameter files.
+    options.subdue.presetThresholds = [0.05]; % To be set later in parameter files.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
@@ -236,7 +252,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
-    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
+    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 5; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.

@@ -28,6 +28,8 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     scale = (1/options.scaling)^(currentLevelId-1);
     neighborhood = floor(options.edgeRadius * scale);
     currentLevel = mainGraph{currentLevelId};
+    firstLevel = mainGraph{1};
+    firstLevelAdjInfo = {firstLevel.adjInfo};
     nodeIds = [currentLevel.labelId]';
     nodeCoords = cat(1, currentLevel.position);
     imageIds = [currentLevel.imageId]';
@@ -35,6 +37,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     halfMatrixSize = (options.edgeQuantize+1)/2;
     matrixSize = [options.edgeQuantize, options.edgeQuantize];
     downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
+    edgeType = options.edgeType;
     
     %% Program options into variables.
     edgeNoveltyThr = 1-options.edgeNoveltyThr;
@@ -87,6 +90,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
            
            %% Check for edge novelty.
            adjacentNodeIdx = find(adjacentNodes);
+           centerLeafNodes = [];
            if currentLevelId > 1
                centerLeafNodes = curLeafNodes{nodeItr};
                commonLeafCounts = cellfun(@(x) sum(ismembc(x, centerLeafNodes)), curLeafNodes(adjacentNodes));
@@ -97,13 +101,22 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
            end
            adjacentNodes = adjacentNodes(adjacentNodes~=nodeItr);
            
+           %% A further check is done to ensure boundary/surface continuity.
+           if strcmp(edgeType, 'continuity') && currentLevelId > 1
+               centerLeafEdges = cat(1, firstLevelAdjInfo{centerLeafNodes}); %#ok<PFBNS>
+               centerAdjNodes = sort(centerLeafEdges(:,2));
+               adjLeafNodes = curLeafNodes(adjacentNodes);
+               validAdjacentNodes = cellfun(@(x) nnz(ismembc(x, centerAdjNodes)), adjLeafNodes) > 0;
+               adjacentNodes = adjacentNodes(validAdjacentNodes);
+           end           
+           
            %% Eliminate adjacent which are far away, if the node has too many neighbors.
            % Calculate scores (distances).
            scores = distances(adjacentNodes);
            
            % Eliminate nodes having lower scores.
            if numel(adjacentNodes)>averageNodeDegree
-                [idx] = getSmallestNElements(scores, averageNodeDegree);
+                [idx] = getLargestNElements(scores, averageNodeDegree);
                 adjacentNodes = adjacentNodes(idx);
            end
            

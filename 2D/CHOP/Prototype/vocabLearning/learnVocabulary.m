@@ -94,14 +94,17 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         isSupervisedSelectionRunning = true;
     end
     previousAccuracy = 0;
+    orgOptimizationFlag = options.optimizationFlag;
     
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
         % Obtain the pre-set threshold for this level, if there is one.
         if levelItr > (numel(options.subdue.presetThresholds) + 1)
             presetThreshold = options.subdue.threshold;
+            options.optimizationFlag = orgOptimizationFlag;
         else
             presetThreshold = options.subdue.presetThresholds(levelItr-1);
+            options.optimizationFlag = false;
         end
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
@@ -158,6 +161,12 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         % Open/close matlabpool to save memory.
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
+        
+        
+        %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
+        if levelItr == 3
+            options.edgeType = 'centroid';
+        end
         
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
