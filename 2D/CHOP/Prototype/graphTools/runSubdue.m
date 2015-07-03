@@ -125,14 +125,13 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     imageIdx = cat(1, graphLevel.imageId);
     categoryArrIdx = uint8(categoryArrIdx(cat(1, graphLevel.imageId)))';
     validationIdx = validationIdx(cat(1, graphLevel.imageId));
-    posNodeIdx = allSigns;
     
     % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
     graphSize = numberOfAllEdges * mdlEdgeWeight + ...
         numel(graphLevel) * mdlNodeWeight;
     
-%    % Find the total cost of matching considering the max size, and set the
-%    % threshold.
+    % Find the total cost of matching considering the max size, and set the
+    % threshold.
    if optimizationFlag
         adaptiveThreshold = maxThreshold * (single(maxSize) * 2 - 1) + singlePrecision;
    else

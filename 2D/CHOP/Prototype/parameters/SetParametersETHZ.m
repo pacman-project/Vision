@@ -25,7 +25,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.05; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.4; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
@@ -182,7 +182,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 100; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -244,16 +244,16 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = [0.05]; % To be set later in parameter files.
+    options.subdue.presetThresholds = [0.05, 0.1]; % To be set later in parameter files.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.2   ; % Max threshold for elastic part matching. 
+    options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.15   ; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 5; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
