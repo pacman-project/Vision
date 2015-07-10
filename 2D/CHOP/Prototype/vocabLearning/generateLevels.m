@@ -30,6 +30,8 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, op
     % Fill object graph level.
     assignedNodes = mat2cell(nodes, ones(size(nodes,1),1), [1 2 1]);
     [graphLevel.labelId, graphLevel.position, graphLevel.imageId] = deal(assignedNodes{:});
+    assignedPrecisePos = mat2cell(single(nodes(:,2:3)), ones(size(nodes,1),1), 2);
+    [graphLevel.precisePosition] = deal(assignedPrecisePos{:});
     clear assignedNodes;
     
     % Set the signs.

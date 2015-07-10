@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, graphLevel, firstActivations, leafNodes, levelId, numberOfFirstLevelNodes, numberOfPrevNodes, options)
+function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, levelId, numberOfFirstLevelNodes, numberOfPrevNodes, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -35,6 +35,12 @@ function [] = visualizeLevel( currentLevel, graphLevel, firstActivations, leafNo
     scale = (1/options.scaling)^(levelId-2);
     neighborhood = floor(options.edgeRadius * scale);
     upsampleRatio = neighborhood / floor((options.edgeQuantize-1)/2);
+    if strcmp(options.filterType, 'gabor')
+       inhibitionRadius = options.gabor.inhibitionRadius; 
+    else
+       inhibitionRadius = options.auto.inhibitionRadius;
+    end
+    inhibitionRadiusSq = inhibitionRadius^2;
     
     % For the first level, we only print a single instance.
     if levelId == 1
@@ -176,30 +182,54 @@ function [] = visualizeLevel( currentLevel, graphLevel, firstActivations, leafNo
                 
                 %% Now, we print the rest of the instances.
                 for nodeInstanceItr = 1:numel(nodeInstances)
-                     
                      if nodeInstanceItr == 1
                          %% Here, we get the description of the node, and print that.
+                                                  %% Here, we get the description of the node, and print that.
+%                              % It is supposed to provide an approximate view that the algorithm has learned.
+%                             currentLevel(labelId).children;
+%                             children = (currentLevel(labelId).children)';
+%                             childrenCoords = zeros(numel(children), 2, 'int32');
+%                             % Find the location of every child based on the
+%                             % first one.
+%                             nodeAdjInfo = currentLevel(labelId).adjInfo;
+%                             for childItr = 2:numel(children)
+%                                  [childrenCoords(childItr, 1), childrenCoords(childItr,2)] = ind2sub(edgeIdMatrixSize, find(edgeIdMatrix == nodeAdjInfo(childItr-1, 3)));
+%                                  childrenCoords(childItr,:) = childrenCoords(childItr,:) - midPointEdgeIdMatrix;
+%                             end
+%                             % We scale the coordinates by a factor based on the
+%                             % current level id. Then, we round them to get 
+%                             % actual image coordinates (relative still).
+%                             childrenCoords = int32(round(double(childrenCoords) * upsampleRatio));
+% 
+%                             %% Then, we perform a simple inhibition process to remove overlapping level 1 instances.
+%                             validNodes = ones(size(children,1),1) > 0;
+%                             numberOfAllNodes = size(children,1);
+%                             for nodeItr2 = 1:(numberOfAllNodes-1)
+%                                 if ~validNodes(nodeItr2) 
+%                                    continue; 
+%                                 end
+%                                 remainingCoords = childrenCoords((nodeItr2+1):end, :);
+%                                 validRemainingNodes = sum((remainingCoords - repmat(childrenCoords(nodeItr2,:), ...
+%                                     numberOfAllNodes - nodeItr2, 1)).^2, 2) >= inhibitionRadiusSq;
+%                                 validNodes((nodeItr2+1):end) = validNodes((nodeItr2+1):end) & validRemainingNodes;
+%                             end
+%                             children = children(validNodes);
+%                             childrenCoords = childrenCoords(validNodes,:);
+%     
+%                             %% Finally, we use previous level's data structures for printing.
+%                             patchLowDims = prevLevelPatchLowDims;
+%                             patchHighDims = prevLevelPatchHighDims;
+%                             avgNodeMasks = avgPrevNodeMasks;
+%                             nodeMasks = prevNodeMasks;
+                         
                          % It is supposed to provide an approximate view that the algorithm has learned.
-                        currentLevel(labelId).children;
-                        children = (currentLevel(labelId).children)';
-                        childrenCoords = zeros(numel(children), 2, 'int32');
-                        % Find the location of every child based on the
-                        % first one.
-                        nodeAdjInfo = currentLevel(labelId).adjInfo;
-                        for childItr = 2:numel(children)
-                             [childrenCoords(childItr, 1), childrenCoords(childItr,2)] = ind2sub(edgeIdMatrixSize, find(edgeIdMatrix == nodeAdjInfo(childItr-1, 3)));
-                             childrenCoords(childItr,:) = childrenCoords(childItr,:) - midPointEdgeIdMatrix;
-                        end
-                        % We scale the coordinates by a factor based on the
-                        % current level id. Then, we round them to get 
-                        % actual image coordinates (relative still).
-                        childrenCoords = int32(round(double(childrenCoords) * upsampleRatio));
-                        
-                        %% Finally, we use previous level's data structures for printing.
-                        patchLowDims = prevLevelPatchLowDims;
-                        patchHighDims = prevLevelPatchHighDims;
-                        avgNodeMasks = avgPrevNodeMasks;
-                        nodeMasks = prevNodeMasks;
+                         projectedNodes = projectNode([labelId, 0, 0, levelId], vocabulary, inhibitionRadius);
+                         children = projectedNodes(:,1);
+                         childrenCoords = projectedNodes(:,2:3);
+                         patchLowDims = firstLevelPatchLowDims;
+                         patchHighDims = firstLevelPatchHighDims;
+                         avgNodeMasks = avgFirstNodeMasks;
+                         nodeMasks = firstNodeMasks;
                      else
                          nodeInstance = nodeInstances(nodeInstanceItr);
                          instanceLeafNodes = leafNodeSets{nodeInstance};

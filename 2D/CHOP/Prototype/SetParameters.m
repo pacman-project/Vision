@@ -56,10 +56,10 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                       % shortlisted part candidates that
                                       % are obtained using SUBDUE's default
                                       % part selection mechanism.
-    options.optimizationFlag = true; % If this flag is true, threshold 
+    options.optimizationFlag = false; % If this flag is true, threshold 
                                      % optimization will take place at the 
                                      % end of SUBDUE-based part search. 
-    options.supervisedSelectionFlag = true; % If true, the algorithm will 
+    options.supervisedSelectionFlag = false; % If true, the algorithm will 
                                    % switch to supervised part selection.
     options.supervisedSelectionMode = 'manual'; % If 'auto', the system will 
                                    % switch to discriminative threshold search 

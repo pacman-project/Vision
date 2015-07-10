@@ -25,14 +25,14 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.3; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.4; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 10;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 8;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -101,18 +101,18 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.0;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 25;         % This parameter is used to quantize 
+    options.edgeQuantize = 20;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
                                         % down to this window, and then
                                         % quantized. 
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -144,9 +144,9 @@ function [ options ] = SetParametersGeometry( datasetName, options )
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
     options.vis.visualizedNodes = 100; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*2.5; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*2; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*2.5;
+        options.receptiveFieldSize = options.gaborFilterSize*2;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -238,7 +238,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.1; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -252,9 +252,7 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    % The following min/max threshold values limit the area in which an
-    % optimal elasticity threshold is going to be searched. 
-%    options.subdue.presetThresholds = [0.05, 0.1]; % This array 
+    options.subdue.presetThresholds = [0.05]; % This array 
                                     % is used to define a pre-defined set
                                     % of thresholds to be used for graph
                                     % mining. It's added in order to speed
@@ -266,12 +264,14 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                     % more than length(presetThresholds)+1,
                                     % the default threshold is used for the
                                     % rest of the way.
+    % The following min/max threshold values limit the area in which an
+    % optimal elasticity threshold is going to be searched. 
     options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
     options.subdue.maxThreshold = 0.2   ; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
-    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
+    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 5; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.

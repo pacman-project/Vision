@@ -17,6 +17,7 @@ classdef Substructure
                      % (mdlScore/graphSize).
         instanceCenterIdx@int32 % An array of instance centers (realizations of the part)
         instanceChildren@int32 % An array of instance children nodes.
+        instanceMappings@uint8 % The node mapping of each instance to the vocabulary definition.
         instanceEdges@uint8; % The NxE array of instance edges, where N is the number of 
                                                    % realizations, and E is
                                                    % the number of edges in

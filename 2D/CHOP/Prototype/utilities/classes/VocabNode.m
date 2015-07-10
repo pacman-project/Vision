@@ -19,6 +19,16 @@ classdef VocabNode
         parents@int32 % Label ids of this node's parents in the next level.
         adjInfo@int32 % Edge information of the form (v2 edgeId isDirected; 
                                                % v3 edgeId isDirected; ...)
+        childrenPosMean@single % The relative position of the children with 
+                           % respect to the center of gravity. Used to
+                           % perform precise reconstruction of nodes. (Nx2,
+                           % with each row representing x, y position of a
+                           % child.
+        childrenPosStd@single % The relative position of the children with 
+                           % respect to the center of gravity. Used to
+                           % perform precise reconstruction of nodes. (Nx2,
+                           % with each row representing x, y position of a
+                           % child.
         categoryArr@single % 1 x numberOfCategories array. Sums up to 1. 
                     % Determines how much this node has been found in each
                     % category.

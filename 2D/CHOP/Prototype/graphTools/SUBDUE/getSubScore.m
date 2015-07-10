@@ -58,6 +58,7 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             instanceChildren = instanceChildren(validInstances);
             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
             sub.instanceChildren = sub.instanceChildren(validInstances,:);
+            sub.instanceMappings = sub.instanceMappings(validInstances,:);
             sub.instanceSigns = sub.instanceSigns(validInstances,:);
             sub.instanceCategories = sub.instanceCategories(validInstances,:);
             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);

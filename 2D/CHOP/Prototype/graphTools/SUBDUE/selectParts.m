@@ -496,6 +496,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
         validInstances = sub.instanceMatchCosts < ((size(sub.edges,1)*2+1) * optimalThreshold + singlePrecision);
         sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
         sub.instanceChildren = sub.instanceChildren(validInstances,:);
+        sub.instanceMappings = sub.instanceMappings(validInstances,:);
         if ~isempty(sub.edges)
             sub.instanceEdges = sub.instanceEdges(validInstances,:);
         end

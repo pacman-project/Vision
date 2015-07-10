@@ -15,15 +15,15 @@
 %> Ver 1.0 on 18.02.2015
 function [] = createGeometryDataset( )
     % Here, we define the objects. 
-    rotationCount = 17;
-    scaleCount = 4;
+    rotationCount = 11;
+    scaleCount = 1;
     scaleStep = 1.5;
     initialSize = 40;
-    imageSize = 500;
+    imageSize = 300;
     imageValidSize = 120;
-    translateCount = 5;
+    translateCount = 3;
     dilation = 1;
-    noiseDev = 0.2;
+    noiseDev = 0.25;
     trainImgPercentage = 0.5;
     objects = {'square', 'triangle', 'star', 'circle'};
     
@@ -56,6 +56,7 @@ function [] = createGeometryDataset( )
                     % render the corresponding image.
                     img = object.render();
                     img = imdilate(img, strel('disk', dilation));
+                    img = imfill(img, 'holes');
                     
                     if ismember(imgItr, trainIdx)
                         % Write the generated image to a file.
