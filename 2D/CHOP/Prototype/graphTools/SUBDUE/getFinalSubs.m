@@ -8,6 +8,7 @@ function [childSubsFinal, childSubs] = getFinalSubs(childSubs, adaptiveThreshold
             continue;
         end
         childSubsFinal(childSubItr).instanceChildren = childSubsFinal(childSubItr).instanceChildren(validInstanceIdx, :);
+        childSubsFinal(childSubItr).instanceMappings = childSubsFinal(childSubItr).instanceMappings(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceCenterIdx = childSubsFinal(childSubItr).instanceCenterIdx(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceCategories = childSubsFinal(childSubItr).instanceCategories(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceEdges = childSubsFinal(childSubItr).instanceEdges(validInstanceIdx, :);

@@ -14,10 +14,14 @@ classdef GraphNode
                 % in trainingFileNames array to get the name of the image.
         position@int32 % Position of the part's center in terms of image pixels. 
                  % Top left is (1,1).
+        precisePosition@single % Exact of the part's center in terms of 
+                 % continuous image coordinates. % Top left is (1,1).
         children@int32 % The children of this node in the previous level of 
                  % mainGraph(object graphs). They link to realization ids,
                  % which are indices of GraphNodes in respective mainGraph
                  % level.
+        mapping@uint8 % The mapping of children nodes to the definition of the
+                      % part, indicated by labelId. 
         parents@int32  % The parents of this node in the next level of mainGraph 
                  % (object graphs). Links to realization ids.
         adjInfo@int32 % Different than VocabNode, this field encodes relations of 

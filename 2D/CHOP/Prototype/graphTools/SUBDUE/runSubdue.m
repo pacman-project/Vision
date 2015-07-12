@@ -125,14 +125,13 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     imageIdx = cat(1, graphLevel.imageId);
     categoryArrIdx = uint8(categoryArrIdx(cat(1, graphLevel.imageId)))';
     validationIdx = validationIdx(cat(1, graphLevel.imageId));
-    posNodeIdx = allSigns;
     
     % Graph size formulation is very simple: edgeWeight * #edges + edgeWeight * #nodes. 
     graphSize = numberOfAllEdges * mdlEdgeWeight + ...
         numel(graphLevel) * mdlNodeWeight;
     
-%    % Find the total cost of matching considering the max size, and set the
-%    % threshold.
+    % Find the total cost of matching considering the max size, and set the
+    % threshold.
    if optimizationFlag
         adaptiveThreshold = maxThreshold * (single(maxSize) * 2 - 1) + singlePrecision;
    else
@@ -447,15 +446,20 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         % We'll then find unique descriptors, which is the initial phase of
         % inhibition.
         instanceChildrenDescriptors = cell(numberOfBestSubs,1);
+        instanceChildrenMappings = cell(numberOfBestSubs,1);
         instanceActivations = cell(numberOfBestSubs,1);
         remainingInstanceLabels = cell(numberOfBestSubs,1);
         parfor bestSubItr = 1:numberOfBestSubs
            instanceChildren = bestSubs(bestSubItr).instanceChildren;
+           instanceMappings = bestSubs(bestSubItr).instanceMappings;
            tempNum = size(instanceChildren,1);
            % Find children descriptors and save 'em.
            childrenDescriptors = zeros(tempNum, maxSubSize, 'int32');
+           childrenMappings = zeros(tempNum, maxSubSize, 'uint8');
            childrenDescriptors(:, 1:size(instanceChildren,2)) = instanceChildren;
+           childrenMappings(:, 1:size(instanceChildren,2)) = instanceMappings;
            instanceChildrenDescriptors{bestSubItr} = childrenDescriptors;
+           instanceChildrenMappings{bestSubItr} = childrenMappings;
            adaptiveThreshold = single(optimalThreshold * ((size(bestSubs(bestSubItr).edges,1)+1)*2-1)) + singlePrecision;
            instanceMatchScores = fix(multiplier * ((adaptiveThreshold - bestSubs(bestSubItr).instanceMatchCosts) / adaptiveThreshold)) / multiplier;
            
@@ -474,6 +478,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            remainingInstanceLabels{bestSubItr} = instanceLabels;
         end
         instanceChildrenDescriptors = cat(1, instanceChildrenDescriptors{:});
+        instanceChildrenMappings = cat(1, instanceChildrenMappings{:});
         
         %% If inhibition is applied, we eliminate the instances which exist in multiple subs.
         % For each unique instance (node set), we find the best matching
@@ -496,6 +501,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            numberOfBestSubs = numel(remainingBestSubs);
            numberOfInstances = numel(IA);
            instanceChildrenDescriptors = instanceChildrenDescriptors(IA,:);
+           instanceChildrenMappings = instanceChildrenMappings(IA, :);
         else
            %        Alternative 1
            remainingBestSubs = 1:numberOfBestSubs;
@@ -557,6 +563,10 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                instanceChildren = instanceChildrenDescriptors(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
                instanceChildren( :, all(~instanceChildren,1) ) = [];
                
+               % Get mappings
+               instanceMappings = instanceChildrenMappings(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
+               instanceMappings( :, all(~instanceMappings,1) ) = [];
+               
                % Calculate activations for the next level.
                instancePrevActivations = prevActivations(instanceChildren);
                if numberOfInstances>1
@@ -566,12 +576,14 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                end
                instanceActivations = num2cell(instanceMatchScores .* instanceMeanActivations);
                instanceChildren = mat2cell(instanceChildren, ones(numberOfInstances,1), size(instanceChildren,2));
+               instanceMappings = mat2cell(instanceMappings, ones(numberOfInstances,1), size(instanceMappings,2));
                instanceSigns = num2cell(allSigns(centerIdx));
 
                % Assign fields to graphs.
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).labelId] = deal(labelIds{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).activation] = deal(instanceActivations{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).children] = deal(instanceChildren{:});
+               [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).mapping] = deal(instanceMappings{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).sign] = deal(instanceSigns{:});
                instanceOffset = instanceEndOffset + 1;
                actualInstanceOffset = actualInstanceOffset + numberOfInstances;
@@ -582,364 +594,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         vocabLevel = [];
         graphLevel = [];
     end
-   
     
    clear allEdges allEdgeNodePairs allSigns bestSubs remainingInstanceLabels instanceChildrenDescriptors;
    nextVocabLevel = vocabLevel;
    nextGraphLevel = graphLevel;
    clear vocabLevel graphLevel;
-end
-
-%> Name: getSingleNodeSubs
-%>
-%> Description: getSingleNodeSubs is used to obtain single-node subs from
-%> labels of all instances in allLabels. The result is a number of
-%> subs representing compositions each having their instances.
-%> 
-%> @param allLabels Labels for every graph node.
-%> @param allSigns Signs for every graph node.
-%> @param categoryArrIdx Categories for every graph node.
-%> @param validationIdx Binary array showing if each node is part 
-%> of the validation data or not.
-%>
-%> @retval singleNodeSubs Substructure list of single-node subs.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 24.02.2014
-%> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMatrix, categoryArrIdx, validationIdx, threshold)
-    numberOfSubs = max(allLabels);
-    singleNodeSubs(numberOfSubs) = Substructure();
-    validSubs = ones(numberOfSubs,1)>0;
-    
-    %% For each center node label type, we create a substructure.
-    for subItr = 1:numberOfSubs
-        distances = nodeDistanceMatrix(allLabels, subItr);
-        subCenterIdx = distances < threshold;
-        instances = int32(find(subCenterIdx));
-        numberOfInstances = numel(instances);
-        
-        %Assign center id.
-        singleNodeSubs(subItr).centerId = subItr;
-        
-        % Give maximum score so that it is at the top of the queue.
-        singleNodeSubs(subItr).mdlScore = numberOfInstances;
-        if numberOfInstances>0
-            % Fill in instance information. 
-            categoryIdx = categoryArrIdx(subCenterIdx);
-            if size(categoryIdx,1) == 1
-                categoryIdx = categoryIdx';
-            end
-            instanceValidationIdx = validationIdx(subCenterIdx);
-            instanceSigns = allSigns(subCenterIdx,1);
-            instanceDistances = distances(subCenterIdx);
-            
-            % We check if this sub has exact-matching instances in the
-            % training set. If not, it is not considered for further expansion.
-            if nnz(instanceDistances == 0) == 0
-                 singleNodeSubs(subItr).mdlScore = 0;
-                 continue;
-            end
-            
-            % Assign fields of the sub.
-            singleNodeSubs(subItr).instanceCenterIdx = instances;
-            singleNodeSubs(subItr).instanceChildren = instances;
-            singleNodeSubs(subItr).instanceCategories = categoryIdx;
-            singleNodeSubs(subItr).instanceMatchCosts = instanceDistances;
-            singleNodeSubs(subItr).instanceSigns = instanceSigns;
-            singleNodeSubs(subItr).instanceValidationIdx = instanceValidationIdx;
-        else
-            validSubs(subItr) = 0;
-        end
-    end
-    
-    % Eliminate those with no instances.
-    singleNodeSubs = singleNodeSubs(validSubs);
-end
-
-%> Name: extendSub
-%>
-%> Description: extendSub(..) extends 'sub' in all possible ways
-%> by extending its instances, and returns the new sub list 'extendedSubs'
-%> along with instances of each sub in returned list.
-%> 
-%> @param sub Sub to be extended.
-%> @param allEdges List of all edges in the graph (Nx4).
-%>
-%> @retval extendedSubs Extended sub list.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 24.02.2014
-%> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, threshold)
-    
-    centerIdx = sub.instanceCenterIdx;
-    subAllEdges = {allEdges(centerIdx).adjInfo}';
-    % Get unused edges from sub's instances.
-    allUsedEdgeIdx = sub.instanceEdges;
-    if ~isempty(allUsedEdgeIdx)
-        allUsedEdgeIdx = mat2cell(allUsedEdgeIdx, ones(size(allUsedEdgeIdx,1),1), size(allUsedEdgeIdx,2));
-        allUnusedEdgeIdx = cellfun(@(x,y) setdiff(1:size(x,1),y), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
-        allUnusedEdges = cellfun(@(x,y) x(y,:), subAllEdges, allUnusedEdgeIdx, 'UniformOutput', false);
-        allUnusedEdgeIdx = [allUnusedEdgeIdx{:}]';
-    else
-        allUnusedEdges = subAllEdges;
-        allUnusedEdgeIdx = [];
-    end
-    
-    % Record which edge belongs to which instance. 
-    allEdgeInstanceIds = zeros(sum(cellfun(@(x) size(x,1), allUnusedEdges)),1);
-    allEdgePrevCosts = zeros(size(allEdgeInstanceIds), 'single');
-    itrOffset = 1;
-    unusedEdgeCounts = cellfun(@(x) size(x,1), allUnusedEdges);
-    for itr = 1:numel(allUnusedEdges)
-        beginOffset = itrOffset;
-        endOffset = (beginOffset+(unusedEdgeCounts(itr)-1));
-        allEdgeInstanceIds(beginOffset:endOffset) = itr;
-        allEdgePrevCosts(beginOffset:endOffset) = sub.instanceMatchCosts(itr);
-        itrOffset = itrOffset + unusedEdgeCounts(itr);
-    end         
-    allUnusedEdges = cat(1, allUnusedEdges{:});
-    
-    % If no edges remain, exit.
-    if isempty(allUnusedEdges)
-        extendedSubs = [];
-        return; 
-    end
-    
-    % Eliminate the edges which exist only in validation data. We do not
-    % enumerate any edges which do not exist in training data.
-    enumeratedEdges = allUnusedEdges(allEdgePrevCosts < singlePrecision, 3:4);
-    
-    % Get unique rows of [edgeLabel, secondVertexLabel]
-    uniqueEdgeTypes = unique(enumeratedEdges, 'rows');
-    
-    % Discard any edge types already existing in sub definition.
-    if ~isempty(sub.edges)
-        uniqueEdgeTypes = setdiff(uniqueEdgeTypes, sub.edges, 'rows');
-    end
-    
-    % Extend the definition in sub with each edge type in uniqueEdgeTypes.
-    % In addition, we pick suitable instances, add this edge, and mark used
-    % field of relevant instances.
-    numberOfEdgeTypes = size(uniqueEdgeTypes,1);
-    if numberOfEdgeTypes == 0
-        extendedSubs = [];
-        return;
-    end
-    
-    % Save local indices for all edges, to be used later.
-    allLocalEdgeIdx = cellfun(@(x) 1:size(x,1), subAllEdges, 'UniformOutput', false);
-    allLocalEdgeIdx = [allLocalEdgeIdx{:}]';
-    
-    % Allocate space for new subs and fill them in.
-    extendedSubs(numberOfEdgeTypes) = Substructure;
-    for edgeTypeItr = 1:numberOfEdgeTypes
-        % Assign sub-definition type and other info
-        newSub = Substructure;
-        newSub.edges = sub.edges;
-        newSub.centerId = sub.centerId;
-        newSub.mdlScore = 0;
-        newSub.edges = [newSub.edges; uniqueEdgeTypes(edgeTypeItr,:)];
-        
-        %% Find instances of this new sub, and mark the new edges as 'used' in each of its subs.
-        % Extend the subs by taking the threshold into account. Unless the
-        % instance's collective matching cost surpasses the threshold, it
-        % is a valid instance.
-        edgesToExtendCosts = allEdgePrevCosts + ...
-            edgeDistanceMatrix(allUnusedEdges(:,3), uniqueEdgeTypes(edgeTypeItr,1)) + ...
-            nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2));
-        edgesToExtendIdx = edgesToExtendCosts < threshold;
-        
-        % Save instance ids.
-        edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
-        allChildren = [sub.instanceChildren(edgeInstanceIds,:), ...
-             allUnusedEdges(edgesToExtendIdx,2)];
-        allChildren = sort(allChildren, 2);
-        
-        %% Note: allChildren may have duplicate entries, since an instance can
-        % have multiple parse trees. We handle these cases by only keeping
-        % unique instances. In addition, for each instance, the minimum
-        % cost of matching is kept here.
-        curInstanceMatchCosts = edgesToExtendCosts(edgesToExtendIdx);
-        [minMatchCosts, sortIdx] = sort(curInstanceMatchCosts, 'ascend');
-        sortedAllChildren = allChildren(sortIdx, :);
-        sortedCenterIdx = sub.instanceCenterIdx(edgeInstanceIds(sortIdx));
-
-        % Eliminate instances which have the same node set, and the same
-        % center node. 
-        [~, validIdx, ~] = unique([sortedCenterIdx, sortedAllChildren], 'rows', 'stable');
-        
-        % Keep ordering but remove duplicates.
-        sortIdx = sortIdx(validIdx);
-        
-        % Get minimum matching costs and children.
-        minMatchCosts = minMatchCosts(validIdx, :);
-        sortedAllChildren = sortedAllChildren(validIdx, :);
-        
-        % Finally, order children by rows.
-        [newSub.instanceChildren, idx] = sortrows(sortedAllChildren);
-        sortIdx = sortIdx(idx);
-        edgeInstanceIds = edgeInstanceIds(sortIdx, :);
-        
-        %% Assign all relevant instance-related fields of the sub.
-        newSub.instanceCenterIdx = sub.instanceCenterIdx(edgeInstanceIds);
-        newSub.instanceSigns = sub.instanceSigns(edgeInstanceIds);
-        newSub.instanceCategories = sub.instanceCategories(edgeInstanceIds);
-        newSub.instanceMatchCosts = minMatchCosts(idx,:);
-        newSub.instanceValidationIdx = sub.instanceValidationIdx(edgeInstanceIds);
-        
-        % Add the edge to the definition.
-        existingEdges = sub.instanceEdges;
-        combinedEdges = zeros(numel(edgeInstanceIds), size(existingEdges,2)+1, 'uint8');
-        if ~isempty(existingEdges)
-            existingEdges = existingEdges(edgeInstanceIds,:);
-            combinedEdges(:, 1:size(existingEdges,2)) = existingEdges;
-        end
-        
-        % Adding the local edges to the instance edge lists.
-        edgesToExtendLinIdx = find(edgesToExtendIdx);
-        if ~isempty(sub.edges)
-            relevantLocalEdgeIdx = allUnusedEdgeIdx(edgesToExtendLinIdx(sortIdx));
-        else
-            relevantLocalEdgeIdx = allLocalEdgeIdx(edgesToExtendLinIdx(sortIdx));
-        end
-        combinedEdges(:,end) = relevantLocalEdgeIdx;
-        newSub.instanceEdges = combinedEdges;
-        
-        % All instances assigned, good to go.
-        extendedSubs(edgeTypeItr) = newSub;
-    end
-end
-
-%> Name: evaluateSubs
-%>
-%> Description: The evaluation function of SUBDUE. Based on the
-%> evaluation metric, the value of each substructure in subs list is
-%> calculated, and saved within subs. The MDL calculation takes place here.
-%> Key points:
-%>  1) DL estimation not rigorous. It is considered that 
-%>        each node needs a label (int) and a pointer to its edges (int)
-%>        each edge needs a node label (int) for its destination node, an
-%>        edge label(int) and a binary isDirected label (bit)
-%>     in the final graph description. Node and edge weights in DL
-%>     calculation is stored in options.
-%> 
-%> @param subs Sub list which will be evaluated.
-%> @param evalMetric Evaluation metric.
-%> @param allEdges List of all edges in the graph.
-%> @param allEdgeNodePairs List of all edge node pairs in the graph.
-%> @param allSigns List of all signs of the nodes in the graph.
-%> @param graphSize Size of the graph.
-%> @param overlap If true, overlapping instances are considered in
-%> evaluation of a sub.
-%> @param mdlNodeWeight Node weight in DL calculations (MDL).
-%> @param mdlEdgeWeight Edge weight in DL calculations (MDL).
-%> @param isMDLExact If true, exact MDL calculation. Approximate otherwise.
-%>
-%> @retval subs Evaluated sub list.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 24.02.2014
-%> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, isMDLNormalized)
-    numberOfSubs = numel(subs);
-    parfor subItr = 1:numberOfSubs
-        % Find the weight of this node, by taking the max of the category distribution. 
-        if isSupervised
-            categoryArr = double(subs(subItr).instanceCategories);
-            weight = nnz(categoryArr == mode(categoryArr)) / numel(categoryArr);
-        else
-            weight = 1;
-        end
-        
-        % We compress the object graph using the children, and the
-        % edges they are involved. 
-        [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
-           allSigns, mdlNodeWeight, mdlEdgeWeight, ....
-            overlap, isMDLExact);
-        subScore = subScore * weight;
-        subs(subItr) = sub;
-        
-
-        %% Assign the score of the sub, as well as its normalized mdl score if applicable.
-        subs(subItr).mdlScore = subScore;
-        if strcmp(evalMetric, 'mdl')
-            subs(subItr).normMdlScore = 1 - (subScore / graphSize);
-            
-            % If the normalized MDL score is being asked for, we divide
-            % subScore by the number of valid instances.
-            if isMDLNormalized
-                 subs(subItr).mdlScore = subs(subItr).mdlScore / numberOfNonoverlappingInstances;
-            end
-        end
-    end
-end
-
-%> Name: addToQueue
-%>
-%> Description: Adds subs in beamQueue, which is a priority queue that orders 
-%> the substructures inside by their mdlScore.
-%> 
-%> @param subs An array of substructures to add to beamQueue.
-%> @param queue The priority queue of substructures, ordered by
-%> mdlScore. Best sub has highest score.
-%> @param maxSize Maximum number of elements allowed in queue.
-%>
-%> @retval beamQueue The priority queue of substructures, ordered by
-%> mdlScore.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 06.02.2014
-function [queue] = addToQueue(subs, queue, maxSize)
-    addedQueue = [subs, queue];
-    if maxSize>numel(addedQueue)
-        maxSize = numel(addedQueue);
-    end
-    if isempty(addedQueue)
-       queue = [];
-       return; 
-    end
-    [~,sortedIdx]=sort([addedQueue.mdlScore], 'descend');
-    sortedQueue=addedQueue(sortedIdx);
-    queue = sortedQueue(1:maxSize);
-    clear sortedQueue addedQueue;
-end
-
-%> Name: removeDuplicateSubs
-%>
-%> Description: Given the child subs in childSubArr, this function removes
-%> duplicate substructures from childSubArr, and combines the instances of
-%> matching subs. If an instance can be parsed in different ways (i.e.
-%> matches multiple duplicate subs), the minimum matching cost of matching is
-%> saved. 
-%> 
-%> @param childSubArr A list of children substructures.
-%>
-%> @retval childSubArr The list of unique substructures.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 01.03.2015 (Converted to a standalone function, added instance augmentation)
-function [childSubArr] = removeDuplicateSubs(childSubArr)
-    if size(childSubArr(1).edges,1) > 1
-        % Eliminate duplicate subs in final array.
-        childSubEdges = cell(1, numel(childSubArr));
-        for subItr = 1:numel(childSubArr)
-            childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
-        end
-        subCenters = {childSubArr.centerId};
-        vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
-        [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
-        childSubArr = childSubArr(validChildrenIdx);
-    end
 end

@@ -31,9 +31,8 @@
 function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, options)
     edgeCoords = options.edgeCoords;
     edgeQuantize = options.edgeQuantize;
-    threshold = options.subdue.threshold;
-    singlePrecision = options.singlePrecision;
     distType = options.distType;
+    nodeSimilarityAllowed = options.nodeSimilarityAllowed;
     % Assign new labels of the remaining realizations.
     
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);
@@ -74,7 +73,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     graphLevel = graphLevel(sortedIdx);
     
     %% Find the distance matrix among the remaining parts in vocabLevel.
-    if options.subdue.threshold > 0
+    if options.subdue.threshold > 0 && nodeSimilarityAllowed
         edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
         numberOfNodes = numel(vocabLevel);
         vocabNodeLabels = {vocabLevel.children};
@@ -107,7 +106,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
 
             for partItr2 = (partItr1+1):numberOfNodes
                 description2 = vocabDescriptions{partItr2}; %#ok<PFBNS>
-                adaptiveThreshold = single((max(size(description1, 1), size(description2,1))*2-1) * threshold) + singlePrecision;
                 matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat);
                 if matchingCost >0
                     newEntries(partItr2) = matchingCost;
@@ -169,7 +167,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
             newDistanceMatrix = single(newDistanceMatrix / max(max(newDistanceMatrix)));
         end
     else
-        newDistanceMatrix = ones(numel(vocabLevel), 'single');
+        newDistanceMatrix = inf(numel(vocabLevel), 'single');
         newDistanceMatrix(1:numel(vocabLevel)+1:numel(vocabLevel)*numel(vocabLevel)) = 0;
     end
 end

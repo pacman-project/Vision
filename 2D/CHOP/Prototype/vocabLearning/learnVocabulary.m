@@ -39,7 +39,15 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     mainGraph(1) = {graphLevel};
     
     %% Create distance matrices of the first level.
-    distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType, options.auto.deadFeatures)};
+    if options.nodeSimilarityAllowed
+        distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType, options.auto.deadFeatures)};
+    else
+        % Set dummy similarity matrix with only diagonals zero.
+        numberOfNodes = numel(options.filters) - numel(options.auto.deadFeatures);
+        newDistanceMatrix = inf(numberOfNodes, numberOfNodes, 'single');
+        newDistanceMatrix(1:(numberOfNodes+1):numberOfNodes*numberOfNodes) = 0;
+        distanceMatrices(1) = {newDistanceMatrix};
+    end
     newDistanceMatrix = distanceMatrices{1};
     
     %% Get number of valid images in which we get gabor responses.
@@ -55,7 +63,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     end
     
     %% Print first vocabulary and graph level.
-    visualizeLevel( vocabulary{1}, [], [], [], 1, 0, 0, options);
+    visualizeLevel( vocabulary{1}, [], [], [], [], 1, 0, 0, options);
     if ~isempty(distanceMatrices{1})
        imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
     end
@@ -86,14 +94,17 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         isSupervisedSelectionRunning = true;
     end
     previousAccuracy = 0;
+    orgOptimizationFlag = options.optimizationFlag;
     
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     for levelItr = 2:options.maxLevels
         % Obtain the pre-set threshold for this level, if there is one.
         if levelItr > (numel(options.subdue.presetThresholds) + 1)
             presetThreshold = options.subdue.threshold;
+            options.optimizationFlag = orgOptimizationFlag;
         else
             presetThreshold = options.subdue.presetThresholds(levelItr-1);
+            options.optimizationFlag = false;
         end
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
@@ -151,6 +162,11 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
         
+        %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
+        if levelItr == 3
+            options.edgeType = 'centroid';
+        end
+        
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
@@ -171,7 +187,11 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(vocabLevel)) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
-        %% Step 2.4: Create the parent relationships between current level and previous level.
+        
+        %% Step 2.4: In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
+        vocabLevel = learnChildPositions(vocabLevel, graphLevel, previousLevel);
+        
+        %% Step 2.5: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
         
@@ -184,7 +204,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
             break;
         end
         
-        %% Step 2.5: Create object graphs G_(l+1) for the next level, l+1.
+        %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
         % Extract the edges between new realizations to form the new object graphs.
         [mainGraph] = extractEdges(mainGraph, options, levelItr);
         graphLevel = mainGraph{levelItr};
@@ -195,7 +215,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         end
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
-            visualizeLevel( vocabLevel, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+            visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             if options.debug
                display('........ Visualizing realizations on images...');
                if ~isempty(vocabLevel)

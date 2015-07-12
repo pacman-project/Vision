@@ -19,6 +19,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     noveltyThr = 1 - options.noveltyThr;
+    firstLevelAdjNodes = [];
     
     % If fast inference is not required, we do not perform inhibition.
     if ~(options.fastInference)
@@ -35,7 +36,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
     allActivations = cell(numel(vocabulary),1);
     allNodes(1) = {nodes};
     allActivations(1) = {nodeActivations};
-    leafNodeArr = num2cell((1:size(nodes,1))');
+    leafNodeArr = num2cell((int32(1:size(nodes,1)))');
     
     for vocabLevelItr = 2:numel(vocabulary)
         prevActivations = allActivations{vocabLevelItr-1};
@@ -49,7 +50,10 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
         nodeDistanceMatrix = distanceMatrices{vocabLevelItr-1};
         
        %% Here, we find edges for the nodes in the vocabulary. 
-        allEdges = extractEdgesInference(nodes, leafNodeArr, options, vocabLevelItr-1);
+        allEdges = extractEdgesInference(nodes, leafNodeArr, firstLevelAdjNodes, options, vocabLevelItr-1);
+        if vocabLevelItr == 2
+           firstLevelAdjNodes = cellfun(@(x) x(:,1), allEdges, 'UniformOutput', false);
+        end
         
         %% Starting inference from layer 2. 
          for vocabItr = 1:numel(vocabLevel)

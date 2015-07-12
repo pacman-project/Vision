@@ -59,7 +59,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.optimizationFlag = false; % If this flag is true, threshold 
                                      % optimization will take place at the 
                                      % end of SUBDUE-based part search. 
-    options.supervisedSelectionFlag = true; % If true, the algorithm will 
+    options.supervisedSelectionFlag = false; % If true, the algorithm will 
                                    % switch to supervised part selection.
     options.supervisedSelectionMode = 'manual'; % If 'auto', the system will 
                                    % switch to discriminative threshold search 

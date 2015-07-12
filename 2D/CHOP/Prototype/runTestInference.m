@@ -21,7 +21,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     options.currentFolder = options.currentFolder;
     
     %% Learn edge-based distance matrix once and for all.
-    [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize);
+    [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize, options.edgeSimilarityAllowed);
     options.edgeIdMatrix = edgeIdMatrix;
     options.edgeDistanceMatrix = edgeDistanceMatrix;
     options.edgeCoords = edgeCoords;

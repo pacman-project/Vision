@@ -1,6 +1,6 @@
-%> Name: getSmallestNElements
+%> Name: getLargestNElements
 %>
-%> Description: Given a vector, this function returns smallest n elements
+%> Description: Given a vector, this function returns largest n elements
 %> of it.
 %>
 %> @param vect Data vector.
@@ -12,8 +12,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.12.2013
-function [idx] = getSmallestNElements(vect, n)
-    [~, sortedIdx] = sort(vect);
+function [idx] = getLargestNElements(vect, n)
+    [~, sortedIdx] = sort(vect, 'descend');
     idx = sortedIdx(1:n);
     restVect = vect(sortedIdx((n+1):end));
     % Add nodes which qualify, since same-valued nodes are already in idx.

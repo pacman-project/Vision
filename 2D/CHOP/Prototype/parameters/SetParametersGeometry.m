@@ -25,14 +25,14 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.25; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.4; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 10;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 8;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -95,18 +95,18 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.01;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 11;         % This parameter is used to quantize 
+    options.edgeQuantize = 20;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
@@ -121,11 +121,19 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                        % 1/scaling at each level, creating
                                        % the same effect.
                                        % DEFAULT 0.5.
-    options.edgeType = 'centroid';     % If 'centroid', downsampling is
+    options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
-                                       % its neighborhood) nodes. (No other
-                                       % opts at the moment)
+                                       % its neighborhood) nodes.
+                                       % If 'continuity', linking depends
+                                       % on another condition: Leaf node
+                                       % sets of two nodes should be linked
+                                       % by at least one edge in the first
+                                       % level graph. This option can be
+                                       % used in the first few layers in
+                                       % order to ensure continuity (e.g.
+                                       % smooth boundaries/surfaces) in upper 
+                                       % layers. 
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will
@@ -136,17 +144,17 @@ function [ options ] = SetParametersGeometry( datasetName, options )
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
     options.vis.visualizedNodes = 100; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*2.5; % DEFAULT 5
+        options.receptiveFieldSize = options.autoFilterSize*2; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*2.5;
+        options.receptiveFieldSize = options.gaborFilterSize*2;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxImageDim = options.receptiveFieldSize*8; %Max dimension of the 
+    options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in
                                        % the dataset is larger than this
@@ -182,9 +190,25 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 20; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
+                                           
+    %% ========== GRAPH MATCHING PARAMETERS ==========
+    options.nodeSimilarityAllowed = true; % If true, node similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of node
+                                           % correspondance yields a cost
+                                           % of 1 (max value). 
+    options.edgeSimilarityAllowed = true;  % If true, edge similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of edge
+                                           % transformation yields a cost
+                                           % of 1 (max value). 
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.evalMetric = 'size';     % Evaluation metric for part 
@@ -208,13 +232,13 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 120;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.1; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -228,16 +252,28 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
+    options.subdue.presetThresholds = [0.05]; % This array 
+                                    % is used to define a pre-defined set
+                                    % of thresholds to be used for graph
+                                    % mining. It's added in order to speed
+                                    % up the subgraph discovery process.
+                                    % The first entry belongs to level 2,
+                                    % while the Nth entry belongs to level
+                                    % N+1. If the number of levels the
+                                    % algorithm is supposed to perform is
+                                    % more than length(presetThresholds)+1,
+                                    % the default threshold is used for the
+                                    % rest of the way.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
+    options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
     options.subdue.maxThreshold = 0.2   ; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 2; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
+    options.subdue.maxSize = 5; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

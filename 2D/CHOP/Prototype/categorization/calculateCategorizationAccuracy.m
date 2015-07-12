@@ -81,10 +81,11 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
         predLabels(~validValidationRows) = -1;
         accuracy = nnz(predLabels == validationLabels) / numel(validationLabels);
         precision = nnz(predLabels == validationLabels) / nnz(predLabels~=-1);
-        if accuracy > bestAcc
+        if precision > bestPrecision
 %            bestc = log2c;
             bestAcc = accuracy;
             bestPrecision = precision;
         end
     end
+    
 end

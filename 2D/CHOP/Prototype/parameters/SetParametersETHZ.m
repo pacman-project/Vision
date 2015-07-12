@@ -25,7 +25,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.05; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.4; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
@@ -95,24 +95,24 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.01;           % The novelty threshold used in the 
+    options.noveltyThr = 0.001;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 19;         % This parameter is used to quantize 
+    options.edgeQuantize = 15;         % This parameter is used to quantize 
                                         % edges in a edgeQuantize x edgeQuantize 
                                         % window. As the receptive field
                                         % grows, each relation is scaled
                                         % down to this window, and then
                                         % quantized. 
-    options.scaling = 0.67;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -121,11 +121,19 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                        % 1/scaling at each level, creating
                                        % the same effect.
                                        % DEFAULT 0.5.
-    options.edgeType = 'centroid';     % If 'centroid', downsampling is
+    options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
-                                       % its neighborhood) nodes. (No other
-                                       % opts at the moment)
+                                       % its neighborhood) nodes.
+                                       % If 'continuity', linking depends
+                                       % on another condition: Leaf node
+                                       % sets of two nodes should be linked
+                                       % by at least one edge in the first
+                                       % level graph. This option can be
+                                       % used in the first few layers in
+                                       % order to ensure continuity (e.g.
+                                       % smooth boundaries/surfaces) in upper 
+                                       % layers. 
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will
@@ -182,9 +190,25 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 100; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
+
+    %% ========== GRAPH MATCHING PARAMETERS ==========
+    options.nodeSimilarityAllowed = true; % If true, node similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of node
+                                           % correspondance yields a cost
+                                           % of 1 (max value). 
+    options.edgeSimilarityAllowed = true;  % If true, edge similarities are 
+                                           % considered in graph matching.
+                                           % If not, identicality in labels
+                                           % represents zero-cost matching,
+                                           % while every other kind of edge
+                                           % transformation yields a cost
+                                           % of 1 (max value). 
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
     options.subdue.evalMetric = 'size';     % Evaluation metric for part 
@@ -228,11 +252,22 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = [0.05, 0.1, 0.15]; % To be set later in parameter files.
+    options.subdue.presetThresholds = [0.05, 0.1]; % This array 
+                                    % is used to define a pre-defined set
+                                    % of thresholds to be used for graph
+                                    % mining. It's added in order to speed
+                                    % up the subgraph discovery process.
+                                    % The first entry belongs to level 2,
+                                    % while the Nth entry belongs to level
+                                    % N+1. If the number of levels the
+                                    % algorithm is supposed to perform is
+                                    % more than length(presetThresholds)+1,
+                                    % the default threshold is used for the
+                                    % rest of the way.
     % The following min/max threshold values limit the area in which an
     % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.02; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.2   ; % Max threshold for elastic part matching. 
+    options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
+    options.subdue.maxThreshold = 0.15   ; % Max threshold for elastic part matching. 
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).

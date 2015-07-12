@@ -15,15 +15,15 @@
 %> Ver 1.0 on 18.02.2015
 function [] = createGeometryDataset( )
     % Here, we define the objects. 
-    rotationCount = 7;
-    scaleCount = 3;
-    scaleStep = 1.4;
+    rotationCount = 11;
+    scaleCount = 1;
+    scaleStep = 1.5;
     initialSize = 40;
     imageSize = 300;
     imageValidSize = 120;
-    translateCount = 1;
+    translateCount = 3;
     dilation = 1;
-    noiseDev = 0.2;
+    noiseDev = 0.25;
     trainImgPercentage = 0.5;
     objects = {'square', 'triangle', 'star', 'circle'};
     
@@ -31,7 +31,7 @@ function [] = createGeometryDataset( )
     imgItr = 1;
     for objectItr = 1:numel(objects)
         % Make a separation between training/test images.
-        numberOfObjectImages = numel(rotationAngles) * scaleCount;
+        numberOfObjectImages = numel(rotationAngles) * scaleCount * translateCount;
         randOrder = datasample(1:numberOfObjectImages, numberOfObjectImages, 'Replace', false);
         separator = fix(trainImgPercentage * numberOfObjectImages);
         trainIdx = randOrder(1:separator) + imgItr - 1;
@@ -56,6 +56,7 @@ function [] = createGeometryDataset( )
                     % render the corresponding image.
                     img = object.render();
                     img = imdilate(img, strel('disk', dilation));
+                    img = imfill(img, 'holes');
                     
                     if ismember(imgItr, trainIdx)
                         % Write the generated image to a file.
