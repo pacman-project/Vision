@@ -69,8 +69,8 @@ function [outputStatisticsAll, outputCoordsAll, outputScalesAll, outputFramesAll
 %                 if ~strcmp(list_input{i},'D:/Input Data/VladislavSTD/Vladislav_STD/depth/99_3_2_2_3_2.png')
 %                     continue;
 %                 end
-            numEl = 0;
-
+                numEl = 0;
+                
 %                 i
                 
                 

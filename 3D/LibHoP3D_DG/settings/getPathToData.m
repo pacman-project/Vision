@@ -10,7 +10,7 @@ function [ depthPath ] = getPathToData(dataSetNumber, commonRoot)
     elseif dataSetNumber == 4
         depthPathBasic = [commonRoot, 'Input data\Mirela_dataset\Mirela_dataset'];
     elseif dataSetNumber == 5
-        depthPathBasic = [commonRoot, 'Input data\Meshes\Aim@Shape_All'];
+        depthPathBasic = [commonRoot, 'Input data\Meshes\Aim@Shape_Selected'];
     end
     
     % before downsampling

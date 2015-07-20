@@ -31,15 +31,10 @@ parfor i = 1:lenF
 %       ll = strfind(curStr, '/');
 %       fileName = curStr(ll:end);
         
-
     fileName = curStr(lenDPW+1:end);
     outFile = [outRoot, fileName];
     
-    ll = strfind(outFile, '/');
-    lll = strfind(outFile, '\');
-    ll = [ll, lll];
-    ll = max(ll); % last position
-    folderName = outFile(1:ll);
+    folderName = returnFolder( outFile );
     b = exist(folderName,'dir');
 
     if b == 0
