@@ -26,11 +26,10 @@ function  perform_point_picking( PointCloud, face )
 % Queen's University
 % May 4, 2005 (revised Oct 30, 2007)
 
-
 if nargin==2
-    clf;
+%     clf;
     hold on;
-    plot_mesh(PointCloud,face);
+%     plot_mesh(PointCloud,face);
 end
 plot3(PointCloud(1,:), PointCloud(2,:), PointCloud(3,:), 'c.'); % visualize the point cloud
 hold on; % so we can highlight the clicked points without clearing the point cloud

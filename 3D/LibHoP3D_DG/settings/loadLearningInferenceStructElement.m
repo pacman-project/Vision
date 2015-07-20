@@ -75,12 +75,18 @@ function [learningElType, learningElRadius, inferenceElType, inferenceElRadius, 
             
         end
         
-    elseif dataSetNumber == 5 || dataSetNumber == 6
+    elseif dataSetNumber == 5 || dataSetNumber == 6   % meshes
         
         learningElType = 0;
         learningElRadius = 0;
         inferenceElType = 0;
         inferenceElRadius = 0;
+        offsetsConventional{3} = 0.005;
+        offsetsConventional{4} = 0.005;
+        
+        offsetsConventional{3} = 0.015;
+        offsetsConventional{4} = 0.015;
+        
     end
 
 end

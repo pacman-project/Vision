@@ -7,18 +7,21 @@ function [scales, lineAdders] = getScales(dataSetNumber, is_multyScale)
         lineAdders{1} = '1.00';
         return;
     end
+        
 
     if dataSetNumber == 3  % Vladislav_STD
         scales = [1.0, 0.82 0.66, 0.50, 0.33];
+    elseif dataSetNumber == 5  % Vladislav_STD
+%         scaleStep = 0.25;
+%         scales = 2.0:-scaleStep:0.25;
+        scales = 0.50; 
     end
     
-    for i = 1: length(scales)
-        
+    for i = 1: length(scales)       
         line = num2str(scales(i), '%f');
         dotPos = strfind(line, '.');
         line = line(1:dotPos+2);
         lineAdders{i} = line;
-
     end
 end
 

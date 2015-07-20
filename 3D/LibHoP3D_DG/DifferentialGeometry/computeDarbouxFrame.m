@@ -1,13 +1,14 @@
 % estimate the local frame of reference at this point
 % method of Gabriel Taubin
 
-function [V,D] = computeDarbouxFrame(dx, dy, xs, ys, zs)
+function [V,D] = computeDarbouxFrame(Norm, xs, ys, zs)  % dx, dy,
 
-    % (1). compute normal of the point
-    tanX = [1, 0, dx];
-    tanY = [0, 1, dy];
-    Norm = cross(tanX, tanY)';
-    Norm = Norm/norm(Norm);
+%     % (1). compute normal of the point
+
+%     tanX = [1, 0, dx];
+%     tanY = [0, 1, dy];
+%     Norm = cross(tanX, tanY)';
+%     Norm = Norm/norm(Norm);
 
 
     % (2). estimate a matrix M

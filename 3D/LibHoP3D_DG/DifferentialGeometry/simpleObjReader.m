@@ -1,7 +1,7 @@
 % This is my function that reads obj files
-% returns list of vertices normals faces 
+% returns list of vertices, normals, faces, darboux frames, and part ids
 
-function [V,N,F] = simpleObjReader(filename)
+function [V,N,F,DF,PI] = simpleObjReader(filename, sizeEst)
 
   % Reads a .obj mesh file and outputs the vertex and face list
   % assumes a 3D triangle mesh and ignores everything but:
@@ -12,19 +12,31 @@ function [V,N,F] = simpleObjReader(filename)
   % Output:
   %  V  number of vertices x 3 array of vertex positions
   %  F  number of faces x 3 array of face indices
-  %
-  V = zeros(0,3);
-  F = zeros(0,3);
-  N = zeros(0,3);
+  
+  if nargin == 1
+      sizeEst = 30000;
+  end
+
+  V = zeros(sizeEst,3);
+  F = zeros(sizeEst,3);
+  N = zeros(sizeEst,3);
+  DF = zeros(sizeEst,9);
+  PI = zeros(sizeEst,2);
+  
   vertex_index = 1;
   normal_index = 1;
   face_index = 1;
+  df_index = 1;
+  part_index = 1;
+  
   fid = fopen(filename,'rt');
   line = fgets(fid);
   while ischar(line)
     vertex = sscanf(line,'v %f %f %f');
     face = sscanf(line,'f %d %d %d');
-    normal = sscanf(line,'vn %d %d %d');
+    partID = sscanf(line,'pi %d %d');
+    normal = sscanf(line,'vn %f %f %f');
+    darFrame = sscanf(line,'df %f %f %f %f %f %f %f %f %f',9);
     face_long = sscanf(line,'f %d//%d %d//%d %d//%d',6);
     face_long_long = sscanf(line,'f %d/%d/%d %d/%d/%d %d/%d/%d',9);
 
@@ -33,10 +45,18 @@ function [V,N,F] = simpleObjReader(filename)
       V(vertex_index,:) = vertex;
       vertex_index = vertex_index+1;
    % see if line is simple face command if so add to faces
+    elseif(size(partID)>0)
+      PI(part_index,:) = partID;
+      part_index = part_index+1;
+   % see if line is simple face command if so add to faces
     elseif(size(normal)>0)
       N(normal_index,:) = normal;
       normal_index = normal_index+1;
    % see if line is simple face command if so add to faces
+   
+   elseif(size(darFrame)>0)
+      DF(df_index,:) = darFrame;
+      df_index = df_index + 1;
    
     elseif(size(face,1)==3)
       F(face_index,:) = face;
@@ -60,4 +80,11 @@ function [V,N,F] = simpleObjReader(filename)
     line = fgets(fid);
   end
   fclose(fid);
+  
+  V = V(1:vertex_index - 1,:);
+  F = F(1:face_index-1, :);
+  N = N(1:normal_index - 1, :);
+  DF = DF(1:df_index-1,:);
+  PI = PI(1:part_index-1,:);
+  
 end

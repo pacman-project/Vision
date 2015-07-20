@@ -71,11 +71,11 @@ fprintf(fid, 'v %f %f %f\n', vertex');
 %     fprintf(fid, '# %d vertex texture\n', size(vertext,1));
 %     fprintf(fid, 'vt %f %f\n', vertext');
 % end
-
-% use mtl
-fprintf(fid, ['g ' object_name '_export\n']);
-mtl_bump_name = 'bump_map';
-fprintf(fid, ['usemtl ' mtl_bump_name '\n']);
+% 
+% % use mtl
+% fprintf(fid, ['g ' object_name '_export\n']);
+% mtl_bump_name = 'bump_map';
+% fprintf(fid, ['usemtl ' mtl_bump_name '\n']);
 
 % face
 fprintf(fid, '# %d faces\n', size(face,1));

@@ -14,12 +14,14 @@ if nargin == 0
     infArray = [1,0,0,0,0,0,0,0];
     dataSetNumber = 5;
     nClusters = 7;
-    inputDataType = 2;
+    inputDataType = 1; % depth images
 end
 
-displ3 = 6;
-displ5 = 18;
-displ7 = 52;
+if inputDataType == 1
+    displ{3} = 6;
+    displ{5} = 18;
+    displ{7} = 52;
+end
 n2Clusters = nClusters^2;
 is_GPU_USED = false;
 
@@ -82,9 +84,10 @@ load(vocabulary1Layer); %  cluster1Centres, cluster1Bounds, thresh
 
 [~, fileForVisualizationLayer, ~, ~, ~, partsLayerAll, calibrationFile] = getStandardFilePaths(root, dsN, nCl);
 
-zScale = load(calibrationFile);
-zScale = zScale.zScale;  % ratio of z and x dimensions
-
+if inputDataType == 1
+    zScale = load(calibrationFile);
+    zScale = zScale.zScale;  % ratio of z and x dimensions
+end
 
 if infArray(2) % perform inference of the second layer 
     
@@ -96,12 +99,14 @@ if infArray(2) % perform inference of the second layer
             str = inputPath{1, 1};
             str1 = getPathScale(str, lineAdders{i});
             [list_input, ~, ~, lenF] = extractFileListGeneral(str1, is_subset, subsetPercent, dataSetNumber);
-            
             strI21 = inputPath{2,1};
             str2 = getPathScale(strI21, lineAdders{i});
             strE = getElPath(str2, 2);
-            performInference2DG(list_input, lenF, inputDataType, receptiveField{1}, str2, zScale, filtOptions, is_overwrite, strE);
-                                           
+            if inputDataType == 1 % depth images
+                performInference2DG(list_input, lenF, inputDataType, receptiveField{1}, str2, zScale, filtOptions, is_overwrite, strE);
+            elseif inputDataType == 2 % meshes
+                PerformInference1MeshTrialFixed(list_input, lenF, dataSetNumber, receptiveField{2}, is_overwrite, strE);
+            end
         end
     end
 end
@@ -133,7 +138,7 @@ for layerID = 3:6
         triplesCurOut{layerID} = triplesCurOut{layerID}(1:nNClusters{layerID}, :);
 
         performInferenceNext(list_input, list_els, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
-                    nNClusters{layerID-1}, nNClusters{layerID}, nClusters, X, triplesCurOut{layerID}, partsEntropy{layerID}, displ3, displ5, displ7, ...
+                    nNClusters{layerID-1}, nNClusters{layerID}, nClusters, X, triplesCurOut{layerID}, partsEntropy{layerID}, displ, ...
                     elPath{layerID, 1}, is_inhibition, inferenceElType{layerID}, inferenceElRadius{layerID}, ...  
                     is_downsampling, dowsample_rate, elPath{layerID-1, 2}, meargeThresh{layerID}, isErrosion, discRadius, is_guided, r_guided, eps, ...
                     is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, clusterCurDepths, fileForVisualizationLayer{layerID-1}, ...

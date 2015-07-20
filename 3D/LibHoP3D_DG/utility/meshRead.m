@@ -4,7 +4,7 @@ function [V, F, N] = meshRead(filename)
 
 
     if strfind(filename, '.obj')
-        [V,N,F] = simpleObjReader(filename);
+        [V, F, N] = read_obj(filename);
     end
 
     % TODO add codes for different file formats

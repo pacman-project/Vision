@@ -1,3 +1,6 @@
+% this is to perform inference of the first layer parts with ADAPTIVE SIZE
+% OF THE PART
+
 function PerformInference1MeshTrial()
     
     [V, F, ~] = meshRead('D:\Input Data\Meshes\Aim@Shape_all\D00001.obj');
@@ -12,7 +15,6 @@ function PerformInference1MeshTrial()
 %     lighting phong;
 %     hold on
 %      
-    numPoints = 10;
 
     [V,F] = check_face_vertex(V,F);
 
@@ -36,7 +38,7 @@ function PerformInference1MeshTrial()
     
 %     numPoints = computeNumPoints(areas, q30, q90, maxNumPoints);
     numPoints = int32(10 * ones(lenF,1));
-    [VAll, NAll] = compute_AdditionalPoints(V, F, N, numPoints, maxNumPoints);
+    [VAll, NAll, numPoints] = compute_AdditionalPoints(V, F, N, VCent, NCent, numPoints, maxNumPoints);
     
     radii = zeros(1, lenF);
 
@@ -53,7 +55,7 @@ function PerformInference1MeshTrial()
 
     nf = 10; % can be 1:4,10
 
-    parfor i = 1:lenF
+    for i = 1:lenF
         
         Vcentre = VCent(:, i);
         Ncentre = NCent(:, i);
@@ -121,7 +123,7 @@ function PerformInference1MeshTrial()
     F = zeros(2 * length(radii(radii > 0)), 3);
     j = 1; 
     
-    radii = perform_mesh_smoothing(face,vertex,radii,options);
+    radii = perform_mesh_smoothing(F,V,radii,options);
     
     for i = 1:length(radii)
         
