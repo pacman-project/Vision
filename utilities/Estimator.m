@@ -16,9 +16,9 @@ classdef Estimator
         numberOfPoints = -1;
         
         % PDF parameters.
-        sigma = 1;
+        sigma = 0.598;
         epsilon = 0.05;
-        concentration = 1;
+        concentration = 0.945; % So that Pr(0, pi, concentration) = epsilon.
         
         % Data structures.
         dataCoords@uint16; % Nx2 array of uint16. Each row holds coordinates (x,y) of a single data point.
@@ -51,7 +51,7 @@ classdef Estimator
                       % non-existing node.
                       spatialProb = this.epsilon;
                  else
-                      spatialProb = mvnpdf(double(this.dataCoords(itr,:)), double(this.reconstructedCoords(itr,:)), [this.sigma, this.sigma]);
+                      spatialProb = mvnpdf(double(this.dataCoords(itr,:))/this.radius, double(this.reconstructedCoords(itr,:))/this.radius, [this.sigma, this.sigma]);
                  end
                  
                  % Calculate node replacement (appearance) probability.
@@ -63,6 +63,37 @@ classdef Estimator
            likelihood = prod(likelihoodArr);
         end
         
+        
+        % The function that estimates log likelihood by comparing data features 
+        % and reconstructed features. DataType is a string that can be
+        % added to specify different cases (2D, 2.5D, 3D). 
+        function logLikelihood = CalculateLogLikelihood(this)
+           logLikelihoodArr = zeros(this.numberOfPoints, 1);
+            
+            % Convert labels to angles for von mises distribution.
+            anglePerFeature = (2*pi) / double(this.GetNumberOfFeatures());
+            dataAngles = double( this.dataLabels) * anglePerFeature;
+            reconstructedAngles = double(this.reconstructedLabels) * anglePerFeature;
+            downsampleRatio = this.radius / sqrt(2);
+            for itr = 1:this.numberOfPoints
+                 % Calculate spatial probability.
+                 if ismember(0, this.dataCoords(itr,:)) || ismember(0, this.reconstructedCoords(itr,:))
+                      % Invalid coords, which means assigned to an
+                      % non-existing node.
+                      spatialProb = log2(this.epsilon);
+                      angularProb = spatialProb;
+                 else
+                      spatialProb = log2(mvnpdf(double(this.dataCoords(itr,:))/downsampleRatio, double(this.reconstructedCoords(itr,:))/downsampleRatio, [this.sigma, this.sigma]));
+                      angularProb = log2(circ_vmpdf(dataAngles(itr,1), reconstructedAngles(itr,1), this.concentration));
+                 end
+                 
+                 % Calculate node replacement (appearance) probability.
+                 logLikelihoodArr(itr) = spatialProb + angularProb;
+            end
+            
+           % Calculate the final likelihood.
+           logLikelihood = sum(logLikelihoodArr);
+        end
         
 %         % The function that estimates reconstruction error by comparing data features 
 %         % and reconstructed features. DataType is a string that can be
@@ -125,7 +156,7 @@ classdef Estimator
                 labelString = 'reconstructedLabels';
             end
             
- %           this.CheckSanity(labels, [inf, 1], 'uint16', labelString);
+            this.CheckSanity(labels, [inf, 1], 'uint16', labelString);
             
             % All good, set.
            if ~typeFlag
@@ -146,7 +177,7 @@ classdef Estimator
                 depthString = 'reconstructedDepths';
             end
             
-    %        this.CheckSanity(depths, [inf, 1], 'uint16', depthString);
+            this.CheckSanity(depths, [inf, 1], 'uint16', depthString);
             
             % All good, set.
            if ~typeFlag
