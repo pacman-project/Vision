@@ -23,7 +23,7 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLevelIndices] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
+function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
                                                             options, fileList)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
@@ -97,6 +97,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     orgOptimizationFlag = options.optimizationFlag;
     
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
+    edgeChangeLevel = -1;
     for levelItr = 2:options.maxLevels
         % Obtain the pre-set threshold for this level, if there is one.
         if levelItr > (numel(options.subdue.presetThresholds) + 1)
@@ -163,8 +164,10 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         matlabpool('open', options.numberOfThreads);
         
         %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
-        if levelItr == 3
+        if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid')
             options.edgeType = 'centroid';
+            display('........ Switching to -centroid- type edges!');
+            edgeChangeLevel = levelItr;
         end
         
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
@@ -186,7 +189,6 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
         display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(vocabLevel)) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
-        
         
         %% Step 2.4: In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
         vocabLevel = learnChildPositions(vocabLevel, graphLevel, previousLevel);

@@ -63,7 +63,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     end
     
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
-    parfor imageId = 1:numberOfImages
+    for imageId = 1:numberOfImages
         sortIdx = imageSortIdx{imageId};
         orgImageGraphLevel = imageGraphLevels{imageId};
         imageGraphLevel = orgImageGraphLevel(sortIdx);
@@ -101,6 +101,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
           eliminatedAdjacentNodes = normalizedEdgeCoords(:,1) == 0 & ...
                                         normalizedEdgeCoords(:,2) == 0 & ...
                                         imageNodeLabels(adjacentNodes) == imageNodeLabels(nodeItr);
+          
           % If we need to eliminate some of the nodes based on spatial
           % adjacency, not because of overlapping leaf node support, we do
           % it here.

@@ -14,7 +14,6 @@
 %> Updates
 %> Ver 1.0 on 04.07.2014
 function [] = AnalyzeNodes(datasetName)
-
     % Load relevant info.
     load([pwd '/output/' datasetName '/vb.mat']);
     load([pwd '/output/' datasetName '/export.mat']);

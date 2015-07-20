@@ -483,7 +483,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         %% If inhibition is applied, we eliminate the instances which exist in multiple subs.
         % For each unique instance (node set), we find the best matching
         % sub, and assign the instance to that sub.
-        if noveltyThr > 0
+ %       if noveltyThr > 0
+        if noveltyThr == -1
            display('[SUBDUE] Performing initial inhibition. Eliminating duplicate instances among different subs..');
            %        Alternative 2
            instanceActivations = cat(1, instanceActivations{:});

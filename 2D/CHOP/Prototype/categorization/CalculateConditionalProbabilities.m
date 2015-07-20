@@ -47,7 +47,6 @@ function [ ] = CalculateConditionalProbabilities( datasetName )
             end
         end
         
-        
         % Save probabilities.
         partOffset = partOffset + numel(vocabLevel);
     end

@@ -38,6 +38,8 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, ~, numberOfThread
                 / numberOfChildren;
             subLevel(newNodeItr).precisePosition = precisePosition;
             subLevel(newNodeItr).position = int32(round(precisePosition));
+  %          subLevel(newNodeItr).position = int32(round(sum(cat(1, previousLevel(nodeChildren).position),1) ...
+  %                             / numberOfChildren));
             subLevel(newNodeItr).leafNodes = nodeLeafNodes;
         end
         nodeSets(setItr) = {subLevel};

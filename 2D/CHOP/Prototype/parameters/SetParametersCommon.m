@@ -126,6 +126,8 @@ function [ options ] = SetParametersCommon( datasetName, options )
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes. (No other
                                        % opts at the moment)
+    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
+                                         % we switch to 'centroid' nodes.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will

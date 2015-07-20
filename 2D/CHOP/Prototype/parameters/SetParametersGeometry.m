@@ -134,6 +134,8 @@ function [ options ] = SetParametersGeometry( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
+    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
+                                         % we switch to 'centroid' nodes.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will

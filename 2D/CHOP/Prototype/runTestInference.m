@@ -47,7 +47,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         end
     
         if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
-            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'distanceMatrices', 'graphLevelIndices', 'categoryNames', 'optimalThresholds');
+            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'distanceMatrices', 'graphLevelIndices', 'categoryNames', 'optimalThresholds', 'edgeChangeLevel');
             load([options.currentFolder '/output/' datasetName '/export.mat']);
         else
             display('No vocabulary exists!');
@@ -104,13 +104,14 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         distanceMatrices = distanceMatrices; %#ok<NODEF,ASGSL>
         optimalThresholds = optimalThresholds; %#ok<NODEF,ASGSL>
         categoryNames = categoryNames; %#ok<ASGSL>
+        edgeChangeLevel = edgeChangeLevel; %#ok<ASGSL,NODEF>
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
         parfor testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, vocabUpdatedLabels, options); 
+            singleTestImage(testFileNames{testImgItr}, vocabulary, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options); 
         end
         totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');

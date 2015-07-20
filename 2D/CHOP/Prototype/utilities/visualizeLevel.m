@@ -185,7 +185,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                      if nodeInstanceItr == 1
                          %% Here, we get the description of the node, and print that.
                                                   %% Here, we get the description of the node, and print that.
-%                              % It is supposed to provide an approximate view that the algorithm has learned.
+                             % It is supposed to provide an approximate view that the algorithm has learned.
 %                             currentLevel(labelId).children;
 %                             children = (currentLevel(labelId).children)';
 %                             childrenCoords = zeros(numel(children), 2, 'int32');
