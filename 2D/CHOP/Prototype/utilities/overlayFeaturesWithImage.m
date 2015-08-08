@@ -6,6 +6,9 @@ function [img] = overlayFeaturesWithImage(level1Nodes, img, filters)
     lowHalf = centerPoint-1;
     highHalf = filterSize - centerPoint;
     orgImg = img;
+    if max(max(max(img))) == 1
+       img = uint8(round(double(img) * 255));
+    end
     img = uint8(round(imageWeight * double(img)));
     
     for nodeItr = 1:size(level1Nodes,1)

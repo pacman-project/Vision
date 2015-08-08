@@ -240,7 +240,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [vocabLevel, graphLevel] = generateLevels(leafNodes, allNodeActivations, leafNodeSigns, options);
         
         %% Learn edge-based distance matrix once and for all.
-        [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize, options.edgeSimilarityAllowed);
+        [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize, options.distType, options.edgeSimilarityAllowed);
         options.edgeIdMatrix = edgeIdMatrix;
         options.edgeDistanceMatrix = edgeDistanceMatrix;
         options.edgeCoords = edgeCoords;

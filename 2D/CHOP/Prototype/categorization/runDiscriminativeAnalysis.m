@@ -22,9 +22,9 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
     % We go through each layer of the vocabulary, and calculate precision,
     % recall, f-score of each part. 
     totalNumberOfParts = sum(cellfun(@(x) numel(x), vocabulary)); %#ok<USENS>
-    precisionArr = zeros(totalNumberOfParts, 2 + numel(categoryNames));
-    recallArr = zeros(totalNumberOfParts, 2 + numel(categoryNames));
-    fscoreArr = zeros(totalNumberOfParts, 2 + numel(categoryNames));
+    precisionArr = nan(totalNumberOfParts, 2 + numel(categoryNames));
+    recallArr = nan(totalNumberOfParts, 2 + numel(categoryNames));
+    fscoreArr = nan(totalNumberOfParts, 2 + numel(categoryNames));
     shareabilityArr = zeros(totalNumberOfParts, 3);
     mdlScoreArr = zeros(totalNumberOfParts, 4);
     partOffset = 1;
@@ -79,6 +79,9 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
     end
     
     % Save the data.
+    if ~exist([options.currentFolder '/categorization/analysis/' datasetName], 'dir')
+       mkdir([options.currentFolder '/categorization/analysis/' datasetName]);
+    end
     save([options.currentFolder '/categorization/analysis/' datasetName '/discriminativeAnalysis.mat'], ...
         'precisionArr', 'recallArr', 'fscoreArr', 'shareabilityArr', 'mdlScoreArr');
 end

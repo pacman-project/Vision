@@ -23,10 +23,26 @@
 %> Updates
 %> Ver 1.0 on 01.09.2014
 %> Comments updated on 23.06.2015
-function [ distMat ] = createDistanceMatrix( filters, distType, deadFeatures )
+function [ distMat ] = createDistanceMatrix( filters, filterType, distType, deadFeatures )
+    distMat = zeros(numel(filters), 'single');
+    if strcmp(distType, 'prob') && strcmp(filterType, 'gabor')
+        % Calculate a von mises distribution here.
+        concentration = 0.945;
+        anglePerFeature = (2*pi) / double(numel(filters));
+        angles = (0:(numel(filters)-1)) * anglePerFeature;
+        log2Probs = log2(circ_vmpdf(0, angles, concentration))';
+        log2Probs = abs(log2Probs);
+        log2Probs = single((log2Probs - min(log2Probs)) / (max(max(log2Probs)) - min(min(log2Probs))));
+        
+        for filtItr = 1:numel(filters)
+            assignedLogProbs = circshift(log2Probs, [(filtItr-1),0])';
+            distMat(filtItr,:) = assignedLogProbs;
+        end
+       return; 
+    end
+    
     cogFilters = cell(numel(filters),1);
     numberOfFilters = numel(filters);
-    distMat = zeros(numel(filters));
     filterSize = [size(filters{1},1), size(filters{1},2)];
     binaryMask = true(filterSize);
     cog = zeros(1,2);

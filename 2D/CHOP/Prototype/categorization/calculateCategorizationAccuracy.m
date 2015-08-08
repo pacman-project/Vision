@@ -41,7 +41,8 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
     % Assign train/test features and normalize them (converting them to
     % unit vectors).
     validRows = sum(allFeatures,2) ~= 0;
-    allFeatures(validRows,:) = normr(allFeatures(validRows,:));
+ %   allFeatures(validRows,:) = normr(allFeatures(validRows,:));
+    allFeatures(validRows,:) = allFeatures(validRows,:) > 0;
     trainFeatures = allFeatures(trainingImageIdx,:);
     validTrainingRows = sum(trainFeatures,2) ~= 0;
     validationFeatures = allFeatures(validationImageIdx,:);
@@ -62,30 +63,43 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
         validValidationRows = validTrainingRows;
     end
     
-    % Finally, we classify the validation data and return the performance.
-%    bestc = 1;
-    bestAcc = 0;
-    bestPrecision = 0;
-    if optimizeSVM
- %       log2cArr = [1/128, 1/64, 1/32, 1/16, 1/8,1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128];
-        log2cArr = [1/128, 1/32, 1/8, 1/2, 1, 4, 16, 64, 128];
-    else
-        log2cArr = 1;
-    end
+%     % Finally, we classify the validation data and return the performance.
+% %    bestc = 1;
+%     bestAcc = 0;
+%     bestPrecision = 0;
+%     if optimizeSVM
+%  %       log2cArr = [1/128, 1/64, 1/32, 1/16, 1/8,1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128];
+%         log2cArr = [1/128, 1/32, 1/8, 1/2, 1, 4, 16, 64, 128];
+%     else
+%         log2cArr = 1;
+%     end
+%     
+%     for log2c = log2cArr
+%         cmd = ['-t 0 -c ', num2str(log2c), ' -q '];
+%         learnedModel = svmtrain(double(trainLabels), trainFeatures, cmd);
+%         cmd = '-q';
+%         [predLabels,~, ~] = svmpredict(double(validationLabels), validationFeatures, learnedModel, cmd);
+%         predLabels(~validValidationRows) = -1;
+%         accuracy = nnz(predLabels == validationLabels) / numel(validationLabels);
+%         precision = nnz(predLabels == validationLabels) / nnz(predLabels~=-1);
+%         if precision > bestPrecision
+% %            bestc = log2c;
+%             bestAcc = accuracy;
+%             bestPrecision = precision;
+%         end
+%     end
     
-    for log2c = log2cArr
-        cmd = ['-t 0 -c ', num2str(log2c), ' -q '];
-        learnedModel = svmtrain(double(trainLabels), trainFeatures, cmd);
-        cmd = '-q';
-        [predLabels,~, ~] = svmpredict(double(validationLabels), validationFeatures, learnedModel, cmd);
-        predLabels(~validValidationRows) = -1;
-        accuracy = nnz(predLabels == validationLabels) / numel(validationLabels);
-        precision = nnz(predLabels == validationLabels) / nnz(predLabels~=-1);
-        if precision > bestPrecision
-%            bestc = log2c;
-            bestAcc = accuracy;
-            bestPrecision = precision;
-        end
+    % Build a class contribution array.
+    classContrArr = zeros(numel(bestSubs), numel(unique(trainLabels)));
+    for bestSubItr =  1:numel(bestSubs)
+        features = trainFeatures(:, bestSubItr) > 0;
+        classContrArr(bestSubItr,:) = normr(hist(trainLabels(features), 1:size(classContrArr,2)));
     end
-    
+    validationFeatures = validationFeatures>0;
+    predLabels = zeros(size(validationLabels));
+    for imgItr = 1:numel(predLabels)
+       [~, predLabels(imgItr)] = max(sum(classContrArr(validationFeatures(imgItr,:)', :),1));
+    end
+    bestAcc = nnz(predLabels == validationLabels) / numel(validationLabels);
+    bestPrecision = nnz(predLabels == validationLabels) / nnz(predLabels~=-1);
 end

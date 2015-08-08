@@ -25,7 +25,10 @@
 %>
 %> Updates
 %> Ver 1.0 on 23.06.2015
-function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords ] = findEdgeDistanceMatrix( edgeQuantize, edgeSimilarityAllowed )
+function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords ] = findEdgeDistanceMatrix( edgeQuantize, distType, edgeSimilarityAllowed )
+    sigma = 0.4804;
+    unitMaxDist = 1.348;
+    
     % Find a round area in which we will look for individual relations.
     edgeIdMatrix = zeros(edgeQuantize, 'int32');
     centerPointSingle = (edgeQuantize+1)/2; 
@@ -46,7 +49,21 @@ function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords ] = findEdgeDistanceMatr
     % relations.
     points = [xArr(relations), yArr(relations)];
     distMatrix = single(pdist2(points, points, 'euclidean'));
-
+    
+    if strcmp(distType, 'prob')
+        downsampleRatio = max(max(distMatrix)) / unitMaxDist;
+        points = points / downsampleRatio;
+        for pointItr = 1:size(points,1)
+            displacements = points - repmat(points(pointItr,:), size(points,1), 1);
+            logProbs = log2(mvnpdf(double(displacements(pointItr,:)), double(displacements), [sigma, sigma]));
+            logProbs = abs(logProbs);
+            logProbs = single((logProbs - min(logProbs)) / (max(max(logProbs)) - min(min(logProbs))));
+            distMatrix(pointItr,:) = single(logProbs);
+        end
+        edgeDistanceMatrix = distMatrix;
+        return;
+    end
+    
     % If edge similarities are allowed, we keep on calculating pairwise
     % edge transformation costs. Otherwise, we set them to either
     % zero-cost transformations (identical edge labels), or max-cost

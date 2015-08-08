@@ -16,9 +16,10 @@ classdef Estimator
         numberOfPoints = -1;
         
         % PDF parameters.
-        sigma = 0.598;
+        sigma = 0.4804;
         epsilon = 0.05;
         concentration = 0.945; % So that Pr(0, pi, concentration) = epsilon.
+        unitMaxDist = 1.348;
         
         % Data structures.
         dataCoords@uint16; % Nx2 array of uint16. Each row holds coordinates (x,y) of a single data point.
@@ -43,6 +44,7 @@ classdef Estimator
             anglePerFeature = (2*pi) / double(this.GetNumberOfFeatures());
             dataAngles = double( this.dataLabels) * anglePerFeature;
             reconstructedAngles = double(this.reconstructedLabels) * anglePerFeature;
+            downsampleRatio = this.radius / this.unitMaxDist;
             
             for itr = 1:this.numberOfPoints
                  % Calculate spatial probability.
@@ -51,7 +53,7 @@ classdef Estimator
                       % non-existing node.
                       spatialProb = this.epsilon;
                  else
-                      spatialProb = mvnpdf(double(this.dataCoords(itr,:))/this.radius, double(this.reconstructedCoords(itr,:))/this.radius, [this.sigma, this.sigma]);
+                      spatialProb = mvnpdf(double(this.dataCoords(itr,:))/downsampleRatio, double(this.reconstructedCoords(itr,:))/this.radius, [this.sigma, this.sigma]);
                  end
                  
                  % Calculate node replacement (appearance) probability.
@@ -74,7 +76,7 @@ classdef Estimator
             anglePerFeature = (2*pi) / double(this.GetNumberOfFeatures());
             dataAngles = double( this.dataLabels) * anglePerFeature;
             reconstructedAngles = double(this.reconstructedLabels) * anglePerFeature;
-            downsampleRatio = this.radius / sqrt(2);
+            downsampleRatio = this.radius / this.unitMaxDist;
             for itr = 1:this.numberOfPoints
                  % Calculate spatial probability.
                  if ismember(0, this.dataCoords(itr,:)) || ismember(0, this.reconstructedCoords(itr,:))

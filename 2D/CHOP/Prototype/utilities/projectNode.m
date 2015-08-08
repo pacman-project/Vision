@@ -1,6 +1,7 @@
 function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius )
     levelItr = nodes(1,4);
     nodes = single(nodes);
+    inhibitionRadius = inhibitionRadius - 1;
     inhibitionRadiusSq = inhibitionRadius^2;
     
     %% First, we recursively backproject the nodes. 

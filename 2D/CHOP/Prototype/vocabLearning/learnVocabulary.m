@@ -40,7 +40,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     
     %% Create distance matrices of the first level.
     if options.nodeSimilarityAllowed
-        distanceMatrices(1) = {createDistanceMatrix(options.filters, options.distType, options.auto.deadFeatures)};
+        distanceMatrices(1) = {createDistanceMatrix(options.filters, options.filterType, options.distType, options.auto.deadFeatures)};
     else
         % Set dummy similarity matrix with only diagonals zero.
         numberOfNodes = numel(options.filters) - numel(options.auto.deadFeatures);
@@ -163,13 +163,6 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
         
-        %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
-        if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid')
-            options.edgeType = 'centroid';
-            display('........ Switching to -centroid- type edges!');
-            edgeChangeLevel = levelItr;
-        end
-        
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
@@ -184,6 +177,13 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         %% Calculate statistics from this graph.
         display('........ Estimating post-inhibition statistics..');
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);
+        
+        %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
+        if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid')
+            options.edgeType = 'centroid';
+            display('........ Switching to -centroid- type edges!');
+            edgeChangeLevel = levelItr;
+        end
         
         % display debugging info.
         display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);

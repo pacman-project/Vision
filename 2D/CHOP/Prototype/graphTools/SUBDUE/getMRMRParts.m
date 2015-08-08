@@ -57,44 +57,67 @@ function [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs,
     trainFeatures = allFeatures(trainingImageIdx,:);
     validTrainingRows = sum(trainFeatures,2) ~= 0;
     
-    % Get only valid rows for training.
-    trainFeatures = trainFeatures(validTrainingRows, :);
-    trainLabels = trainLabels(validTrainingRows, :);
+    fscoreArr = zeros(numel(bestSubs),1);
+    assignedClassArr = zeros(numel(bestSubs),1);
+    for bestSubItr = 1:numel(bestSubs)
+        features = trainFeatures(:,bestSubItr) > 0;
+        assignedLabels = trainLabels(features);
+        assignedClass = mode(assignedLabels);
+        assignedClassArr(bestSubItr) = assignedClass;
+        precision = nnz(assignedLabels == assignedClass) / numel(assignedLabels);
+        recall = nnz(assignedLabels == assignedClass) / nnz(trainLabels == assignedClass);
+        fscore = 2 * precision * recall / (precision+recall);
+        fscoreArr(bestSubItr) = fscore;
+    end
+    [vals, fscoreArrSortIdx] = sort(fscoreArr, 'descend');
+    sortedAssignedClassArr = assignedClassArr(fscoreArrSortIdx);
+    categories = unique(trainLabels)';
+    validSubs = [];
+    for categoryItr = categories
+       % Get top 20.
+       idx = find(sortedAssignedClassArr == categoryItr, round(numberOfFinalSubs/numel(categories)), 'first');
+       validSubs = [validSubs; fscoreArrSortIdx(idx)];
+    end
+    validSubs = sort(validSubs);
     
-    % Here, we apply MR-MR based feature selection.
-    validSubs = mrmr_miq_d(trainFeatures, trainLabels, numberOfFinalSubs);
+%     % Get only valid rows for training.
+%     trainFeatures = trainFeatures(validTrainingRows, :);
+%     trainLabels = trainLabels(validTrainingRows, :);
+%     
+%     % Here, we apply MR-MR based feature selection.
+%     validSubs = mrmr_miq_d(trainFeatures, trainLabels, numberOfFinalSubs);
 %    validSubs = sort(validSubs);
     
     % Get train and validation accuracy for final evaluation.
     % Finally, we have to select a subset of these features since we would
     % like to maximize the performance with the least number of possible
     % subs.
-    maxAcc = 0;
-    maxPrec = 0;
-    maxAccItr = numel(validSubs);
-    if valItr ~= -1
-        accArr = zeros(numel(20:20:numel(validSubs)), 1);
-        for subItr = 20:20:numel(validSubs)
-            [tempAccuracy, tempPrecision] = calculateCategorizationAccuracy(bestSubs(validSubs(1:subItr)), ...
-                categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
-            accArr(round(subItr/20)) = tempAccuracy;
-            if tempPrecision > maxPrec
-                maxAccItr = subItr;
-                maxPrec = tempPrecision;
-%                maxAcc = tempAccuracy;
-            end
-        end
-    end
+%     maxAcc = 0;
+%     maxPrec = 0;
+%     maxAccItr = numel(validSubs);
+%     if valItr ~= -1
+%         accArr = zeros(numel(20:20:numel(validSubs)), 1);
+%         for subItr = 20:20:numel(validSubs)
+%             [tempAccuracy, tempPrecision] = calculateCategorizationAccuracy(bestSubs(validSubs(1:subItr)), ...
+%                 categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
+%             accArr(round(subItr/20)) = tempAccuracy;
+%             if tempPrecision > maxPrec
+%                 maxAccItr = subItr;
+%                 maxPrec = tempPrecision;
+% %                maxAcc = tempAccuracy;
+%             end
+%         end
+%     end
 %    figure, plot(20:20:numel(validSubs), accArr), hold on;
 %    axis([20 numel(validSubs) 0 1]);
-%    hold off;
-    validSubs = validSubs(1:maxAccItr);
-    [trueAccuracy, truePrecision] = calculateCategorizationAccuracy(bestSubs(validSubs(1:maxAccItr)), ...
-       categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
-    display(['[SUBDUE] [Val ' num2str(valItr) '] Val precision after discriminative part selection : %' ...
-        num2str(100 * truePrecision) ...
-        ', having ' num2str(numel(validSubs)) ' subs.']);  
-    
-    % Return correct indices now.
-    validSubs = validSubIdx(validSubs);
+% %    hold off;
+%     validSubs = validSubs(1:maxAccItr);
+%     [trueAccuracy, truePrecision] = calculateCategorizationAccuracy(bestSubs(validSubs(1:maxAccItr)), ...
+%        categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
+%     display(['[SUBDUE] [Val ' num2str(valItr) '] Val precision after discriminative part selection : %' ...
+%         num2str(100 * truePrecision) ...
+%         ', having ' num2str(numel(validSubs)) ' subs.']);  
+%     
+%     % Return correct indices now.
+%     validSubs = validSubIdx(validSubs);
 end
