@@ -112,7 +112,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                         % grows, each relation is scaled
                                         % down to this window, and then
                                         % quantized. 
-    options.scaling = 0.65;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -134,7 +134,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.95; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
@@ -240,7 +240,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.2; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.075; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -254,7 +254,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = [0.1];
+    options.subdue.presetThresholds = [0.05];
 %    options.subdue.presetThresholds = [0.05, 0.15, 0.2 0.2 0.2 0.2 0.2 0.2 0.2]; % This array 
                                     % is used to define a pre-defined set
                                     % of thresholds to be used for graph

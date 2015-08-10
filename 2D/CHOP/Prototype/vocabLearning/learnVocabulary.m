@@ -171,7 +171,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
             display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
-            [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, options);
+            [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, optimalThreshold, options);
             graphLevelIndices{levelItr} = graphLabelAssgnArr;
             distanceMatrices{levelItr} = newDistanceMatrix;
         else
@@ -217,7 +217,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         graphLevel = mainGraph{levelItr};
         
         %% Here, we bring back statistical learning with mean/variance.
-        modes = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix);
+        modes = learnModes(graphLevel, newDistanceMatrix, options.edgeCoords, options.edgeIdMatrix);
         graphLevel = assignEdgeLabels(graphLevel, modes, options.edgeCoords);
         mainGraph{levelItr} = graphLevel;
         allModes{levelItr} = modes;

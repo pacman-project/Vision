@@ -17,13 +17,22 @@
 %>
 %> Updates
 %> Ver 1.0 on 21.01.2014
-function [modes] = learnModes(currentLevel, edgeCoords, edgeIdMatrix)
+function [modes] = learnModes(currentLevel, newDistanceMatrix, edgeCoords, edgeIdMatrix)
     display('Learning modes...');
     maxSamplesPerMode = 200;
     minSamplesPerMode = 4;   
     maximumModes = 50;
     dummySigma = 0.1;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
+    
+    % Create redundancy vector, matching or nodes.
+    IC = 1:size(newDistanceMatrix,1);
+    for clusterItr = 1:size(newDistanceMatrix,1)
+         assignedCluster = find(newDistanceMatrix(clusterItr, 1:clusterItr) < 0.001, 1, 'first');
+         if assignedCluster ~= clusterItr
+              IC(clusterItr) = assignedCluster;
+         end
+    end
     
     % Set initial data structures for processing 
     edges = cat(1, currentLevel.adjInfo);

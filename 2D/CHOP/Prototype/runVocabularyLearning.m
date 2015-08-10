@@ -252,7 +252,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         graphLevel = mainGraph{1};
         
         %% Here, we bring back statistical learning with mean/variance.
-        modes = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix);
+        modes = learnModes(graphLevel, [], options.edgeCoords, options.edgeIdMatrix);
         graphLevel = assignEdgeLabels(graphLevel, modes, options.edgeCoords);
         mainGraph{1} = graphLevel;
         
