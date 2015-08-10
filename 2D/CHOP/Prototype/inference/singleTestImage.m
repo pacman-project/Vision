@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, categoryName, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options)
+function [] = singleTestImage(testFileName, vocabulary, allModes, distanceMatrices, categoryName, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -40,7 +40,7 @@ function [] = singleTestImage(testFileName, vocabulary, distanceMatrices, catego
     % Assign nodes their image ids.
     nodes = zeros(size(cellNodes,1), 3, 'int32');
     nodes(:,1:3) = cell2mat(cellNodes);
-    [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivations, distanceMatrices, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options); %#ok<ASGLU,NASGU>
+    [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, nodeActivations, distanceMatrices, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options); %#ok<ASGLU,NASGU>
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')

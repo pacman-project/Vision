@@ -23,11 +23,12 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
-                                                            options, fileList)
+function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
+                                                            options, fileList, modes)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
+    allModes = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
     graphLevelIndices = cell(options.maxLevels,1);
@@ -37,6 +38,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
+    allModes(1) = {modes};
     
     %% Create distance matrices of the first level.
     if options.nodeSimilarityAllowed
@@ -122,6 +124,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
+           allModes = allModes(1:(levelItr-1), :);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
            graphLevelIndices = graphLevelIndices(1:(levelItr-1),:);
            optimalThresholds = optimalThresholds(1:(levelItr-1),:);
@@ -141,6 +144,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         if isempty(vocabLevel)
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
+           allModes = allModes(1:(levelItr-1), :);
            optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
@@ -199,6 +203,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         
         if levelItr == options.maxLevels
             vocabulary = vocabulary(1:(levelItr),:);
+            allModes = allModes(1:(levelItr), :);
             optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
@@ -210,6 +215,12 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         % Extract the edges between new realizations to form the new object graphs.
         [mainGraph] = extractEdges(mainGraph, options, levelItr);
         graphLevel = mainGraph{levelItr};
+        
+        %% Here, we bring back statistical learning with mean/variance.
+        modes = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix);
+        graphLevel = assignEdgeLabels(graphLevel, modes, options.edgeCoords);
+        mainGraph{levelItr} = graphLevel;
+        allModes{levelItr} = modes;
         
         %% Print vocabulary and graph level to output images (reconstruction).
         if ~isempty(newDistanceMatrix)
@@ -238,6 +249,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));
         if ~newEdgesAvailable
             vocabulary = vocabulary(1:(levelItr),:);
+            allModes = allModes(1:(levelItr), :);
             optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);

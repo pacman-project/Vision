@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivations, distanceMatrices, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options)
+function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, nodeActivations, distanceMatrices, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options)
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     noveltyThr = 1 - options.noveltyThr;
@@ -50,6 +50,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
         vocabRealizations = cell(numel(vocabLevel),1);
         vocabRealizationsActivation = cell(numel(vocabLevel),1);
         nodeDistanceMatrix = distanceMatrices{vocabLevelItr-1};
+        modes = allModes{vocabLevelItr-1};
         
        %% Here, we find edges for the nodes in the vocabulary. 
        % Check the level we need to swith to centroid type edges,
@@ -58,7 +59,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, nodeActivatio
            options.edgeType = 'centroid';
        end
        
-       allEdges = extractEdgesInference(nodes, leafNodeArr, firstLevelAdjNodes, options, vocabLevelItr-1);
+       allEdges = extractEdgesInference(nodes, modes, leafNodeArr, firstLevelAdjNodes, options, vocabLevelItr-1);
         if vocabLevelItr == 2
            nonemptyAdjNodeIdx = cellfun(@(x) ~isempty(x), allEdges);
            firstLevelAdjNodes = cell(size(allEdges));
