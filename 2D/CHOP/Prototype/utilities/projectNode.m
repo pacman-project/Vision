@@ -13,7 +13,7 @@ function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius )
             newNodeSet = zeros(numel(vocabNode.children), 4, 'single');
             newNodeSet(:, 1) = single((vocabNode.children)');
             newNodeSet(:, 4) = levelItr-1;
-            newNodeSet(:, 2:3) = -(vocabNode.childrenPosMean) + repmat(nodes(nodeItr, 2:3), size(newNodeSet,1), 1);
+            newNodeSet(:, 2:3) = (vocabNode.childrenPosMean) - repmat(nodes(nodeItr, 2:3), size(newNodeSet,1), 1);
             newNodes{nodeItr} = newNodeSet;
         end
         nodes = cat(1, newNodes{:});

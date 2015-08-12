@@ -106,12 +106,6 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeQuantize = 15;         % This parameter is used to quantize 
-                                        % edges in a edgeQuantize x edgeQuantize 
-                                        % window. As the receptive field
-                                        % grows, each relation is scaled
-                                        % down to this window, and then
-                                        % quantized. 
     options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
@@ -146,9 +140,9 @@ function [ options ] = SetParametersETHZ( datasetName, options )
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
     options.vis.visualizedNodes = 100; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = options.autoFilterSize*2.5; % DEFAULT 5
+        options.receptiveFieldSize = 2*round((options.autoFilterSize*2.5)/2) + 1; % DEFAULT 5
     else
-        options.receptiveFieldSize = options.gaborFilterSize*2.5;
+        options.receptiveFieldSize = 2*round((options.gaborFilterSize*2.5)/2) + 1;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -173,6 +167,12 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                        % edgeRadius grows at every level
                                        % with the same ratio as the
                                        % receptive field.
+    options.edgeQuantize = options.receptiveFieldSize;         % This parameter is used to quantize 
+                                        % edges in a edgeQuantize x edgeQuantize 
+                                        % window. As the receptive field
+                                        % grows, each relation is scaled
+                                        % down to this window, and then
+                                        % quantized. 
     options.maxLevels = 10;    % The maximum level count for training.
     options.maxInferenceLevels = 10; % The maximum level count for testing.
     
@@ -185,6 +185,9 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
+    options.categoryLevel = 7;
+    options.articulationsPerCategory = 3;
+                                 
     %% ========== RECONSTRUCTION PARAMETERS ==========
     options.reconstruction.stoppingCoverage = 0.99; % Between [0.00, 1.00].
                                            % The default value is 0.99.
@@ -192,7 +195,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -240,7 +243,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.075; % Theshold for elastic part matching. 
+    options.subdue.threshold = 0.02; % Theshold for elastic part matching. 
                                     % Can be in [0,1]. 
                                     % 0: Strict matching, 
                                     % (value -> 1) Matching criterion 
@@ -254,7 +257,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = [0.05];
+    options.subdue.presetThresholds = 0.02;
 %    options.subdue.presetThresholds = [0.05, 0.15, 0.2 0.2 0.2 0.2 0.2 0.2 0.2]; % This array 
                                     % is used to define a pre-defined set
                                     % of thresholds to be used for graph
@@ -274,7 +277,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
     options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
                                 % when looking for an optimal threshold.
                                 % (min 10).
-    options.subdue.minSize = 2; % Minimum number of nodes in a composition.
+    options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.

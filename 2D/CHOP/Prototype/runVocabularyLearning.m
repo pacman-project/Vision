@@ -204,6 +204,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % We select options.validationFolds (number) non-overlapping sets
         % from each category, and assign validation set indices for these
         % images.
+        options.numberOfCategories = numel(categoryNames);
         if options.validationFlag
             validationIdx = zeros(numel(imageSigns),1, 'uint8');
             for categoryItr = 1:numel(categoryNames)
@@ -252,7 +253,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         graphLevel = mainGraph{1};
         
         %% Here, we bring back statistical learning with mean/variance.
-        modes = learnModes(graphLevel, [], options.edgeCoords, options.edgeIdMatrix);
+        modes = learnModes(graphLevel, [], options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder);
         graphLevel = assignEdgeLabels(graphLevel, modes, options.edgeCoords);
         mainGraph{1} = graphLevel;
         

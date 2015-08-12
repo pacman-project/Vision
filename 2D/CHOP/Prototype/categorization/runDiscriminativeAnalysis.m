@@ -16,7 +16,7 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
     %#ok<*NODEF>
     options = SetParameters(datasetName, 'train');
     % Read the vocabulary and the exported realizations. 
-    load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
+    load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'distanceMatrices');
     load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx', 'poseArr');
     
     % We go through each layer of the vocabulary, and calculate precision,
@@ -25,17 +25,24 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
     precisionArr = nan(totalNumberOfParts, 2 + numel(categoryNames));
     recallArr = nan(totalNumberOfParts, 2 + numel(categoryNames));
     fscoreArr = nan(totalNumberOfParts, 2 + numel(categoryNames));
+    fscoreInstanceArr = nan(totalNumberOfParts, 3);
     shareabilityArr = zeros(totalNumberOfParts, 3);
     mdlScoreArr = zeros(totalNumberOfParts, 4);
     partOffset = 1;
     for levelItr = 1:numel(vocabulary)
         
         vocabLevel = vocabulary{levelItr};
+        vocabLevelLabels = cat(1, vocabLevel.label);
+        [~, IA, ~] = unique(vocabLevelLabels, 'stable');
         
         % Put exported realizations in different cells in a cell array 
         % (for fast parallel processing).
         realizations = exportArr(exportArr(:,4) == levelItr, :); 
-        numberOfParts = numel(vocabLevel);
+        
+        % Based on pairwise distances, group parts that have a distance of
+        % zero.
+        realizations(:,1) = vocabLevelLabels(realizations(:,1));
+        numberOfParts = numel(unique(vocabLevelLabels));
         
         %% Assign identifiers to all arrays.
         precisionArr(partOffset:(partOffset+numberOfParts-1),1) = levelItr;
@@ -44,14 +51,16 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
             precisionArr(partOffset:(partOffset+numberOfParts-1),1:2);
         fscoreArr(partOffset:(partOffset+numberOfParts-1),1:2) = ...
             precisionArr(partOffset:(partOffset+numberOfParts-1),1:2);
+        fscoreInstanceArr(partOffset:(partOffset+numberOfParts-1),1:2) = ...
+            precisionArr(partOffset:(partOffset+numberOfParts-1),1:2);
         shareabilityArr(partOffset:(partOffset+numberOfParts-1),1:2) = ...
             precisionArr(partOffset:(partOffset+numberOfParts-1),1:2);
         mdlScoreArr(partOffset:(partOffset+numberOfParts-1),1:2) = ...
             precisionArr(partOffset:(partOffset+numberOfParts-1),1:2);
         
         if levelItr>1
-            mdlScores = cat(1, vocabLevel.mdlScore);
-            normMdlScores = cat(1, vocabLevel.normMdlScore);
+            mdlScores = cat(1, vocabLevel(IA).mdlScore);
+            normMdlScores = cat(1, vocabLevel(IA).normMdlScore);
             mdlScoreArr(partOffset:(partOffset+numberOfParts-1),3:4) = [mdlScores, normMdlScores];
         end
         
@@ -72,17 +81,25 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
             
             % Finally, we calculate category shareability.
             shareabilityArr(partOffset + partItr - 1, 3) = (numel(unique(sampleLabelIds)) / numel(categoryNames)) * 100;
+            fscoreInstanceArr(partOffset + partItr - 1, 3) = 2 * (1/numel(sampleLabelIds)) / (1 + 1/numel(sampleLabelIds));
         end
         
         % Save probabilities.
-        partOffset = partOffset + numel(vocabLevel);
+        partOffset = partOffset + numberOfParts;
     end
+    
+    shareabilityArr = shareabilityArr(1:(partOffset-1),:);
+    recallArr = recallArr(1:(partOffset-1),:);
+    fscoreArr = fscoreArr(1:(partOffset-1),:);
+    precisionArr = precisionArr(1:(partOffset-1),:);
+    fscoreInstanceArr = fscoreInstanceArr(1:(partOffset-1),:);
+    mdlScoreArr = mdlScoreArr(1:(partOffset-1),:);
     
     % Save the data.
     if ~exist([options.currentFolder '/categorization/analysis/' datasetName], 'dir')
        mkdir([options.currentFolder '/categorization/analysis/' datasetName]);
     end
     save([options.currentFolder '/categorization/analysis/' datasetName '/discriminativeAnalysis.mat'], ...
-        'precisionArr', 'recallArr', 'fscoreArr', 'shareabilityArr', 'mdlScoreArr');
+        'precisionArr', 'recallArr', 'fscoreArr', 'shareabilityArr', 'mdlScoreArr', 'fscoreInstanceArr');
 end
 

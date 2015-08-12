@@ -167,7 +167,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
         edges = edges(edgeIds>0,:);
         
        %% Assign all edges to their respective nodes in the final graph.
-       
        if ~isempty(edges)
            for nodeItr = 1:numberOfNodes
                edgeIdx = edges(:,1) == (nodeItr + imageNodeOffset);

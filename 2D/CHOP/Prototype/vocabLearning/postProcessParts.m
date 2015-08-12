@@ -190,6 +190,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
               end
          end
     end
+    labelArr = num2cell(int32(IC));
+    [vocabLevel.label] = deal(labelArr{:});
 end
 
 %> Name: InexactMatch

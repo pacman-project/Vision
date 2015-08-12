@@ -131,6 +131,11 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
            break; 
         end
         
+        %% If category level is reached, we reduce the number of desired nodes substantially.
+        if levelItr == options.categoryLevel
+             options.reconstruction.numberOfReconstructiveSubs = options.articulationsPerCategory * options.numberOfCategories;
+        end
+        
         %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
         previousLevel = mainGraph{levelItr-1};
         graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, options.numberOfThreads);
@@ -185,6 +190,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
         if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid')
             options.edgeType = 'centroid';
+            options.edgeNoveltyThr = 0.5;
             display('........ Switching to -centroid- type edges!');
             edgeChangeLevel = levelItr;
         end
@@ -195,7 +201,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
         %% Step 2.4: In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
-        vocabLevel = learnChildPositions(vocabLevel, graphLevel, previousLevel);
+        vocabLevel = learnChildPositions(vocabLevel, graphLevel, allModes{levelItr-1});
         
         %% Step 2.5: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
@@ -217,7 +223,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         graphLevel = mainGraph{levelItr};
         
         %% Here, we bring back statistical learning with mean/variance.
-        modes = learnModes(graphLevel, newDistanceMatrix, options.edgeCoords, options.edgeIdMatrix);
+        modes = learnModes(graphLevel, newDistanceMatrix, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder);
         graphLevel = assignEdgeLabels(graphLevel, modes, options.edgeCoords);
         mainGraph{levelItr} = graphLevel;
         allModes{levelItr} = modes;
