@@ -76,7 +76,7 @@ function [modes] = learnModes(currentLevel, newDistanceMatrix, edgeCoords, edgeI
     end
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
-    for uniqueEdgeItr = 1:numberOfUniqueEdges
+    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
   %      display(num2str(uniqueEdgeItr));
         w = warning('off', 'all');
         samples = single(uniqueEdgeSamples{uniqueEdgeItr});
@@ -138,7 +138,7 @@ function [modes] = learnModes(currentLevel, newDistanceMatrix, edgeCoords, edgeI
           distributionImg = zeros(size(edgeIdMatrix));
           samplesToWrite = floor(samples + halfSize) ;
 
-          % If no samples are to be written, move on.
+          % If no samples are to be written, move on.E
           if numel(samplesToWrite) < 1
           continue;
           end
