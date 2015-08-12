@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, levelId, numberOfFirstLevelNodes, numberOfPrevNodes, options)
+function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, levelId, numberOfFirstLevelNodes, ~, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -29,18 +29,11 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     
     % These parameter relate to drawing the approximate model of each node
     % in the vocabulary.
-    edgeIdMatrix = options.edgeIdMatrix;
-    midPointEdgeIdMatrix = int32(round(size(edgeIdMatrix) / 2));
-    edgeIdMatrixSize = size(edgeIdMatrix);
-    scale = (1/options.scaling)^(levelId-2);
-    neighborhood = floor(options.edgeRadius * scale);
-    upsampleRatio = neighborhood / floor((options.edgeQuantize-1)/2);
     if strcmp(options.filterType, 'gabor')
        inhibitionRadius = options.gabor.inhibitionRadius; 
     else
        inhibitionRadius = options.auto.inhibitionRadius;
     end
-    inhibitionRadiusSq = inhibitionRadius^2;
     
     % For the first level, we only print a single instance.
     if levelId == 1
@@ -93,16 +86,11 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
         %% In other levels, combine the nodes of previous levels depending on mode info and visualize current level.
         % Read previous layer's masks.
         firstLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(1) '/reconstruction/'];
-        prevLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId-1) '/reconstruction/'];
         numberOfNodes = numel(currentLevel);
         firstNodeMasks = cell(numberOfFirstLevelNodes,1);
-        prevNodeMasks = cell(numberOfPrevNodes,1);
         avgFirstNodeMasks = cell(numberOfFirstLevelNodes,1);
-        avgPrevNodeMasks = cell(numberOfPrevNodes,1);
         firstLevelPatchLowDims = zeros(numberOfFirstLevelNodes,2);
         firstLevelPatchHighDims = zeros(numberOfFirstLevelNodes,2);
-        prevLevelPatchLowDims = zeros(numberOfPrevNodes,2);
-        prevLevelPatchHighDims = zeros(numberOfPrevNodes,2);
         
         %% Collect patches for the first level (leaf nodes).
         for nodeItr = 1:numberOfFirstLevelNodes
@@ -112,24 +100,6 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
             avgFirstNodeMasks(nodeItr) = {mean(tempImg,3)};
             firstLevelPatchHighDims(nodeItr,:) = floor([size(firstNodeMasks{nodeItr},1), size(firstNodeMasks{nodeItr},2)]/2);
             firstLevelPatchLowDims(nodeItr,:) = ([size(firstNodeMasks{nodeItr},1), size(firstNodeMasks{nodeItr},2)] - firstLevelPatchHighDims(nodeItr,:)) - 1;
-%            lowResponseThrs(nodeItr) = max(max(max(tempImg)))/10;
-        end
-        
-        %% Collect patches for the previous level (for approximate model printing).
-        if levelId > 2
-             for nodeItr = 1:numberOfPrevNodes
-                   tempImg = double(imread([prevLevelDir num2str(nodeItr) '.png']));
-                   tempImg = (tempImg - min(min(min(tempImg)))) / (max(max(max(tempImg))) - min(min(min(tempImg))));
-                   prevNodeMasks(nodeItr) = {tempImg};
-                   avgPrevNodeMasks(nodeItr) = {mean(tempImg,3)};
-                   prevLevelPatchHighDims(nodeItr,:) = floor([size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)]/2);
-                   prevLevelPatchLowDims(nodeItr,:) = ([size(prevNodeMasks{nodeItr},1), size(prevNodeMasks{nodeItr},2)] - prevLevelPatchHighDims(nodeItr,:)) - 1;
-             end
-        else
-             prevNodeMasks = firstNodeMasks;
-             avgPrevNodeMasks = avgFirstNodeMasks;
-             prevLevelPatchHighDims = firstLevelPatchHighDims;
-             prevLevelPatchLowDims = firstLevelPatchLowDims;
         end
         
         %% To parallelize things, we put vocabulary nodes in different sets, and give each to a thread.
@@ -177,51 +147,12 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                      nodeInstances = sort(nodeInstances(sortIdx));
                 end
                 nodeInstances = [bestNodeInstance; nodeInstances]; %#ok<AGROW>
-                
                 instanceImgs = cell(numel(nodeInstances),1);
                 
                 %% Now, we print the rest of the instances.
                 for nodeInstanceItr = 1:numel(nodeInstances)
                      if nodeInstanceItr == 1
                          %% Here, we get the description of the node, and print that.
-                                                  %% Here, we get the description of the node, and print that.
-                             % It is supposed to provide an approximate view that the algorithm has learned.
-%                             currentLevel(labelId).children;
-%                             children = (currentLevel(labelId).children)';
-%                             childrenCoords = zeros(numel(children), 2, 'int32');
-%                             % Find the location of every child based on the
-%                             % first one.
-%                             nodeAdjInfo = currentLevel(labelId).adjInfo;
-%                             for childItr = 2:numel(children)
-%                                  [childrenCoords(childItr, 1), childrenCoords(childItr,2)] = ind2sub(edgeIdMatrixSize, find(edgeIdMatrix == nodeAdjInfo(childItr-1, 3)));
-%                                  childrenCoords(childItr,:) = childrenCoords(childItr,:) - midPointEdgeIdMatrix;
-%                             end
-%                             % We scale the coordinates by a factor based on the
-%                             % current level id. Then, we round them to get 
-%                             % actual image coordinates (relative still).
-%                             childrenCoords = int32(round(double(childrenCoords) * upsampleRatio));
-% 
-%                             %% Then, we perform a simple inhibition process to remove overlapping level 1 instances.
-%                             validNodes = ones(size(children,1),1) > 0;
-%                             numberOfAllNodes = size(children,1);
-%                             for nodeItr2 = 1:(numberOfAllNodes-1)
-%                                 if ~validNodes(nodeItr2) 
-%                                    continue; 
-%                                 end
-%                                 remainingCoords = childrenCoords((nodeItr2+1):end, :);
-%                                 validRemainingNodes = sum((remainingCoords - repmat(childrenCoords(nodeItr2,:), ...
-%                                     numberOfAllNodes - nodeItr2, 1)).^2, 2) >= inhibitionRadiusSq;
-%                                 validNodes((nodeItr2+1):end) = validNodes((nodeItr2+1):end) & validRemainingNodes;
-%                             end
-%                             children = children(validNodes);
-%                             childrenCoords = childrenCoords(validNodes,:);
-%     
-%                             %% Finally, we use previous level's data structures for printing.
-%                             patchLowDims = prevLevelPatchLowDims;
-%                             patchHighDims = prevLevelPatchHighDims;
-%                             avgNodeMasks = avgPrevNodeMasks;
-%                             nodeMasks = prevNodeMasks;
-                         
                          % It is supposed to provide an approximate view that the algorithm has learned.
                          projectedNodes = projectNode([labelId, 0, 0, levelId], vocabulary, inhibitionRadius);
                          children = projectedNodes(:,1);

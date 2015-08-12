@@ -67,7 +67,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'prob'; % If 'euc': Euclidean distance 
+    options.distType = 'euc'; % If 'euc': Euclidean distance 
                                                    % (normalized by number
                                                    % of nonzero pixels)
                                                    % will define the
@@ -185,8 +185,14 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 7;
-    options.articulationsPerCategory = 3;
+    options.categoryLevel = 6; % The level where we switch from 
+                                                  % geometry-based grouping
+                                                  % to category nodes.
+                                                  % In effect, the number
+                                                  % of nodes in the
+                                                  % vocabulary is reduced
+                                                  % drastically. 
+    options.articulationsPerCategory = 3; % We reduced  is this number multipli
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
     options.reconstruction.stoppingCoverage = 0.99; % Between [0.00, 1.00].
