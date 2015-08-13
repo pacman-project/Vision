@@ -24,6 +24,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     reconstructionType = options.reconstructionType;
     instancePerNode = options.vis.instancePerNode-1;
     printTrainRealizations = options.vis.printTrainRealizations;
+    numberOfVocabLevelNodes = double(max([vocabLevel.label]));
     
     filter1 = options.filters{1};
     filtBandCount = size(filter1,3);
@@ -57,7 +58,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     end
     
     %% Create folders to put the cropped original images for each realization in.
-    numberOfNodes = numel(vocabLevel);
+    numberOfNodes = numberOfVocabLevelNodes;
     usedChildren = ones(numberOfNodes, 1) * instancePerNode;
     croppedOrgFolder = [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '/cropped'];
     if ~exist(croppedOrgFolder, 'dir')
@@ -66,12 +67,12 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
     
     %% If not all realizations need to be printed, we only focus on a limited set. 
     if ~printTrainRealizations
-        printedNodes = cell(numel(vocabLevel),1);
+        printedNodes = cell(numberOfVocabLevelNodes,1);
         graphNodeIds = (1:numel(graphLevel))';
         labelIds = cat(1, graphLevel.labelId); 
         imageIds = cat(1, graphLevel.imageId);
         activations = cat(1, graphLevel.activation);
-        for nodeItr = 1:numel(vocabLevel)
+        for nodeItr = 1:numberOfVocabLevelNodes
             relevantIdx = labelIds == nodeItr;
             nodeInstances = graphNodeIds(relevantIdx);
             instanceActivations = activations(relevantIdx);

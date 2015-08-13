@@ -241,15 +241,15 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
             visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
-%             if options.debug
-%                display('........ Visualizing realizations on images...');
-%                if ~isempty(vocabLevel)
-%                     matlabpool close;
-%                     visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
-%                     visualizeCroppedImgs( vocabLevel, levelItr, options);
-%                     matlabpool('open', options.numberOfThreads);
-%                end
-%             end
+            if options.debug
+               display('........ Visualizing realizations on images...');
+               if ~isempty(vocabLevel)
+                    matlabpool close;
+                    visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
+                    visualizeCroppedImgs( vocabLevel, levelItr, options);
+                    matlabpool('open', options.numberOfThreads);
+               end
+            end
             printCloseFilters(newDistanceMatrix, levelItr, options); 
         end
         
