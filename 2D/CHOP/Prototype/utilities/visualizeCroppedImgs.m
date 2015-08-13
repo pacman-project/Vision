@@ -25,13 +25,14 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     if isempty(currentLevel)
        return; 
     end
+    numberOfVocabLevelNodes = double(max([currentLevel.label]));
     
     %% Create output folder structure.
     croppedDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId) '/cropped/'];
     
     %% Combine all compositions and show them within a single image.
     % Learn number of rows/columns.
-    numberOfNodes = numel(currentLevel);
+    numberOfNodes = numberOfVocabLevelNodes;
     if levelId>1
         numberOfNodes = min(visualizedNodes, numberOfNodes);
     end
@@ -40,7 +41,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
 
     % Read cropped images.
     nodeImgs = cell(numberOfNodes,1);
-    for nodeItr = 1:numel(currentLevel)
+    for nodeItr = 1:numberOfVocabLevelNodes
         instanceImgs = cell(instancePerNode-1, 1);
         randomColor = rand(1,3);
         randomColor = randomColor / max(randomColor);

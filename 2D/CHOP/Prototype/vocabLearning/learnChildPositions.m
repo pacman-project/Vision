@@ -16,10 +16,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.07.2015
-function [vocabLevel] = learnChildPositions(vocabLevel, graphLevel, previousLevel)
+function [vocabLevel] = learnChildPositions(vocabLevel, graphLevel, modes)
     numberOfNodes = numel(vocabLevel);
-    previousLevelPos = single(cat(1, previousLevel.position));
-    
     %% For every vocabulary node, go through all the graph nodes and learn statistics of children.
     % First, we obtain instances for every abstract node.
     graphNodeArr = cell(numberOfNodes,1);
@@ -31,29 +29,21 @@ function [vocabLevel] = learnChildPositions(vocabLevel, graphLevel, previousLeve
     % Second, we go through each node, and collect statistics.
     for vocabItr = 1:numberOfNodes
         children = vocabLevel(vocabItr).children;
-        instances = graphNodeArr{vocabItr};
-        instanceChildren = cat(1, instances.children);
-        instancePrecisePositions = cat(1, instances.precisePosition);
-        instanceMappings = cat(1, instances.mapping);
+        edges = vocabLevel(vocabItr).adjInfo;
         meanChildrenPos = zeros(numel(children),2, 'single');
-        meanChildrenStd = zeros(numel(children),1, 'single');
+        meanChildrenCov= zeros(numel(children),4, 'single');
         
         % Calculate mean positions for children and save them.
-        for childItr = 1:numel(children)
-            assignedChildren = instanceChildren(instanceMappings==childItr);
-            assignedChildrenPos = instancePrecisePositions - previousLevelPos(assignedChildren, :);
-            
+        for childItr = 2:numel(children)
+             relevantMode = modes(modes(:,1) == children(1) & modes(:,2) == children(childItr) & modes(:,3) == edges(childItr-1, 3), :);
+
             % Now, we have the data. We can measure the mean and std of a
             % gaussian.
-            meanChildrenPos(childItr,:) = mean(assignedChildrenPos, 1);
-            
-            % Get std. 
-            relativeChildrenPos = assignedChildrenPos - ...
-                repmat(meanChildrenPos(childItr,:), size(assignedChildrenPos,1), 1);
-            meanChildrenStd(childItr,:) = sqrt(sum(sum((relativeChildrenPos.^2), 2)) ...
-                / size(assignedChildrenPos,1));
+            meanChildrenPos(childItr,:) = relevantMode(10:11);
+            meanChildrenCov(childItr,:) = relevantMode(6:9);
         end
-        vocabLevel(vocabItr).childrenPosMean = meanChildrenPos;
-        vocabLevel(vocabItr).childrenPosStd = meanChildrenStd;
+        meanLocation = mean(meanChildrenPos,1);
+        vocabLevel(vocabItr).childrenPosMean = meanChildrenPos - repmat(meanLocation, size(meanChildrenPos,1), 1);
+        vocabLevel(vocabItr).childrenPosCov = meanChildrenCov;
     end
 end

@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, levelId, numberOfFirstLevelNodes, ~, options)
+function [] = visualizeORNodes( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, levelId, numberOfFirstLevelNodes, ~, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -31,7 +31,6 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     for itr = 1:max(vocabLevelLabels)
          vocabLevelIdx(itr) = find(vocabLevelLabels == itr, 1, 'first');
     end
-    currentLevel = currentLevel(vocabLevelIdx);
     
     % These parameter relate to drawing the approximate model of each node
     % in the vocabulary.
@@ -41,12 +40,6 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
        inhibitionRadius = options.auto.inhibitionRadius;
     end
     
-    % For the first level, we only print a single instance.
-    if levelId == 1
-        instanceImgDim = 1; 
-    else
-        instanceImgDim = round(sqrt(instancePerNode));
-    end
     % We decrease this number by 1, since the best match is printed twice.
     instancePerNode = instancePerNode-1;
     filterType = options.filterType;
@@ -167,30 +160,6 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                          patchHighDims = firstLevelPatchHighDims;
                          avgNodeMasks = avgFirstNodeMasks;
                          nodeMasks = firstNodeMasks;
-                     else
-                         nodeInstance = nodeInstances(nodeInstanceItr);
-                         instanceLeafNodes = leafNodeSets{nodeInstance};
-                         instancePos = mat2cell(centerPos(nodeInstance,:), ones(1, numel(nodeInstance)), 2);
-                         instanceLeafNodeSets = leafNodeSets(nodeInstance,:);
-                         instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
-                             repmat(y, numel(x), 1), instanceLeafNodeSets, instancePos, ...
-                             'UniformOutput', false);
-                         children = leafNodeLabelIds(cat(2, instanceLeafNodeSets{:}));
-                         childrenCoords= cat(1, instanceLeafNodePos{:});
-
-                         % Trim children if total number is more than a threshold.
-                         if numel(children) > childrenPerNode
-                            children = children(1:childrenPerNode,:);
-                            childrenCoords = childrenCoords(1:childrenPerNode,:);
-                         end
-                     end
-                     
-                     %% We use first level's data structures for printing, when printing the instances.
-                     if nodeInstanceItr == 2
-                        patchLowDims = firstLevelPatchLowDims;
-                        patchHighDims = firstLevelPatchHighDims;
-                        avgNodeMasks = avgFirstNodeMasks;
-                        nodeMasks = firstNodeMasks;
                      end
                      
                     %% At this point, we have the relative coordinates of all children. 
@@ -301,8 +270,6 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                         imwrite(falseColorImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_falseColor.png']);
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_' num2str(currentLevel(nodeSet(nodeItr)).mdlScore) '.png']);
                         imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
-                    else
-                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_var_' num2str(nodeInstanceItr) '.png']);
                     end
                     
                     % Save all instances. We'll print them to another
@@ -356,10 +323,8 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                 finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
                     (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
                 % A make-up to fill in NaNs (empty points).
-      %          fillInValue = 0;
                 fillInValues = double(finalTempMask(finalTempMask>0 & finalTempMask<255));
                 fillInValue = fillInValues(1);
-           %     fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
                 finalTempMask(finalTempMask == 0) = fillInValue;
                 instanceImgs{instItr} = finalTempMask;
             end
@@ -370,56 +335,14 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     % Using the maximum dimensions, transform each composition image to the
     % same size. 
     overallImage = NaN((rowImgCount)*(compMaskSize(1)+1)+1, colImgCount * (compMaskSize(2)+1)+1, dim3);
-    overallInstanceImage = NaN((smallRowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, smallColImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
- %   overallInstanceRealImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
-    for nodeItr = 1:numberOfNodes
-        instanceImgs = nodeImgs{nodeItr};
-        for instItr = 1:numel(instanceImgs)
-            compFinalMask = instanceImgs{instItr};
-
-            % If this feature is a dead one, reduce illumination by three.
-            if isAutoFilter && ismember(nodeItr, deadFeatures)
-                compFinalMask = uint8(round(compFinalMask * 0.33));
-            end
-
-            % Add the composition's mask to the overall mask image.
-            rowStart = 2 + floor((nodeItr-1)/colImgCount)*(compMaskSize(1)+1);
-            colStart = 2 + rem(nodeItr-1, colImgCount) * (compMaskSize(2)+1);
-            rowStart2= 2 + floor((nodeItr-1)/smallColImgCount)*(compMaskSize(1)+1) *instanceImgDim ;
-            colStart2 = 2 + rem(nodeItr-1, smallColImgCount) * (compMaskSize(2)+1) * instanceImgDim;
-            if instItr == 1
-                overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
-                    colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
-            end
-            %We're writing sample instances to other images. Find where to
-            %write them and put them in their location.
-            rowInstStart = floor((instItr - 1)/instanceImgDim)*(compMaskSize(1)+1);
-            colInstStart = rem(instItr-1, instanceImgDim) * (compMaskSize(2)+1);
-            if nodeItr<=visualizedNodes
-                overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+compMaskSize(1)-1), ...
-                    (colStart2+colInstStart):((colStart2+colInstStart)+compMaskSize(2)-1), :) = compFinalMask;
-            end
-        end
-        if ~isempty(instanceImgs)
-            imwrite(instanceImgs{1}, [reconstructionDir num2str(nodeItr) '_uni.png']);
-        end
-    end
-
     clear instanceImgs nodeImgs setImgs;
 
     % A final make up in order to separate masks from each other by 1s.
-    whiteRowIdx = 1:(compMaskSize(1)+1) *instanceImgDim:size(overallInstanceImage,1);
-    whiteColIdx = 1:(compMaskSize(2)+1) *instanceImgDim:size(overallInstanceImage,2);
     overallImage(isnan(overallImage)) = 255;
     overallImage = uint8(overallImage);
-    overallInstanceImage(isnan(overallInstanceImage)) = 0;
-    overallInstanceImage(:, whiteColIdx, :) = 255;
-    overallInstanceImage(whiteRowIdx, :, :) = 255;
-    overallInstanceImage = uint8(overallInstanceImage);
 
     % Then, write the compositions the final image.
     imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
-    imwrite(overallInstanceImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb_variations.png']);
 end
 
 

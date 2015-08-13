@@ -24,7 +24,7 @@ classdef VocabNode
                            % perform precise reconstruction of nodes. (Nx2,
                            % with each row representing x, y position of a
                            % child.
-        childrenPosStd@single % The relative position of the children with 
+        childrenPosCov@single % The relative position of the children with 
                            % respect to the center of gravity. Used to
                            % perform precise reconstruction of nodes. (Nx2,
                            % with each row representing x, y position of a

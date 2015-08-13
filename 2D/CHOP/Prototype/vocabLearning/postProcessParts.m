@@ -28,7 +28,7 @@
 %> Ver 1.0 on 06.05.2014
 %> Update on 23.02.2015 Added comments, performance boost.
 %> Update on 25.02.2015 Added support for single node subs.
-function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, options)
+function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, optimalThreshold, options)
     edgeCoords = options.edgeCoords;
     edgeQuantize = options.edgeQuantize;
     distType = options.distType;
@@ -52,8 +52,9 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     if numel(unique(labelIds)) == 1
         frequencies = numel(labelIds);
     else
-%        frequencies = [vocabLevel.mdlScore];
-        frequencies =  [vocabLevel.mdlScore] .* hist(labelIds, 1:numel(vocabLevel));
+        frequencies = [vocabLevel.mdlScore];
+        % CHECK IF MDLSCORE is NORMALIZED IN EVALUATE SUBS FINALLY.
+%        frequencies =  [vocabLevel.mdlScore] .* hist(labelIds, 1:numel(vocabLevel));
     end
     [~, vocabLevelSortIdx] = sort(frequencies, 'descend');
     vocabLevel = vocabLevel(vocabLevelSortIdx);
@@ -73,7 +74,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     graphLevel = graphLevel(sortedIdx);
     
     %% Find the distance matrix among the remaining parts in vocabLevel.
-    if options.subdue.threshold > 0 && nodeSimilarityAllowed
+    if optimalThreshold > 0 && nodeSimilarityAllowed
         edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
         numberOfNodes = numel(vocabLevel);
         vocabNodeLabels = {vocabLevel.children};
@@ -170,6 +171,29 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
         newDistanceMatrix = inf(numel(vocabLevel), 'single');
         newDistanceMatrix(1:numel(vocabLevel)+1:numel(vocabLevel)*numel(vocabLevel)) = 0;
     end
+    
+    %% Finally, we implement the OR nodes here.
+    % We apply agglomerative clustering on the generated distance matrix,
+    % and group parts based on their similarities. We have a limited number
+    % of resources when selecting parts.
+    newDistanceMatrixVect = squareform(newDistanceMatrix);
+    Z = linkage(newDistanceMatrixVect, 'average');
+    clusters = cluster(Z, 'maxclust', options.reconstruction.numberOfReconstructiveSubs);
+    
+    % Combine parts falling in the same clusters by setting their distances to zero.
+    [~, IA, IC] = unique(clusters, 'stable');
+    condensedNewDistanceMatrix = newDistanceMatrix(IA,IA);
+    if numel(unique(clusters)) ~= size(newDistanceMatrix,1)
+         for clusterItr1 = 1:numel(clusters)
+              for clusterItr2 = 1:numel(clusters)
+                   newDistanceMatrix(clusterItr1, clusterItr2) = condensedNewDistanceMatrix(IC(clusterItr1), IC(clusterItr2));
+                   newDistanceMatrix(clusterItr2, clusterItr1) = newDistanceMatrix(clusterItr1, clusterItr2);
+              end
+         end
+    end
+    labelArr = num2cell(int32(IC));
+    [vocabLevel.label] = deal(labelArr{:});
+    newDistanceMatrix = newDistanceMatrix(IA, IA);
 end
 
 %> Name: InexactMatch

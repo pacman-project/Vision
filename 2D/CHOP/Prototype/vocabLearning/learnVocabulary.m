@@ -23,11 +23,12 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
-                                                            options, fileList)
+function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
+                                                            options, fileList, modes)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
+    allModes = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
     graphLevelIndices = cell(options.maxLevels,1);
@@ -37,6 +38,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
+    allModes(1) = {modes};
     
     %% Create distance matrices of the first level.
     if options.nodeSimilarityAllowed
@@ -122,10 +124,16 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
+           allModes = allModes(1:(levelItr-1), :);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
            graphLevelIndices = graphLevelIndices(1:(levelItr-1),:);
            optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            break; 
+        end
+        
+        %% If category level is reached, we reduce the number of desired nodes substantially.
+        if levelItr == options.categoryLevel
+             options.reconstruction.numberOfReconstructiveSubs = options.articulationsPerCategory * options.numberOfCategories;
         end
         
         %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
@@ -141,6 +149,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         if isempty(vocabLevel)
            % Write previous level's appearances to the output folder.
            vocabulary = vocabulary(1:(levelItr-1),:);
+           allModes = allModes(1:(levelItr-1), :);
            optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
@@ -167,7 +176,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
             display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
-            [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, options);
+            [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, optimalThreshold, options);
             graphLevelIndices{levelItr} = graphLabelAssgnArr;
             distanceMatrices{levelItr} = newDistanceMatrix;
         else
@@ -181,17 +190,18 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
         if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid')
             options.edgeType = 'centroid';
+            options.edgeNoveltyThr = 0.5;
             display('........ Switching to -centroid- type edges!');
             edgeChangeLevel = levelItr;
         end
         
         % display debugging info.
         display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
-        display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(vocabLevel)) ' compositions.']);
+        display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
         %% Step 2.4: In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
-        vocabLevel = learnChildPositions(vocabLevel, graphLevel, previousLevel);
+        vocabLevel = learnChildPositions(vocabLevel, graphLevel, allModes{levelItr-1});
         
         %% Step 2.5: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
@@ -199,6 +209,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         
         if levelItr == options.maxLevels
             vocabulary = vocabulary(1:(levelItr),:);
+            allModes = allModes(1:(levelItr), :);
             optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
@@ -211,12 +222,25 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         [mainGraph] = extractEdges(mainGraph, options, levelItr);
         graphLevel = mainGraph{levelItr};
         
+        %% Here, we bring back statistical learning with mean/variance.
+        modes = learnModes(vocabLevel, graphLevel, newDistanceMatrix, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder);
+        graphLevel = assignEdgeLabels(vocabLevel, graphLevel, modes, options.edgeCoords);
+        mainGraph{levelItr} = graphLevel;
+        allModes{levelItr} = modes;
+        
+        %% Finally, we process graphLevel's labelIds to reflect updated labels (OR Node Labels).
+        vocabNodeLabels = [vocabLevel.label];
+        updatedLabelIds = num2cell(vocabNodeLabels([graphLevel.labelId]));
+        [graphLevel.labelId] = deal(updatedLabelIds{:});
+        mainGraph{levelItr} = graphLevel;
+        
         %% Print vocabulary and graph level to output images (reconstruction).
         if ~isempty(newDistanceMatrix)
            imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
         end
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
+ %           visualizeORNodes( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             if options.debug
                display('........ Visualizing realizations on images...');
@@ -238,6 +262,7 @@ function [ vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLeve
         newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));
         if ~newEdgesAvailable
             vocabulary = vocabulary(1:(levelItr),:);
+            allModes = allModes(1:(levelItr), :);
             optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);

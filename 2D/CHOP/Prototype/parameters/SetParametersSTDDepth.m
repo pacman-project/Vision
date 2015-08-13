@@ -12,7 +12,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersETHZ( datasetName, options )
+function [ options ] = SetParametersSTDShape( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -20,7 +20,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
@@ -47,21 +47,21 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.autoFilterSize = 8;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 20;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-1;
-    options.autoFilterThr = 0.1;       % Min response threshold for convolved 
+    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-3;
+    options.autoFilterThr = 0.05;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
     options.autoFilterPatchCount = 100000; % Number of random patches used 
                                            % to find auto-detected filters.
-    options.auto.stride = 2;           % Stride to use when extracting first-
+    options.auto.stride = 5;           % Stride to use when extracting first-
                                        % level features. Only works in
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.                                 
-    options.auto.deadFeatureStd = 0.05; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.35; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform

@@ -103,8 +103,13 @@ function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, 
         end
     else
         % Pre-process the image blocks by whitening them.
-        imgCols2 = imgCols - muArr;
-        imgCols2 = imgCols2 * whMat;
+        
+        if strcmp(options.autoNormalize, 'whiten')
+             imgCols2 = imgCols - muArr;
+             imgCols2 = imgCols2 * whMat;
+        else
+             imgCols2 = normalizeData(imgCols);
+        end
 
         % Instead of convolving imgCols2 with the filter, we simply
         % assign a label(filter id) to each row in imgCols2 by
@@ -237,4 +242,20 @@ function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, 
        nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY])};
     end
     nodes = nodes(cellfun(@(x) ~isempty(x), nodes(:,1)),:);
+end
+
+function patches = normalizeData(patches)
+
+     % Squash data to [0.1, 0.9] since we use sigmoid as the activation
+     % function in the output layer
+
+     % Remove DC (mean of images). 
+     patches = bsxfun(@minus, patches, mean(patches));
+
+     % Truncate to +/-3 standard deviations and scale to -1 to 1
+     pstd = 3 * std(patches(:));
+     patches = max(min(patches, pstd), -pstd) / pstd;
+
+     % Rescale from [-1,1] to [0.1,0.9]
+     patches = (patches + 1) * 0.4 + 0.1;
 end

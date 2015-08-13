@@ -204,6 +204,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % We select options.validationFolds (number) non-overlapping sets
         % from each category, and assign validation set indices for these
         % images.
+        options.numberOfCategories = numel(categoryNames);
         if options.validationFlag
             validationIdx = zeros(numel(imageSigns),1, 'uint8');
             for categoryItr = 1:numel(categoryNames)
@@ -251,11 +252,16 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [mainGraph] = extractEdges(mainGraph, options, 1);
         graphLevel = mainGraph{1};
         
+        %% Here, we bring back statistical learning with mean/variance.
+        modes = learnModes(vocabLevel, graphLevel, [], options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder);
+        graphLevel = assignEdgeLabels(vocabLevel, graphLevel, modes, options.edgeCoords);
+        mainGraph{1} = graphLevel;
+        
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryNames', 'categoryArrIdx', 'validationIdx');
-        [vocabulary, mainGraph, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary(vocabLevel, graphLevel, leafNodes, ...
-                                        options, trainingFileNames); %#ok<NASGU,ASGLU>
+        [vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary(vocabLevel, graphLevel, leafNodes, ...
+                                        options, trainingFileNames, modes); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
         % Export realizations into easily-readable arrays.
@@ -263,7 +269,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'optimalThresholds', 'distanceMatrices', 'graphLevelIndices', 'trainingFileNames', 'categoryNames', 'options', 'edgeChangeLevel');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'optimalThresholds', 'distanceMatrices', 'graphLevelIndices', 'trainingFileNames', 'categoryNames', 'options', 'edgeChangeLevel');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'validationIdx', 'poseArr', '-append'); 

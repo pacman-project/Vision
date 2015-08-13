@@ -22,7 +22,7 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 %> Separate mode learning from this function on 28.01.2014
-function [nodeEdges] = extractEdgesInference(nodes, leafNodeArr, firstLevelAdjNodes, options, currentLevelId)
+function [nodeEdges] = extractEdgesInference(nodes, modes, leafNodeArr, firstLevelAdjNodes, options, currentLevelId)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
     scale = (1/options.scaling)^(currentLevelId-1);
@@ -138,6 +138,43 @@ function [nodeEdges] = extractEdgesInference(nodes, leafNodeArr, firstLevelAdjNo
     % Due to some approximations in neighborhood calculations, some edgeIds might 
     % have been assigned as 0. Eliminate such cases.
     edges = edges(edgeIds>0,:);
+    
+    %% Finally, we assign modes to the edges.
+     % Edges empty, do nothing.
+     if ~isempty(edges)
+          allEdgeCoords = options.edgeCoords;
+          edgeNodeLabels = nodeIds(edges(:, 1:2));
+          if size(edgeNodeLabels,2) ~= 2
+               edgeNodeLabels = edgeNodeLabels';
+          end
+
+          % Assign each edge a to a relevant mode.
+          validEdgeIdx = ones(size(edges,1),1) > 0;
+          for edgeItr = 1:size(edges,1)
+               relevantModes = modes(modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2), :);
+
+               % If no modes exist, we delete edges.
+               if isempty(relevantModes)
+                    validEdgeIdx(edgeItr) = 0;
+                    continue;
+               end
+
+               % Go through every relevant mode, and get the most likely
+               % distribution's id.
+               probs = zeros(size(relevantModes,1),1);
+               for relevantModeItr = 1:size(relevantModes,1)
+                    try
+                         probs(relevantModeItr) = mvnpdf(allEdgeCoords(edges(edgeItr,3), :), relevantModes(relevantModeItr,4:5), [relevantModes(relevantModeItr,6:7); relevantModes(relevantModeItr,8:9)]);
+                    catch %#ok<CTCH>
+                         probs(relevantModeItr) = mvnpdf(allEdgeCoords(edges(edgeItr,3), :), relevantModes(relevantModeItr,4:5), relevantModes(relevantModeItr,[6, 9]));
+                    end
+               end
+               [~, newLabelIdx] = max(probs);
+               newLabel = int32(relevantModes(newLabelIdx(1),3));
+               edges(edgeItr,3) = newLabel;
+          end
+          edges = edges(validEdgeIdx, :);
+     end
 
    %% Assign all edges to their respective nodes in the final graph.
    if ~isempty(edges)
