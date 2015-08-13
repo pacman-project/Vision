@@ -13,12 +13,22 @@
 %> Updates
 %> Ver 1.0 on 12.08.2015
 function [] = printFilters( W, dimensions, datasetName )
-    currentFileName = mfilename('fullpath');
-    [currentPath, ~, ~] = fileparts(currentFileName);
-    visFolderName = [currentPath '/filters/vis/' datasetName];
-    filterFolderName = [currentPath '/filters/auto/' datasetName];
+    filterFolderName = [pwd '/filters/auto'];
     
-    save([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'mu', 'invMat', 'whMat');
+    for filterItr = 1:size(W,1)
+            gaborFilt = reshape(W(filterItr,:), dimensions);                                             
+            printedFilt = uint8(round(255 * (gaborFilt - min(min(min(gaborFilt)))) / (max(max(max(gaborFilt))) - min(min(min(gaborFilt))))));
+            imwrite(printedFilt, [filterFolderName '/filt' num2str(filterItr) '.png']);
+            save([filterFolderName  '/filt' num2str(filterItr) '.mat'], 'gaborFilt');
+    end
     
+    C = [];
+    mu = [];
+    invMat = [];
+    whMat = [];
+    if ~exist([pwd  '/filters/vis/' datasetName], 'dir')
+         mkdir([pwd  '/filters/vis/' datasetName]);
+    end
+    save([pwd  '/filters/vis/' datasetName '/C.mat'], 'C', 'mu', 'invMat', 'whMat');
 end
 

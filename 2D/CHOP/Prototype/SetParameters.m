@@ -27,7 +27,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                             % this set will be used as
                                             % negative examples in
                                             % training.
-                                 
+    %% ========== TO BE MIGRATED TO INDIVIDUAL PARAMETER FILES ==========                    
+    options.autoNormalize = 'normalize'; %Or whiten
+    
     %% ========== VALIDATION PARAMETERS ==========
     options.validationFlag = true; % If true, a subset of the training
                                     % set is used as a validation

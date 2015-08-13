@@ -240,6 +240,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         end
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
+ %           visualizeORNodes( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             if options.debug
                display('........ Visualizing realizations on images...');
