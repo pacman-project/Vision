@@ -105,11 +105,11 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         optimalThresholds = optimalThresholds; %#ok<NODEF,ASGSL>
         categoryNames = categoryNames; %#ok<ASGSL>
         edgeChangeLevel = edgeChangeLevel; %#ok<ASGSL,NODEF>
-        allModes = allModes;
+        allModes = allModes; %#ok<ASGSL,NODEF>
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
-        for testImgItr = 1:size(testFileNames,1) 
+        parfor testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options); 

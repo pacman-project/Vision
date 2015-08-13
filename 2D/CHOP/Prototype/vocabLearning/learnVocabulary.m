@@ -197,7 +197,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         % display debugging info.
         display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
-        display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(numel(vocabLevel)) ' compositions.']);
+        display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
         %% Step 2.4: In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
@@ -223,29 +223,35 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         graphLevel = mainGraph{levelItr};
         
         %% Here, we bring back statistical learning with mean/variance.
-        modes = learnModes(graphLevel, newDistanceMatrix, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder);
-        graphLevel = assignEdgeLabels(graphLevel, modes, options.edgeCoords);
+        modes = learnModes(vocabLevel, graphLevel, newDistanceMatrix, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder);
+        graphLevel = assignEdgeLabels(vocabLevel, graphLevel, modes, options.edgeCoords);
         mainGraph{levelItr} = graphLevel;
         allModes{levelItr} = modes;
         
+        %% Finally, we process graphLevel's labelIds to reflect updated labels (OR Node Labels).
+        vocabNodeLabels = [vocabLevel.label];
+        updatedLabelIds = num2cell(vocabNodeLabels([graphLevel.labelId]));
+        [graphLevel.labelId] = deal(updatedLabelIds{:});
+        mainGraph{levelItr} = graphLevel;
+        
         %% Print vocabulary and graph level to output images (reconstruction).
-        if ~isempty(newDistanceMatrix)
-           imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
-        end
-        if ~isempty(vocabLevel)
-            display('........ Visualizing previous levels...');
-            visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
-            if options.debug
-               display('........ Visualizing realizations on images...');
-               if ~isempty(vocabLevel)
-                    matlabpool close;
-                    visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
-                    visualizeCroppedImgs( vocabLevel, levelItr, options);
-                    matlabpool('open', options.numberOfThreads);
-               end
-            end
-            printCloseFilters(newDistanceMatrix, levelItr, options); 
-        end
+%         if ~isempty(newDistanceMatrix)
+%            imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
+%         end
+%         if ~isempty(vocabLevel)
+%             display('........ Visualizing previous levels...');
+%             visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+%             if options.debug
+%                display('........ Visualizing realizations on images...');
+%                if ~isempty(vocabLevel)
+%                     matlabpool close;
+%                     visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
+%                     visualizeCroppedImgs( vocabLevel, levelItr, options);
+%                     matlabpool('open', options.numberOfThreads);
+%                end
+%             end
+%             printCloseFilters(newDistanceMatrix, levelItr, options); 
+%         end
         
         % Open/close matlabpool to save memory.
         matlabpool close;

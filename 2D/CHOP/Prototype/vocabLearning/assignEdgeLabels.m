@@ -1,13 +1,14 @@
-function [ graphLevel ] = assignEdgeLabels( graphLevel, modes, edgeCoords)
+function [ graphLevel ] = assignEdgeLabels(vocabLevel, graphLevel, modes, edgeCoords)
      allEdges = cat(1, graphLevel.adjInfo);
-     nodeIds = [graphLevel.labelId]';
+     vocabLevelLabels = [vocabLevel.label]';
+     nodeIds = vocabLevelLabels([graphLevel.labelId]');
      
      if isempty(allEdges)
           return;
      end
      
      % Get node ids of edges.
-     for graphLevelItr = 1:numel(graphLevel)
+     parfor graphLevelItr = 1:numel(graphLevel)
           edges = graphLevel(graphLevelItr).adjInfo;
 
           % Edges empty, do nothing.

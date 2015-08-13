@@ -17,7 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 21.01.2014
-function [modes] = learnModes(currentLevel, newDistanceMatrix, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder)
+function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder)
     display('Learning modes...');
     maxSamplesPerMode = 500;
     minSamplesPerMode = 10;   
@@ -32,13 +32,7 @@ function [modes] = learnModes(currentLevel, newDistanceMatrix, edgeCoords, edgeI
     
     % Create redundancy vector, matching or nodes.
     if ~isempty(newDistanceMatrix)
-         IC = 1:size(newDistanceMatrix,1);
-         for clusterItr = 1:size(newDistanceMatrix,1)
-              assignedCluster = find(newDistanceMatrix(clusterItr, 1:clusterItr) < 0.001, 1, 'first');
-              if assignedCluster ~= clusterItr
-                   IC(clusterItr) = assignedCluster;
-              end
-         end
+         IC = [vocabLevel.label];
     else
          IC = 1:numel(unique(nodeIds));
     end
@@ -162,22 +156,22 @@ function [modes] = learnModes(currentLevel, newDistanceMatrix, edgeCoords, edgeI
         warning(w);
     end
     clear uniqueEdgeSamples;
-%    modes = cat(1, modes{:});
-    numberOfVocabNodes = numel(IC);
-    newModes = cell(numberOfVocabNodes * numberOfVocabNodes, 1);
-    for clusterItr = 1:numberOfVocabNodes
-         for clusterItr2 = 1:numberOfVocabNodes
-              idx = find(uniqueEdgeTypes(:,1) == IC(clusterItr) & uniqueEdgeTypes(:,2) == IC(clusterItr2));
-              if ~isempty(idx)
-                   idx = idx(1);
-                   tempModes = modes{idx};
-                   tempModes(:,1) = clusterItr;
-                   tempModes(:,2) = clusterItr2;
-                   newModes{(clusterItr-1) * numberOfVocabNodes + clusterItr2} = tempModes;
-              end
-         end
-    end
-    modes = cat(1, newModes{:});
+    modes = cat(1, modes{:});
+%     numberOfVocabNodes = numel(IC);
+%     newModes = cell(numberOfVocabNodes * numberOfVocabNodes, 1);
+%     for clusterItr = 1:numberOfVocabNodes
+%          for clusterItr2 = 1:numberOfVocabNodes
+%               idx = find(uniqueEdgeTypes(:,1) == IC(clusterItr) & uniqueEdgeTypes(:,2) == IC(clusterItr2));
+%               if ~isempty(idx)
+%                    idx = idx(1);
+%                    tempModes = modes{idx};
+%                    tempModes(:,1) = clusterItr;
+%                    tempModes(:,2) = clusterItr2;
+%                    newModes{(clusterItr-1) * numberOfVocabNodes + clusterItr2} = tempModes;
+%               end
+%          end
+%     end
+%     modes = cat(1, newModes{:});
         
 %     %% Add reverse modes to the modes array.
 %     reversedModes = modes(modes(:,1) ~= modes(:,2),:);

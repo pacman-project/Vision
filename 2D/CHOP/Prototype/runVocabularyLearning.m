@@ -253,8 +253,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         graphLevel = mainGraph{1};
         
         %% Here, we bring back statistical learning with mean/variance.
-        modes = learnModes(graphLevel, [], options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder);
-        graphLevel = assignEdgeLabels(graphLevel, modes, options.edgeCoords);
+        modes = learnModes(vocabLevel, graphLevel, [], options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder);
+        graphLevel = assignEdgeLabels(vocabLevel, graphLevel, modes, options.edgeCoords);
         mainGraph{1} = graphLevel;
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========

@@ -106,7 +106,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.67;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -201,7 +201,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 300; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -285,7 +285,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 30000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
