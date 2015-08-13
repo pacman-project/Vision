@@ -235,12 +235,12 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         mainGraph{levelItr} = graphLevel;
         
         %% Print vocabulary and graph level to output images (reconstruction).
-%         if ~isempty(newDistanceMatrix)
-%            imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
-%         end
-%         if ~isempty(vocabLevel)
-%             display('........ Visualizing previous levels...');
-%             visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+        if ~isempty(newDistanceMatrix)
+           imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
+        end
+        if ~isempty(vocabLevel)
+            display('........ Visualizing previous levels...');
+            visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
 %             if options.debug
 %                display('........ Visualizing realizations on images...');
 %                if ~isempty(vocabLevel)
@@ -250,8 +250,8 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
 %                     matlabpool('open', options.numberOfThreads);
 %                end
 %             end
-%             printCloseFilters(newDistanceMatrix, levelItr, options); 
-%         end
+            printCloseFilters(newDistanceMatrix, levelItr, options); 
+        end
         
         % Open/close matlabpool to save memory.
         matlabpool close;

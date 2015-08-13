@@ -26,6 +26,12 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     childrenPerNode = options.vis.nodeReconstructionChildren;
     instancePerNode = options.vis.instancePerNode;
     visualizedNodes = options.vis.visualizedNodes;
+    vocabLevelLabels = [currentLevel.label];
+    vocabLevelIdx = zeros(max(vocabLevelLabels),1);
+    for itr = 1:max(vocabLevelLabels)
+         vocabLevelIdx(itr) = find(vocabLevelLabels == itr, 1, 'first');
+    end
+    currentLevel = currentLevel(vocabLevelIdx);
     
     % These parameter relate to drawing the approximate model of each node
     % in the vocabulary.
@@ -74,7 +80,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     %% In level 1, only print low level filters as first n nodes.
     if levelId == 1
         filterDir = [currentFolder '/filters/' options.filterType '/'];
-        numberOfNodes = numel(currentLevel);
+        numberOfNodes = double(max(vocabLevelLabels));
         nodeImgs = cell(numberOfNodes,1);
         for nodeItr = 1:numberOfNodes
             mask = double(imread([filterDir 'filt' num2str(nodeItr) '.png']));
@@ -86,7 +92,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
         %% In other levels, combine the nodes of previous levels depending on mode info and visualize current level.
         % Read previous layer's masks.
         firstLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(1) '/reconstruction/'];
-        numberOfNodes = numel(currentLevel);
+        numberOfNodes = double(max(vocabLevelLabels));
         firstNodeMasks = cell(numberOfFirstLevelNodes,1);
         avgFirstNodeMasks = cell(numberOfFirstLevelNodes,1);
         firstLevelPatchLowDims = zeros(numberOfFirstLevelNodes,2);
