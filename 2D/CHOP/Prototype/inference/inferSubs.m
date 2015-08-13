@@ -51,6 +51,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, nod
         vocabRealizationsActivation = cell(numel(vocabLevel),1);
         nodeDistanceMatrix = distanceMatrices{vocabLevelItr-1};
         modes = allModes{vocabLevelItr-1};
+        vocabLevelLabels = [vocabLevel.label];
         
        %% Here, we find edges for the nodes in the vocabulary. 
        % Check the level we need to swith to centroid type edges,
@@ -211,7 +212,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, nod
            end
         end
         
-        %% We do two things here in order to eliminate number of nodes.]
+        %% We do two things here in order to reduce number of nodes.]
         % Step zero: Get the list of leaf nodes for every instance.
         instanceOffset = 1;
         newLeafNodes = cell(numberOfInstances,1);
@@ -307,6 +308,9 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, nod
         sortedNewPrecisePositions = sortedNewPrecisePositions(idx,:);
         sortedLeafNodeArr = sortedLeafNodeArr(idx,:);
         sortedActivationArr = sortedActivationArr(idx,:);
+        
+        % Assign OR node labels to parts.
+        sortedNewNodes(:,1) = vocabLevelLabels(sortedNewNodes(:,1));
        
         % Write to output and move on to the next level.
         allNodes(vocabLevelItr) = {sortedNewNodes};

@@ -185,7 +185,7 @@ function [ options ] = SetParametersETHZ( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 6; % The level where we switch from 
+    options.categoryLevel = 8; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
