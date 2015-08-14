@@ -20,7 +20,7 @@
 %> Ver 1.1 on 03.12.2013 Response inhibition added.
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
 %> Ver 1.3 on 17.01.2014 GT use implemented.
-function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, options )
+function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNodes( img, gtFileName, options )
     %% Step 1: Get grayscaled image and assign method parameters.
     if strcmp(options.filterType, 'gabor')
         if size(img,3)>1
@@ -185,8 +185,8 @@ function [ nodes, activationImg, nodeActivations ] = getNodes( img, gtFileName, 
     end
     
 %   %% Write smooth object boundaries to an image based on responseImgs.
-%    smoothedImg = max(responseImgs,[],3);
-%    smoothedImg = (smoothedImg - min(min(smoothedImg))) / (max(max(smoothedImg)) - min(min(smoothedImg)));
+    smoothActivationImg = max(responseImgs,[],3);
+    smoothActivationImg = (smoothActivationImg - min(min(smoothActivationImg))) / (max(max(smoothActivationImg)) - min(min(smoothActivationImg)));
    
    %% Inhibit weak responses in vicinity of powerful peaks.
     if strcmp(options.filterType, 'gabor')

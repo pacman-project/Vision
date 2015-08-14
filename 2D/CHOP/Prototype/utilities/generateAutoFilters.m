@@ -96,7 +96,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
 
         %% Cluster whitened samples to get cluster centers.
         display('Clustering features...');
-        opts = statset('MaxIter', 100);
+        opts = statset('MaxIter', 200);
         [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', ...
             'EmptyAction', 'Singleton', 'Replicates', 3, 'Display', 'iter', 'Options', opts);
 
@@ -116,7 +116,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         visY * options.autoFilterSize + (visY-1), round(size(C,2)/(options.autoFilterSize^2))];
     finalImage = zeros(imageSize);
     filterItr = 1;
-    visC = C;
+    visC = C *invMat + repmat(mu, size( C,1),1);
     for xItr = 1:visX
         for yItr = 1:visY
             if ((xItr-1)*visY)+yItr > numberOfFilters
@@ -124,7 +124,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
             end
             gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]); %#ok<NASGU>
             printedGaborFilt = reshape(visC(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]);                                             
-            printedGaborFilt = uint8(round(255 * (printedGaborFilt - min(min(min(printedGaborFilt)))) / (max(max(max(printedGaborFilt))) - min(min(min(printedGaborFilt))))));
+            printedGaborFilt = uint8(round(printedGaborFilt));
 	    finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
                  ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = printedGaborFilt;
             imwrite(printedGaborFilt, [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);

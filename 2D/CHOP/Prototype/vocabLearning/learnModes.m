@@ -34,7 +34,7 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
     if ~isempty(newDistanceMatrix)
          IC = [vocabLevel.label];
     else
-         IC = 1:numel(unique(nodeIds));
+         IC = [vocabLevel.label];
     end
     
     % If no edges exist, return.
