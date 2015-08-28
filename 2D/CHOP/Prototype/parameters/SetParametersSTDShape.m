@@ -203,7 +203,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 400; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -265,7 +265,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = 0.02;
+    options.subdue.presetThresholds = 0.05;
 %    options.subdue.presetThresholds = [0.05, 0.15, 0.2 0.2 0.2 0.2 0.2 0.2 0.2]; % This array 
                                     % is used to define a pre-defined set
                                     % of thresholds to be used for graph
