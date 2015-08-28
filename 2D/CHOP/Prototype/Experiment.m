@@ -19,8 +19,8 @@ function [] = Experiment(datasetName, fileType)
     diary([pwd '/logs/' datasetName '_log.txt']);
     addpath([pwd '/utilities']);
     addpath(genpath('../../../utilities'));
-%    generateAutoFilters(datasetName, fileType);
-    runVocabularyLearning(datasetName, fileType, '');
+    generateAutoFilters(datasetName, fileType);
+    runVocabularyLearning(datasetName, fileType, '.png');
     MarkCategoryLabels(datasetName);
     runTestInference(datasetName, fileType);
     EvaluateCategorization(datasetName, 'test', 1, 10);

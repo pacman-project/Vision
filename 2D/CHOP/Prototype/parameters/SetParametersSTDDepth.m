@@ -12,7 +12,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersSTDShape( datasetName, options )
+function [ options ] = SetParametersSTDDepth( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -185,13 +185,15 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 8; % The level where we switch from 
+    options.categoryLevel = 100; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
                                                   % of nodes in the
                                                   % vocabulary is reduced
-                                                  % drastically. 
+                                                  % drastically. Set to an
+                                                  % unlikely value (100)
+                                                  % for no category nodes.
     options.articulationsPerCategory = 3; % We reduced  is this number multipli
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========

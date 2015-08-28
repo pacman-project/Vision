@@ -83,9 +83,8 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
         numberOfNodes = double(max(vocabLevelLabels));
         nodeImgs = cell(numberOfNodes,1);
         for nodeItr = 1:numberOfNodes
-            mask = double(imread([filterDir 'filt' num2str(nodeItr) '.png']));
-            mask = (mask - min(min(min(mask)))) / (max(max(max(mask))) - min(min(min(mask))));
-            nodeImgs{nodeItr} = {uint8(round(mask * 255))};
+            mask = imread([filterDir 'filt' num2str(nodeItr) '.png']);
+            nodeImgs{nodeItr} = {mask};
             imwrite(mask, [reconstructionDir num2str(nodeItr) '.png']);
         end
     else
@@ -358,7 +357,11 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                 % A make-up to fill in NaNs (empty points).
       %          fillInValue = 0;
                 fillInValues = double(finalTempMask(finalTempMask>0 & finalTempMask<255));
-                fillInValue = fillInValues(1);
+                if ~isempty(fillInValues)
+                    fillInValue = fillInValues(1);
+                else
+                     fillInValue = 0;
+                end
            %     fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
                 finalTempMask(finalTempMask == 0) = fillInValue;
                 instanceImgs{instItr} = finalTempMask;

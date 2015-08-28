@@ -122,14 +122,15 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             img = imread([processedFolder '/' fileName '.png']);
             
             % Get the Level 1 features.
-            [nodes, smoothedImg, nodeActivations] = getNodes(img, gtFileNames{fileItr}, options);
+            [nodes, smoothedImg, nodeActivations, smoothActivationImg] = getNodes(img, gtFileNames{fileItr}, options);
 
             % Keep nodes in the array.
             allNodes(fileItr) = {nodes};
             allNodeActivations(fileItr) = {nodeActivations};
 
             % Save smoothed image.
-            imwrite(smoothedImg, [smoothedFolder '/' fileName '.png']);
+            imwrite(smoothedImg, [smoothedFolder '/' fileName '_peaks.png']);
+            imwrite(smoothActivationImg, [smoothedFolder '/' fileName '.png']);
         end
 
         % Reorder images based on their node count. This helps in

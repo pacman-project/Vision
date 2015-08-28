@@ -25,14 +25,14 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.4; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 8;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 10;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -50,18 +50,18 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.autoFilterSize = 20;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-3;
-    options.autoFilterThr = 0.05;       % Min response threshold for convolved 
+    options.autoFilterThr = 0;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 100000; % Number of random patches used 
+    options.autoFilterPatchCount = 40000; % Number of random patches used 
                                            % to find auto-detected filters.
     options.auto.stride = 5;           % Stride to use when extracting first-
                                        % level features. Only works in
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.                                 
-    options.auto.deadFeatureStd = 0.35; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0.001; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
@@ -95,7 +95,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.1;           % The novelty threshold used in the 
+    options.noveltyThr = 0.01;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -185,13 +185,15 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 8; % The level where we switch from 
+    options.categoryLevel = 100; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
                                                   % of nodes in the
                                                   % vocabulary is reduced
-                                                  % drastically. 
+                                                  % drastically. Set to an
+                                                  % unlikely value (100)
+                                                  % for no category nodes.
     options.articulationsPerCategory = 3; % We reduced  is this number multipli
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
@@ -201,7 +203,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 400; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -263,7 +265,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                     % true, since an optimal threshold is
                                     % searched within the limits specified
                                     % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = 0.02;
+    options.subdue.presetThresholds = 0.05;
 %    options.subdue.presetThresholds = [0.05, 0.15, 0.2 0.2 0.2 0.2 0.2 0.2 0.2]; % This array 
                                     % is used to define a pre-defined set
                                     % of thresholds to be used for graph
