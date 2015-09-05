@@ -6,13 +6,13 @@
 %>
 %> @param filters The masks of level 1 filters of the hierarchy in a cell %
 %> array.
-%> 
+%> @param filterType The type of the filters could be either gabor or auto.
 %> @param distType If 'euc', Euclidean distances of two masks (after their
 %> centers of gravity are aligned), normalized by the max distance is used as
 %> pairwise node substitution cost. If 'rank', for each node, other nodes
 %> are ordered by their pairwise distances to this node, and their ranks are
-%> used as the distance function.
-%> 
+%> used as the distance function. If probability, a von mises distribution
+%> is used to calculate node replacement probabilities.
 %> @param deadFeatures If non-empty, we eliminate the filters who have ids 
 %> in this array from our calculations. 
 %>
@@ -69,6 +69,7 @@ function [ distMat ] = createDistanceMatrix( filters, filterType, distType, dead
         newFilter = circshift(trueFilter, cogDiff);
         cogFilters(filtItr) = {newFilter};
     end
+    
     % Find distance between each pair of filters (cog-normalized).
     for filtItr = 1:(numberOfFilters-1)
         filter1 = cogFilters{filtItr};
@@ -84,10 +85,12 @@ function [ distMat ] = createDistanceMatrix( filters, filterType, distType, dead
     % Normalize distMat.
     distMat(distMat == -1) = max(max(distMat));
     newDistMat = distMat/max(max(distMat));
+    
     % If rank type distance is used, each node's distances to others is
     % sorted, and the ranks are entered as the new distance functions.
-%    newDistMat = ones(size(distMat)) * numberOfFilters;
     if strcmp(distType, 'rank')
+        % We decide the relative order of similarity by taking each
+        % filter and ranking the rest of the filters based on similarity. 
         newDistMat = zeros(size(distMat));
         sortAssgnArr = 1:numberOfFilters;
         for filtItr = 1:numberOfFilters
@@ -107,15 +110,10 @@ end
 
 function distance = findDistance(filter1, filter2, distType)
     if strcmp(distType, 'euc') || strcmp(distType, 'rank')
- %       regularizer = nnz(mean(filter1,3)~=0 & mean(filter2,3)~=0);
-%        if regularizer == 0
-%            distance = -1;
-%        else
-            distance = sqrt(sum(sum(sum((filter1-filter2).^2))));
-%        end
-        % Normalize by the number of non-zero pixels in overlapping image.
- %       distance = distance / regularizer;
+        distance = sqrt(sum(sum(sum((filter1-filter2).^2))));
     else
+        % This is where the probabilities for the node base case is
+        % implemented.
         square_d = 0;
         XtY = multiprod(multitransp(filter1), filter2);
         for i = 1 : size(filter1,3)

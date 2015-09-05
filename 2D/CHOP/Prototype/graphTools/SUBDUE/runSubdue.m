@@ -513,8 +513,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         %% Fill in vocabLevel and graphLevel.
        %Allocate space for new graph/vocab level.
        display('[SUBDUE] Processing has finished. Writing all to output and quitting.');
-       vocabLevel(numberOfBestSubs) = options.vocabNode;
-       graphLevel(numberOfInstances) = options.graphNode;
+       vocabLevel(numberOfBestSubs) = VocabNode();
+       graphLevel(numberOfInstances) = GraphNode();
        
         % First, we start with vocabLevel.
         for bestSubItr = 1:numberOfBestSubs

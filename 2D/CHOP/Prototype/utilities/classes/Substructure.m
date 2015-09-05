@@ -1,7 +1,10 @@
 %> Class Name: Substructure
 %>
 %> Description: The data structure in Subdue that encodes vocabulary nodes
-%> (parts). Irrelevant fields for search are stripped out.
+%> (parts). Irrelevant fields for search are stripped out. This class has
+%> the instances of subs in it as well. This method proved to be less costly
+%> than representing each instance as a single entity, and keeping an array
+%> of instances. 
 %> 
 %> Author: Rusen
 %>

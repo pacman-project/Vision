@@ -1,8 +1,11 @@
 %> Name: discoverSubs
 %>
-%> Description: This function discovers parts and their realizations with
-%> graphs defined by vocabLevel and graphLevel, as well as their printed
-%> versions in graphFileName. 
+%> Description: This functions discovers hidden structures in graphLevel,
+%> and creates nodes of the new graph that is a compressed version of
+%> graphLevel. Please note that the number of nodes in output graphLevel
+%> could be higher than the input graphLevel, which does not make much sense
+%> from a compression standpoint. However, there is a lot of redundancy in
+%> the output. This problem is dealt with later in the inhibition step.
 %>
 %> @param vocabLevel If preDefinedSearch is 1, the compositions in this
 %> vocabulary level are searched in graphLevel. If 0, simply ignored.
@@ -24,27 +27,16 @@
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
 function [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs( vocabLevel, graphLevel, ...
-    nodeDistanceMatrix, options, preDefinedSearch, threshold, levelItr, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy)
+    nodeDistanceMatrix, options, threshold, levelItr, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy)
     startTime = tic;
-    optimalThreshold = threshold;
     edgeDistanceMatrix = options.edgeDistanceMatrix;
-    if ~preDefinedSearch
-        display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
-    end
+    display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
     load([options.currentFolder '/output/' options.datasetName '/export.mat'], 'categoryArrIdx', 'validationIdx');
     
     % Search for substructures.
-    if preDefinedSearch
-        % Inference on the test image with learned vocabularies.
-        % This part is again related to combining parts. 
-        % The status of this section is debatable. Please wait for updates.
-        % It'll be unhid as soon as possible.
-        graphLevel = inferSubs(vocabLevel, graphLevel, nodeDistanceMatrix, edgeDistanceMatrix, threshold);
-    else
-        [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, graphLevel, threshold,...
-            nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, ...
-            supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, options);
-    end
+    [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, graphLevel, threshold,...
+        nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, ...
+        supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, options);
     
     % Show time elapsed.
     display(['.... Time elapsed: ' num2str(toc(startTime)) ' secs.']);

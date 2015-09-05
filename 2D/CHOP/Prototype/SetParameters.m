@@ -71,12 +71,16 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.subdue.presetThresholds = []; % To be set later in parameter files.
     
     %% ========== GRAPH MATCHING PARAMETERS ==========
-    options.nodeMatchingFlag = 0; % This parameter defines the contribution of 
-    options.edgeMatchingFlag = 1;
+    options.nodeMatchingFlag = 0; % If 0, only nodes with the same node ids are matched. 
+                                  % If 1, elastic node matching is
+                                  % performed.
+    options.edgeMatchingFlag = 1; % If 0, only edges with the same id can be
+                                  % matched. If 1, elastic edge matching is
+                                  % performed. 
                                    
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;
-    options.numberOfThreads = min(feature('NumCores')*2-1,12); % For my macbook pro
+    options.numberOfThreads = min(feature('NumCores')*2-1,12);
     
     %% ========== DATASET-SPECIFIC PROGRAM PARAMETERS ==========
     % Learn dataset path relative to this m file
@@ -117,7 +121,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.vocabNode = VocabNode;
     % Internal data structure for an graph representing a set of object 
     % graphs in a given level.                        
-    options.graphNode = GraphNode;     % 1: positive, 0: negative node.
+    options.graphNode = GraphNode;
     
     %% ========== LOW - LEVEL FILTER GENERATION ==========
     filters = createFilters(options);

@@ -4,15 +4,16 @@
 %> not introduce novelty, into the TEST graph. In this context, novelty is
 %> measured by the ratio of leaf nodes not existing in the main graph over
 %> all leaf nodes of the tested node. In case of an overlap, the node whose
-%> label id is better wins. graphLevel is ASSUMED to be ordered by
-%> imageIds, labelIds.
+%> label id is smaller wins. graphLevel is ASSUMED to be ordered by
+%> imageIds, importance, labelIds. The importance of every graph is usually
+%> linked to its activation. 
 %>
 %> @param graphLevel The current graph level, ASSUMED ordered by imageIds, 
-%> then labelIds in an ascending manner.
+%> then activations in a descending manner.
 %> @param options Program options.
-%> @param levelItr Current level number.
+%> @param levelItr Current level id.
 %>
-%> @retval graphLevel Modified graph level.
+%> @retval graphLevel Remaining graph level nodes.
 %> 
 %> Author: Rusen
 %>
@@ -44,7 +45,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     imageGraphLevels = cell(numberOfImages,1);
     imageSortIdx = cell(numberOfImages,1);
     imageAllNodeCoords = cell(numberOfImages,1);
-    for imageId = 1:numberOfImages
+    parfor imageId = 1:numberOfImages
         imageNodeIdx = imageIds == imageId;
         imageNodeCoords = nodeCoords(imageNodeIdx,:);
         if nnz(imageNodeIdx) == 0
@@ -63,7 +64,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     end
     
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
-    for imageId = 1:numberOfImages
+    parfor imageId = 1:numberOfImages
         sortIdx = imageSortIdx{imageId};
         orgImageGraphLevel = imageGraphLevels{imageId};
         imageGraphLevel = orgImageGraphLevel(sortIdx);

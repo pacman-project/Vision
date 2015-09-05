@@ -112,7 +112,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
         [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
-            options, false, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy);
+            options, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy);
         optimalThresholds(levelItr) = optimalThreshold;
         
         % Open/close matlabpool to save memory.

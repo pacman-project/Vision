@@ -67,7 +67,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'euc'; % If 'euc': Euclidean distance 
+    options.distType = 'prob'; % If 'euc': Euclidean distance 
                                                    % (normalized by number
                                                    % of nonzero pixels)
                                                    % will define the

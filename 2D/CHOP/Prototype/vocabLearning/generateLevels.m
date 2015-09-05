@@ -19,8 +19,8 @@
 %> Ver 1.1 on 01.09.2014 Adding negative signs.
 function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, options)
     % Allocate space for both levels.
-    vocabLevel(options.numberOfFilters) = options.vocabNode;
-    graphLevel(size(nodes,1)) = options.graphNode;
+    vocabLevel(options.numberOfFilters) = VocabNode();
+    graphLevel(size(nodes,1)) = GraphNode();
     
     % Fill vocabulary level with labels.
     labelArr = num2cell(int32(1:options.numberOfFilters));
