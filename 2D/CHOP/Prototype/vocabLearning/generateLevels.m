@@ -25,6 +25,7 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, op
     % Fill vocabulary level with labels.
     labelArr = num2cell(int32(1:options.numberOfFilters));
     [vocabLevel.label] = deal(labelArr{:});
+    [vocabLevel.numberOfProbabilisticChoices] = deal(int32(1));
     clear labelArr;
     
     % Fill object graph level.

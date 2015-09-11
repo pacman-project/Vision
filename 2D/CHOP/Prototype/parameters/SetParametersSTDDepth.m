@@ -225,7 +225,7 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                            % of 1 (max value). 
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'likelihood';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,

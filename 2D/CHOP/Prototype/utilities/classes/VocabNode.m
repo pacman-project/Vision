@@ -32,6 +32,9 @@ classdef VocabNode
         categoryArr@single % 1 x numberOfCategories array. Sums up to 1. 
                     % Determines how much this node has been found in each
                     % category.
+        numberOfProbabilisticChoices@int32; % Includes the number of 
+                     % probabilistic choices we need to make to match this
+                     % node to a chunk of data across the hierarchy.
         orgRank@int32;
     end
 end

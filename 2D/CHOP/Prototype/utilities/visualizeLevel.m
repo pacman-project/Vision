@@ -286,7 +286,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                     %% Print the files to output folders.
                     if nodeInstanceItr == 1
                         % Create a false color image.
-                        falseColorImg = double(label2rgb(int32(currentLabelMask), 'hot', 'k', 'shuffle'));
+                        falseColorImg = double(label2rgb(int32(currentLabelMask), 'jet', 'k', 'shuffle'));
                         if isequal(size(falseColorImg), size(currentMask))
                              falseColorImg = uint8(round(falseColorImg .* currentMask));
                         else

@@ -56,6 +56,7 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             validInstances = cellfun(@(x) isempty(x), instanceEdges);
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances);
+            instanceMatchCosts = sub.instanceMatchCosts(validInstances);
             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
             sub.instanceChildren = sub.instanceChildren(validInstances,:);
             sub.instanceMappings = sub.instanceMappings(validInstances,:);
@@ -81,6 +82,7 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             % Filter out data for invalid instances from existing data structures.
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances, :);
+            instanceMatchCosts = sub.instanceMatchCosts(validInstances);
 
 %             %% Remove overlapping nodes.
 %             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
@@ -103,6 +105,12 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             subScore = sum(instanceConstants);
         case 'size'
             subScore = sum(instanceConstants) * (size(sub.edges,1) + 1);
+        case 'likelihood'
+            if isempty(instanceChildren)
+               subScore = 0;
+            else
+               subScore = sum(instanceConstants)*(2 * size(sub.edges,1) - 1) - sum(instanceConstants .* instanceMatchCosts);
+            end
         case 'mdl'
             if isempty(instanceChildren)
                subScore = 0;

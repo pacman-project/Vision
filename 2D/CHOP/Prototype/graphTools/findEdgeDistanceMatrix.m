@@ -25,9 +25,10 @@
 %>
 %> Updates
 %> Ver 1.0 on 23.06.2015
-function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords ] = findEdgeDistanceMatrix( edgeQuantize, distType, edgeSimilarityAllowed )
-    sigma = 0.4804;
-    unitMaxDist = 1.348;
+function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords, logMin, logRange ] = findEdgeDistanceMatrix( edgeQuantize, distType, edgeSimilarityAllowed )
+    sigma = 0.075;
+    logMin = 0;
+    logRange=  1;
     
     % Find a round area in which we will look for individual relations.
     edgeIdMatrix = zeros(edgeQuantize, 'int32');
@@ -38,30 +39,50 @@ function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords ] = findEdgeDistanceMatr
     xArrAbs = abs(xArr - centerPointSingle);
     distances = sqrt(xArrAbs .^2 + yArrAbs .^2);
     validPointMatrix = distances<=floor(centerPointSingle);
+%    validPointMatrix = ones(edgeQuantize)>0;
 
     % Identify each point in the area as an individual relation.
     relations = find(validPointMatrix);
     [coordX, coordY] = ind2sub(size(validPointMatrix), relations);
     edgeCoords = [coordX, coordY] - floor(centerPointSingle);
     edgeIdMatrix(relations) = 1:numel(relations);
-
-    % Find the distance matrix with respect to pairs of individual
-    % relations.
-    points = [xArr(relations), yArr(relations)];
-    distMatrix = single(pdist2(points, points, 'euclidean'));
+    
+    points = [xArr(:), yArr(:)];
     
     if strcmp(distType, 'prob')
-        downsampleRatio = max(max(distMatrix)) / unitMaxDist;
-        points = points / downsampleRatio;
+        points = points / edgeQuantize;
+        endPoints = points + 1/edgeQuantize;
+        topPoints = points;
+        topPoints(:,1) = points(:,1) + 1/edgeQuantize;
+        rightPoints = points;
+        rightPoints(:,2) = points(:,2) + 1/edgeQuantize;
+        
+        % allocate space for distance matrix.
+        distMatrix = zeros(size(points,1), 'single');
+        
         for pointItr = 1:size(points,1)
-            displacements = points - repmat(points(pointItr,:), size(points,1), 1);
-            logProbs = log2(mvnpdf(double(displacements(pointItr,:)), double(displacements), [sigma, sigma]));
-            logProbs = abs(logProbs);
-            logProbs = single((logProbs - min(logProbs)) / (max(max(logProbs)) - min(min(logProbs))));
+            probs = mvncdf(points, points(pointItr,:), [sigma, sigma]);
+            endProbs = mvncdf(endPoints, points(pointItr,:), [sigma, sigma]);
+            topProbs = mvncdf(topPoints, points(pointItr,:), [sigma, sigma]);
+            rightProbs = mvncdf(rightPoints, points(pointItr,:), [sigma, sigma]);
+            
+            pointProbs = (endProbs - (topProbs + rightProbs)) + probs;
+            
+            % Remove invalid entries and scale probabilities, so they sum
+            % to 1.
+            logProbs = log(pointProbs);
             distMatrix(pointItr,:) = single(logProbs);
         end
-        edgeDistanceMatrix = distMatrix;
+        edgeDistanceMatrix = -distMatrix(relations, relations);
+        logMin = min(min(edgeDistanceMatrix));
+        logRange = max(max(edgeDistanceMatrix)) - min(min(edgeDistanceMatrix));
+        edgeDistanceMatrix = (edgeDistanceMatrix - logMin) / logRange;
         return;
+    else
+          % Find the distance matrix with respect to pairs of individual
+          % relations.
+          points = points(relations,:);
+          distMatrix = single(pdist2(points, points, 'euclidean'));
     end
     
     % If edge similarities are allowed, we keep on calculating pairwise

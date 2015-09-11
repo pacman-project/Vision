@@ -20,12 +20,12 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.2; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
@@ -41,7 +41,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2)-1;
+    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
@@ -101,12 +101,12 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.scaling = 0.67;            % Each successive layer is downsampled 
+    options.scaling = 0.5;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -142,7 +142,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = 2*round((options.autoFilterSize*2.5)/2) + 1; % DEFAULT 5
     else
-        options.receptiveFieldSize = 2*round((options.gaborFilterSize*2.5)/2) + 1;
+        options.receptiveFieldSize = 2*round((options.gaborFilterSize*3)/2) + 1;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -203,7 +203,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 400; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -224,7 +224,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                            % of 1 (max value). 
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'likelihood';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -286,7 +286,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 30000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

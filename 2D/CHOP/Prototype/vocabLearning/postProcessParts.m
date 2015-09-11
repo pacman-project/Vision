@@ -53,7 +53,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
         frequencies = numel(labelIds);
     else
         frequencies = [vocabLevel.mdlScore];
-        % CHECK IF MDLSCORE is NORMALIZED IN EVALUATE SUBS FINALLY.
+        % TODO: CHECK IF MDLSCORE is NORMALIZED IN EVALUATE SUBS FINALLY.
 %        frequencies =  [vocabLevel.mdlScore] .* hist(labelIds, 1:numel(vocabLevel));
     end
     [~, vocabLevelSortIdx] = sort(frequencies, 'descend');
@@ -176,6 +176,13 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     % We apply agglomerative clustering on the generated distance matrix,
     % and group parts based on their similarities. We have a limited number
     % of resources when selecting parts.
+    
+    % First, we check for the necessity.
+    if size(newDistanceMatrix,1) <= options.reconstruction.numberOfReconstructiveSubs
+         return;
+    end
+    
+    % All good, group the nodes here.
     newDistanceMatrixVect = squareform(newDistanceMatrix);
     Z = linkage(newDistanceMatrixVect, 'average');
     clusters = cluster(Z, 'maxclust', options.reconstruction.numberOfReconstructiveSubs);
@@ -250,6 +257,79 @@ function [lowestCost] = InexactMatch(description, description2, maxDistance, dis
             if validEdges(nodeItr)
                 currentCost = currentCost + single(full(distanceMatrix(comparedDescription(nodeItr,1), ...
                                             description2(nodeItr,1))));
+            else
+                 currentCost = currentCost + 1;
+            end
+        end
+
+        % Estimate edge-edge distances.
+        currentCost = currentCost + sum(sqrt(sum((comparedDescription(validEdges,2:3) - ...
+                     description2(validEdges,2:3)).^2,2)))/maxDistance;
+        currentCost = currentCost + numberOfChildren - nnz(validEdges);
+        
+        % Assign lowest cost if current cost is smaller.
+        if currentCost<lowestCost
+            lowestCost = currentCost;
+        end
+    end
+end
+
+%> Name: InexactMatch
+%>
+%> Description: Given two coarse part descriptions, this function tries to
+%> match them with the lowest cost possible. Please note that this is
+%> essentially graph matching problem, which is NP-Complete. Using very high
+%> dimension will result in a drastic performance degradation.
+%> Cost of replacing a node: 1
+%> Cost of re-positioning a node: distance/maxDistancePossible
+%>
+%> @param description Description of the first composition. It is of the
+%> form: nodeId1 posX posY;
+%>       nodeId2 posX posY; ...
+%> @param description2 Description of the second composition.
+%> @param maxDistance Maximum distance in the node positioning space.
+%> @param distanceMatrix NxN matrix with each entry containing the distance
+%> between two nodes, indexing that specific entry.
+%>
+%> @retval lowestCost Minimum matching score.
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 06.05.2014
+function [lowestCost] = CalculateLogLikelihood(description, description2, maxDistance, distanceMatrix)
+    % Get both descriptions to the same size.
+    firstDesSize = size(description,1);
+    secDesSize = size(description2,1);
+    if firstDesSize > secDesSize
+        description2 = [description2; inf(firstDesSize-secDesSize,3)];
+    elseif firstDesSize<secDesSize
+        description = [description; inf(secDesSize-firstDesSize,3)];
+    end
+    numberOfChildren = max(firstDesSize, secDesSize);
+    
+    % Get row permutations of the first description.
+    rows = sortrows(perms(1:numberOfChildren));
+    
+    % Compare each permutation of rows of description to description2. The
+    % one which gets the minimum cost is our match.
+    lowestCost = realmax('single');
+    numberOfRows = size(rows,1);
+    for permItr = 1:numberOfRows
+        currentCost = 0;
+        comparedDescription = description(rows(permItr,:),:);
+
+        % Get valid rows to compare.
+        validEdges = ~isinf(comparedDescription(:,1)) & ...
+            ~isinf(description2(:,1));
+        
+        % Estimate node-node distances.
+        for nodeItr = 1:numberOfChildren
+            if validEdges(nodeItr)
+                currentCost = currentCost + single(full(distanceMatrix(comparedDescription(nodeItr,1), ...
+                                            description2(nodeItr,1))));
+            else
+                 currentCost = currentCost + 1;
             end
         end
 

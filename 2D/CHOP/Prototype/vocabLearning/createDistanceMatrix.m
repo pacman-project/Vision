@@ -23,19 +23,51 @@
 %> Updates
 %> Ver 1.0 on 01.09.2014
 %> Comments updated on 23.06.2015
-function [ distMat ] = createDistanceMatrix( filters, filterType, distType, deadFeatures )
+function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterType, distType, deadFeatures, desiredLogRange )
     distMat = zeros(numel(filters), 'single');
+    nodeLogMin = 0;
     if strcmp(distType, 'prob') && strcmp(filterType, 'gabor')
-        % Calculate a von mises distribution here.
-        concentration = 0.945;
-        anglePerFeature = (2*pi) / double(numel(filters));
-        angles = (0:(numel(filters)-1)) * anglePerFeature;
-        log2Probs = log2(circ_vmpdf(0, angles, concentration))';
-        log2Probs = abs(log2Probs);
-        log2Probs = single((log2Probs - min(log2Probs)) / (max(max(log2Probs)) - min(min(log2Probs))));
+        % We perform a search for optimal sigma here.
+        lowSigma = 0.1;
+        highSigma = 0.2;
         
-        for filtItr = 1:numel(filters)
-            assignedLogProbs = circshift(log2Probs, [(filtItr-1),0])';
+        while true
+             sigma = (lowSigma + highSigma)/2;
+             % Calculate a 1D gaussian distribution here.
+             numberOfFilters = numel(filters);
+             anglePerFeature = 1 / double(numberOfFilters);
+             halfAnglePerFeature = anglePerFeature / 2;
+             startAngles = (0:(numberOfFilters-1)) * anglePerFeature - halfAnglePerFeature;
+             endAngles = anglePerFeature + startAngles;
+             refPoint = floor(numberOfFilters/2) + 1;
+             refAngle = 0.5;
+
+             % Measure probabilities and log probabilities
+             startProbs = normcdf(startAngles, refAngle, sigma);
+             endProbs = normcdf(endAngles, refAngle, sigma);
+             probs = endProbs - startProbs;
+             log2Probs = abs(log(probs));
+             log2Probs = circshift(log2Probs, [0, refPoint-1]);
+             
+             % Learn log range.
+             currentLogRange = max(log2Probs) - min(log2Probs);
+             if currentLogRange > desiredLogRange + 0.001
+                  lowSigma = sigma;
+             elseif currentLogRange < desiredLogRange - 0.001
+                  highSigma = sigma;
+             else
+                  break;
+             end
+        end
+        
+        % Scale log2Probs in a reversible way. We're not losing any info
+        % here! We know the range and the minimum value. Chill!
+        nodeLogMin = min(log2Probs);
+        log2Probs = (log2Probs - min(log2Probs)) / currentLogRange;
+        
+        % Finally, assing the log probabilities to the distance matrix.
+        for filtItr = 1:numberOfFilters
+            assignedLogProbs = circshift(log2Probs, [0, (filtItr-1)]);
             distMat(filtItr,:) = assignedLogProbs;
         end
        return; 
@@ -47,6 +79,7 @@ function [ distMat ] = createDistanceMatrix( filters, filterType, distType, dead
     binaryMask = true(filterSize);
     cog = zeros(1,2);
     trueCenter = 1 + (filterSize-1)/2;
+    
     % Find center of gravity for each filter, and center it around its
     % cog to estimate correct distance between pairs of filters.
     for filtItr = 1:numel(filters)
@@ -86,6 +119,9 @@ function [ distMat ] = createDistanceMatrix( filters, filterType, distType, dead
     distMat(distMat == -1) = max(max(distMat));
     newDistMat = distMat/max(max(distMat));
     
+   % Probability for auto mode has not been implemented yet!
+    warning(12, 'Probability type distance for auto filters have not been implemented yet! Switching to euclidean measure..');
+    
     % If rank type distance is used, each node's distances to others is
     % sorted, and the ranks are entered as the new distance functions.
     if strcmp(distType, 'rank')
@@ -101,6 +137,55 @@ function [ distMat ] = createDistanceMatrix( filters, filterType, distType, dead
             newDistMat(:, filtItr) = newDistMat(:, filtItr) + assgnArr';
         end
         newDistMat = newDistMat - 2;
+        
+%         % If the distance type is probabilities, we measure probabilities
+%         % of filters.
+%         if strcmp(distType, 'prob')
+%              % We perform a search for optimal sigma here.
+%              lowSigma = 0.05;
+%              highSigma = 0.3;
+%         
+%              %% Find an optimal sigma so that the log range here matches the log range of edge case.
+%              while true
+%                   sigma = (lowSigma + highSigma)/2;
+%                   numberOfFilters = numel(filters);
+%                   anglePerFeature = 1 / double(numberOfFilters);
+%                   halfAnglePerFeature = anglePerFeature / 2;
+%                   startAngles = (0:(numberOfFilters-1)) * anglePerFeature - halfAnglePerFeature;
+%                   endAngles = anglePerFeature + startAngles;
+%                   refPoint = 1;
+%                   refAngle = 0;
+% 
+%                   % Measure probabilities and log probabilities
+%                   startProbs = normcdf(startAngles, refAngle, sigma);
+%                   endProbs = normcdf(endAngles, refAngle, sigma);
+%                   probs = endProbs - startProbs;
+%                   probs = probs /  sum(probs);
+%                   log2Probs = abs(log(probs));
+%                   log2Probs = circshift(log2Probs, [0, refPoint-1]);
+%                   
+%                   % Learn log range.
+%                   currentLogRange = max(log2Probs) - min(log2Probs);
+%                   if currentLogRange > desiredLogRange + 0.001
+%                        lowSigma = sigma;
+%                   elseif currentLogRange < desiredLogRange - 0.001
+%                        highSigma = sigma;
+%                   else
+%                        break;
+%                   end
+%              end
+%              
+%              % Scale log2Probs in a reversible way. We're not losing any info
+%              % here! We know the range and the minimum value. Chill!
+%              nodeLogMin = min(log2Probs);
+%              log2Probs = log2Probs - min(log2Probs) / currentLogRange;
+% 
+%              % Finally, assing the log probabilities to the distance matrix.
+%              for filtItr = 1:numberOfFilters
+%    %              assignedLogProbs = circshift(log2Probs, [0, (filtItr-1)]);
+%    %              newDistMat(filtItr,:) = assignedLogProbs;
+%              end
+%         end
     end
     validFeatures = setdiff(1:size(newDistMat), deadFeatures);
     distMat = newDistMat/max(max(newDistMat(validFeatures, validFeatures)));

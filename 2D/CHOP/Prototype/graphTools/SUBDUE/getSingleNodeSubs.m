@@ -25,7 +25,8 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
     %% For each center node label type, we create a substructure.
     for subItr = 1:numberOfSubs
         distances = nodeDistanceMatrix(allLabels, subItr);
-        subCenterIdx = distances < threshold;
+%        subCenterIdx = distances < threshold;
+        subCenterIdx = distances < 0.0001;  % TODO: Remove equality 
         instances = int32(find(subCenterIdx));
         numberOfInstances = numel(instances);
         
@@ -34,6 +35,7 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
         
         % Give maximum score so that it is at the top of the queue.
         singleNodeSubs(subItr).mdlScore = numberOfInstances;
+        
         if numberOfInstances>0
             % Fill in instance information. 
             categoryIdx = categoryArrIdx(subCenterIdx);

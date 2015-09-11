@@ -242,10 +242,12 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         [vocabLevel, graphLevel] = generateLevels(leafNodes, allNodeActivations, leafNodeSigns, options);
         
         %% Learn edge-based distance matrix once and for all.
-        [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize, options.distType, options.edgeSimilarityAllowed);
+        [edgeIdMatrix, edgeDistanceMatrix, edgeCoords, edgeLogMin, edgeLogRange ] = findEdgeDistanceMatrix(options.edgeQuantize, options.distType, options.edgeSimilarityAllowed);
         options.edgeIdMatrix = edgeIdMatrix;
         options.edgeDistanceMatrix = edgeDistanceMatrix;
         options.edgeCoords = edgeCoords;
+        options.edgeLogMin = edgeLogMin;
+        options.edgeLogRange = edgeLogRange;
         clear edgeIdMatrix edgeDistanceMatrix edgeCoords;
         
         %% Step 2.1: Get first-level object graph edges.

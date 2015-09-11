@@ -49,11 +49,10 @@ function [subs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, all
         subScore = subScore * weight;
         subs(subItr) = sub;
         
-
         %% Assign the score of the sub, as well as its normalized mdl score if applicable.
-        subs(subItr).mdlScore = subScore;
-        if strcmp(evalMetric, 'mdl')
-            subs(subItr).normMdlScore = 1 - (subScore / graphSize);
+        subs(subItr).mdlScore = double(subScore);
+        if strcmp(evalMetric, 'mdl') || strcmp(evalMetric, 'likelihood')
+            subs(subItr).normMdlScore = 1 - (double(subScore) / graphSize);
             
             % If the normalized MDL score is being asked for, we divide
             % subScore by the number of valid instances.

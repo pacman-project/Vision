@@ -69,7 +69,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
                     midPoint = round([size(img,1), size(img,2)] / 2);
                     lowHalf = midPoint - round(([size(falseColorImg,1), size(falseColorImg,2)]-1) / 2);
                     highHalf = midPoint + ([size(falseColorImg,1), size(falseColorImg,2)] - (1 + round(([size(falseColorImg,1), size(falseColorImg,2)]-1) / 2)));
-                    img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :) = round(double(img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :)) + double(falseColorImg) / 2);
+                    img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :) = round(double(0.25 * double(img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :))) + 0.75 * double(falseColorImg));
                     
                     % Stretch the histogram.
                     img = uint8(round(double(img) * ( 255 / double(max(max(max(img)))))));

@@ -9,8 +9,7 @@
 %> @param datasetName Name of the dataset.
 %> 
 %> @retval modes The mode list representing edge categories.
-%>               modes are of the form: [ node11, node12, coord11, coord12;
-%>                                        node21, node22, coord21, coord22;
+%>               modes are of the form: [ nodeLabel1, nodeLabel2, edgeId, rfCoord1, rfCoord2, cov11, cov12, cov21, cov22, coord1, coord2, weight;
 %>                                      ...]
 %> 
 %> Author: Rusen
@@ -20,8 +19,8 @@
 function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder)
     display('Learning modes...');
     maxSamplesPerMode = 500;
-    minSamplesPerMode = 10;   
-    maximumModes = 50;
+    minSamplesPerMode = 2;   
+    maximumModes = 5;
     dummySigma = 0.1;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     
@@ -55,7 +54,7 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
     modes = cell(numberOfUniqueEdges,1);
     uniqueEdgeSamples = cell(numberOfUniqueEdges,1);
     uniqueEdgeCoords = cell(numberOfUniqueEdges,1);
-    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
+    for uniqueEdgeItr = 1:numberOfUniqueEdges
         samplesForEdge = allEdges(IA==uniqueEdgeItr,3:4); %#ok<PFBNS>
         sampleIds = edges(IA==uniqueEdgeItr,1:2);
         sampleEdgeCoords = nodeCoords(sampleIds(:,2),:) - nodeCoords(sampleIds(:,1),:);
@@ -70,7 +69,7 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
     end
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
-    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
+    for uniqueEdgeItr = 1:numberOfUniqueEdges
   %      display(num2str(uniqueEdgeItr));
         w = warning('off', 'all');
         samples = single(uniqueEdgeSamples{uniqueEdgeItr});
@@ -86,10 +85,12 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
 
         %% Calculate statistics (mu, sigma)
         numberOfClusters = max(classes);
-        statistics = zeros(numberOfClusters, 11, 'single');
+        numberOfSamplesPerCluster = zeros(numberOfClusters,1);
+        statistics = zeros(numberOfClusters, 12, 'single');
         statistics(:,1:2) = single(repmat(edgeType, numberOfClusters, 1));
        for centerItr = 1:numberOfClusters
           clusterSamples = samples(classes==centerItr,:);
+          numberOfSamplesPerCluster(centerItr) = size(clusterSamples,1);
           clusterCoords = sampleCoords(classes == centerItr, :);
           statistics(centerItr,4:5) = mean(clusterSamples,1);
           statistics(centerItr,10:11) = mean(clusterCoords,1);
@@ -107,6 +108,8 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
                statistics(centerItr,[6, 9]) = dummySigma;
           end
        end
+       clusterWeights = numberOfSamplesPerCluster / sum(numberOfSamplesPerCluster);
+       statistics(:,12) = clusterWeights;
        
         %% We should also visualize the Gaussian PDFs.
         [X1, X2] = meshgrid(1:size(edgeIdMatrix,1), 1:size(edgeIdMatrix,1));
@@ -119,10 +122,11 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
              catch
                  curModePoints = mvnpdf([X1(:)-halfSize, X2(:)-halfSize],statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
              end
-             curModePoints = curModePoints/max(max(curModePoints));
+             curModePoints = curModePoints * clusterWeights(centerItr);
              F = max(F, curModePoints);
         end
         gaussImg(:) = F;
+        gaussImg = gaussImg / max(max(gaussImg));
         gaussImg = imrotate(gaussImg, 90);
         gaussImg = uint8(round(gaussImg * 255));
         gaussImg(gaussImg==0) = 1;

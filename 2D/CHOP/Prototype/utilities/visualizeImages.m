@@ -89,7 +89,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lev
                  end
                  nodeInstances = nodeInstances(sortIdx);
             end
-            printedNodes{nodeItr} = nodeInstances;
+            printedNodes{nodeItr} = sort(nodeInstances);
         end
         printedNodes = cat(1, printedNodes{:});
         graphLevel = graphLevel(printedNodes);

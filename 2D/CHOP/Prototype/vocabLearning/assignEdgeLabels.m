@@ -1,8 +1,31 @@
+%> Name: assignEdgeLabels
+%>
+%> Description: Given modes, and edges in graphLevel, this function assigns
+%> an updated edge label to all edges in graphLevel, based on the learned
+%> modes of the 2D distributions in 'modes' argument.
+%> 
+%> @param vocabLevel Vocabulary level.
+%> @param graphLevel The main graph that includes the nodes and their
+%> respective edges.
+%> @param modes The mode list representing edge categories.
+%>               modes are of the form: [ nodeLabel1, nodeLabel2, edgeId,
+%> rfCoord1, rfCoord2, cov11, cov12, cov21, cov22, coord1, coord2, weight;
+%>  ...];
+%> @param edgeCoords The coordinates of all possible edge types.
+%> 
+%> @retval graphLevel The main graph with updated edge labels.
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 06.09.2015
 function [ graphLevel ] = assignEdgeLabels(vocabLevel, graphLevel, modes, edgeCoords)
+    display('Assigning edge labels using modes...');
      allEdges = cat(1, graphLevel.adjInfo);
      vocabLevelLabels = [vocabLevel.label]';
      nodeIds = vocabLevelLabels([graphLevel.labelId]');
      
+     % If there are no edges, return.
      if isempty(allEdges)
           return;
      end
@@ -43,6 +66,9 @@ function [ graphLevel ] = assignEdgeLabels(vocabLevel, graphLevel, modes, edgeCo
                          probs(relevantModeItr) = mvnpdf(edgeCoords(edges(edgeItr,3), :), relevantModes(relevantModeItr,4:5), relevantModes(relevantModeItr,[6, 9]));
                     end
                end
+               
+               % Weight probability densities by modes.
+               probs = probs .* relevantModes(relevantModeItr,12);
                [~, newLabelIdx] = max(probs);
                newLabel = int32(relevantModes(newLabelIdx(1),3));
                edges(edgeItr,3) = newLabel;

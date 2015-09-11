@@ -23,7 +23,7 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
+function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel, options] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
                                                             options, fileList, modes)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
@@ -42,7 +42,9 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
     
     %% Create distance matrices of the first level.
     if options.nodeSimilarityAllowed
-        distanceMatrices(1) = {createDistanceMatrix(options.filters, options.filterType, options.distType, options.auto.deadFeatures)};
+        [nodeDistanceMatrix, nodeLogMin] = createDistanceMatrix(options.filters, options.filterType, options.distType, options.auto.deadFeatures, options.edgeLogRange);
+        options.nodeLogMin = nodeLogMin;
+        distanceMatrices(1) = {nodeDistanceMatrix};
     else
         % Set dummy similarity matrix with only diagonals zero.
         numberOfNodes = numel(options.filters) - numel(options.auto.deadFeatures);

@@ -92,7 +92,9 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         edgesToExtendCosts = allEdgePrevCosts + ...
             edgeDistanceMatrix(allUnusedEdges(:,3), uniqueEdgeTypes(edgeTypeItr,1)) + ...
             nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2));
-        edgesToExtendIdx = edgesToExtendCosts < threshold;
+ %       edgesToExtendIdx = edgesToExtendCosts < threshold;
+        % TODO: Remove equality!
+        edgesToExtendIdx = edgesToExtendCosts < threshold & nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2)) < 0.0001;
         
         % Save instance ids.
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
