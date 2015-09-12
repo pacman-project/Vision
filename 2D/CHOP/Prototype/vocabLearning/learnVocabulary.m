@@ -42,7 +42,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
     
     %% Create distance matrices of the first level.
     if options.nodeSimilarityAllowed
-        [nodeDistanceMatrix, nodeLogMin] = createDistanceMatrix(options.filters, options.filterType, options.distType, options.auto.deadFeatures, options.edgeLogRange);
+        [nodeDistanceMatrix, nodeLogMin] = createDistanceMatrix(options.filters, options.filterImages, options.filterType, options.distType, options.auto.deadFeatures, options.edgeLogRange);
         options.nodeLogMin = nodeLogMin;
         distanceMatrices(1) = {nodeDistanceMatrix};
     else

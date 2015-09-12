@@ -128,7 +128,7 @@ function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterImages, 
     
     % If rank type distance is used, each node's distances to others is
     % sorted, and the ranks are entered as the new distance functions.
-    if strcmp(distType, 'rank')
+    if strcmp(distType, 'rank') || strcmp(distType, 'prob')
         % We decide the relative order of similarity by taking each
         % filter and ranking the rest of the filters based on similarity. 
         newDistMat = zeros(size(distMat));
@@ -137,8 +137,14 @@ function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterImages, 
             distances = distMat(filtItr,:);
             [~, rankings] = sort(distances, 'ascend');
             [~,assgnArr] = ismember(sortAssgnArr, rankings);
-            newDistMat(filtItr, :) = newDistMat(filtItr, :) + assgnArr;
-            newDistMat(:, filtItr) = newDistMat(:, filtItr) + assgnArr';
+            newDistMat(filtItr, :) = newDistMat(filtItr, :) + assgnArr; 
+            
+            % If it's 'prob', the distance (a.k.a. data likelihood) is not
+            % symmetric. If 'rank', it is symmetric, that's why we add the
+            % ranks a second time.
+            if ~strcmp(distType, 'rank')
+               newDistMat(:, filtItr) = newDistMat(:, filtItr) + assgnArr';
+            end
         end
         newDistMat = newDistMat - 2;
         

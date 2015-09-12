@@ -81,7 +81,6 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                                    % with their distances,
                                                    % and the ranking is the
                                                    % new distance function.
-                                                   
     %% ========== GT Parameters ==========
     options.useGT = true;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
@@ -143,7 +142,7 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = 2*round((options.autoFilterSize*2.5)/2) + 1; % DEFAULT 5
     else
-        options.receptiveFieldSize = 2*round((options.gaborFilterSize*2.5)/2) + 1;
+        options.receptiveFieldSize = 2*round((options.gaborFilterSize*3)/2) + 1;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -204,7 +203,7 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                            % coverage is reached to this
                                            % percent, reconstructive part 
                                            % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 400; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -287,8 +286,8 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 30000;  % Maximum number of nodes allowed in a level.
+    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
