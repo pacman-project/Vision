@@ -25,6 +25,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
     neighborhood = fix(options.edgeRadius * scale);
     noveltyThr = 1 - options.noveltyThr;
     downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
+    fullOverlapThr = 0.99;
     
     if numel(graphLevel) == 0
         return;
@@ -76,6 +77,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
         numberOfNodesInImage = numel(imageGraphLevel);
         imagePreservedNodes = ones(numberOfNodesInImage,1)>0;
         imageLeafNodes = {imageGraphLevel.leafNodes}';
+        imageLeafNodeCounts = cellfun(@(x) numel(x), imageLeafNodes);
         maxSharedLeafNodes = cellfun(@(x) numel(x) * noveltyThr , imageLeafNodes, 'UniformOutput', false);
         
         for nodeItr = 1:(numberOfNodesInImage-1)
@@ -111,12 +113,21 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
               imagePreservedNodes(adjacentNodeIdx(eliminatedAdjacentNodes)) = 0;
               adjacentNodes(adjacentNodeIdx(eliminatedAdjacentNodes)) = 0;
           end
-                                        
+                                  
           % Go over each adjacent node, and apply inhibition if their leaf nodes are 
           % shared too much, under current novelty threshold.
           selfLeafNodes = imageLeafNodes{nodeItr};
-          imagePreservedNodes(adjacentNodes) = cellfun(@(x,y) sum(ismembc(x, selfLeafNodes)) <= y, ...
-              imageLeafNodes(adjacentNodes), maxSharedLeafNodes(adjacentNodes));
+          if noveltyThr >= fullOverlapThr
+               % As an additional check, if the overlap threshold is really
+               % small, we only eliminate fully overlapping nodes, that is, 
+               % both overlapping with one another %100.
+               imagePreservedNodes(adjacentNodes) = cellfun(@(x,y) sum(ismembc(x, selfLeafNodes)) <= y, ...
+                   imageLeafNodes(adjacentNodes), maxSharedLeafNodes(adjacentNodes)) | ...
+                   imageLeafNodeCounts(adjacentNodes) ~= numel(selfLeafNodes);
+          else
+              imagePreservedNodes(adjacentNodes) = cellfun(@(x,y) sum(ismembc(x, selfLeafNodes)) <= y, ...
+                   imageLeafNodes(adjacentNodes), maxSharedLeafNodes(adjacentNodes));
+          end
         end
         sortIdx = sort(sortIdx(imagePreservedNodes));
         imageGraphLevel = orgImageGraphLevel(sortIdx);

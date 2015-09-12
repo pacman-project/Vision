@@ -95,7 +95,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.01;           % The novelty threshold used in the 
+    options.noveltyThr = 0.0001;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -106,7 +106,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.scaling = 0.5;            % Each successive layer is downsampled 
+    options.scaling = 0.6;            % Each successive layer is downsampled 
                                        % with a ratio of 1/scaling. Actually,
                                        % the image coordinates of 
                                        % realizations are NOT downsampled, 
@@ -287,7 +287,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

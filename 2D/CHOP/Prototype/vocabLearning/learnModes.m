@@ -54,7 +54,7 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
     modes = cell(numberOfUniqueEdges,1);
     uniqueEdgeSamples = cell(numberOfUniqueEdges,1);
     uniqueEdgeCoords = cell(numberOfUniqueEdges,1);
-    for uniqueEdgeItr = 1:numberOfUniqueEdges
+    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
         samplesForEdge = allEdges(IA==uniqueEdgeItr,3:4); %#ok<PFBNS>
         sampleIds = edges(IA==uniqueEdgeItr,1:2);
         sampleEdgeCoords = nodeCoords(sampleIds(:,2),:) - nodeCoords(sampleIds(:,1),:);
@@ -69,7 +69,7 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
     end
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
-    for uniqueEdgeItr = 1:numberOfUniqueEdges
+    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
   %      display(num2str(uniqueEdgeItr));
         w = warning('off', 'all');
         samples = single(uniqueEdgeSamples{uniqueEdgeItr});

@@ -50,7 +50,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                    % runVocabularyLearning.m). 
                                    
     %% ========== PART SELECTION PARAMETERS ==========
-    options.partSelectionFlag = false; % When this flag is false, the default 
+    options.partSelectionFlag = true; % When this flag is false, the default 
                                       % part selection scheme is applied
                                       % (MDL-based). If true, a second pass
                                       % (either based on reconstruction or
