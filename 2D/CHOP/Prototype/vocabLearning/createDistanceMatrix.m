@@ -23,9 +23,12 @@
 %> Updates
 %> Ver 1.0 on 01.09.2014
 %> Comments updated on 23.06.2015
-function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterType, distType, deadFeatures, desiredLogRange )
+function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterImages, filterType, distType, deadFeatures, desiredLogRange )
     distMat = zeros(numel(filters), 'single');
     nodeLogMin = 0;
+    minFilterValue = 0.05; % If pixel a < max(max(max(filter1))) * minFilterValue,
+                           % a is assigned 0 in distance calculations.
+    
     if strcmp(distType, 'prob') && strcmp(filterType, 'gabor')
         % We perform a search for optimal sigma here.
         lowSigma = 0.1;
@@ -84,10 +87,11 @@ function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterType, di
     % cog to estimate correct distance between pairs of filters.
     for filtItr = 1:numel(filters)
         filter1 = filters{filtItr};
+        filterImage = filterImages{filtItr};
         trueFilter = filter1;
         filter1 = abs(filter1);
         for dimItr = 1:size(filter1,3)
-            zeroIdx = filter1(:,:,dimItr) < max(max(max(filter1))) * 0.1;
+            zeroIdx = filter1(:,:,dimItr) < max(max(max(filter1))) * minFilterValue;
             channelImg = filter1(:,:,dimItr);
             channelImg(zeroIdx) = 0;
             filter1(:,:,dimItr) = channelImg;
@@ -99,18 +103,18 @@ function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterType, di
         measurements = regionprops(binaryMask, filter1Gray, 'WeightedCentroid');
         cog([2 1]) = measurements(1).WeightedCentroid;
         cogDiff = round(trueCenter - cog);
-        newFilter = circshift(trueFilter, cogDiff);
+        newFilter = circshift(double(filterImage), cogDiff);
         cogFilters(filtItr) = {newFilter};
     end
     
     % Find distance between each pair of filters (cog-normalized).
     for filtItr = 1:(numberOfFilters-1)
         filter1 = cogFilters{filtItr};
-        filter1 = filter1/norm(filter1(:));
+ %       filter1 = filter1/norm(filter1(:));
         for filtItr2 = (filtItr+1):numberOfFilters
             filter2 = cogFilters{filtItr2};
-            filter2 = filter2/norm(filter2(:));
-            distance = findDistance(filter1, filter2, distType);
+ %           filter2 = filter2/norm(filter2(:));
+            distance = findDistance(filter1, filter2);
             distMat(filtItr, filtItr2) = distance;
             distMat(filtItr2, filtItr) = distance;
         end
@@ -120,7 +124,7 @@ function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterType, di
     newDistMat = distMat/max(max(distMat));
     
    % Probability for auto mode has not been implemented yet!
-    warning(12, 'Probability type distance for auto filters have not been implemented yet! Switching to euclidean measure..');
+%    warning(12, 'Probability type distance for auto filters have not been implemented yet! Switching to euclidean measure..');
     
     % If rank type distance is used, each node's distances to others is
     % sorted, and the ranks are entered as the new distance functions.
@@ -193,24 +197,6 @@ function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterType, di
     distMat = single(distMat);
 end
 
-function distance = findDistance(filter1, filter2, distType)
-    if strcmp(distType, 'euc') || strcmp(distType, 'rank')
-        distance = sqrt(sum(sum(sum((filter1-filter2).^2))));
-    else
-        % This is where the probabilities for the node base case is
-        % implemented.
-        square_d = 0;
-        XtY = multiprod(multitransp(filter1), filter2);
-        for i = 1 : size(filter1,3)
-             cos_princ_angle = svd(XtY(:, :, i));
-             % Two next instructions not necessary: the imaginary parts that
-             % would appear if the cosines are not between -1 and 1 when
-             % passed to the acos function would be very small, and would
-             % thus vanish when the norm is taken.
-             % cos_princ_angle = min(cos_princ_angle,  1);
-             % cos_princ_angle = max(cos_princ_angle, -1);
-             square_d = square_d + norm(acos(cos_princ_angle))^2;
-        end
-         distance = sqrt(square_d);
-    end
+function distance = findDistance(filter1, filter2)
+    distance = sqrt(sum(sum(sum((filter1-filter2).^2))));
 end

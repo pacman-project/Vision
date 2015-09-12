@@ -124,8 +124,9 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.graphNode = GraphNode;
     
     %% ========== LOW - LEVEL FILTER GENERATION ==========
-    filters = createFilters(options);
+    [filters, filterImages] = createFilters(options);
     options.filters = filters;
+    options.filterImages = filterImages;
     options.numberOfFilters = numel(filters);
     
     %%  ========== SINGLE PRECISION  ========== 

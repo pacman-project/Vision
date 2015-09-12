@@ -12,7 +12,8 @@ classdef GraphNode
         labelId@int32 % Label id of the part the realization belongs to.
         imageId@int32 % Image id of the realization. It can be used as the index 
                 % in trainingFileNames array to get the name of the image.
-        position@int32 % Position of the part's center in terms of image pixels. 
+        position@int32 % Position of the part's center in terms of image pixels, 
+                       % Keep in mind that the resolution is usually halved at each level. 
                  % Top left is (1,1).
         precisePosition@single % Exact of the part's center in terms of 
                  % continuous image coordinates. % Top left is (1,1).

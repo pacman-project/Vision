@@ -13,7 +13,7 @@
 %> Ver 1.0 on 18.11.2013
 %> Ver 1.1 on 03.12.2013 Response inhibition added.
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
-function [ filters ] = createFilters( options )
+function [ filters, filterImages ] = createFilters( options )
     %% Gabor filters: A reference Gabor filter is rotated options.numberOfGaborFilters times to obtain steerable feature filters.
     filterFolder = [options.currentFolder '/filters/'];
     if ~exist([filterFolder options.filterType], 'dir')
@@ -71,18 +71,27 @@ function [ filters ] = createFilters( options )
                filters{filtItr+1} = gaborFilt;
           end
         end
+        filterImages = filters;
     elseif strcmp(options.filterType, 'auto')
         filters = cell(options.autoFilterCount,1);
+        filterImages = cell(options.autoFilterCount,1);
         for filtItr = 0:(options.autoFilterCount-1)
             fileName = [filterFolder options.filterType '/filt' num2str(filtItr+1) '.mat'];
             if exist(fileName, 'file')
                load(fileName, 'gaborFilt');
                filters{filtItr+1} = gaborFilt; %#ok<NODEF>
             end
+            
+            fileName = [filterFolder options.filterType '/filt' num2str(filtItr+1) '.png'];
+            if exist(fileName, 'file')
+               gaborFilt = imread(fileName);
+               filterImages{filtItr+1} = gaborFilt; %#ok<NODEF>
+            end
         end
     else
         display('Error: Filter type not implemented (in createFilters.m).');
         filters = [];
+        filterImages = [];
     end
 end
 
