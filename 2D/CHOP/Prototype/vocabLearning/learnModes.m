@@ -16,37 +16,29 @@
 %>
 %> Updates
 %> Ver 1.0 on 21.01.2014
-function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder)
+function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder)
     display('Learning modes...');
-    maxSamplesPerMode = 500;
+    maxSamplesPerMode = 200;
     minSamplesPerMode = 2;   
-    maximumModes = 5;
+    maximumModes = 4;
     dummySigma = 0.1;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
+    edgeQuantize = size(edgeIdMatrix,1);
     
     % Set initial data structures for processing 
     edges = cat(1, currentLevel.adjInfo);
     nodeIds = [currentLevel.labelId]';
     nodeCoords = cat(1, currentLevel.precisePosition);
     
-    % Create redundancy vector, matching or nodes.
-    if ~isempty(newDistanceMatrix)
-         IC = [vocabLevel.label];
-    else
-         IC = [vocabLevel.label];
-    end
-    
     % If no edges exist, return.
     if isempty(edges)
        modes = [];
+       modeProbArr = [];
        return; 
     end
     
     % Anonymize edges, we're interested in labels, not ids.
-    allEdges = [IC(nodeIds(edges(:,1:2))), int32(edgeCoords(edges(:,3), :))];
-    
-%    % Eliminate edges for which second node's labels are smaller than first.
-%     allEdges = allEdges(allEdges(:,1) <= allEdges(:,2),:);
+    allEdges = [nodeIds(edges(:,1:2)), int32(edgeCoords(edges(:,3), :))];
     
     %% Learn unique edge types and put them in cells for fast processing using parfor.
     [uniqueEdgeTypes, ~, IA] = unique(allEdges(:,1:2), 'rows');
@@ -56,21 +48,23 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
     uniqueEdgeCoords = cell(numberOfUniqueEdges,1);
     parfor uniqueEdgeItr = 1:numberOfUniqueEdges
         samplesForEdge = allEdges(IA==uniqueEdgeItr,3:4); %#ok<PFBNS>
-        sampleIds = edges(IA==uniqueEdgeItr,1:2);
-        sampleEdgeCoords = nodeCoords(sampleIds(:,2),:) - nodeCoords(sampleIds(:,1),:);
+        sampleIds = edges(IA==uniqueEdgeItr,1:2); %#ok<PFBNS>
+        sampleEdgeCoords = nodeCoords(sampleIds(:,2),:) - nodeCoords(sampleIds(:,1),:); %#ok<PFBNS>
         
         %% If there are too many samples, get random samples.
         if size(samplesForEdge,1)>maxSamplesPerMode
             [samplesForEdge, idx] = datasample(samplesForEdge, maxSamplesPerMode, 'Replace', false);
             sampleEdgeCoords = sampleEdgeCoords(idx,:);
         end
+        %Downsample samplesForEdge and save them.
+        samplesForEdge = (double(samplesForEdge + halfSize) / edgeQuantize);
         uniqueEdgeSamples(uniqueEdgeItr) = {samplesForEdge};
         uniqueEdgeCoords(uniqueEdgeItr) = {sampleEdgeCoords};
     end
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
+    modeProbArr = cell(numberOfUniqueEdges, 1);
     parfor uniqueEdgeItr = 1:numberOfUniqueEdges
-  %      display(num2str(uniqueEdgeItr));
         w = warning('off', 'all');
         samples = single(uniqueEdgeSamples{uniqueEdgeItr});
         sampleCoords = single(uniqueEdgeCoords{uniqueEdgeItr});
@@ -94,7 +88,7 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
           clusterCoords = sampleCoords(classes == centerItr, :);
           statistics(centerItr,4:5) = mean(clusterSamples,1);
           statistics(centerItr,10:11) = mean(clusterCoords,1);
-          normalizedCenter = round(statistics(centerItr,4:5)) + halfSize;
+          normalizedCenter = round(statistics(centerItr,4:5) * edgeQuantize);
           statistics(centerItr,3) = double(edgeIdMatrix(normalizedCenter(1), normalizedCenter(2))); %#ok<PFBNS>
           
           if size(clusterSamples,1) > 1
@@ -111,34 +105,105 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
        clusterWeights = numberOfSamplesPerCluster / sum(numberOfSamplesPerCluster);
        statistics(:,12) = clusterWeights;
        
-        %% We should also visualize the Gaussian PDFs.
-        [X1, X2] = meshgrid(1:size(edgeIdMatrix,1), 1:size(edgeIdMatrix,1));
-        X1 = (size(edgeIdMatrix,1) + 1) - X1;
-        F = zeros(numel(X1), 1, class(statistics));
-        gaussImg = zeros(size(edgeIdMatrix));
+       % If there are two or more clusters on the same mean, keep only one mode,
+       % discard the other(s).
+       if numel(unique(statistics(:,3))) ~= numel(statistics(:,3))
+            % Find valid clusters and cancel the rest.
+            [~, validClusters, ~] = unique(statistics(:,3), 'stable');
+            numberOfClusters = numel(validClusters);
+            statistics = statistics(validClusters,:);
+            validSampleIdx = ismember(classes, validClusters);
+            
+            % Update samples and their classes.
+            samples = samples(validSampleIdx,:);
+            classes = classes(validSampleIdx);
+            labelAssgnArr = zeros(max(validClusters),1, 'int32');
+            labelAssgnArr(validClusters) = 1:numel(validClusters);
+            classes = labelAssgnArr(classes);
+            
+            % Renormalize cluster weights.
+            statistics(:,12) = statistics(:,12)/sum(statistics(:,12));
+       end
+        
+        %% Here, we create probabilities of each entry based on each mode of the distribution.
+        % First, we obtain all possible points in the receptive field.
+         yArr = repmat(1:edgeQuantize, edgeQuantize, 1);
+         xArr = repmat((1:edgeQuantize)', 1, edgeQuantize);
+        points = [xArr(:), yArr(:)];
+        
+        % In order to calculate probabilities, we define an area for each
+        % point. 
+        points = (points-(1/2)) / edgeQuantize;
+        endPoints = points + 1/edgeQuantize;
+        topPoints = points;
+        topPoints(:,1) = points(:,1) + 1/edgeQuantize;
+        rightPoints = points;
+        rightPoints(:,2) = points(:,2) + 1/edgeQuantize;
+        
+        % Obtain probabilities based on each mode.
+        allProbs = zeros(numberOfClusters, edgeQuantize, edgeQuantize, 'single');
         for centerItr = 1:numberOfClusters
-             try
-                 curModePoints = mvnpdf([X1(:)-halfSize, X2(:)-halfSize],statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-             catch
-                 curModePoints = mvnpdf([X1(:)-halfSize, X2(:)-halfSize],statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-             end
-             curModePoints = curModePoints * clusterWeights(centerItr);
-             F = max(F, curModePoints);
+            try
+                probs = mvncdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            catch %#ok<*CTCH>
+                probs = mvncdf(points, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+            end
+            try
+                endProbs = mvncdf(endPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            catch
+                endProbs = mvncdf(endPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+            end
+            try
+                topProbs = mvncdf(topPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            catch
+                topProbs = mvncdf(topPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+            end 
+            try
+                rightProbs = mvncdf(rightPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            catch
+                rightProbs = mvncdf(rightPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+            end
+            
+            % Calculate point probs based on the integral.
+            pointProbs = (endProbs - (topProbs + rightProbs)) + probs;
+            
+            % Weight probabilities with the number of samples in each
+            % cluster.
+            pointProbs = pointProbs * statistics(centerItr,12);
+            
+            % Write probabilities into a matrix.
+            allProbs(centerItr, :,:) = reshape(pointProbs, size(edgeIdMatrix));
         end
-        gaussImg(:) = F;
+        allProbs(allProbs <= 0) = 0;
+        [combinedProbs, idx] = max(allProbs, [], 1);
+        clusterAreas = squeeze(idx);
+        % Assign zero probabilities to the areas not covered by each
+        % cluster.
+        for centerItr = 1:numberOfClusters
+             probMatrix = squeeze(allProbs(centerItr,:,:));
+             probMatrix(clusterAreas ~= centerItr) = 0;
+             
+             % Renormalize the probabilities for each mode so that they sum
+             % up to 1.
+             probMatrix = probMatrix / sum(sum(probMatrix));
+             allProbs(centerItr,:,:) = probMatrix;
+        end
+        modeProbArr{uniqueEdgeItr} = allProbs;
+        
+        % Get the probability image for visualization.
+        gaussImg = squeeze(combinedProbs);
         gaussImg = gaussImg / max(max(gaussImg));
-        gaussImg = imrotate(gaussImg, 90);
         gaussImg = uint8(round(gaussImg * 255));
         gaussImg(gaussImg==0) = 1;
         gaussImg = label2rgb(gaussImg, 'jet');
         
           %% Print the modes.
           distributionImg = zeros(size(edgeIdMatrix));
-          samplesToWrite = floor(samples + halfSize) ;
+          samplesToWrite = floor(samples * edgeQuantize) ;
 
-          % If no samples are to be written, move on.E
+          % If no samples are to be written, move on.
           if numel(samplesToWrite) < 1
-          continue;
+               continue;
           end
           samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
           distributionImg(samplesInd) = classes;
@@ -153,38 +218,18 @@ function [modes] = learnModes(vocabLevel, currentLevel, newDistanceMatrix, edgeC
           imwrite(gaussImg, ...
                [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
                '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_GaussMap.png']);
+          areaImg = label2rgb(clusterAreas, 'jet', 'k', 'shuffle');
+          imwrite(areaImg, ...
+               [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
+               '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_ClusterAreas.png']);
           
         %% Save stats and move on.
         modes(uniqueEdgeItr) = {statistics};
-           
         warning(w);
     end
+    modeProbArr = cat(1, modeProbArr{:});
     clear uniqueEdgeSamples;
     modes = cat(1, modes{:});
-%     numberOfVocabNodes = numel(IC);
-%     newModes = cell(numberOfVocabNodes * numberOfVocabNodes, 1);
-%     for clusterItr = 1:numberOfVocabNodes
-%          for clusterItr2 = 1:numberOfVocabNodes
-%               idx = find(uniqueEdgeTypes(:,1) == IC(clusterItr) & uniqueEdgeTypes(:,2) == IC(clusterItr2));
-%               if ~isempty(idx)
-%                    idx = idx(1);
-%                    tempModes = modes{idx};
-%                    tempModes(:,1) = clusterItr;
-%                    tempModes(:,2) = clusterItr2;
-%                    newModes{(clusterItr-1) * numberOfVocabNodes + clusterItr2} = tempModes;
-%               end
-%          end
-%     end
-%     modes = cat(1, newModes{:});
-        
-%     %% Add reverse modes to the modes array.
-%     reversedModes = modes(modes(:,1) ~= modes(:,2),:);
-%     tempArr = reversedModes(:,1);
-%     reversedModes(:,1) = reversedModes(:,2);
-%     reversedModes(:,2) = tempArr;
-%     reversedModes(:,3) = (double(max(max(edgeIdMatrix))) - reversedModes(:,3)) + 1;
-%     reversedModes(:,4:5) = reversedModes(:,4:5) * -1;
-%     modes = [modes; reversedModes];
 
     % Sort array.
     modes = sortrows(modes);

@@ -18,6 +18,9 @@ function [ ] = createFolders( options )
        if exist(options.debugFolder, 'dir')
            rmdir(options.debugFolder, 's');
        end
+       if exist(options.CNNFolder, 'dir')
+         rmdir(options.CNNFolder);
+       end
     end
     catch %#ok<CTCH>
         display('Output folders could not be removed. Images/data from output folder which is still open can cause such permission problems.');
@@ -40,6 +43,9 @@ function [ ] = createFolders( options )
     end
     if ~exist(options.debugFolder,'dir')
        mkdir(options.debugFolder); 
+    end
+    if ~exist(options.CNNFolder, 'dir')
+         mkdir(options.CNNFolder);
     end
 end
 

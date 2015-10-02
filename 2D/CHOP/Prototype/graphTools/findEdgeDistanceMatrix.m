@@ -34,12 +34,8 @@ function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords, logMin, logRange ] = fi
     edgeIdMatrix = zeros(edgeQuantize, 'int32');
     centerPointSingle = (edgeQuantize+1)/2; 
     yArr = repmat(1:edgeQuantize, edgeQuantize, 1);
-    yArrAbs = abs(yArr - centerPointSingle);
     xArr = repmat((1:edgeQuantize)', 1, edgeQuantize);
-    xArrAbs = abs(xArr - centerPointSingle);
-    distances = sqrt(xArrAbs .^2 + yArrAbs .^2);
-    validPointMatrix = distances<=floor(centerPointSingle);
-%    validPointMatrix = ones(edgeQuantize)>0;
+    validPointMatrix = ones(edgeQuantize)>0;
 
     % Identify each point in the area as an individual relation.
     relations = find(validPointMatrix);
@@ -50,7 +46,7 @@ function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords, logMin, logRange ] = fi
     points = [xArr(:), yArr(:)];
     
     if strcmp(distType, 'prob')
-        points = points / edgeQuantize;
+        points = (points-1) / edgeQuantize;
         endPoints = points + 1/edgeQuantize;
         topPoints = points;
         topPoints(:,1) = points(:,1) + 1/edgeQuantize;
@@ -60,38 +56,59 @@ function [ edgeIdMatrix, edgeDistanceMatrix, edgeCoords, logMin, logRange ] = fi
         % allocate space for distance matrix.
         distMatrix = zeros(size(points,1), 'single');
         
-        for pointItr = 1:size(points,1)
-            probs = mvncdf(points, points(pointItr,:), [sigma, sigma]);
-            endProbs = mvncdf(endPoints, points(pointItr,:), [sigma, sigma]);
-            topProbs = mvncdf(topPoints, points(pointItr,:), [sigma, sigma]);
-            rightProbs = mvncdf(rightPoints, points(pointItr,:), [sigma, sigma]);
+        % Calculate probabilities for the top left corner.
+       probs = mvncdf(points, points(1,:), [sigma, sigma]);
+       endProbs = mvncdf(endPoints, points(1,:), [sigma, sigma]);
+       topProbs = mvncdf(topPoints, points(1,:), [sigma, sigma]);
+       rightProbs = mvncdf(rightPoints, points(1,:), [sigma, sigma]);
+
+       pointProbs = (endProbs - (topProbs + rightProbs)) + probs;
+
+       % Create a 2D probability matrix out of the calculated probabilities.
+       probMatrix = reshape(pointProbs, size(edgeIdMatrix));
+       allProbMatrix = zeros(size(edgeIdMatrix)*2-1);
+       allProbMatrix(edgeQuantize:end, edgeQuantize:end) = probMatrix;
+       allProbMatrix(1:(edgeQuantize), edgeQuantize:end) = flipud(probMatrix);
+       allProbMatrix(edgeQuantize:end, 1:(edgeQuantize)) = fliplr(probMatrix);
+       allProbMatrix(1:(edgeQuantize), 1:(edgeQuantize)) = rot90(probMatrix,2);
+       
+       % Locate where to put the window.
+       topLeftCorners = edgeCoords + centerPointSingle;
+       topLeftCorners = edgeQuantize - topLeftCorners + 1;
+       
+       % Finally, for each location on the edge matrix, put the window in
+       % the corresponding location in the probability matrix, and get
+       % transition probabilities. They will be scaled for each row to add
+       % up to 1. 
+       for pointItr = 1:size(points,1)
+          topLeftCorner = topLeftCorners(pointItr,:);
+          relevantProbMatrix = allProbMatrix(topLeftCorner(1):(topLeftCorner(1) + (edgeQuantize-1)), ...
+               topLeftCorner(2):(topLeftCorner(2) + (edgeQuantize-1)));
+          pointProbs = relevantProbMatrix(:);
+          
+          % Normalize probabilities.
+          pointProbs = pointProbs/sum(pointProbs);
+          logProbs = single(log(pointProbs));
+          distMatrix(pointItr,:) = logProbs;
+       end
             
-            pointProbs = (endProbs - (topProbs + rightProbs)) + probs;
-            
-            % Remove invalid entries and scale probabilities, so they sum
-            % to 1.
-            logProbs = log(pointProbs);
-            distMatrix(pointItr,:) = single(logProbs);
-        end
         edgeDistanceMatrix = -distMatrix(relations, relations);
         logMin = min(min(edgeDistanceMatrix));
         logRange = max(max(edgeDistanceMatrix)) - min(min(edgeDistanceMatrix));
         edgeDistanceMatrix = (edgeDistanceMatrix - logMin) / logRange;
-        return;
     else
           % Find the distance matrix with respect to pairs of individual
           % relations.
           points = points(relations,:);
           distMatrix = single(pdist2(points, points, 'euclidean'));
+          edgeDistanceMatrix = distMatrix / max(max(distMatrix));
     end
     
     % If edge similarities are allowed, we keep on calculating pairwise
     % edge transformation costs. Otherwise, we set them to either
     % zero-cost transformations (identical edge labels), or max-cost
     % transformations (different edge labels).
-    if edgeSimilarityAllowed
-        edgeDistanceMatrix = distMatrix / max(max(distMatrix));
-    else
+    if ~edgeSimilarityAllowed
         oneSide = size(distMatrix,1);
         edgeDistanceMatrix = inf(oneSide, oneSide, 'single');
         edgeDistanceMatrix(1:(oneSide+1):oneSide*oneSide) = 0;

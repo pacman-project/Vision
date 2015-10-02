@@ -23,65 +23,20 @@
 %> Updates
 %> Ver 1.0 on 01.09.2014
 %> Comments updated on 23.06.2015
-function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterImages, filterType, distType, deadFeatures, desiredLogRange )
+function [ distMat, abstractDistMat, nodeProbArr ] = createDistanceMatrix( filters, filterImages, filterType, distType )
     distMat = zeros(numel(filters), 'single');
-    nodeLogMin = 0;
     minFilterValue = 0.05; % If pixel a < max(max(max(filter1))) * minFilterValue,
                            % a is assigned 0 in distance calculations.
-    
-    if strcmp(distType, 'prob') && strcmp(filterType, 'gabor')
-        % We perform a search for optimal sigma here.
-        lowSigma = 0.1;
-        highSigma = 0.2;
-        
-        while true
-             sigma = (lowSigma + highSigma)/2;
-             % Calculate a 1D gaussian distribution here.
-             numberOfFilters = numel(filters);
-             anglePerFeature = 1 / double(numberOfFilters);
-             halfAnglePerFeature = anglePerFeature / 2;
-             startAngles = (0:(numberOfFilters-1)) * anglePerFeature - halfAnglePerFeature;
-             endAngles = anglePerFeature + startAngles;
-             refPoint = floor(numberOfFilters/2) + 1;
-             refAngle = 0.5;
-
-             % Measure probabilities and log probabilities
-             startProbs = normcdf(startAngles, refAngle, sigma);
-             endProbs = normcdf(endAngles, refAngle, sigma);
-             probs = endProbs - startProbs;
-             log2Probs = abs(log(probs));
-             log2Probs = circshift(log2Probs, [0, refPoint-1]);
-             
-             % Learn log range.
-             currentLogRange = max(log2Probs) - min(log2Probs);
-             if currentLogRange > desiredLogRange + 0.001
-                  lowSigma = sigma;
-             elseif currentLogRange < desiredLogRange - 0.001
-                  highSigma = sigma;
-             else
-                  break;
-             end
-        end
-        
-        % Scale log2Probs in a reversible way. We're not losing any info
-        % here! We know the range and the minimum value. Chill!
-        nodeLogMin = min(log2Probs);
-        log2Probs = (log2Probs - min(log2Probs)) / currentLogRange;
-        
-        % Finally, assing the log probabilities to the distance matrix.
-        for filtItr = 1:numberOfFilters
-            assignedLogProbs = circshift(log2Probs, [0, (filtItr-1)]);
-            distMat(filtItr,:) = assignedLogProbs;
-        end
-       return; 
-    end
-    
+    gaborOrThr = 0;
+    autoOrThr = 0.2;
+    sigma = 0.005;
     cogFilters = cell(numel(filters),1);
     numberOfFilters = numel(filters);
     filterSize = [size(filters{1},1), size(filters{1},2)];
     binaryMask = true(filterSize);
     cog = zeros(1,2);
     trueCenter = 1 + (filterSize-1)/2;
+    nodeProbArr = cell(numberOfFilters,1);
     
     % Find center of gravity for each filter, and center it around its
     % cog to estimate correct distance between pairs of filters.
@@ -110,10 +65,8 @@ function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterImages, 
     % Find distance between each pair of filters (cog-normalized).
     for filtItr = 1:(numberOfFilters-1)
         filter1 = cogFilters{filtItr};
- %       filter1 = filter1/norm(filter1(:));
         for filtItr2 = (filtItr+1):numberOfFilters
             filter2 = cogFilters{filtItr2};
- %           filter2 = filter2/norm(filter2(:));
             distance = findDistance(filter1, filter2);
             distMat(filtItr, filtItr2) = distance;
             distMat(filtItr2, filtItr) = distance;
@@ -123,84 +76,75 @@ function [ distMat, nodeLogMin ] = createDistanceMatrix( filters, filterImages, 
     distMat(distMat == -1) = max(max(distMat));
     newDistMat = distMat/max(max(distMat));
     
-   % Probability for auto mode has not been implemented yet!
-%    warning(12, 'Probability type distance for auto filters have not been implemented yet! Switching to euclidean measure..');
-    
-    % If rank type distance is used, each node's distances to others is
-    % sorted, and the ranks are entered as the new distance functions.
-    if strcmp(distType, 'rank') || strcmp(distType, 'prob')
+    % Calculate OR nodes for first level filters. We are pretty flexible
+    % in the first level.
+    if strcmp(filterType, 'gabor') 
         % We decide the relative order of similarity by taking each
         % filter and ranking the rest of the filters based on similarity. 
         newDistMat = zeros(size(distMat));
-        sortAssgnArr = 1:numberOfFilters;
+        firstRow = [0:floor(numberOfFilters/2), floor((numberOfFilters-1)/2):-1:1];
+        firstRow = firstRow/max(firstRow);
         for filtItr = 1:numberOfFilters
-            distances = distMat(filtItr,:);
-            [~, rankings] = sort(distances, 'ascend');
-            [~,assgnArr] = ismember(sortAssgnArr, rankings);
-            newDistMat(filtItr, :) = newDistMat(filtItr, :) + assgnArr; 
-            
-            % If it's 'prob', the distance (a.k.a. data likelihood) is not
-            % symmetric. If 'rank', it is symmetric, that's why we add the
-            % ranks a second time.
-            if ~strcmp(distType, 'rank')
-               newDistMat(:, filtItr) = newDistMat(:, filtItr) + assgnArr';
-            end
+             newDistMat(filtItr,:) = circshift(firstRow', (filtItr-1))'; 
         end
-        newDistMat = newDistMat - 2;
-        
-%         % If the distance type is probabilities, we measure probabilities
-%         % of filters.
-%         if strcmp(distType, 'prob')
-%              % We perform a search for optimal sigma here.
-%              lowSigma = 0.05;
-%              highSigma = 0.3;
-%         
-%              %% Find an optimal sigma so that the log range here matches the log range of edge case.
-%              while true
-%                   sigma = (lowSigma + highSigma)/2;
-%                   numberOfFilters = numel(filters);
-%                   anglePerFeature = 1 / double(numberOfFilters);
-%                   halfAnglePerFeature = anglePerFeature / 2;
-%                   startAngles = (0:(numberOfFilters-1)) * anglePerFeature - halfAnglePerFeature;
-%                   endAngles = anglePerFeature + startAngles;
-%                   refPoint = 1;
-%                   refAngle = 0;
-% 
-%                   % Measure probabilities and log probabilities
-%                   startProbs = normcdf(startAngles, refAngle, sigma);
-%                   endProbs = normcdf(endAngles, refAngle, sigma);
-%                   probs = endProbs - startProbs;
-%                   probs = probs /  sum(probs);
-%                   log2Probs = abs(log(probs));
-%                   log2Probs = circshift(log2Probs, [0, refPoint-1]);
-%                   
-%                   % Learn log range.
-%                   currentLogRange = max(log2Probs) - min(log2Probs);
-%                   if currentLogRange > desiredLogRange + 0.001
-%                        lowSigma = sigma;
-%                   elseif currentLogRange < desiredLogRange - 0.001
-%                        highSigma = sigma;
-%                   else
-%                        break;
-%                   end
-%              end
-%              
-%              % Scale log2Probs in a reversible way. We're not losing any info
-%              % here! We know the range and the minimum value. Chill!
-%              nodeLogMin = min(log2Probs);
-%              log2Probs = log2Probs - min(log2Probs) / currentLogRange;
-% 
-%              % Finally, assing the log probabilities to the distance matrix.
-%              for filtItr = 1:numberOfFilters
-%    %              assignedLogProbs = circshift(log2Probs, [0, (filtItr-1)]);
-%    %              newDistMat(filtItr,:) = assignedLogProbs;
-%              end
-%         end
     end
-    validFeatures = setdiff(1:size(newDistMat), deadFeatures);
-    distMat = newDistMat/max(max(newDistMat(validFeatures, validFeatures)));
-    distMat(distMat > 1) = 1;
-    distMat = single(distMat);
+    %% Finally, we assign node substitution probabilities.
+    if strcmp(filterType, 'gabor') 
+         % Learn circular probabilities to assign for gabor choices.
+         dataPoints = 1:(numberOfFilters+1);
+         meanPoint = ceil((numberOfFilters+1)/2) / (numberOfFilters+2);
+         startPoints = ((dataPoints - 1/2) / (numberOfFilters+2))';
+         endPoints = ((dataPoints + 1/2) / (numberOfFilters+2))';
+         startProbs = mvncdf(startPoints, meanPoint, sigma);
+         endProbs = mvncdf(endPoints, meanPoint, sigma);
+         pointProbs = endProbs - startProbs;
+         
+         % Finally, form a node probability array.
+         for filtItr = 1:numberOfFilters
+              entries = find(newDistMat(filtItr,:) <= gaborOrThr);
+              realEntries = entries';
+              entries = entries + round(numberOfFilters/2) - (filtItr - 1);
+              entries = rem(entries + numberOfFilters, numberOfFilters);
+              entries(entries==0) = numberOfFilters;
+              probs = pointProbs(entries);
+              
+              % Normalize probabilities and save them.
+              probs = probs/sum(probs);
+              nodeProbArr{filtItr} = [realEntries, probs];
+         end
+    else
+        for filtItr = 1:numberOfFilters
+              % Rank closest filters, and assign probabilities based on
+              % these ranks.
+              closeFilters = find(newDistMat(filtItr,:) <= autoOrThr);
+              distances = newDistMat(filtItr, closeFilters);
+              [~, idx]=sort(distances,'ascend');
+              sigma = 1/(numel(idx)*5);
+              dataPoints = ((0:(numel(idx)-1))/numel(idx))';
+              meanPoint = 0;
+              startPoints = dataPoints - 1 / (2 * numel(idx));
+              endPoints = startPoints + 1/numel(idx);
+              startProbs = mvncdf(startPoints, meanPoint, sigma);
+              endProbs = mvncdf(endPoints, meanPoint, sigma);
+              pointProbs = endProbs - startProbs;
+              
+              % Normalize probabilities and save them.
+              pointProbs = pointProbs/sum(pointProbs);
+              nodeProbArr{filtItr} = [closeFilters(idx)', sort(pointProbs, 'descend')];
+        end
+    end
+    
+    %% Save valid features and normalize the distance matrix.
+%    validFeatures = setdiff(1:size(newDistMat), deadFeatures);
+%    distMat = newDistMat(validFeatures, validFeatures);
+    distMat = single(newDistMat);
+    abstractDistMat = distMat;
+    if strcmp(filterType, 'gabor') 
+         abstractDistMat(abstractDistMat > gaborOrThr) = inf;
+    else
+         abstractDistMat(abstractDistMat > autoOrThr) = inf;
+    end
+    abstractDistMat(abstractDistMat < inf) = 0;
 end
 
 function distance = findDistance(filter1, filter2)

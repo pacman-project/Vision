@@ -14,7 +14,7 @@
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, threshold)
+function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold)
     
     centerIdx = sub.instanceCenterIdx;
     subAllEdges = {allEdges(centerIdx).adjInfo}';
@@ -33,6 +33,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     % Record which edge belongs to which instance. 
     allEdgeInstanceIds = zeros(sum(cellfun(@(x) size(x,1), allUnusedEdges)),1);
     allEdgePrevCosts = zeros(size(allEdgeInstanceIds), 'single');
+    allEdgeExactMatchFlags = zeros(size(allEdgeInstanceIds), 'uint8')>0;
     itrOffset = 1;
     unusedEdgeCounts = cellfun(@(x) size(x,1), allUnusedEdges);
     for itr = 1:numel(allUnusedEdges)
@@ -40,6 +41,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         endOffset = (beginOffset+(unusedEdgeCounts(itr)-1));
         allEdgeInstanceIds(beginOffset:endOffset) = itr;
         allEdgePrevCosts(beginOffset:endOffset) = sub.instanceMatchCosts(itr);
+        allEdgeExactMatchFlags(beginOffset:endOffset) = sub.instanceExactMatchFlags(itr);
         itrOffset = itrOffset + unusedEdgeCounts(itr);
     end         
     allUnusedEdges = cat(1, allUnusedEdges{:});
@@ -52,7 +54,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     
     % Eliminate the edges which exist only in validation data. We do not
     % enumerate any edges which do not exist in training data.
-    enumeratedEdges = allUnusedEdges(allEdgePrevCosts < singlePrecision, 3:4);
+    enumeratedEdges = allUnusedEdges(allEdgeExactMatchFlags, 3:4);
     
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(enumeratedEdges, 'rows');
@@ -89,33 +91,38 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         % Extend the subs by taking the threshold into account. Unless the
         % instance's collective matching cost surpasses the threshold, it
         % is a valid instance.
-        edgesToExtendCosts = allEdgePrevCosts + ...
-            edgeDistanceMatrix(allUnusedEdges(:,3), uniqueEdgeTypes(edgeTypeItr,1)) + ...
-            nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2));
- %       edgesToExtendIdx = edgesToExtendCosts < threshold;
-        % TODO: Remove equality!
-        edgesToExtendIdx = edgesToExtendCosts < threshold & nodeDistanceMatrix(allUnusedEdges(:,4), uniqueEdgeTypes(edgeTypeItr,2)) < 0.0001;
+        newEdgeCosts = edgeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,1), allUnusedEdges(:,3))';
+        newNodeCosts = nodeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,2), allUnusedEdges(:,4))';
+        edgesToExtendCosts = allEdgePrevCosts + newEdgeCosts + newNodeCosts;
+        edgesToExtendIdx = edgesToExtendCosts < threshold;
+        
+        % Check for exact matching again.
+        exactMatchFlags = allEdgeExactMatchFlags & ...
+             min(edgeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,1),:)) == newEdgeCosts & ...
+             min(nodeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,2),:)) == newNodeCosts;
         
         % Save instance ids.
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
         allChildren = [sub.instanceChildren(edgeInstanceIds,:), ...
              allUnusedEdges(edgesToExtendIdx,2)];
-        [allChildren, allChildrenSortIdx] = sort(allChildren, 2);
+%        [allChildren, allChildrenSortIdx] = sort(allChildren, 2);
         
         % Calculate mappings of instances' nodes to the description.
         newMappings = [sub.instanceMappings(edgeInstanceIds, :), ...
             ones(size(edgeInstanceIds,1), 1, 'uint8') * size(allChildren,2)];
-        [rows, cols] = size(allChildren);
-        R = repmat((1:rows)',[1 cols]);
-        nIdx = R + (allChildrenSortIdx-1)*rows;
-        newMappings = newMappings(nIdx);
-        
+%         [rows, cols] = size(allChildren);
+%         R = repmat((1:rows)',[1 cols]);
+%         nIdx = R + (allChildrenSortIdx-1)*rows;
+%         newMappings = newMappings(nIdx);
+         
         %% Note: allChildren may have duplicate entries, since an instance can
         % have multiple parse trees. We handle these cases by only keeping
         % unique instances. In addition, for each instance, the minimum
         % cost of matching is kept here.
         curInstanceMatchCosts = edgesToExtendCosts(edgesToExtendIdx);
+        curInstanceExactMatchFlags = exactMatchFlags(edgesToExtendIdx);
         [minMatchCosts, sortIdx] = sort(curInstanceMatchCosts, 'ascend');
+        curInstanceExactMatchFlags = curInstanceExactMatchFlags(sortIdx);
         sortedAllChildren = allChildren(sortIdx, :);
         sortedCenterIdx = sub.instanceCenterIdx(edgeInstanceIds(sortIdx));
 
@@ -128,6 +135,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         
         % Get minimum matching costs and children.
         minMatchCosts = minMatchCosts(validIdx, :);
+        curInstanceExactMatchFlags = curInstanceExactMatchFlags(validIdx,:);
         sortedAllChildren = sortedAllChildren(validIdx, :);
         
         % Finally, order children by rows.
@@ -142,6 +150,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         newSub.instanceSigns = sub.instanceSigns(edgeInstanceIds);
         newSub.instanceCategories = sub.instanceCategories(edgeInstanceIds);
         newSub.instanceMatchCosts = minMatchCosts(idx,:);
+        newSub.instanceExactMatchFlags = curInstanceExactMatchFlags(idx,:);
         newSub.instanceValidationIdx = sub.instanceValidationIdx(edgeInstanceIds);
         
         % Add the edge to the definition.

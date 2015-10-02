@@ -19,11 +19,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 06.09.2015
-function [ graphLevel ] = assignEdgeLabels(vocabLevel, graphLevel, modes, edgeCoords)
+function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeCoords)
     display('Assigning edge labels using modes...');
      allEdges = cat(1, graphLevel.adjInfo);
-     vocabLevelLabels = [vocabLevel.label]';
-     nodeIds = vocabLevelLabels([graphLevel.labelId]');
+     nodeIds = [graphLevel.labelId]';
+     halfSize = ceil(size(modeProbArr,2)/2);
+     edgeCoords = edgeCoords + halfSize;
      
      % If there are no edges, return.
      if isempty(allEdges)
@@ -31,7 +32,7 @@ function [ graphLevel ] = assignEdgeLabels(vocabLevel, graphLevel, modes, edgeCo
      end
      
      % Get node ids of edges.
-     parfor graphLevelItr = 1:numel(graphLevel)
+     for graphLevelItr = 1:numel(graphLevel)
           edges = graphLevel(graphLevelItr).adjInfo;
 
           % Edges empty, do nothing.
@@ -45,36 +46,19 @@ function [ graphLevel ] = assignEdgeLabels(vocabLevel, graphLevel, modes, edgeCo
           end
           
           % Assign each edge a to a relevant mode.
-          validEdgeIdx = ones(size(edges,1),1) > 0;
+          probArr = zeros(size(edges,1),1, 'single');
           for edgeItr = 1:size(edges,1)
-               
-               relevantModes = modes(modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2), :);
-               
-               % If no modes exist, we delete edges.
-               if isempty(relevantModes)
-                    validEdgeIdx(edgeItr) = 0;
-                    continue;
-               end
-               
-               % Go through every relevant mode, and get the most likely
-               % distribution's id.
-               probs = zeros(size(relevantModes,1),1);
-               for relevantModeItr = 1:size(relevantModes,1)
-                    try
-                         probs(relevantModeItr) = mvnpdf(edgeCoords(edges(edgeItr,3), :), relevantModes(relevantModeItr,4:5), [relevantModes(relevantModeItr,6:7); relevantModes(relevantModeItr,8:9)]);
-                    catch %#ok<CTCH>
-                         probs(relevantModeItr) = mvnpdf(edgeCoords(edges(edgeItr,3), :), relevantModes(relevantModeItr,4:5), relevantModes(relevantModeItr,[6, 9]));
-                    end
-               end
-               
-               % Weight probability densities by modes.
-               probs = probs .* relevantModes(relevantModeItr,12);
-               [~, newLabelIdx] = max(probs);
-               newLabel = int32(relevantModes(newLabelIdx(1),3));
+               relevantIdx = modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2);
+               relevantModes = modes(relevantIdx,:);
+               relevantCoords = edgeCoords(edges(edgeItr,3),:);
+               clusterProbs = modeProbArr(relevantIdx,relevantCoords(1),relevantCoords(2));
+               [probability, clusterId] = max(clusterProbs);
+               probArr(edgeItr) = probability;
+               newLabel = int32(relevantModes(clusterId,3));
                edges(edgeItr,3) = newLabel;
           end
-          edges = edges(validEdgeIdx, :);
           graphLevel(graphLevelItr).adjInfo = edges;
+          graphLevel(graphLevelItr).edgeProbabilities = probArr;
      end
 end
 

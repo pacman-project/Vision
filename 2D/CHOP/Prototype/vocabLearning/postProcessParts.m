@@ -28,11 +28,10 @@
 %> Ver 1.0 on 06.05.2014
 %> Update on 23.02.2015 Added comments, performance boost.
 %> Update on 25.02.2015 Added support for single node subs.
-function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, optimalThreshold, options)
+function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postProcessParts(vocabLevel, graphLevel, nodeDistanceMatrix, options)
     edgeCoords = options.edgeCoords;
-    edgeQuantize = options.edgeQuantize;
+    maxDistance = options.receptiveFieldSize * sqrt(2);
     distType = options.distType;
-    nodeSimilarityAllowed = options.nodeSimilarityAllowed;
     % Assign new labels of the remaining realizations.
     
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);
@@ -45,141 +44,100 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     newLabelArr = num2cell(int32(1:numel(vocabLevel)));
     [vocabLevel.label] = deal(newLabelArr{:});
     
-    %% Sort vocabLevel based on their occurences. Update graphLevel based on this info.
-    orgRanks = num2cell(int32(1:numel(vocabLevel)));
-    [vocabLevel.orgRank] = deal(orgRanks{:});
-    labelIds = [graphLevel.labelId];
-    if numel(unique(labelIds)) == 1
-        frequencies = numel(labelIds);
-    else
-        frequencies = [vocabLevel.mdlScore];
-        % TODO: CHECK IF MDLSCORE is NORMALIZED IN EVALUATE SUBS FINALLY.
-%        frequencies =  [vocabLevel.mdlScore] .* hist(labelIds, 1:numel(vocabLevel));
-    end
-    [~, vocabLevelSortIdx] = sort(frequencies, 'descend');
-    vocabLevel = vocabLevel(vocabLevelSortIdx);
-    for nodeItr = 1:numel(vocabLevel)
-        vocabLevel(nodeItr).label = int32(nodeItr);
-    end
-    
-    % Update graph ids.
-    graphLabelAssgnArr = zeros(numel(vocabLevel),1, 'int32');
-    graphLabelAssgnArr(vocabLevelSortIdx) = 1:numel(vocabLevel);
-    newLabelIds = num2cell(graphLabelAssgnArr(labelIds)');
-    [graphLevel.labelId] = deal(newLabelIds{:});
-    
-    % Rearrange graph level so it is sorted by image id.
-    arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];
-    [~, sortedIdx] = sortrows(arrayToSort);
-    graphLevel = graphLevel(sortedIdx);
-    
     %% Find the distance matrix among the remaining parts in vocabLevel.
-    if optimalThreshold > 0 && nodeSimilarityAllowed
-        edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
-        numberOfNodes = numel(vocabLevel);
-        vocabNodeLabels = {vocabLevel.children};
-        vocabNodeLabels = cellfun(@(x) double(x), vocabNodeLabels, 'UniformOutput', false);
-        vocabEdges = {vocabLevel.adjInfo};
-        vocabEdges = cellfun(@(x) double(x), vocabEdges, 'UniformOutput', false);
-        newEdge = size(edgeCoords,1);
-        largeSubIdx = cellfun(@(x) ~isempty(x), vocabEdges);
-        vocabNeighborModes = num2cell(repmat(newEdge, 1, numel(vocabEdges)));
-        vocabNeighborModes(largeSubIdx) = cellfun(@(x,y) [y; x(:,3)], vocabEdges(largeSubIdx), vocabNeighborModes(largeSubIdx), 'UniformOutput', false);
-        vocabNodePositions = cellfun(@(x) edgeCoords(x,:) - repmat(min(edgeCoords(x,:)), numel(x), 1), vocabNeighborModes, 'UniformOutput', false);
+   edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
+   numberOfNodes = numel(vocabLevel);
+   vocabNodeLabels = {vocabLevel.children};
+   vocabNodeLabels = cellfun(@(x) double(x), vocabNodeLabels, 'UniformOutput', false);
+   vocabEdges = {vocabLevel.adjInfo};
+   vocabEdges = cellfun(@(x) double(x), vocabEdges, 'UniformOutput', false);
+   newEdge = size(edgeCoords,1);
+   largeSubIdx = cellfun(@(x) ~isempty(x), vocabEdges);
+   vocabNeighborModes = num2cell(repmat(newEdge, 1, numel(vocabEdges)));
+   vocabNeighborModes(largeSubIdx) = cellfun(@(x,y) [y; x(:,3)], vocabEdges(largeSubIdx), vocabNeighborModes(largeSubIdx), 'UniformOutput', false);
+   vocabNodePositions = cellfun(@(x) edgeCoords(x,:) - repmat(min(edgeCoords(x,:)), numel(x), 1), vocabNeighborModes, 'UniformOutput', false);
 
-        % Sort the nodes inside each vocabulary description.
-        vocabSortOrder = cell(size(vocabLevel,1),1);
-        for vocabNodeItr = 1:numel(vocabLevel)
-            [~, vocabSortOrder{vocabNodeItr}] = sortrows(vocabNodePositions{vocabNodeItr});
-        end
-        vocabDescriptions = cellfun(@(x,y,z) [x(z)', y(z,:)], vocabNodeLabels, vocabNodePositions, vocabSortOrder, 'UniformOutput', false);
-        clear vocabNodeLabels vocabEdges vocabNeighborModes vocabNodePositions vocabSortOrder;
+   % Sort the nodes inside each vocabulary description.
+   vocabSortOrder = cell(size(vocabLevel,1),1);
+   for vocabNodeItr = 1:numel(vocabLevel)
+       [~, vocabSortOrder{vocabNodeItr}] = sortrows(vocabNodePositions{vocabNodeItr});
+   end
+   vocabDescriptions = cellfun(@(x,y,z) [x(z)', y(z,:)], vocabNodeLabels, vocabNodePositions, vocabSortOrder, 'UniformOutput', false);
+   clear vocabNodeLabels vocabEdges vocabNeighborModes vocabNodePositions vocabSortOrder;
 
-        newDistanceMatrix = zeros(numberOfNodes);
-        distMatEntries = cell(numberOfNodes,1);
-        parfor partItr1 = 1:(numberOfNodes-1)
-            newEntries = zeros(1, numberOfNodes);
-            description1 = vocabDescriptions{partItr1};
-            savedRows = unique(description1(:,1));
-            sparseNodeMat = zeros(size(nodeDistanceMatrix,1));
-            sparseNodeMat(savedRows,:) = nodeDistanceMatrix(savedRows,:);
-            sparseNodeMat = sparse(sparseNodeMat);
+   newDistanceMatrix = zeros(numberOfNodes);
+   distMatEntries = cell(numberOfNodes,1);
+   parfor partItr1 = 1:(numberOfNodes-1)
+       newEntries = zeros(1, numberOfNodes);
+       description1 = vocabDescriptions{partItr1};
+       savedRows = unique(description1(:,1));
+       sparseNodeMat = zeros(size(nodeDistanceMatrix,1));
+       sparseNodeMat(savedRows,:) = nodeDistanceMatrix(savedRows,:);
+       sparseNodeMat = sparse(sparseNodeMat);
 
-            for partItr2 = (partItr1+1):numberOfNodes
-                description2 = vocabDescriptions{partItr2}; %#ok<PFBNS>
-                matchingCost = InexactMatch(description1, description2, edgeQuantize, sparseNodeMat);
-                if matchingCost >0
-                    newEntries(partItr2) = matchingCost;
-                end
-            end
-            distMatEntries(partItr1) = {newEntries};
-        end
-        if numberOfNodes>1
-            newDistanceMatrix(1:(numberOfNodes-1), :) = cat(1, distMatEntries{:});
-            newDistanceMatrix = newDistanceMatrix + newDistanceMatrix';
-        end
+       for partItr2 = (partItr1+1):numberOfNodes
+           description2 = vocabDescriptions{partItr2}; %#ok<PFBNS>
+           matchingCost = InexactMatch(description1, description2, maxDistance, sparseNodeMat);
+           if matchingCost >0
+               newEntries(partItr2) = matchingCost;
+           end
+       end
+       distMatEntries(partItr1) = {newEntries};
+   end
+   if numberOfNodes>1
+       newDistanceMatrix(1:(numberOfNodes-1), :) = cat(1, distMatEntries{:});
+       newDistanceMatrix = newDistanceMatrix + newDistanceMatrix';
+   end
 
-        %% Normalize distances by the size of compared parts.
-        childrenCounts = {vocabLevel.children};
-        childrenCounts = cellfun(@(x) numel(x), childrenCounts);
-        % Normalize distances for multiple-node subs, considering number of
-        % children and max distance.
-        maxChildrenCountMatrix = repmat(childrenCounts, numel(vocabLevel), 1);
-        maxChildrenCountMatrix = max(maxChildrenCountMatrix, maxChildrenCountMatrix');
-        newDistanceMatrix = newDistanceMatrix ./ maxChildrenCountMatrix;
-        multipleNodeIdx = maxChildrenCountMatrix > 1;
-        
-%         % We normalize the distance matrix by dividing by the largest 
-%         % possible distance. The maximum cost of transformation is
-%         % estimated as follows: numberOfNodes + 1. The cost of node
-%         % transformation is considered as 1 (Hence number of nodes). For
-%         % edges, it's a bit more tricky. The total cost of moving nodes in
-%         % a limited space is 1 no matter how many nodes there are. If we
-%         % need to move more, it means our node mapping is wrong.
-%         normConstants = maxChildrenCountMatrix + 1;
-%         if ~isempty(normConstants)
-%             newDistanceMatrix(multipleNodeIdx) = newDistanceMatrix(multipleNodeIdx) ./ normConstants(multipleNodeIdx);
-%         end
-        
-        % We normalize the distance matrix by dividing by the largest
-        % element.
-        normConstant = max(max(newDistanceMatrix(multipleNodeIdx)));
-        if ~isempty(normConstant)
-            if normConstant>0
-                newDistanceMatrix(multipleNodeIdx) = newDistanceMatrix(multipleNodeIdx) / normConstant;
-            end
-        end
-        
-        % Convert to single.
-        newDistanceMatrix = single(newDistanceMatrix);
-    
-        % If ranks are needed, we calculate them.
-        if strcmp(distType, 'rank')
-            newDistMat = zeros(size(newDistanceMatrix));
-            sortAssgnArr = 1:size(newDistanceMatrix,1);
-            for nodeItr = 1:size(newDistanceMatrix,1)
-                distances = newDistanceMatrix(nodeItr,:);
-                [~, rankings] = sort(distances, 'ascend');
-                [~,assgnArr] = ismember(sortAssgnArr, rankings);
-                newDistMat(nodeItr, :) = newDistMat(nodeItr, :) + assgnArr;
-                newDistMat(:, nodeItr) = newDistMat(:, nodeItr) + assgnArr';
-            end
-            newDistanceMatrix = newDistMat - 2;
-            newDistanceMatrix = single(newDistanceMatrix / max(max(newDistanceMatrix)));
-        end
-    else
-        newDistanceMatrix = inf(numel(vocabLevel), 'single');
-        newDistanceMatrix(1:numel(vocabLevel)+1:numel(vocabLevel)*numel(vocabLevel)) = 0;
-    end
-    
+   %% Normalize distances by the size of compared parts.
+   childrenCounts = {vocabLevel.children};
+   childrenCounts = cellfun(@(x) numel(x), childrenCounts);
+   % Normalize distances for multiple-node subs, considering number of
+   % children and max distance.
+   maxChildrenCountMatrix = repmat(childrenCounts, numel(vocabLevel), 1);
+   maxChildrenCountMatrix = max(maxChildrenCountMatrix, maxChildrenCountMatrix');
+   newDistanceMatrix = newDistanceMatrix ./ maxChildrenCountMatrix;
+   multipleNodeIdx = maxChildrenCountMatrix > 1;
+
+   % We normalize the distance matrix by dividing by the largest
+   % element.
+   normConstant = max(max(newDistanceMatrix(multipleNodeIdx)));
+   if ~isempty(normConstant)
+       if normConstant>0
+           newDistanceMatrix(multipleNodeIdx) = newDistanceMatrix(multipleNodeIdx) / normConstant;
+       end
+   end
+
+   % Convert to single.
+   newDistanceMatrix = single(newDistanceMatrix);
+
+   % If ranks are needed, we calculate them.
+   if strcmp(distType, 'rank')
+       newDistMat = zeros(size(newDistanceMatrix));
+       sortAssgnArr = 1:size(newDistanceMatrix,1);
+       for nodeItr = 1:size(newDistanceMatrix,1)
+           distances = newDistanceMatrix(nodeItr,:);
+           [~, rankings] = sort(distances, 'ascend');
+           [~,assgnArr] = ismember(sortAssgnArr, rankings);
+           newDistMat(nodeItr, :) = newDistMat(nodeItr, :) + assgnArr;
+           newDistMat(:, nodeItr) = newDistMat(:, nodeItr) + assgnArr';
+       end
+       newDistanceMatrix = newDistMat - 2;
+       newDistanceMatrix = single(newDistanceMatrix / max(max(newDistanceMatrix)));
+   end
+   
     %% Finally, we implement the OR nodes here.
     % We apply agglomerative clustering on the generated distance matrix,
     % and group parts based on their similarities. We have a limited number
     % of resources when selecting parts.
-    
     % First, we check for the necessity.
     if size(newDistanceMatrix,1) <= options.reconstruction.numberOfReconstructiveSubs
-         return;
+        nodeDistributions = cell(size(newDistanceMatrix,1),1);
+        for itr = 1:numel(nodeDistributions)
+             nodeDistributions{itr} = single([itr, 1]);
+        end
+        [graphLevel.nodeProbability]= deal(single(1));
+        return;
     end
     
     % All good, group the nodes here.
@@ -189,18 +147,50 @@ function [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postP
     
     % Combine parts falling in the same clusters by setting their distances to zero.
     [~, IA, IC] = unique(clusters, 'stable');
-    condensedNewDistanceMatrix = newDistanceMatrix(IA,IA);
+    numberOfClusters = numel(IA);
+    condensedDistanceMatrix = zeros(numberOfClusters, 'single');
     if numel(unique(clusters)) ~= size(newDistanceMatrix,1)
-         for clusterItr1 = 1:numel(clusters)
-              for clusterItr2 = 1:numel(clusters)
-                   newDistanceMatrix(clusterItr1, clusterItr2) = condensedNewDistanceMatrix(IC(clusterItr1), IC(clusterItr2));
-                   newDistanceMatrix(clusterItr2, clusterItr1) = newDistanceMatrix(clusterItr1, clusterItr2);
+         for clusterItr1 = 1:numberOfClusters
+              for clusterItr2 = (clusterItr1+1):numberOfClusters
+                   cluster1Samples = IC==clusterItr1;
+                   cluster2Samples = IC==clusterItr2;
+                   distanceMatrixSmall = newDistanceMatrix(cluster1Samples, cluster2Samples);
+                   avgDistance = mean(distanceMatrixSmall(:));
+                   condensedDistanceMatrix(clusterItr1, clusterItr2) = avgDistance;
+                   condensedDistanceMatrix(clusterItr2, clusterItr1) = avgDistance;
               end
          end
     end
     labelArr = num2cell(int32(IC));
+    sampleLabelIds = double([graphLevel.labelId]);
+    
+    %% Here, we calculate statistics for node replacement. 
+    nodeDistributions = cell(numberOfClusters,1);
+    for clusterItr = 1:numberOfClusters
+         orNodes = find(IC == clusterItr);
+         if numel(orNodes) > 1
+              samples = sampleLabelIds(ismember(sampleLabelIds, orNodes));
+              [occurences, ~] = hist(samples, orNodes);
+              probs = (occurences/sum(occurences))';
+         else
+              probs = 1;
+         end
+         nodeDistributions{clusterItr} = single([orNodes, probs]);
+    end
+    
+    % Update the labels of vocabLevel with or node information.
     [vocabLevel.label] = deal(labelArr{:});
-    newDistanceMatrix = newDistanceMatrix(IA, IA);
+    
+    % Update node probabilities of graphLevel.
+    labelIds = [graphLevel.labelId];
+    catNodeDistributions = cat(1, nodeDistributions{:});
+    for vocabLevelItr = 1:numel(vocabLevel)
+         realizations = labelIds == vocabLevelItr;
+         probability = catNodeDistributions(catNodeDistributions(:,1) == vocabLevelItr,2);
+         [graphLevel(realizations).nodeProbability] = deal(probability);
+    end
+    
+    newDistanceMatrix = condensedDistanceMatrix;
 end
 
 %> Name: InexactMatch

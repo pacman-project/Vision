@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 03.02.2014
 %> Ver 1.1 on 01.09.2014 Adding negative signs.
-function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, options)
+function [vocabLevel, graphLevel] = generateLevels(nodes, nodeCoords, activations, signs, options)
     % Allocate space for both levels.
     vocabLevel(options.numberOfFilters) = VocabNode();
     graphLevel(size(nodes,1)) = GraphNode();
@@ -25,13 +25,13 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, op
     % Fill vocabulary level with labels.
     labelArr = num2cell(int32(1:options.numberOfFilters));
     [vocabLevel.label] = deal(labelArr{:});
-    [vocabLevel.numberOfProbabilisticChoices] = deal(int32(1));
+    [vocabLevel.numberOfProbabilisticChoices] = deal(int32(0));
     clear labelArr;
     
     % Fill object graph level.
     assignedNodes = mat2cell(nodes, ones(size(nodes,1),1), [1 2 1]);
     [graphLevel.labelId, graphLevel.position, graphLevel.imageId] = deal(assignedNodes{:});
-    assignedPrecisePos = mat2cell(single(nodes(:,2:3)), ones(size(nodes,1),1), 2);
+    assignedPrecisePos = mat2cell(single(nodeCoords), ones(size(nodes,1),1), 2);
     [graphLevel.precisePosition] = deal(assignedPrecisePos{:});
     clear assignedNodes;
     
@@ -43,6 +43,7 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, activations, signs, op
     % Set activation values.
     activationArr = num2cell(activations);
     [graphLevel.activation] = deal(activationArr{:});
+    [graphLevel.nodeProbability] = deal(single(1));
     
     % Add leaf nodes.
     leafNodes = num2cell(int32(1:size(nodes,1)));

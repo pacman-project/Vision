@@ -32,6 +32,7 @@ classdef Substructure
        instanceSigns@uint8; % Nx1 sign array, 1 for foreground, 0 for background.
        instanceCategories@uint8; % Nx1 category array, category label for each instance.
        instanceMatchCosts@single; % Nx1 array, The matching cost of each instance to the sub.
+       instanceExactMatchFlags@logical; % Nx1 array, The matching cost of each instance to the sub.
        instanceValidationIdx@uint8; % Nx1 array, which tells which validation set 
                                     % this instance is drawn from.
     end

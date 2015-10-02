@@ -19,13 +19,11 @@
 %>
 %> Updates
 %> Ver 1.0 on 11.12.2013
-function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
+function [graphLevel] = applyTestInhibition(graphLevel, options)
     % Calculate edge radius.
-    scale = (1/options.scaling)^(levelItr-1);
-    neighborhood = fix(options.edgeRadius * scale);
     noveltyThr = 1 - options.noveltyThr;
-    downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
     fullOverlapThr = 0.99;
+    halfMatrixSize = (options.receptiveFieldSize+1)/2;
     
     if numel(graphLevel) == 0
         return;
@@ -73,7 +71,6 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
             continue;
         end
         imageNodeCoords = imageAllNodeCoords{imageId};
-        imageNodeLabels = cat(1, imageGraphLevel.labelId);
         numberOfNodesInImage = numel(imageGraphLevel);
         imagePreservedNodes = ones(numberOfNodesInImage,1)>0;
         imageLeafNodes = {imageGraphLevel.leafNodes}';
@@ -93,27 +90,13 @@ function [graphLevel] = applyTestInhibition(graphLevel, options, levelItr)
           
           % Find distances relative to the center node, and then obtain
           % leaf node supports.
-          distances = sqrt(sum(edgeCoords.^2, 2));
-          adjacentNodes = imagePreservedNodes & distances <= neighborhood; 
+          adjacentNodes = imagePreservedNodes & ... 
+                edgeCoords(:,1) > -halfMatrixSize & ...
+                edgeCoords(:,1) < halfMatrixSize & ...
+                edgeCoords(:,2) > -halfMatrixSize & ...
+                edgeCoords(:,2) < halfMatrixSize;
           adjacentNodes(1:nodeItr) = 0;
-          
-          % Here, we do an elimination of nodes with the same id, that
-          % happen to be very close to each other. It's mimicking the
-          % pooling process in deep learning methods.
-          normalizedEdgeCoords = fix(fix(downsampleRatio * double(edgeCoords(adjacentNodes, :))));
-          eliminatedAdjacentNodes = normalizedEdgeCoords(:,1) == 0 & ...
-                                        normalizedEdgeCoords(:,2) == 0 & ...
-                                        imageNodeLabels(adjacentNodes) == imageNodeLabels(nodeItr);
-          
-          % If we need to eliminate some of the nodes based on spatial
-          % adjacency, not because of overlapping leaf node support, we do
-          % it here.
-          if nnz(eliminatedAdjacentNodes) > 0
-              adjacentNodeIdx = find(adjacentNodes);
-              imagePreservedNodes(adjacentNodeIdx(eliminatedAdjacentNodes)) = 0;
-              adjacentNodes(adjacentNodeIdx(eliminatedAdjacentNodes)) = 0;
-          end
-                                  
+              
           % Go over each adjacent node, and apply inhibition if their leaf nodes are 
           % shared too much, under current novelty threshold.
           selfLeafNodes = imageLeafNodes{nodeItr};

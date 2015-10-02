@@ -77,7 +77,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     partSelectionFlag = options.partSelectionFlag;
     stoppingCoverage = options.reconstruction.stoppingCoverage;
     optimalThreshold = orgThreshold;
-    noveltyThr = options.noveltyThr;
     if options.validationFlag
         validationFolds = options.validationFolds;
     else
@@ -89,6 +88,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
     end
     parentsPerSet = 50;
+    minNodeProbability = 0.00001;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
@@ -110,13 +110,17 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     end
     nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), assignedEdges);
     allLabels = cat(1, graphLevel.labelId);
-    prevActivations = cat(1, graphLevel.activation)';
     assignedEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
         assignedEdges(nonemptyEdgeIdx), 'UniformOutput', false);
+%    allNodeProbs = cat(1, graphLevel.nodeProbability);
+    allEdgeProbs = {graphLevel.edgeProbabilities};
+    allNodeProbs = cat(1, graphLevel.nodeProbability);
+    allNodeActivations = cat(1, graphLevel.activation);
     allEdges(numel(graphLevel)) = AdjInfo();
     [allEdges.adjInfo] = deal(assignedEdges{:});
     allEdgeNodePairs = cat(1,allEdges.adjInfo);
     allEdgeNodePairs = allEdgeNodePairs(:,1:2);
+    allEdgesArr = {allEdges.adjInfo};
     clear assignedEdges;
     
      % Get number of probabilistic choices for vocabulary nodes.
@@ -258,8 +262,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
-                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, ...
-                    singlePrecision, overallThreshold);
+                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, overallThreshold);
                 if isempty(childSubs) 
                     continue;
                 end
@@ -408,7 +411,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
        %% If required, we'll pick best parts based on the reconstruction of the data.
        if partSelectionFlag
            [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, ...
-               nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
+               nodeDistanceMatrix, edgeDistanceMatrix, allEdges, allEdgeProbs, singlePrecision, ...
                stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, minThreshold, maxThreshold, ...
                maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, isSupervisedSelectionRunning, optimizationFlag);
            
@@ -421,7 +424,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                display('[SUBDUE] We switch to supervised learning from now on.');
                isSupervisedSelectionRunning = true;
                [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, ...
-                   nodeDistanceMatrix, edgeDistanceMatrix, singlePrecision, ...
+                   nodeDistanceMatrix, edgeDistanceMatrix, allEdges, allEdgeProbs, singlePrecision, ...
                    stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, minThreshold, maxThreshold, ...
                    maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, isSupervisedSelectionRunning, optimizationFlag);
            else
@@ -449,74 +452,30 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
             maxSubSize = max(maxSubSize, (size(bestSubs(bestSubItr).edges,1)+1));
         end
 
-        multiplier = round(1/singlePrecision);
         % Find the children for each instance, and use it as a descriptor.
         % We'll then find unique descriptors, which is the initial phase of
         % inhibition.
         instanceChildrenDescriptors = cell(numberOfBestSubs,1);
- %       instanceChildrenMappings = cell(numberOfBestSubs,1);
-        instanceActivations = cell(numberOfBestSubs,1);
-        remainingInstanceLabels = cell(numberOfBestSubs,1);
+        instanceChildrenMappings = cell(numberOfBestSubs,1);
         parfor bestSubItr = 1:numberOfBestSubs
-           % If node similarity is implemented as well, this
-           % numberOfChoices parameter will include the node count as well.
-           % Right now, it's only edge count.
-           numberOfChoices = size(bestSubs(bestSubItr).edges,1);
            instanceChildren = bestSubs(bestSubItr).instanceChildren;
-  %         instanceMappings = bestSubs(bestSubItr).instanceMappings;
+           instanceMappings = bestSubs(bestSubItr).instanceMappings;
            tempNum = size(instanceChildren,1);
            
            % Find children descriptors and save 'em.
            childrenDescriptors = zeros(tempNum, maxSubSize, 'int32');
-    %       childrenMappings = zeros(tempNum, maxSubSize, 'uint8');
+           childrenMappings = zeros(tempNum, maxSubSize, 'uint8');
            childrenDescriptors(:, 1:size(instanceChildren,2)) = instanceChildren;
-   %        childrenMappings(:, 1:size(instanceChildren,2)) = instanceMappings;
+           childrenMappings(:, 1:size(instanceChildren,2)) = instanceMappings;
            instanceChildrenDescriptors{bestSubItr} = childrenDescriptors;
-  %         instanceChildrenMappings{bestSubItr} = childrenMappings;
-           instanceMatchScores = fix(multiplier * ((numberOfChoices - bestSubs(bestSubItr).instanceMatchCosts))) / multiplier;
-           
-           % Calculate activations for the next level.
-           instancePrevChoicesArr = numberOfProbabilisticChoicesArr(allLabels(instanceChildren));
-           instancePrevActivations = prevActivations(instanceChildren); %#ok<PFBNS>
-           activations = (sum(single(instancePrevChoicesArr) .* instancePrevActivations, 2) + instanceMatchScores) ./ (single(sum(instancePrevChoicesArr,2)) + numberOfChoices);
-           instanceActivations{bestSubItr} = activations;
-           
-           % Find instance labels.
-           instanceLabels = repmat(int32(bestSubItr), tempNum, 1);
-           remainingInstanceLabels{bestSubItr} = instanceLabels;
+           instanceChildrenMappings{bestSubItr} = childrenMappings;
         end
         instanceChildrenDescriptors = cat(1, instanceChildrenDescriptors{:});
- %       instanceChildrenMappings = cat(1, instanceChildrenMappings{:});
-        
-        %% If inhibition is applied, we eliminate the instances which exist in multiple subs.
-        % For each unique instance (node set), we find the best matching
-        % sub, and assign the instance to that sub.
- %       if noveltyThr > 0
-        if noveltyThr == -1
-           display('[SUBDUE] Performing initial inhibition. Eliminating duplicate instances among different subs..');
-           %        Alternative 2
-           instanceActivations = cat(1, instanceActivations{:});
-           remainingInstanceLabels = cat(1, remainingInstanceLabels{:});
-           [~, sortIdx] = sort(instanceActivations, 'descend');
-           orderedInstanceChildrenDescriptors = instanceChildrenDescriptors(sortIdx,:);
+        instanceChildrenMappings = cat(1, instanceChildrenMappings{:});
 
-           % Update data structures by selecting unique children.
-           % Find unique rows, which correspond to unique instances.
-           [~, IA, ~] = unique(orderedInstanceChildrenDescriptors, 'rows', 'stable');
-           IA = sort(sortIdx(IA));
-           
-           % Get the remaining sub count.
-           remainingBestSubs = unique(remainingInstanceLabels(IA))';
-           numberOfBestSubs = numel(remainingBestSubs);
-           numberOfInstances = numel(IA);
-           instanceChildrenDescriptors = instanceChildrenDescriptors(IA,:);
-%           instanceChildrenMappings = instanceChildrenMappings(IA, :);
-        else
-           %        Alternative 1
-           remainingBestSubs = 1:numberOfBestSubs;
-           IA = 1:size(instanceChildrenDescriptors,1);
-           numberOfInstances = numel(IA);
-        end
+      remainingBestSubs = 1:numberOfBestSubs;
+      IA = 1:size(instanceChildrenDescriptors,1);
+      numberOfInstances = numel(IA);
         
         %% Fill in vocabLevel and graphLevel.
        %Allocate space for new graph/vocab level.
@@ -530,7 +489,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            vocabLevel(bestSubItr).label = int32(bestSubItr);
 
            % Assign mdl score.
-           vocabLevel(bestSubItr).mdlScore = bestSubs(remainingBestSubs(bestSubItr)).mdlScore;
+           vocabLevel(bestSubItr).mdlScore = bestSubs(remainingBestSubs(bestSubItr)).mdlScore; %#ok<PFBNS>
            vocabLevel(bestSubItr).normMdlScore = bestSubs(remainingBestSubs(bestSubItr)).normMdlScore;
 
            % Assign sub edges (definition)
@@ -545,21 +504,18 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            end
            
            % Assign the number of choices up to this point. 
-           % TODO: Update to include node change choices.
-           vocabLevel(bestSubItr).numberOfProbabilisticChoices = sum(numberOfProbabilisticChoicesArr(vocabLevel(bestSubItr).children)) + int32(numberOfEdges);
+           vocabLevel(bestSubItr).numberOfProbabilisticChoices = sum(numberOfProbabilisticChoicesArr(vocabLevel(bestSubItr).children)) + (2 * int32(numberOfEdges) + 1); %#ok<PFBNS>
         end
         
         % Now, we fill in the info of vocabLevel.
         actualInstanceOffset = 1;
         instanceOffset = 1;
         remainingSubItr = 1;
-        multiplier = round(1/singlePrecision);
         for bestSubItr = 1:numel(bestSubs)
            if ~ismember(bestSubItr,remainingBestSubs)
                instanceOffset = instanceOffset + numel(bestSubs(bestSubItr).instanceCenterIdx);
            else
                %% Assign instances to this sub.
-               numberOfChoices = size(bestSubs(bestSubItr).edges,1);
                instanceEndOffset = instanceOffset + numel(bestSubs(bestSubItr).instanceCenterIdx) - 1;
                remainingInstanceIdx = (IA(IA>= instanceOffset & IA <= instanceEndOffset) - instanceOffset) + 1;
                numberOfInstances = numel(remainingInstanceIdx);
@@ -568,7 +524,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                %% Create required fields such as centerIdx, edges, children and sign array to assign to instances.
                centerIdx = bestSubs(bestSubItr).instanceCenterIdx(remainingInstanceIdx,:);
                % Get graph match costs.
-               instanceMatchScores = fix(multiplier * ((numberOfChoices - bestSubs(bestSubItr).instanceMatchCosts))) / multiplier;
                numberOfInstances = numel(centerIdx);
                
                % Get instance children
@@ -576,25 +531,22 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                instanceChildren( :, all(~instanceChildren,1) ) = [];
                
                % Get mappings
-%                instanceMappings = instanceChildrenMappings(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
-%                instanceMappings( :, all(~instanceMappings,1) ) = [];
-               
-               % Calculate activations for the next level.
-                instancePrevChoicesArr = numberOfProbabilisticChoicesArr(allLabels(instanceChildren));
-                instancePrevActivations = prevActivations(instanceChildren);
-                activations = (sum(single(instancePrevChoicesArr) .* instancePrevActivations, 2) + instanceMatchScores) ./ (single(sum(instancePrevChoicesArr,2)) + numberOfChoices);
-                instanceActivations = num2cell(activations);
+                instanceMappings = instanceChildrenMappings(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
+                instanceMappings( :, all(~instanceMappings,1) ) = [];
                
                instanceChildren = mat2cell(instanceChildren, ones(numberOfInstances,1), size(instanceChildren,2));
-%               instanceMappings = mat2cell(instanceMappings, ones(numberOfInstances,1), size(instanceMappings,2));
+               instanceMappings = mat2cell(instanceMappings, ones(numberOfInstances,1), size(instanceMappings,2));
                instanceSigns = num2cell(allSigns(centerIdx));
+               
+               % Activations (TODO: ADD EDGE PROBABILITIES AS WELL!)
+               instanceActivations = num2cell(cellfun(@(x) mean(allNodeProbs(x) .* allNodeActivations(x)), instanceChildren));
                
                % Assign fields to graphs.
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).labelId] = deal(labelIds{:});
-               [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).activation] = deal(instanceActivations{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).children] = deal(instanceChildren{:});
- %              [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).mapping] = deal(instanceMappings{:});
+               [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).mapping] = deal(instanceMappings{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).sign] = deal(instanceSigns{:});
+               [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).activation] = deal(instanceActivations{:});
                instanceOffset = instanceEndOffset + 1;
                actualInstanceOffset = actualInstanceOffset + numberOfInstances;
                remainingSubItr = remainingSubItr + 1;

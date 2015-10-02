@@ -23,15 +23,16 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel, options] = learnVocabulary( vocabLevel, graphLevel, leafNodes, ...
-                                                            options, fileList, modes)
+function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, orNodeProbs, modeProbs, edgeChangeLevel, options] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords, ...
+                                                            options, fileList, modes, modeProbArr)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
     allModes = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
-    graphLevelIndices = cell(options.maxLevels,1);
+    orNodeProbs = cell(options.maxLevels,1);
+    modeProbs = cell(options.maxLevels,1);
     optimalThresholds = single(repmat(options.subdue.threshold, options.maxLevels,1));
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
@@ -39,20 +40,13 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
     allModes(1) = {modes};
+    modeProbs(1) = {modeProbArr};
     
     %% Create distance matrices of the first level.
-    if options.nodeSimilarityAllowed
-        [nodeDistanceMatrix, nodeLogMin] = createDistanceMatrix(options.filters, options.filterImages, options.filterType, options.distType, options.auto.deadFeatures, options.edgeLogRange);
-        options.nodeLogMin = nodeLogMin;
-        distanceMatrices(1) = {nodeDistanceMatrix};
-    else
-        % Set dummy similarity matrix with only diagonals zero.
-        numberOfNodes = numel(options.filters) - numel(options.auto.deadFeatures);
-        newDistanceMatrix = inf(numberOfNodes, numberOfNodes, 'single');
-        newDistanceMatrix(1:(numberOfNodes+1):numberOfNodes*numberOfNodes) = 0;
-        distanceMatrices(1) = {newDistanceMatrix};
-    end
+    [eucDistanceMatrix, nodeDistanceMatrix, nodeProbArr] = createDistanceMatrix(options.filters, options.filterImages, options.filterType, options.distType);
+    distanceMatrices(1) = {nodeDistanceMatrix};
     newDistanceMatrix = distanceMatrices{1};
+    orNodeProbs(1) = {nodeProbArr};
     
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));
@@ -67,7 +61,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
     end
     
     %% Print first vocabulary and graph level.
-    visualizeLevel( vocabulary{1}, [], [], [], [], 1, 0, 0, options);
+    visualizeLevel( vocabulary{1}, [], [], [], [], [], 1, 0, 0, options);
     if ~isempty(distanceMatrices{1})
        imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
     end
@@ -75,11 +69,11 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
     if options.debug
         matlabpool close; 
         display('........ Visualizing the realizations in the first level...');
-        visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, 1, options, 'train' );
+        visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, leafNodeCoords, 1, options, 'train' );
         visualizeCroppedImgs( vocabulary{1}, 1, options);
         matlabpool('open', options.numberOfThreads);
     end
-    printCloseFilters(distanceMatrices{1}, 1, options);
+    printCloseFilters(eucDistanceMatrix, 1, options);
     
     %% Calculate statistics from this graph.
     display('........ Estimating statistics for level 1..');
@@ -116,6 +110,15 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
             options, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy);
         optimalThresholds(levelItr) = optimalThreshold;
+        % Test if the mapping is correct (for debugging).
+%        testSuccess = testMapping(vocabLevel, graphLevel, mainGraph{levelItr-1});
+        
+        %% Here, we calculate the log likelihood of the nodes in graph
+        % level.
+%        graphLevel = calculateLogLikelihood(graphLevel, mainGraph{levelItr-1});
+        
+        %% Finally, the part selection is performed to get rid of redundant/useless parts.
+ %       [vocabLevel, graphLevel] = performPartSelection(vocabLevel, graphLevel, options);
         
         % Open/close matlabpool to save memory.
         matlabpool close;
@@ -128,7 +131,8 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
            mainGraph = mainGraph(1:(levelItr-1),:);
            allModes = allModes(1:(levelItr-1), :);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
-           graphLevelIndices = graphLevelIndices(1:(levelItr-1),:);
+           orNodeProbs = orNodeProbs(1:(levelItr-1),:);
+           modeProbs = modeProbs(1:(levelItr-1),:);
            optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            break; 
         end
@@ -155,7 +159,8 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
            optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
-           graphLevelIndices = graphLevelIndices(1:(levelItr-1),:);
+           orNodeProbs = orNodeProbs(1:(levelItr-1),:);
+           modeProbs = modeProbs(1:(levelItr-1),:);
            break; 
         end
         
@@ -166,10 +171,11 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         % discarded. *Natural selection*
         if options.noveltyThr > 0
             display('........ Applying inhibition..');
-            graphLevel=applyTestInhibition(graphLevel, options, levelItr);
+            graphLevel=applyTestInhibition(graphLevel, options);
         else
             display('........ No inhibition applied..');
         end
+        
         % Open/close matlabpool to save memory.
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
@@ -178,12 +184,24 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
             display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
-            [vocabLevel, graphLevel, newDistanceMatrix, graphLabelAssgnArr] = postProcessParts(vocabLevel, graphLevel, distanceMatrices{levelItr-1}, optimalThreshold, options);
-            graphLevelIndices{levelItr} = graphLabelAssgnArr;
+            [vocabLevel, graphLevel, eucDistanceMatrix, nodeDistributions] = postProcessParts(vocabLevel, graphLevel, eucDistanceMatrix, options);
+            newDistanceMatrix = inf(size(eucDistanceMatrix,1), size(eucDistanceMatrix,1), 'single');
+            newDistanceMatrix(1:(size(eucDistanceMatrix,1)+1):size(eucDistanceMatrix,1)*size(eucDistanceMatrix,1)) = 0;
             distanceMatrices{levelItr} = newDistanceMatrix;
+            orNodeProbs{levelItr} = nodeDistributions;
         else
             newDistanceMatrix = [];
         end
+        
+        %% We process graphLevel's labelIds to reflect updated labels (OR Node Labels).
+        vocabNodeLabels = [vocabLevel.label];
+        updatedLabelIds = num2cell(vocabNodeLabels([graphLevel.labelId]));
+        [graphLevel.labelId] = deal(updatedLabelIds{:});
+        mainGraph{levelItr} = graphLevel;
+        
+        %% As an initial stage of inhibition, we downsample the responses, 
+        % and apply max pooling. 
+        graphLevel = applyPooling(graphLevel, options.poolDim);
         
         %% Calculate statistics from this graph.
         display('........ Estimating post-inhibition statistics..');
@@ -203,7 +221,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
         %% Step 2.4: In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
-        vocabLevel = learnChildPositions(vocabLevel, graphLevel, allModes{levelItr-1});
+        vocabLevel = learnChildPositions(vocabLevel, allModes{levelItr-1});
         
         %% Step 2.5: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
@@ -215,7 +233,8 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
             optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
-            graphLevelIndices = graphLevelIndices(1:(levelItr),:);
+            orNodeProbs = orNodeProbs(1:(levelItr),:);
+            modeProbs = modeProbs(1:(levelItr),:);
             break;
         end
         
@@ -225,35 +244,31 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         graphLevel = mainGraph{levelItr};
         
         %% Here, we bring back statistical learning with mean/variance.
-        modes = learnModes(vocabLevel, graphLevel, newDistanceMatrix, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder);
-        graphLevel = assignEdgeLabels(vocabLevel, graphLevel, modes, options.edgeCoords);
+        [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder);
+        graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
         mainGraph{levelItr} = graphLevel;
         allModes{levelItr} = modes;
-        
-        %% Finally, we process graphLevel's labelIds to reflect updated labels (OR Node Labels).
-        vocabNodeLabels = [vocabLevel.label];
-        updatedLabelIds = num2cell(vocabNodeLabels([graphLevel.labelId]));
-        [graphLevel.labelId] = deal(updatedLabelIds{:});
-        mainGraph{levelItr} = graphLevel;
+        modeProbs{levelItr} = modeProbArr;
         
         %% Print vocabulary and graph level to output images (reconstruction).
         if ~isempty(newDistanceMatrix)
-           imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
+           imwrite(eucDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
+           imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_orNodes.png']);
         end
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
- %           visualizeORNodes( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
-            visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+            printConvolutionFilters(vocabLevel, orNodeProbs{levelItr-1}, allModes{levelItr-1}, modeProbs{levelItr-1}, levelItr, numel(vocabulary{levelItr-1}), options.debug, options.CNNFolder);
+            visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             if options.debug
                display('........ Visualizing realizations on images...');
                if ~isempty(vocabLevel)
                     matlabpool close;
-                    visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, levelItr, options, 'train' );
+                    visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, leafNodeCoords, levelItr, options, 'train' );
                     visualizeCroppedImgs( vocabLevel, levelItr, options);
                     matlabpool('open', options.numberOfThreads);
                end
             end
-            printCloseFilters(newDistanceMatrix, levelItr, options); 
+            printCloseFilters(eucDistanceMatrix, levelItr, options); 
         end
         
         % Open/close matlabpool to save memory.
@@ -268,7 +283,8 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
             optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
-            graphLevelIndices = graphLevelIndices(1:(levelItr),:);
+            orNodeProbs = orNodeProbs(1:(levelItr),:);
+            modeProbs = modeProbs(1:(levelItr),:);
         end
     end
 end

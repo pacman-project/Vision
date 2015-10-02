@@ -44,7 +44,7 @@
 %> Updates
 %> Ver 1.0 on 13.04.2015
 function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, ...
-    nodeDistanceMatrix, edgeDistanceMatrix, ...
+    nodeDistanceMatrix, edgeDistanceMatrix, allEdges, allEdgeProbs, ...
     singlePrecision, stoppingCoverage, numberOfFinalSubs, fixedThreshold, minThreshold, ...
     maxThreshold, maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, ...
     allSigns, supervisionFlag, optimizationFlag)
@@ -431,7 +431,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
     aggregatedSubs = cell(validationFolds,1);
     aggregatedAccuracy = zeros(validationFolds,1);
     aggregatedPrecision = zeros(validationFolds,1);
-    parfor valItr = 1:validationFolds
+    for valItr = 1:validationFolds
         % We exclude the subs which have zero-cost matchs on this subset,
         % but not on other subsets.
         validSubIdx = ones(numel(orgBestSubs),1) > 0;
@@ -467,25 +467,16 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, .
             [validSubs, ~, ~] = getMRMRParts(bestSubs, optimalCount, nodeDistanceMatrix, edgeDistanceMatrix, ...
                 categoryArrIdx, imageIdx, validationIdx, valItr, optimalThreshold, singlePrecision);
         else
-           [validSubs, ~, ~] = getReconstructiveParts(bestSubs, ...
+           [validSubs, ~, ~] = getReconstructiveParts(bestSubs, allEdges, allEdgeProbs, ...
                 optimalCount, valItr, moreSubsAllowed, smartSubElimination, optimalThreshold, ...
                 stoppingCoverage, remainingChildren, nodeDistanceMatrix, ...
                 edgeDistanceMatrix, singlePrecision);
         end
         aggregatedSubs{valItr} = validSubIdx(validSubs);
-        
-        % Get accuracy here, and save it.
-        [aggregatedAccuracy(valItr), aggregatedPrecision(valItr)] = calculateCategorizationAccuracy(bestSubs(validSubs), ...
-           categoryArrIdx, imageIdx, validationIdx, valItr, optimalThreshold, singlePrecision, 1, true);
     end
     
     % Finally, obtain a list of final subs and get their union.
     finalSubList = unique(cat(1, aggregatedSubs{:}));
-    if validationFolds > 1
-        display(['[SUBDUE] Aggregated cross-validation accuracy on the data: %' num2str(100 * mean(aggregatedAccuracy)) ' and precision: %' num2str(100 * mean(aggregatedPrecision)) '.']); 
-    else
-        display(['[SUBDUE] Matching threshold is determined as ' num2str(optimalThreshold)]); 
-    end
     bestSubs = orgBestSubs;
     
    % Update instance information.

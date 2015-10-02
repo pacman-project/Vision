@@ -41,16 +41,18 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = floor(options.gaborFilterSize/2);
+    options.gabor.inhibitionRadius = 1;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
+    options.gabor.stride = 3;           % Stride to use when extracting gabor
+                                       % features.     
     options.autoFilterSize = 20;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = floor(options.autoFilterSize/2)-3;
-    options.autoFilterThr = 0;       % Min response threshold for convolved 
+    options.auto.inhibitionRadius = 1;
+    options.autoFilterThr = 0.2;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
@@ -106,15 +108,6 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.scaling = 0.6;            % Each successive layer is downsampled 
-                                       % with a ratio of 1/scaling. Actually,
-                                       % the image coordinates of 
-                                       % realizations are NOT downsampled, 
-                                       % but the edge radius (thus receptive 
-                                       % field size) is multiplied by
-                                       % 1/scaling at each level, creating
-                                       % the same effect.
-                                       % DEFAULT 0.5.
     options.edgeType = 'contour';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
@@ -140,9 +133,9 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.vis.instancePerNode = 9;     % Should be square of a natural number.
     options.vis.visualizedNodes = 100; % Number of vocabulary nodes to be visualized.
     if strcmp(options.filterType, 'auto')
-        options.receptiveFieldSize = 2*round((options.autoFilterSize*2.5)/2) + 1; % DEFAULT 5
+        options.receptiveFieldSize = 5; % DEFAULT 5
     else
-        options.receptiveFieldSize = 2*round((options.gaborFilterSize*3)/2) + 1;
+        options.receptiveFieldSize = 5;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -150,7 +143,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                          % 1/scaling.
     options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxImageDim = options.receptiveFieldSize*20; %Max dimension of the 
+    options.maxImageDim = options.receptiveFieldSize*50; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in
                                        % the dataset is larger than this
@@ -159,20 +152,6 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.edgeRadius = floor(options.receptiveFieldSize/2); % The edge radius 
-                                       % for two subs to be 
-                                       % determined as neighbors. Centroids
-                                       % taken into account. This is how a
-                                       % receptive field is implemented.
-                                       % edgeRadius grows at every level
-                                       % with the same ratio as the
-                                       % receptive field.
-    options.edgeQuantize = options.receptiveFieldSize;         % This parameter is used to quantize 
-                                        % edges in a edgeQuantize x edgeQuantize 
-                                        % window. As the receptive field
-                                        % grows, each relation is scaled
-                                        % down to this window, and then
-                                        % quantized. 
     options.maxLevels = 10;    % The maximum level count for training.
     options.maxInferenceLevels = 10; % The maximum level count for testing.
     

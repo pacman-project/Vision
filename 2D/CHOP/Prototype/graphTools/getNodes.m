@@ -23,6 +23,7 @@
 function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNodes( img, gtFileName, options )
     %% Step 1: Get grayscaled image and assign method parameters.
     if strcmp(options.filterType, 'gabor')
+        stride = options.gabor.stride;
         if size(img,3)>1
             img = rgb2gray(img(:,:,1:3));
         end
@@ -49,6 +50,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     filterBandSize = filterSize(1:2);
     img = double(img);
     filterCount = numel(options.filters);
+    borderSize = ceil(size(filterSize,1) / stride) + 1;
     
     %% Get gt info in the form of a mask.
     if options.useGT && ~isempty(gtFileName)
@@ -63,7 +65,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     end
     
     %% In case of auto-learned features, get each patch (using stride) as a separate column of data.
-    responseImgs = zeros(size(img,1), size(img,2), filterCount);
+    newImgSize = floor([(size(img,1)-1)/stride, (size(img,2)-1)/stride]) + 1;
     if strcmp(options.filterType, 'auto')
         dim1 = (size(img,1)-filterSize(1)+1);
         dim2 = (size(img,2)-filterSize(2)+1);
@@ -81,6 +83,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
         pairs = [p(:) q(:)];
         pairs = sortrows(pairs,2);
         validCols = sub2ind([dim1, dim2], pairs(:,1), pairs(:,2));
+        newImgSize = [numel(idx1), numel(idx2)];
         
         for bandItr = 1:size(img,3)
             tempCols = im2col(img(:,:,bandItr), filterBandSize)';
@@ -90,17 +93,25 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
         clear tempCols;
         muArr = repmat(mu, [size(imgCols,1), 1]);
     end
+    responseImgs = zeros(newImgSize(1), newImgSize(2), filterCount);
     halfSize = ceil(filterSize(1)/2);
     
     %% Low-level feature extraction.
     if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
+        realCoordIdx = zeros(filterCount, prod(newImgSize));
         for filtItr = 1:filterCount
             currentFilter = double(options.filters{filtItr});
             responseImg = conv2(img, currentFilter, 'same');
 
+            % Simulate stride here, and subsample the image.
+            [responseImg, idx] = MaxPooling(responseImg, [stride, stride]);
+            realCoordIdx(filtItr,:) = idx';
             % Save response for future processing
             responseImgs(:,:,filtItr) = responseImg;
         end
+        
+        % Subsample gt mask.
+        gtMask = imresize(gtMask, newImgSize);
     else
         % Pre-process the image blocks by whitening them.
         
@@ -172,7 +183,12 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
         % Assign responses to the actual image.
         realCoordIdx1 = idx1 + halfSize - 1;
         realCoordIdx2 = idx2 + halfSize - 1;
-        responseImgs(realCoordIdx1, realCoordIdx2, :) = reshape(responses, [numel(idx1), numel(idx2), filterCount]);
+        [p, q] = meshgrid(realCoordIdx2, realCoordIdx1);
+        realCoords = [q(:), p(:)];
+        responseImgs = reshape(responses, [numel(idx1), numel(idx2), filterCount]);
+        
+        % Subsample gt mask.
+        gtMask = imresize(gtMask((halfSize+1):(end-halfSize), (halfSize+1):(end-halfSize)), newImgSize);
     end
     
     %% We apply a minimum response threshold over response image.
@@ -208,24 +224,28 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     [~, orderedPeakIdx] = sort(activationImg(peaks), 'descend');
     orderedPeaks = peaks(orderedPeakIdx);
     validPeaks = ones(size(orderedPeaks))>0;
-    [xInd, yInd, ~] = ind2sub(size(activationImg), orderedPeaks);
-    for peakItr = 1:(peakCount-1)
-       if validPeaks(peakItr)
-           nextPeakItr = peakItr+1;
-           nearbyPeakIdx = ~(xInd(nextPeakItr:end) >= (xInd(peakItr) - inhibitionHalfSize) & xInd(nextPeakItr:end) <= (xInd(peakItr) + inhibitionHalfSize) & ...
-                yInd(nextPeakItr:end) >= (yInd(peakItr) - inhibitionHalfSize) & yInd(nextPeakItr:end) <= (yInd(peakItr) + inhibitionHalfSize));
-           validPeaks(nextPeakItr:end) = nearbyPeakIdx & validPeaks(nextPeakItr:end);
-       end
+    
+    % If inhibition is needed, run it.
+    if inhibitionHalfSize > 0
+         [xInd, yInd, ~] = ind2sub(size(activationImg), orderedPeaks);
+         for peakItr = 1:(peakCount-1)
+            if validPeaks(peakItr)
+                nextPeakItr = peakItr+1;
+                nearbyPeakIdx = ~(xInd(nextPeakItr:end) >= (xInd(peakItr) - inhibitionHalfSize) & xInd(nextPeakItr:end) <= (xInd(peakItr) + inhibitionHalfSize) & ...
+                     yInd(nextPeakItr:end) >= (yInd(peakItr) - inhibitionHalfSize) & yInd(nextPeakItr:end) <= (yInd(peakItr) + inhibitionHalfSize));
+                validPeaks(nextPeakItr:end) = nearbyPeakIdx & validPeaks(nextPeakItr:end);
+            end
+         end
+         activationImg(orderedPeaks(~validPeaks)) = 0;
     end
-    activationImg(orderedPeaks(~validPeaks)) = 0;
-
+    
     % Write the responses in the final image.
     responseImg = zeros(size(activationImg));
     responseImg(orderedPeaks(validPeaks)) = nodeIdImg(orderedPeaks(validPeaks));
-    responseImg([1:halfSize, (end-halfSize):end],:) = 0;
-    responseImg(:,[1:halfSize, (end-halfSize):end]) = 0;
-    activationImg([1:halfSize, (end-halfSize):end],:) = 0;
-    activationImg(:,[1:halfSize, (end-halfSize):end]) = 0;
+    responseImg([1:borderSize, (end-borderSize):end],:) = 0;
+    responseImg(:,[1:borderSize, (end-borderSize):end]) = 0;
+    activationImg([1:borderSize, (end-borderSize):end],:) = 0;
+    activationImg(:,[1:borderSize, (end-borderSize):end]) = 0;
     activationImg = activationImg / max(max(activationImg));
 
     %% Eliminate nodes outside GT mask. If gt is not used, this does not have effect.
@@ -235,11 +255,19 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     responseImg(ismember(responseImg, deadFeatures)) = 0;
     activationImg(responseImg == 0) = 0;
     finalNodeIdx = find(responseImg);
-    nodes = cell(numel(finalNodeIdx), 2);
+    if strcmp(options.filterType, 'gabor')
+         idx = sub2ind(size(realCoordIdx), responseImg(finalNodeIdx), finalNodeIdx);
+         realCoordLin = realCoordIdx(idx);
+         [realCoordX, realCoordY] = ind2sub(size(img), realCoordLin);
+         realCoords = [realCoordX, realCoordY];
+    else
+         realCoords = realCoords(finalNodeIdx,:); 
+    end
+    nodes = cell(numel(finalNodeIdx), 3);
     nodeActivations = single(activationImg(finalNodeIdx));
     for nodeItr = 1:numel(finalNodeIdx)
        [centerX, centerY] = ind2sub(size(responseImg), finalNodeIdx(nodeItr));
-       nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY])};
+       nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY]), round(realCoords(nodeItr,:))};
     end
     nodes = nodes(cellfun(@(x) ~isempty(x), nodes(:,1)),:);
 end

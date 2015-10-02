@@ -24,9 +24,8 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
     
     %% For each center node label type, we create a substructure.
     for subItr = 1:numberOfSubs
-        distances = nodeDistanceMatrix(allLabels, subItr);
-%        subCenterIdx = distances < threshold;
-        subCenterIdx = distances < 0.0001;  % TODO: Remove equality 
+        distances = nodeDistanceMatrix(subItr, allLabels)';
+        subCenterIdx = distances < threshold;
         instances = int32(find(subCenterIdx));
         numberOfInstances = numel(instances);
         
@@ -60,6 +59,7 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
             singleNodeSubs(subItr).instanceMappings = instanceMappings;
             singleNodeSubs(subItr).instanceCategories = categoryIdx;
             singleNodeSubs(subItr).instanceMatchCosts = instanceDistances;
+            singleNodeSubs(subItr).instanceExactMatchFlags = allLabels(instances) == subItr;
             singleNodeSubs(subItr).instanceSigns = instanceSigns;
             singleNodeSubs(subItr).instanceValidationIdx = instanceValidationIdx;
         else

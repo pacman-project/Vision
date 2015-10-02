@@ -10,6 +10,8 @@
 classdef GraphNode
     properties
         labelId@int32 % Label id of the part the realization belongs to.
+        nodeProbability@single % The probability of the node label.
+        realLabelId@int32 % Actual label of the associated part (considering OR nodes)
         imageId@int32 % Image id of the realization. It can be used as the index 
                 % in trainingFileNames array to get the name of the image.
         position@int32 % Position of the part's center in terms of image pixels, 
@@ -32,6 +34,7 @@ classdef GraphNode
                 % in this field which connects this node to other nodes in
                 % its receptive field (thus forming receptive graph).
                 % Is of the form [v1 v2 edgeId isDirected; ...]
+        edgeProbabilities@single % The probability of each edge occuring given the mode.
         leafNodes@int32 % The leaf node ids (level 1 realizations) this node 
                   % corresponds to. Particularly important in visualization
                   % and calculation of coverage statistics.

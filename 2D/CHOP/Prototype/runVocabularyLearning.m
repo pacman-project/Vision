@@ -184,6 +184,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         imageIds = cat(1, imageIds{:});
         leafNodes = [allNodes, imageIds];
         leafNodes = int32(cell2mat(leafNodes));
+        leafNodeCoords = leafNodes(:,4:5);
+        leafNodes = leafNodes(:, [1:3 6]);
         clear allNodes; 
         clear fileNames;
         
@@ -239,16 +241,16 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         options.validationIdx = validationIdx;
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        [vocabLevel, graphLevel] = generateLevels(leafNodes, allNodeActivations, leafNodeSigns, options);
+        [vocabLevel, graphLevel] = generateLevels(leafNodes, leafNodeCoords, allNodeActivations, leafNodeSigns, options);
         
         %% Learn edge-based distance matrix once and for all.
-        [edgeIdMatrix, edgeDistanceMatrix, edgeCoords, edgeLogMin, edgeLogRange ] = findEdgeDistanceMatrix(options.edgeQuantize, options.distType, options.edgeSimilarityAllowed);
+        [edgeIdMatrix, edgeDistanceMatrix, edgeCoords, edgeLogMin, edgeLogRange ] = findEdgeDistanceMatrix(options.receptiveFieldSize, options.distType, options.edgeSimilarityAllowed);
         options.edgeIdMatrix = edgeIdMatrix;
         options.edgeDistanceMatrix = edgeDistanceMatrix;
         options.edgeCoords = edgeCoords;
         options.edgeLogMin = edgeLogMin;
         options.edgeLogRange = edgeLogRange;
-        clear edgeIdMatrix edgeDistanceMatrix edgeCoords;
+        clear edgeIdMatrix edgeDistanceMatrix edgeCoords edgeLogMin edgeLogRange;
         
         %% Step 2.1: Get first-level object graph edges.
         mainGraph = {graphLevel};
@@ -256,15 +258,15 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         graphLevel = mainGraph{1};
         
         %% Here, we bring back statistical learning with mean/variance.
-        modes = learnModes(vocabLevel, graphLevel, [], options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder);
-        graphLevel = assignEdgeLabels(vocabLevel, graphLevel, modes, options.edgeCoords);
-        mainGraph{1} = graphLevel;
+        [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder);
+        graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
+        mainGraph{1} = graphLevel; %#ok<NASGU>
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryNames', 'categoryArrIdx', 'validationIdx');
-        [vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, graphLevelIndices, edgeChangeLevel] = learnVocabulary(vocabLevel, graphLevel, leafNodes, ...
-                                        options, trainingFileNames, modes); %#ok<NASGU,ASGLU>
+        [vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, orNodeProbs, modeProbs, edgeChangeLevel] = learnVocabulary(vocabLevel, graphLevel, leafNodes, leafNodeCoords, ...
+                                        options, trainingFileNames, modes, modeProbArr); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
         % Export realizations into easily-readable arrays.
@@ -272,7 +274,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'optimalThresholds', 'distanceMatrices', 'graphLevelIndices', 'trainingFileNames', 'categoryNames', 'options', 'edgeChangeLevel');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'optimalThresholds', 'distanceMatrices', 'orNodeProbs', 'modeProbs', 'trainingFileNames', 'categoryNames', 'options', 'edgeChangeLevel');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'validationIdx', 'poseArr', '-append'); 

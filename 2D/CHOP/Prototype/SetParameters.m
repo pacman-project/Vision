@@ -21,17 +21,21 @@ function [ options ] = SetParameters( datasetName, isTraining )
         options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end                             
-    options.vis.printTrainRealizations = false;
+    options.vis.printTrainRealizations = true;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
                                             % negative examples in
                                             % training.
     %% ========== TO BE MIGRATED TO INDIVIDUAL PARAMETER FILES ==========                    
-    options.autoNormalize = 'whiten'; %Or whiten
+    options.autoNormalize = 'whiten'; %Or 'normalize'
+    options.poolDim = 2; % The pooling window size. Could be 1, 2, 3...
+                                      % If 2, size of the receptive field
+                                      % is halved, as in the previous
+                                      % version of the algorithm.
     
     %% ========== VALIDATION PARAMETERS ==========
-    options.validationFlag = true; % If true, a subset of the training
+    options.validationFlag = false; % If true, a subset of the training
                                     % set is used as a validation
                                     % set. The matching threshold
                                     % in Subdue is estimated
@@ -105,6 +109,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.testOutputFolder = [options.outputFolder '/test'];
     options.testInferenceFolder = [options.outputFolder '/test/inference'];
     options.smoothedFolder = [currentPath '/output/' datasetName '/smoothed'];
+    options.CNNFolder = [currentPath '/CNN/' datasetName];
     
     %% ========== PATH FOLDER ADDITION ==========
     w = warning('off', 'all');

@@ -25,8 +25,6 @@
 function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
-    scale = (1/options.scaling)^(currentLevelId-1);
-    neighborhood = floor(options.edgeRadius * scale);
     currentLevel = mainGraph{currentLevelId};
     firstLevel = mainGraph{1};
     firstLevelAdjInfo = {firstLevel.adjInfo};
@@ -34,9 +32,8 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     nodeCoords = cat(1, currentLevel.position);
     imageIds = [currentLevel.imageId]';
     edgeIdMatrix = options.edgeIdMatrix;
-    halfMatrixSize = (options.edgeQuantize+1)/2;
-    matrixSize = [options.edgeQuantize, options.edgeQuantize];
-    downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
+    halfMatrixSize = (options.receptiveFieldSize+1)/2;
+    matrixSize = [options.receptiveFieldSize, options.receptiveFieldSize];
     edgeType = options.edgeType;
     
     %% Program options into variables.
@@ -86,7 +83,10 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
         for nodeItr = 1:numberOfNodes
            centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
            distances = sqrt(sum((curNodeCoords - centerArr).^2, 2));
-           adjacentNodes = distances <= neighborhood;
+           adjacentNodes = curNodeCoords(:,1) > (centerArr(:,1) - halfMatrixSize) & ...
+                curNodeCoords(:,1) < (centerArr(:,1) + halfMatrixSize) & ...
+                curNodeCoords(:,2) > (centerArr(:,2) - halfMatrixSize) & ...
+                curNodeCoords(:,2) < (centerArr(:,2) + halfMatrixSize);
            
            %% Check for edge novelty.
            adjacentNodeIdx = find(adjacentNodes);
@@ -128,6 +128,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
         nonemptyCurAdjacentNodeIdx = cellfun(@(x) ~isempty(x), curAdjacentNodes);
         curAdjacentNodes = curAdjacentNodes(nonemptyCurAdjacentNodeIdx);
         
+        % Obtain edges and count them.
         allEdges = cat(1, curAdjacentNodes{:});
         numberOfAllEdges = size(allEdges,1);
         
@@ -135,6 +136,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
            continue;
         end
         
+        % Collect info to form the edges.
         node1Labels = curNodeIds(allEdges(:,1));
         node2Labels = curNodeIds(allEdges(:,2));
         node1Coords = curNodeCoords(allEdges(:,1),:);
@@ -151,7 +153,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
         % Update data structures based on removed edges.
         allEdges = allEdges(validEdges,:);
         edgeCoords = double(edgeCoords(validEdges,:));
-        normalizedEdgeCoords = fix(fix(downsampleRatio * edgeCoords) + halfMatrixSize);
+        normalizedEdgeCoords = edgeCoords + halfMatrixSize;
         
         % Double check in order not to go out of bounds.
         normalizedEdgeCoords(normalizedEdgeCoords < 1) = 1;

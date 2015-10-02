@@ -45,6 +45,7 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
         % Calculate outgoing nodes (destinations of edges where
         % instance's children are the source).
         instanceChildren = sub.instanceChildren;
+        instanceCenterIdx = sub.instanceCenterIdx;
         numberOfNodes = numel(allEdges);
         numberOfInstances = numel(instanceSigns);   % Beware: Changes if overlap not allowed!
 
@@ -53,16 +54,21 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
         % top spots in bestSubs as they usually cover a lot more area than
         % their children.
         if ~isMultiNodeSub
+            % Obtain valid instances and reserve certain data structures.
             validInstances = cellfun(@(x) isempty(x), instanceEdges);
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances);
+            instanceCenterIdx = instanceCenterIdx(validInstances,:);
             instanceMatchCosts = sub.instanceMatchCosts(validInstances);
+            
+            % Assign valid instances.
             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
             sub.instanceChildren = sub.instanceChildren(validInstances,:);
             sub.instanceMappings = sub.instanceMappings(validInstances,:);
             sub.instanceSigns = sub.instanceSigns(validInstances,:);
             sub.instanceCategories = sub.instanceCategories(validInstances,:);
             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
+            sub.instanceExactMatchFlags = sub.instanceExactMatchFlags(validInstances,:);
             sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
         end
 
@@ -82,16 +88,9 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             % Filter out data for invalid instances from existing data structures.
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances, :);
+            instanceCenterIdx = instanceCenterIdx(validInstances, :);
             instanceMatchCosts = sub.instanceMatchCosts(validInstances);
-
-%             %% Remove overlapping nodes.
-%             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
-%             sub.instanceChildren = sub.instanceChildren(validInstances,:);
-%             sub.instanceEdges = sub.instanceEdges(validInstances,:);
-%             sub.instanceSigns = sub.instanceSigns(validInstances,:);
-%             sub.instanceCategories = sub.instanceCategories(validInstances,:);
-%             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
-          numberOfNonoverlappingInstances = nnz(validInstances);
+            numberOfNonoverlappingInstances = nnz(validInstances);
         end
     end
     
@@ -109,7 +108,24 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             if isempty(instanceChildren)
                subScore = 0;
             else
-               subScore = sum(instanceConstants)*(2 * size(sub.edges,1) - 1) - sum(instanceConstants .* instanceMatchCosts);
+               % First, learn constants for each node.
+               allNodeEdges = cat(1, allEdges(instanceCenterIdx).adjInfo);
+               if ~isempty(allNodeEdges)
+                    unrepresentedEdges = allNodeEdges(~ismember(allNodeEdges(:,2), instanceChildren), :);
+                    allConstants = ones(numel(allSigns),1);
+                    allConstants(~allSigns) = -1;
+                    unrepresentedConstants = allConstants(unrepresentedEdges(:,1));
+
+                    % Then, calculate representation penalty, which
+                    % penalized unrepresented nodes and edges.
+                    representationPenalty = sum(unrepresentedConstants) * 2;
+               else
+                    representationPenalty = 0;
+               end
+               
+               % Calculate likelihood.
+               subScore = sum(instanceConstants)*(2 * size(sub.edges,1) + 1) - sum(instanceConstants .* instanceMatchCosts);
+               subScore = subScore - representationPenalty;
             end
         case 'mdl'
             if isempty(instanceChildren)
