@@ -1,6 +1,35 @@
-function [validSubs, overallCoverage, overallMatchCost] = getReconstructiveParts(bestSubs, allEdges, allEdgeProbs, ...
-    numberOfFinalSubs, valItr, moreSubsAllowed, smartSubElimination, midThr, stoppingCoverage, uniqueChildren, nodeDistanceMatrix, ...
-    edgeDistanceMatrix, singlePrecision)
+%> Name: getReconstructiveParts
+%>
+%> Description: Given a set of parts in bestSubs, this function greedily
+%> selects a set of parts that minimize the likelihood of the data. The data
+%> is grouped into overlapping receptive fields, and the reduction in the
+%> cost is associated with increasing likelihood of the underlying data. Two
+%> factors are contributing towards the data likelihood description, namely
+%> node label and position prediction. 
+%> 
+%> @param bestSubs Initial set of substructures.
+%> @param realNodeLabels The real labels of underlying data. 
+%> @param realEdgeLabels The real labels of the edges that encode spatial
+%> distributions in the bottom level. 
+%> @param allEdges All edges encoded in the first level, with each cell
+%> corresponding to a separate node's edges. 
+%> @param allEdgeProbs Probabilities associated with edges.
+%> @param numberOfFinalSubs Selection will stop if the number of selected
+%> subs exceeds numberOfFinalSubs. 
+%> @param stoppingCoverage The minimum coverage that is required to stop
+%> selection.
+%> @param uniqueChildren The ids of the nodes(data) to be covered.
+%>
+%> @retval validSubs Ids of final subs.
+%> @retval overallCoverage The coverage on the data.
+%> @retval dataLikelihood Data likelihood given the selected parts.
+%>
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 08.10.2015
+function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(bestSubs, realNodeLabels, ...
+            realEdgeLabels, nodePositions, edgeCoords, allEdges, allEdgeProbs, numberOfFinalSubs, stoppingCoverage, uniqueChildren)
 
    minNodeProbability = 0.00001;
    numberOfBestSubs = numel(bestSubs);
@@ -8,91 +37,136 @@ function [validSubs, overallCoverage, overallMatchCost] = getReconstructiveParts
    maxChildId = max(uniqueChildren);
    prevGraphNodeLogProbs = zeros(1, maxChildId, 'single');
    minLogProb = single(log(minNodeProbability));
-   validNodes = zeros(maxChildId, 1) > 0;
    allEdgesArr = {allEdges.adjInfo};
    nonzeroIdx = cellfun(@(x) ~isempty(x), allEdgesArr);
    allEdgesPeripheralNodes = cell(size(allEdgesArr));
    allEdgesPeripheralNodes(nonzeroIdx) = cellfun(@(x) x(:,2), allEdgesArr(nonzeroIdx), 'UniformOutput', false);
    
-   %% To start with, we calculate the probability contributions of each sub to the data.
-   subLogProbs = cell(numberOfBestSubs, 1);
-   subCoveredNodes = cell(numberOfBestSubs,1);
+   %% Initially, we learn distributions of data points given each sub's center.
+   RFSize = sqrt(size(edgeCoords,1));
+   largeRFSize = RFSize * 2 - 1;
+   largeRFSizes = [largeRFSize, largeRFSize];
+   halfSize = RFSize;
+   
+   % Allocate space for node/edge distributions, both discrete.
+   % We start by calculating number of sub, child pairs.
+   maxLabel = max(realNodeLabels);
+   numberOfSubChildPairs = 0;
    for subItr = 1:numberOfBestSubs
-        % We obtain a partitioning of the data, by getting non-overlapping
-        % instances.
-       instanceCenterIdx = bestSubs(subItr).instanceCenterIdx;
-       [~, IA, ~] = unique(instanceCenterIdx, 'stable');
-       numberOfInstances = size(instanceCenterIdx,1);
-       validInstances = zeros(numberOfInstances,1) > 0;
-       validInstances(IA) = 1;
-%       matchedNodes = zeros(maxChildId,1)>0;
-%        for instItr = 1:numberOfInstances
-%            children = allEdgesPeripheralNodes{instanceCenterIdx(instItr)};
-%            if nnz(matchedNodes(children)) == 0
-%                matchedNodes(children) = 1;
-%                validInstances(instItr) = 1;
-%            end
-%        end
-        
-        logProbs = prevGraphNodeLogProbs;
-        centerNodes = bestSubs(subItr).instanceCenterIdx(validInstances);
-        
-        % We consider the center nodes as being reconstructed with great
-        % precision.
-        coveredNodes = unique(centerNodes);
-        logProbs(coveredNodes) = -minLogProb;
-        
-        if ~isempty(bestSubs(subItr).edges)
-             instanceEdges = bestSubs(subItr).instanceEdges(validInstances, :);
-             instanceEdges = mat2cell(instanceEdges, ones(size(instanceEdges,1),1), size(instanceEdges,2));
-             % Obtain peripheral nodes, their probabilities, and unexplained
-             % nodes for this sub. The unexplained nodes are the ones in the RF
-             % of this sub's instances, which are not part of the instance
-             % definitions.
-             peripheralNodes = cellfun(@(x, y) x(y,2), allEdgesArr(centerNodes)', instanceEdges, 'UniformOutput', false);
-             peripheralNodes = cat(1, peripheralNodes{:});
-             allPeripheralNodes = cat(1, allEdgesArr{centerNodes});
-             allPeripheralNodes = allPeripheralNodes(:,2);
-             unexplainedNodes = setdiff(allPeripheralNodes, peripheralNodes);
-             peripheralNodeProbs = cellfun(@(x, y) x(y), allEdgeProbs(centerNodes)', instanceEdges, 'UniformOutput', false);
-             peripheralNodeProbs = cat(1, peripheralNodeProbs{:});
-
-             % Now, we obtain the max probabilities for each node. 
-             [vals, idx] = sort(peripheralNodeProbs, 'descend');
-             [peripheralNodes, IA, ~] = unique(peripheralNodes(idx), 'stable');
-             peripheralNodeLogProbs = -minLogProb + log(vals(IA))';
-
-             % Update log probs.
-             logProbs(peripheralNodes) = max(peripheralNodeLogProbs, logProbs(peripheralNodes));
-             coveredNodes = unique([coveredNodes; peripheralNodes; unexplainedNodes]);
-        end
-        logProbs = logProbs(coveredNodes);
-        
-        % Save the info.
-        subCoveredNodes(subItr) = {coveredNodes'};
-        subLogProbs(subItr) = {logProbs};
+       numberOfSubChildPairs = numberOfSubChildPairs + size(bestSubs(subItr).edges,1) + 1;
+   end
+   
+   % TODO: The following two entries can be made sparse if we're short on memory.
+   labelProbArr = zeros(numberOfSubChildPairs, maxLabel);
+   posProbArr = zeros(numberOfSubChildPairs, largeRFSize, largeRFSize);
+   subInstancePositions = cell(numberOfBestSubs,1);
+   pairCounter = 1;
+   for subItr = 1:numberOfBestSubs
+       instanceChildren = bestSubs(subItr).instanceChildren;
+       numberOfInstances = size(instanceChildren,1);
+       numberOfChildren = size(instanceChildren,2);
+       instanceMappings = bestSubs(subItr).instanceMappings;
+       instancePositions = zeros(numberOfInstances, 2, 'int32');
+       
+       % If the mappings are not trivial (1:numberOfChildren at every row),
+       % we re-order children to reflect the mappings.
+       if ~issorted(instanceMappings, 'rows');
+           for instanceItr = 1:numberOfInstances
+              instanceChildren(instanceItr,:) = instanceChildren(instanceItr, ...
+                  instanceMappings(instanceItr,:));
+           end
+       end
+       bestSubs(subItr).instanceChildren = instanceChildren;
+       
+       % Find center positions for each instance.
+       for instanceItr = 1:numberOfInstances
+          instancePositions(instanceItr,:) = int32(round(sum(nodePositions(instanceChildren(instanceItr,:), :),1) ...
+                               / numberOfChildren)); 
+       end
+       subInstancePositions{subItr} = instancePositions;
+       
+       % Finally, collect statistics for every child.
+       for childItr = 1:numberOfChildren
+          % Learn node label distribution
+          nodeLabels = double(realNodeLabels(instanceChildren(:,childItr)));
+          entries = unique(nodeLabels);
+          if numel(entries) > 1
+              [nodeProbs, ~] = hist(nodeLabels, entries);
+              nodeProbs = nodeProbs / sum(nodeProbs);
+          else
+              nodeProbs = 1;
+          end
+          labelProbArr(pairCounter, entries) = nodeProbs;
+          
+           % Learn position distributions
+           % TODO: Make the distributions more continuous, as in gaussians.
+           % Right now, they're entirely discrete.
+           relativePositions = (nodePositions(instanceChildren(:,childItr),:) - instancePositions) + halfSize;
+           relativePositionIdx = double(sub2ind(largeRFSizes, ...
+               relativePositions(:,1), relativePositions(:,2)));
+           uniquePosIdx = double(unique(relativePositionIdx));
+           if numel(uniquePosIdx) > 1
+              [posProbs, ~] = hist(relativePositionIdx, uniquePosIdx);
+           else
+               posProbs = 1;
+           end
+           posProbs = posProbs / sum(posProbs);
+           probSlice = squeeze(posProbArr(pairCounter, :,:));
+           probSlice(uniquePosIdx) = posProbs;
+           posProbArr(pairCounter, :,:) = probSlice;
+           
+           % Increase counter.
+           pairCounter = pairCounter + 1;
+       end
+   end
+   
+   % Check for a potential error condition.
+   if size(posProbArr,2) ~= largeRFSize || size(posProbArr,3) ~= largeRFSize
+      error('Problem in getReconstructiveParts: Relative coordinations are wrong!'); 
    end
    
    %% Start the main loop. We select subs one by one.
    % This is a greedy selection algorithm. Each new sub's evaluation
    % depends on the previous set, i.e. it shows how much novelty it can bring to the table.
+   curLabelLogProbs = prevGraphNodeLogProbs;
+   curLabelProbPairs = ones(maxChildId, maxLabel);
+   curPosLogProbs = curLabelLogProbs;
+   curPosProbPairs = sparse(zeros(maxChildId, 1));
    coveredNodes = zeros(1, maxChildId) > 0;
    selectedSubIdx = zeros(numberOfBestSubs,1) > 0;
    selectedSubs = [];
-   curLogProbs = prevGraphNodeLogProbs;
-   addedSubOffset = 1;
+   addedSubOffset = 1;   
+   pairCounter = 1;
    reconstructionArr = zeros(1, maxChildId) > 0;
    while addedSubOffset <= numberOfFinalSubs
        % Select next best sub.
        valueArr = -inf(numberOfBestSubs,1);
        curValue = -inf;
-       tempCoveredNodes = coveredNodes;
-       tempLogProbs = curLogProbs;
        for bestSubItr = 1:numberOfBestSubs
             % If this sub has already been selected, we move on.
             if selectedSubIdx(bestSubItr)
                continue;
             end
+            
+            instanceChildren = bestSubs(bestSubItr).instanceChildren;
+            numberOfInstances = size(instanceChildren,1);
+            allAssgnProbs = [];
+            for childItr = 1:size(instanceChildren,2)
+                allAssgnProbs = [allAssgnProbs; ...
+                    repmat(labelProbArr(pairCounter,:), numberOfInstances, 1)]; %#ok<AGROW>
+            
+                % Increase counter.
+                pairCounter = pairCounter + 1;
+            end
+            instanceChildrenRep = instanceChildren(:);
+            
+            % Obtain unique numbers.
+            [uniqueChildren, IA, IC] = unique(instanceChildrenRep, 'stable');
+            for childItr = 1:numel(IA)
+               curLabelProbPairs(uniqueChildren(childItr),:) = prod(cat(1, curLabelProbPairs(uniqueChildren(childItr),:), ...
+                   allAssgnProbs(IC == childItr, :)), 1);
+            end
+            
             
             % Measure the value of this sub.
             % Get newly covered nodes.
@@ -167,7 +241,7 @@ function [validSubs, overallCoverage, overallMatchCost] = getReconstructiveParts
 %         end
    end
    overallCoverage = nnz(reconstructionArr) / prevGraphNodeCount;
-   overallMatchCost = abs(mean(curLogProbs)/ minLogProb);
+   dataLikelihood = abs(mean(curLogProbs)/ minLogProb);
    
    % Record preserved subs.
    validSubs = find(selectedSubIdx);

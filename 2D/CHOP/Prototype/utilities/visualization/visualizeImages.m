@@ -25,6 +25,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
     instancePerNode = options.vis.instancePerNode-1;
     printTrainRealizations = options.vis.printTrainRealizations;
     numberOfVocabLevelNodes = double(max([vocabLevel.label]));
+    activations = cat(1, graphLevel.activation);
     
     filter1 = options.filters{1};
     filtBandCount = size(filter1,3);
@@ -42,9 +43,8 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
     vocabMasks = cell(numel(options.filters),1);
     if usedLevel == 1
         for fileItr = 1:numel(options.filters)
-            filter1 = options.filters{fileItr};
-            filter1 = uint8(255*(filter1 - min(min(min(filter1))))/(max(max(max(filter1))) - min(min(min(filter1)))));
-            vocabMasks{fileItr} = filter1;
+            vocabMasks{fileItr} = imread([options.currentFolder '/debug/' options.datasetName ...
+                '/level1/reconstruction/' num2str(fileItr) '.png']);
         end
     else
         vocabMaskList = fuf([options.currentFolder '/debug/' options.datasetName '/level' num2str(usedLevel) '/reconstruction/*.png'], 1, 'detail');
@@ -71,7 +71,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
         graphNodeIds = (1:numel(graphLevel))';
         labelIds = cat(1, graphLevel.labelId); 
         imageIds = cat(1, graphLevel.imageId);
-        activations = cat(1, graphLevel.activation);
         for nodeItr = 1:numberOfVocabLevelNodes
             relevantIdx = labelIds == nodeItr;
             nodeInstances = graphNodeIds(relevantIdx);
@@ -124,7 +123,8 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
            end
         end
         
-        reconstructedMask = zeros(size(img,1), size(img,2), filtBandCount, 'uint8');
+        reconstructedMask = zeros(size(img,1), size(img,2), filtBandCount, 'double');
+        reconstructedMaskCounts = zeros(size(img,1), size(img,2), 'double');
         labeledReconstructedMask = zeros(size(img,1), size(img,2));
         sizeOfImage = [size(img,1), size(img,2)];
         
@@ -160,6 +160,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
             if ~options.vis.printTrainRealizations && ~(usedChildren(nodes(nodeItr).labelId) > 0)
                 continue;
             end
+            activation = nodes(nodeItr).activation;
             
             % Fetch the node list to reconstruct.
             if strcmp(reconstructionType, 'true')
@@ -206,12 +207,19 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
                  if maxY < (position(2)+otherHalfSize(2))
                      maxY = (position(2)+otherHalfSize(2));
                  end
-                 writtenMask = nodeMask;
+                 writtenMask = double(nodeMask);
+                 writtenMaskMap = double(mean(writtenMask,3) > 0);
                  reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) = ... 
-                     max(reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
-                     (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:), ...
-                     writtenMask);
+                     reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) + ...
+                     writtenMask * activation;
+                 reconstructedMaskCounts((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) = ...
+                     reconstructedMaskCounts((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
+                     (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) + ...
+                     writtenMaskMap;
+                     
      
                  % First, write the node label to the labeled mask.
                  reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
@@ -222,6 +230,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
                  labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2))) = reconstructedPatch;
             end
+            
             %% Write original image's cropped area to a file.
 %            if usedChildren(nodes(nodeItr).labelId) > 0 && strcmp(type, 'train')
             if usedChildren(nodes(nodeItr).labelId) > 0
@@ -234,11 +243,18 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
             labeledReconstructedMask(round(nodes(nodeItr).precisePosition(1)-1):round(nodes(nodeItr).precisePosition(1)+1), ...
                 round(nodes(nodeItr).precisePosition(2)-1):round(nodes(nodeItr).precisePosition(2)+1)) = nodes(nodeItr).labelId;
         end
+        
+        % Normalize and obtain final reconstructed image.
+        reconstructedMask(reconstructedMaskCounts > 0) = reconstructedMask(reconstructedMaskCounts > 0) ./ ...
+            reconstructedMaskCounts(reconstructedMaskCounts > 0);
+        reconstructedMask = uint8(round(reconstructedMask));
+        
         if strcmp(type, 'test') || (strcmp(type, 'train') && printTrainRealizations)
             %% Write the reconstructed mask to the output.
             % Add some random colors to make each composition look different, 
             % and overlay the gabors with the original image.
             rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k');
+            
             %% Write the original image to a mask.
             if size(reconstructedMask,3)>1
                 assignedBands = 1:size(reconstructedMask,3);
@@ -254,19 +270,21 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
             edgeImg = zeros(sizeOfImage);
             edgeRgbImg = rgbImg;
             for nodeItr = 1:numel(nodes)
-                edgeImg(round(nodes(nodeItr).precisePosition(1)-2):round(nodes(nodeItr).precisePosition(1)+2), ...
-                    round(nodes(nodeItr).precisePosition(2)-2):round(nodes(nodeItr).precisePosition(2)+2)) = nodes(nodeItr).labelId;
                 edges = nodes(nodeItr).adjInfo;
-                if isempty(edges)
-                   continue;
-                end
-                edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
                 if ~isempty(edges)
-                    for edgeItr = 1:size(edges,1)
-                       edgeIdx = drawline(double(nodes(edges(edgeItr,1)).precisePosition), double(nodes(edges(edgeItr,2)).precisePosition), sizeOfImage);
-                       edgeImg(edgeIdx) = edges(edgeItr,3);
+                    edges = edges(edges(:,2) > edges(:,1), :);
+                    edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
+                    if ~isempty(edges)
+                        for edgeItr = 1:size(edges,1)
+                           edgeIdx = drawline(double(nodes(edges(edgeItr,1)).precisePosition), double(nodes(edges(edgeItr,2)).precisePosition), sizeOfImage);
+                           edgeImg(edgeIdx) = edges(edgeItr,3);
+                        end
                     end
                 end
+            end
+            for nodeItr = 1:numel(nodes)
+                edgeImg(round(nodes(nodeItr).precisePosition(1)-2):round(nodes(nodeItr).precisePosition(1)+2), ...
+                    round(nodes(nodeItr).precisePosition(2)-2):round(nodes(nodeItr).precisePosition(2)+2)) = nodes(nodeItr).labelId;
             end
             edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
             edgeRgbImg = max(edgeRgbImg, edgeImg);

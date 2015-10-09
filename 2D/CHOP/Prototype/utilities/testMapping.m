@@ -1,8 +1,9 @@
-function [ testSuccess ] = testMapping( vocabLevel, graphLevel, previousGraphLevel )
+function [ testSuccess ] = testMapping( vocabLevel, graphLevel, newDistanceMatrix, previousGraphLevel )
      testSuccess = true;
      prevAdjInfo = {previousGraphLevel.adjInfo};
      prevLabelIds = [previousGraphLevel.labelId];
      wrongCounts = 0;
+     matrixSize = size(newDistanceMatrix);
      
      faultIdx = zeros(numel(graphLevel),1) > 0;
      for graphLevelItr = 1:numel(graphLevel)
@@ -11,7 +12,8 @@ function [ testSuccess ] = testMapping( vocabLevel, graphLevel, previousGraphLev
           
           % Check for node labels.
           childrenTrueLabels = vocabLevel(graphLevel(graphLevelItr).labelId).children;
-          if ~isequal(childrenTrueLabels, prevLabelIds(orderedChildren))
+          ind = sub2ind(matrixSize, childrenTrueLabels, prevLabelIds(orderedChildren));
+          if nnz(newDistanceMatrix(ind)) > 0
                faultIdx(graphLevelItr) = 1;
                wrongCounts = wrongCounts + 1;
           end

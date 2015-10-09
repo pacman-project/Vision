@@ -71,7 +71,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     isSupervised = options.subdue.supervised;
     maxThreshold = options.subdue.maxThreshold;
     minThreshold = options.subdue.minThreshold;
-    maxDepth = options.subdue.thresholdSearchMaxDepth;
     singlePrecision = options.singlePrecision;
     optimizationFlag = options.optimizationFlag;
     partSelectionFlag = options.partSelectionFlag;
@@ -88,7 +87,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
     end
     parentsPerSet = 50;
-    minNodeProbability = 0.00001;
+ %   minNodeProbability = 0.00001;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
@@ -120,8 +119,15 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     [allEdges.adjInfo] = deal(assignedEdges{:});
     allEdgeNodePairs = cat(1,allEdges.adjInfo);
     allEdgeNodePairs = allEdgeNodePairs(:,1:2);
-    allEdgesArr = {allEdges.adjInfo};
+ %   allEdgesArr = {allEdges.adjInfo};
     clear assignedEdges;
+    
+    % Obtain real node labels and edge distributions for likelihood
+    % processing.
+    realNodeLabels = [graphLevel.realLabelId];
+    realEdgeLabels = {graphLevel.realEdgeLabels};
+    nodePositions = cat(1, graphLevel.position);
+    edgeCoords = options.edgeCoords;
     
      % Get number of probabilistic choices for vocabulary nodes.
     numberOfProbabilisticChoicesArr = [vocabLevel.numberOfProbabilisticChoices];
@@ -410,10 +416,11 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         display(['[SUBDUE] We have found ' num2str(numberOfBestSubs) ' subs with ' num2str(numberOfInstances) ' instances.']);
        %% If required, we'll pick best parts based on the reconstruction of the data.
        if partSelectionFlag
-           [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, ...
-               nodeDistanceMatrix, edgeDistanceMatrix, allEdges, allEdgeProbs, singlePrecision, ...
-               stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, minThreshold, maxThreshold, ...
-               maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, isSupervisedSelectionRunning, optimizationFlag);
+           [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, realNodeLabels, realEdgeLabels,...
+               nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, allEdges, allEdgeProbs, singlePrecision, ...
+               stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, ...
+               validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, ...
+               isSupervisedSelectionRunning);
            
            % If supervision flag is set, and the performance has dropped
            % since the previous iteration, we switch to supervision.
@@ -423,10 +430,11 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                display(['[SUBDUE] Validation accuracy has dropped from %' num2str(100 * previousAccuracy) ' to %' num2str(100 * optimalAccuracy) '.']);
                display('[SUBDUE] We switch to supervised learning from now on.');
                isSupervisedSelectionRunning = true;
-               [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, ...
-                   nodeDistanceMatrix, edgeDistanceMatrix, allEdges, allEdgeProbs, singlePrecision, ...
-                   stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, minThreshold, maxThreshold, ...
-                   maxDepth, validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, isSupervisedSelectionRunning, optimizationFlag);
+               [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, realNodeLabels, realEdgeLabels, ...
+                   nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, allEdges, allEdgeProbs, singlePrecision, ...
+                   stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, ...
+               validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns,...
+               isSupervisedSelectionRunning);
            else
                previousAccuracy = optimalAccuracy;
            end
@@ -473,9 +481,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         instanceChildrenDescriptors = cat(1, instanceChildrenDescriptors{:});
         instanceChildrenMappings = cat(1, instanceChildrenMappings{:});
 
-      remainingBestSubs = 1:numberOfBestSubs;
-      IA = 1:size(instanceChildrenDescriptors,1);
-      numberOfInstances = numel(IA);
+        remainingBestSubs = 1:numberOfBestSubs;
+        IA = 1:size(instanceChildrenDescriptors,1);
+        numberOfInstances = numel(IA);
         
         %% Fill in vocabLevel and graphLevel.
        %Allocate space for new graph/vocab level.
@@ -543,6 +551,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                
                % Assign fields to graphs.
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).labelId] = deal(labelIds{:});
+               [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).realLabelId] = deal(labelIds{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).children] = deal(instanceChildren{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).mapping] = deal(instanceMappings{:});
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).sign] = deal(instanceSigns{:});

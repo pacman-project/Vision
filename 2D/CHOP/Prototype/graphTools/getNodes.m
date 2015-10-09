@@ -101,7 +101,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
         realCoordIdx = zeros(filterCount, prod(newImgSize));
         for filtItr = 1:filterCount
             currentFilter = double(options.filters{filtItr});
-            responseImg = conv2(img, currentFilter, 'same');
+            responseImg = conv2(img, rot90(currentFilter,2), 'same');
 
             % Simulate stride here, and subsample the image.
             [responseImg, idx] = MaxPooling(responseImg, [stride, stride]);
@@ -114,7 +114,6 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
         gtMask = imresize(gtMask, newImgSize);
     else
         % Pre-process the image blocks by whitening them.
-        
         if strcmp(options.autoNormalize, 'whiten')
              imgCols2 = imgCols - muArr;
              imgCols2 = imgCols2 * whMat;
@@ -132,53 +131,37 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
         % If number of cols is more than 1000, we divide and conquer
         % imgCols2 array into fixed-size bins. Otherwise, it's hell of a
         % memory problem.
-        if numberOfCols>1000 % Depends on feature dimension, but 1000 should 
-                             % be reasonable for features smaller than 15x15x3)
-            numberOfSets = ceil(numberOfCols/1000);
-            smallRepFilterMatrix = repmat(filterMatrix, 1000, 1);
-            colFiltDistances = zeros(numberOfCols * filterCount,1);
-            for setItr = 1:numberOfSets
-                colsInSet = min(1000, (numberOfCols-((setItr-1)*1000)));
-                setCols = imgCols2((((setItr-1) * 1000) + 1):min(setItr*1000, numberOfCols),:);
-                setCols = setCols(floor((0:((colsInSet * filterCount)-1)) / filterCount) + 1, :);
-                if colsInSet ~= 1000
-                    smallRepFilterMatrix = smallRepFilterMatrix(1:(colsInSet * filterCount),:);
-                end
-
-                % Subtract repFilterMatrix from imgCols2.
-                totalAssgnCount = colsInSet * filterCount;
-                assgnStartIdx = (1000 * filterCount * (setItr-1)) + 1;
-                colFiltDistances(assgnStartIdx:...
-                    (assgnStartIdx+totalAssgnCount-1)) = ...
-                    sqrt(sum((setCols - smallRepFilterMatrix).^2,2));
-            end
-            clear smallRepFilterMatrix imgCols2 setCols;
-        else
-            % No need to divide, just find the distances.
-            imgCols2 = imgCols2(floor((0:((numberOfCols * filterCount)-1)) / filterCount) + 1, :);
-            repFilterMatrix = repmat(filterMatrix, numberOfCols, 1);
-
-            % Subtract repFilterMatrix from imgCols2.
-            colFiltDistances = sqrt(sum((imgCols2 - repFilterMatrix).^2,2));
-            clear repFilterMatrix imgCols2;
+%        if numberOfCols>1000 % Depends on feature dimension, but 1000 should 
+%                              % be reasonable for features smaller than 15x15x3)
+%             numberOfSets = ceil(numberOfCols/1000);
+%             smallRepFilterMatrix = repmat(filterMatrix, 1000, 1);
+%             colFiltDistances = zeros(numberOfCols * filterCount,1);
+%             for setItr = 1:numberOfSets
+%                 colsInSet = min(1000, (numberOfCols-((setItr-1)*1000)));
+%                 setCols = imgCols2((((setItr-1) * 1000) + 1):min(setItr*1000, numberOfCols),:);
+%                 setCols = setCols(floor((0:((colsInSet * filterCount)-1)) / filterCount) + 1, :);
+%                 if colsInSet ~= 1000
+%                     smallRepFilterMatrix = smallRepFilterMatrix(1:(colsInSet * filterCount),:);
+%                 end
+% 
+%                 % Subtract repFilterMatrix from imgCols2.
+%                 totalAssgnCount = colsInSet * filterCount;
+%                 assgnStartIdx = (1000 * filterCount * (setItr-1)) + 1;
+%                 colFiltDistances(assgnStartIdx:...
+%                     (assgnStartIdx+totalAssgnCount-1)) = ...
+%                     sqrt(sum((setCols - smallRepFilterMatrix).^2,2));
+%             end
+%             clear smallRepFilterMatrix imgCols2 setCols;
+%        else
+        % No need to divide, just find the distances.
+        responses = zeros(numberOfCols, filterCount);
+        for filterItr = 1:filterCount
+            responses(:,filterItr) = sqrt(sum((imgCols2 - repmat(filterMatrix(filterItr,:), numberOfCols,1)).^2, 2));
+%            responses(:,filterItr) = responses(:,filterItr) / max(responses(:,filterItr));
         end
-        clear imgCols;
-        % Reshape distances into a NxD array, where N is number of columns (blocks),
-        % and D is number of filters.
-        distancesPerCol = reshape(colFiltDistances, filterCount, numberOfCols).';
-        
-        % Find average of every row.
-        colMeans = repmat(mean(distancesPerCol,2), 1, filterCount);
-        
-        % Suppress distances for every row which is more than its average
-        % distance to every filter.
-        meanAssgnIdx = distancesPerCol > colMeans;
-        distancesPerCol(meanAssgnIdx) = colMeans(meanAssgnIdx);
-        
-        % Find responses by reversing distances into normalized similarities.
-%         responses = (colMeans - distancesPerCol) ./ ...
-%             colMeans;
-        responses = (colMeans - distancesPerCol);
+        responses = max(max(responses)) - responses;
+        responses = responses / max(max(max(responses)));
+        clear imgCols imgCols2;
         
         % Assign responses to the actual image.
         realCoordIdx1 = idx1 + halfSize - 1;
@@ -186,6 +169,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
         [p, q] = meshgrid(realCoordIdx2, realCoordIdx1);
         realCoords = [q(:), p(:)];
         responseImgs = reshape(responses, [numel(idx1), numel(idx2), filterCount]);
+        clear responses realCoordIdx2;
         
         % Subsample gt mask.
         gtMask = imresize(gtMask((halfSize+1):(end-halfSize), (halfSize+1):(end-halfSize)), newImgSize);
@@ -200,22 +184,19 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
        responseImgs(responseImgs<filterThr) = 0;
     end
     
-%   %% Write smooth object boundaries to an image based on responseImgs.
-    smoothActivationImg = max(responseImgs,[],3);
-    smoothActivationImg = (smoothActivationImg - min(min(smoothActivationImg))) / (max(max(smoothActivationImg)) - min(min(smoothActivationImg)));
-   
    %% Inhibit weak responses in vicinity of powerful peaks.
     if strcmp(options.filterType, 'gabor')
         inhibitionHalfSize = options.gabor.inhibitionRadius;
     else
         inhibitionHalfSize = options.auto.inhibitionRadius;
     end
-    responseImgs([1:inhibitionHalfSize, (end-inhibitionHalfSize):end],:) = 0;
-    responseImgs(:,[1:inhibitionHalfSize, (end-inhibitionHalfSize):end]) = 0;
+    responseImgs([1:inhibitionHalfSize, (end-inhibitionHalfSize):end],:, :) = 0;
+    responseImgs(:,[1:inhibitionHalfSize, (end-inhibitionHalfSize):end], :) = 0;
 
     % Each response will clear other weak responses at the very same pixel.
     % Use this feature to get rid of most peaks.
     [activationImg, nodeIdImg] = max(responseImgs, [], 3);
+    smoothActivationImg = activationImg;
     clear responseImgs;
     peaks = find(activationImg);
     

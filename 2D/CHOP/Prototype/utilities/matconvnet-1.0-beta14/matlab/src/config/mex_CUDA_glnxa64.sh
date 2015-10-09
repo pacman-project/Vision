@@ -60,7 +60,7 @@
             # CkeyLinkerVersion:
             # $NVCC was set above.
             CC='$NVCC'
-            CFLAGS=" -ccbin=gcc-4.4 -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=\\\"sm_30,compute_30\\\" -I$TMW_ROOT/toolbox/distcomp/gpu/extern/include --compiler-options=-ansi,-D_GNU_SOURCE,-fexceptions,-fPIC,-fno-omit-frame-pointer,-pthread"
+            CFLAGS=" -ccbin=gcc -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=\\\"sm_30,compute_30\\\" -I$TMW_ROOT/toolbox/distcomp/gpu/extern/include --compiler-options=-ansi,-D_GNU_SOURCE,-fexceptions,-fPIC,-fno-omit-frame-pointer,-pthread"
             CLIBS="$RPATH $MLIBS -lm -lmwgpu $TMW_ROOT/bin/$Arch/libcudart.so.5.0"
             COPTIMFLAGS='-O -DNDEBUG'
             CDEBUGFLAGS='-g'
@@ -74,7 +74,7 @@
             # C++keyLinkerVersion:
             # $NVCC was set above.
             CXX='$NVCC'
-            CXXFLAGS=" -ccbin=gcc-4.4 -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=\\\"sm_30,compute_30\\\" -I$TMW_ROOT/toolbox/distcomp/gpu/extern/include --compiler-options=-ansi,-D_GNU_SOURCE,-fPIC,-fno-omit-frame-pointer,-pthread"
+            CXXFLAGS=" -ccbin=gcc -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=\\\"sm_30,compute_30\\\" -I$TMW_ROOT/toolbox/distcomp/gpu/extern/include --compiler-options=-ansi,-D_GNU_SOURCE,-fPIC,-fno-omit-frame-pointer,-pthread"
             CXXLIBS="$RPATH $MLIBS -lm -lmwgpu $TMW_ROOT/bin/$Arch/libcudart.so.5.0"
             CXXOPTIMFLAGS='-O -DNDEBUG'
             CXXDEBUGFLAGS='-g'

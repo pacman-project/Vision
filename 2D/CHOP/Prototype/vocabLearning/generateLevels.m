@@ -32,6 +32,8 @@ function [vocabLevel, graphLevel] = generateLevels(nodes, nodeCoords, activation
     assignedNodes = mat2cell(nodes, ones(size(nodes,1),1), [1 2 1]);
     [graphLevel.labelId, graphLevel.position, graphLevel.imageId] = deal(assignedNodes{:});
     assignedPrecisePos = mat2cell(single(nodeCoords), ones(size(nodes,1),1), 2);
+    realLabels = num2cell(nodes(:,1));
+    [graphLevel.realLabelId] = deal(realLabels{:});
     [graphLevel.precisePosition] = deal(assignedPrecisePos{:});
     clear assignedNodes;
     

@@ -76,9 +76,8 @@ function [ ] = printConvolutionFilters( vocabLevel, orNodeProbs, modes, modeProb
      end
      
      % Save convolution filters as well.
-     for vocabLevelItr = 1:numel(vocabLevel)
-          convFilter = convFilters{vocabLevelItr}; %#ok<NASGU>
-          save([CNNFolder '/level' num2str(levelItr) '/' num2str(vocabLevelItr) '/convFilter.mat'], 'convFilter');
-     end
+     convFilters = cellfun(@(x) permute(x, [2 3 1]), convFilters, 'UniformOutput', false);
+     convFilters = cat(4, convFilters{:}); %#ok<NASGU>
+     save([CNNFolder '/level' num2str(levelItr) '/convFilters.mat'], 'convFilters');
 end
 

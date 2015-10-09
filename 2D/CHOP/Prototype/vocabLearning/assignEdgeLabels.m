@@ -47,6 +47,7 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           
           % Assign each edge a to a relevant mode.
           probArr = zeros(size(edges,1),1, 'single');
+          graphLevel(graphLevelItr).realEdgeLabels = edges(:, 3);
           for edgeItr = 1:size(edges,1)
                relevantIdx = modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2);
                relevantModes = modes(relevantIdx,:);
@@ -61,4 +62,3 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           graphLevel(graphLevelItr).edgeProbabilities = probArr;
      end
 end
-

@@ -35,6 +35,7 @@ classdef GraphNode
                 % its receptive field (thus forming receptive graph).
                 % Is of the form [v1 v2 edgeId isDirected; ...]
         edgeProbabilities@single % The probability of each edge occuring given the mode.
+        realEdgeLabels@int32 % The true labels of each edge.
         leafNodes@int32 % The leaf node ids (level 1 realizations) this node 
                   % corresponds to. Particularly important in visualization
                   % and calculation of coverage statistics.

@@ -52,7 +52,7 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
     options.autoFilterSize = 20;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = 1;
-    options.autoFilterThr = 0.2;       % Min response threshold for convolved 
+    options.autoFilterThr = 0;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
@@ -183,6 +183,9 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                            % percent, reconstructive part 
                                            % selection stops.
     options.reconstruction.numberOfReconstructiveSubs = 400; % The maximum 
+                                           % number of reconstructive parts
+                                           % that can be selected.
+    options.reconstruction.numberOfORNodes = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 

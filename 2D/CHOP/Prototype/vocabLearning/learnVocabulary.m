@@ -107,18 +107,15 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         end
         
         %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-        [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix, ...
+        [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix,...
             options, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy);
         optimalThresholds(levelItr) = optimalThreshold;
         % Test if the mapping is correct (for debugging).
-%        testSuccess = testMapping(vocabLevel, graphLevel, mainGraph{levelItr-1});
+%        testSuccess = testMapping(vocabLevel, graphLevel, newDistanceMatrix, mainGraph{levelItr-1});
         
         %% Here, we calculate the log likelihood of the nodes in graph
         % level.
 %        graphLevel = calculateLogLikelihood(graphLevel, mainGraph{levelItr-1});
-        
-        %% Finally, the part selection is performed to get rid of redundant/useless parts.
- %       [vocabLevel, graphLevel] = performPartSelection(vocabLevel, graphLevel, options);
         
         % Open/close matlabpool to save memory.
         matlabpool close;
