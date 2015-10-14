@@ -29,18 +29,22 @@
 %> Updates
 %> Ver 1.0 on 08.10.2015
 function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(bestSubs, realNodeLabels, ...
-            realEdgeLabels, nodePositions, edgeCoords, allEdges, allEdgeProbs, numberOfFinalSubs, stoppingCoverage, uniqueChildren)
+            nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren)
 
    minNodeProbability = 0.00001;
+   coverageStoppingVal = 0.999;
+   likelihoodStoppingVal = 0.99;
+   coveragePartSelectionMethod = 'Greedy'; % 'Genetic' or 'Greedy'
+   % Override part selection method if we have too many parts to select
+   % from.
+   if numberOfBestSubs > 2000
+        coveragePartSelectionMethod = 'Greedy';
+   end
    numberOfBestSubs = numel(bestSubs);
    prevGraphNodeCount = numel(uniqueChildren);
    maxChildId = max(uniqueChildren);
    prevGraphNodeLogProbs = zeros(1, maxChildId, 'single');
    minLogProb = single(log(minNodeProbability));
-   allEdgesArr = {allEdges.adjInfo};
-   nonzeroIdx = cellfun(@(x) ~isempty(x), allEdgesArr);
-   allEdgesPeripheralNodes = cell(size(allEdgesArr));
-   allEdgesPeripheralNodes(nonzeroIdx) = cellfun(@(x) x(:,2), allEdgesArr(nonzeroIdx), 'UniformOutput', false);
    
    %% Initially, we learn distributions of data points given each sub's center.
    RFSize = sqrt(size(edgeCoords,1));
@@ -50,18 +54,19 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    
    % Allocate space for node/edge distributions, both discrete.
    % We start by calculating number of sub, child pairs.
-   maxLabel = max(realNodeLabels);
    numberOfSubChildPairs = 0;
    for subItr = 1:numberOfBestSubs
        numberOfSubChildPairs = numberOfSubChildPairs + size(bestSubs(subItr).edges,1) + 1;
    end
    
-   % TODO: The following two entries can be made sparse if we're short on memory.
-   labelProbArr = zeros(numberOfSubChildPairs, maxLabel);
+   % Allocate space for log likelihood results.
    posProbArr = zeros(numberOfSubChildPairs, largeRFSize, largeRFSize);
-   subInstancePositions = cell(numberOfBestSubs,1);
-   pairCounter = 1;
-   for subItr = 1:numberOfBestSubs
+   subLabelProbs = cell(numberOfBestSubs, 1);
+   subPosProbs = cell(numberOfBestSubs, 1);
+   subCoveredNodes = cell(numberOfBestSubs,1);
+   
+   % Go over all possible part-subpart pairs, and calculate probabilities.
+   parfor subItr = 1:numberOfBestSubs
        instanceChildren = bestSubs(subItr).instanceChildren;
        numberOfInstances = size(instanceChildren,1);
        numberOfChildren = size(instanceChildren,2);
@@ -83,20 +88,23 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
           instancePositions(instanceItr,:) = int32(round(sum(nodePositions(instanceChildren(instanceItr,:), :),1) ...
                                / numberOfChildren)); 
        end
-       subInstancePositions{subItr} = instancePositions;
+       labelLogProbs = prevGraphNodeLogProbs;
+       posLogProbs = labelLogProbs;
        
        % Finally, collect statistics for every child.
        for childItr = 1:numberOfChildren
           % Learn node label distribution
-          nodeLabels = double(realNodeLabels(instanceChildren(:,childItr)));
+          nodeLabels = double(realNodeLabels(instanceChildren(:,childItr))); %#ok<*PFBNS>
           entries = unique(nodeLabels);
+          inverseArr = zeros(1, max(entries));
+          inverseArr(entries) = 1:numel(entries);
           if numel(entries) > 1
               [nodeProbs, ~] = hist(nodeLabels, entries);
               nodeProbs = nodeProbs / sum(nodeProbs);
           else
               nodeProbs = 1;
           end
-          labelProbArr(pairCounter, entries) = nodeProbs;
+          labelLogProbs(instanceChildren(:,childItr)) = max(labelLogProbs(instanceChildren(:,childItr)), log(nodeProbs(inverseArr(nodeLabels))) - minLogProb);
           
            % Learn position distributions
            % TODO: Make the distributions more continuous, as in gaussians.
@@ -105,19 +113,24 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
            relativePositionIdx = double(sub2ind(largeRFSizes, ...
                relativePositions(:,1), relativePositions(:,2)));
            uniquePosIdx = double(unique(relativePositionIdx));
+           inverseArr = zeros(1, max(uniquePosIdx));
+           inverseArr(uniquePosIdx) = 1:numel(uniquePosIdx);
            if numel(uniquePosIdx) > 1
               [posProbs, ~] = hist(relativePositionIdx, uniquePosIdx);
            else
                posProbs = 1;
            end
            posProbs = posProbs / sum(posProbs);
-           probSlice = squeeze(posProbArr(pairCounter, :,:));
-           probSlice(uniquePosIdx) = posProbs;
-           posProbArr(pairCounter, :,:) = probSlice;
            
-           % Increase counter.
-           pairCounter = pairCounter + 1;
+           % Assign position probabilities to samples, and save the info.
+           posLogProbs(instanceChildren(:,childItr)) = max(posLogProbs(instanceChildren(:,childItr)), log(posProbs(inverseArr(relativePositionIdx))) - minLogProb);
        end
+        % Save child probabilities.
+        allNodes = unique(instanceChildren);
+        allNodes = (allNodes(:))';
+        subCoveredNodes{subItr} = allNodes;
+        subLabelProbs{subItr} = labelLogProbs(allNodes);
+        subPosProbs{subItr} = posLogProbs(allNodes);
    end
    
    % Check for a potential error condition.
@@ -125,129 +138,150 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
       error('Problem in getReconstructiveParts: Relative coordinations are wrong!'); 
    end
    
-   %% Start the main loop. We select subs one by one.
-   % This is a greedy selection algorithm. Each new sub's evaluation
-   % depends on the previous set, i.e. it shows how much novelty it can bring to the table.
-   curLabelLogProbs = prevGraphNodeLogProbs;
-   curLabelProbPairs = ones(maxChildId, maxLabel);
-   curPosLogProbs = curLabelLogProbs;
-   curPosProbPairs = sparse(zeros(maxChildId, 1));
-   coveredNodes = zeros(1, maxChildId) > 0;
-   selectedSubIdx = zeros(numberOfBestSubs,1) > 0;
-   selectedSubs = [];
-   addedSubOffset = 1;   
-   pairCounter = 1;
-   reconstructionArr = zeros(1, maxChildId) > 0;
-   while addedSubOffset <= numberOfFinalSubs
-       % Select next best sub.
-       valueArr = -inf(numberOfBestSubs,1);
-       curValue = -inf;
-       for bestSubItr = 1:numberOfBestSubs
-            % If this sub has already been selected, we move on.
-            if selectedSubIdx(bestSubItr)
-               continue;
-            end
-            
-            instanceChildren = bestSubs(bestSubItr).instanceChildren;
-            numberOfInstances = size(instanceChildren,1);
-            allAssgnProbs = [];
-            for childItr = 1:size(instanceChildren,2)
-                allAssgnProbs = [allAssgnProbs; ...
-                    repmat(labelProbArr(pairCounter,:), numberOfInstances, 1)]; %#ok<AGROW>
-            
-                % Increase counter.
-                pairCounter = pairCounter + 1;
-            end
-            instanceChildrenRep = instanceChildren(:);
-            
-            % Obtain unique numbers.
-            [uniqueChildren, IA, IC] = unique(instanceChildrenRep, 'stable');
-            for childItr = 1:numel(IA)
-               curLabelProbPairs(uniqueChildren(childItr),:) = prod(cat(1, curLabelProbPairs(uniqueChildren(childItr),:), ...
-                   allAssgnProbs(IC == childItr, :)), 1);
-            end
-            
-            
-            % Measure the value of this sub.
-            % Get newly covered nodes.
-            newCoveredNodes = subCoveredNodes{bestSubItr};
-            newCoveredNodesArr = zeros(size(coveredNodes))>0;
-            newCoveredNodesArr(newCoveredNodes) = 1;
-            newCoveredNodes = newCoveredNodesArr;
-            
-            % Exclude already covered nodes from new covered nodes.
-            validNodeArr = ~reconstructionArr(newCoveredNodes);
-            newCoveredNodes = newCoveredNodes & ~reconstructionArr;
-            
-            % Assign (log) probabilities for these nodes.
-            newLogProbs = subLogProbs{bestSubItr};
-            newLogProbs = newLogProbs(validNodeArr);
-            combinedCoveredNodes = newCoveredNodes | coveredNodes;
-            combinedLogProbs = curLogProbs;
-            combinedLogProbs(newCoveredNodes) = max(newLogProbs, curLogProbs(newCoveredNodes));
-            
-            % Calculate value of the sub. We calculate the contribution of
-            % this sub to the overall data likelihood, and normalize the
-            % value with the square root of the number of covered nodes.
-            % This helps single out subs that have very few instances,
-            % while providing good coverage on that area.
-            contribution = sum(combinedLogProbs(combinedCoveredNodes)) - sum(curLogProbs(combinedCoveredNodes));
-%            tempValue = ceil(contribution / sqrt(nnz(newCoveredNodes)));
-           tempValue = ceil(contribution);
-            
-            % Record the value for the end of iteration.
-            valueArr(bestSubItr) = tempValue;
-            if tempValue > curValue
-                maxLoc = bestSubItr;
-                tempCoveredNodes = combinedCoveredNodes;
-                tempLogProbs =combinedLogProbs;
-                curValue = tempValue;
-            end
-       end
-       
-       % Mark covered nodes for stoppage criterion.
-       prevCoverageCount = nnz(reconstructionArr);
-       reconstructionArr(tempLogProbs>0) = 1;
-%       reconstructionArr(bestSubs(maxLoc).instanceChildren) = 1;
-       
-       
-       % Update covered nodes and log probs.
-       coveredNodes = tempCoveredNodes;
-       curLogProbs = tempLogProbs;
-       
-        % If there is a new part that introduces novelty, add the best one
-        % to the list of selected subs, and move on.
-        selectedSubIdx(maxLoc) = 1;
-        selectedSubs = [selectedSubs, maxLoc];
-        addedSubOffset = addedSubOffset + 1;
-        
-        if rem(addedSubOffset-1,10) == 0 && addedSubOffset > 1
-             display(['Selected part ' num2str(maxLoc) ' as the ' num2str(addedSubOffset-1) ...
-                  'th part. Its contribution to the overall log likelihood was ' ...
-                  num2str(valueArr(maxLoc)) '. It introduced ' num2str(nnz(reconstructionArr) - prevCoverageCount) ...
-                  ' new nodes. We are at ' num2str(nnz(reconstructionArr)) ' nodes (out of ' num2str(prevGraphNodeCount) ' possible).']);
-        end
-        
-        % Stopping criterion.
- %        if nnz(curLogProbs > minLogProb) >= stoppingCoverage * prevGraphNodeCount && bestContribution < abs(minLogProb)
-         if nnz(reconstructionArr) >= stoppingCoverage * prevGraphNodeCount
-              break;
-         end
-        
-        % If we're at the end of the search, and optimal coverage has
-        % not been met, we increase final number of subs.
-%         if addedSubOffset > numberOfFinalSubs && moreSubsAllowed
-%             numberOfFinalSubs = numberOfFinalSubs + 1;
-%         end
-   end
-   overallCoverage = nnz(reconstructionArr) / prevGraphNodeCount;
-   dataLikelihood = abs(mean(curLogProbs)/ minLogProb);
+   % Create a genetic algorithm instance to solve the part selection
+   % problem.
+   f = @(x) paramfunc(x, subLabelProbs, subPosProbs, subCoveredNodes);
+   g = @(x) paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes);
+   h = @(x) paramfunc3(x, subLabelProbs, subPosProbs, subCoveredNodes);
+     
+     %% Finally, we implement an algorithm for part selection. 
+     % This step is done to perform an initial pass to reduce the number of
+     % parameters (subs to be selected) significiantly. Then, we perform
+     % another pass using a data likelihood measure. This step implements a
+     % coverage-based part selection mechanism.
+     
+     if strcmp(coveragePartSelectionMethod, 'Genetic')
+          A = ones(1, numberOfBestSubs);
+          b = numberOfFinalSubs;
+          LB = zeros(1,numberOfBestSubs);
+          UB = ones(1,numberOfBestSubs);
+          IntCon = 1:numberOfBestSubs;
+          %   IntCon = [];
+          selectedSubIdx = ones(1,numberOfBestSubs) > 0;
+          stoppingFVal = coverageStoppingVal * f(selectedSubIdx);
+          options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
+               'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
+               'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
+          [selectedSubIdx, fval, exitFlag] = ga(h, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
+          display(['Exit flag for genetic algorithm: ' num2str(exitFlag) ', with fval: ' num2str(fval) '.']);
+     else
+          subCounter = 0; 
+          selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
+          curFVal = 0;
+          valueArr = inf(1,numberOfBestSubs);
+          while subCounter < numberOfFinalSubs
+               maxLocVal = 0;
+               maxSubIdx = [];
+
+               for subItr = 1:numberOfBestSubs
+                    if selectedSubIdx(subItr) == 1 || maxLocVal > valueArr(subItr)
+                         continue;
+                    end
+                    tempSubIdx = selectedSubIdx;
+                    tempSubIdx(subItr) = 1;
+                    diffVal = -h(tempSubIdx);
+
+                    % Save diffVal.
+                    if diffVal < valueArr(subItr)
+                         valueArr(subItr) = diffVal;
+                    end
+
+                    % Save value if this part has maximum value.
+                    if diffVal > 0 && diffVal > maxLocVal
+                         maxLocVal = diffVal;
+                         maxSubIdx = tempSubIdx;
+                    end
+               end
+               valueArr(maxSubIdx) = 0;
+               if isempty(maxSubIdx)
+                    break;
+               end
+               curFVal = h(maxSubIdx);
+               selectedSubIdx = maxSubIdx;
+               subCounter = subCounter + 1;
+          end
+     end
+   fval = curFVal;
+   validSubs = find(selectedSubIdx >= 0.5);
+   subCoveredNodes = subCoveredNodes(validSubs);
+   subLabelProbs = subLabelProbs(validSubs);
+   subPosProbs = subPosProbs(validSubs);
    
-   % Record preserved subs.
-   validSubs = find(selectedSubIdx);
+     %% Now, it's time for a data likelihood-driven part selection.
+   %    A = ones(1, numberOfBestSubs);
+%    b = numberOfFinalSubs;
+%    LB = zeros(1,numberOfBestSubs);
+%    UB = ones(1,numberOfBestSubs);
+% %   IntCon = 1:numberOfBestSubs;
+%    IntCon = [];
+%    selectedSubIdx = ones(1,numberOfBestSubs) > 0;
+%    stoppingFVal = coverageStoppingVal * f(selectedSubIdx);
+%    options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
+%    'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
+%    'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
+%    [selectedSubIdx, fval, exitFlag] = ga(h, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
+   
+   % Calculate statistics.
+   allCoveredNodes = cat(2, subCoveredNodes{:});
+   allCoveredNodes = unique(allCoveredNodes);
+   overallCoverage = numel(allCoveredNodes) / prevGraphNodeCount;
+%   dataLikelihood = 1 - (fval / prevGraphNodeCount - minLogProb * 2) / (-minLogProb * 2);
+   dataLikelihood = fval/prevGraphNodeCount;
    
    % Printing.
    display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
-        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average normalized match cost:' num2str(overallMatchCost) '.']);
+        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average data point likelihood:' num2str(dataLikelihood) '.']);
 
+end
+
+% Fitness function 1 for the genetic algorithm.
+function y = paramfunc(x, subLabelProbs, subPosProbs, subCoveredNodes)   
+     x = x>= 0.5;
+     allSubLabelProbs = cat(2, subLabelProbs{x});
+     allSubPosProbs = cat(2, subPosProbs{x});
+     allCoveredNodes = cat(2, subCoveredNodes{x});
+     
+     %% Get max label/pos log probs for every child.
+     % First, we obtain max label log probs.
+     [labelVals, labelSortIdx] = sort(allSubLabelProbs, 'descend');
+     sortedCoveredNodes = allCoveredNodes(labelSortIdx);
+     [~, IA, ~] = unique(sortedCoveredNodes, 'first');
+     r1 = labelVals(IA);
+     
+     %Then, we obtain max location log probs.
+     [posVals, posSortIdx] = sort(allSubPosProbs, 'descend');
+     sortedCoveredNodes = allCoveredNodes(posSortIdx);
+     [~, IA, ~] = unique(sortedCoveredNodes, 'first');
+     r2 = posVals(IA);
+     
+     y = -round(sum(double(r1)) + sum(double(r2)));
+end
+
+% Fitness function 2 for the genetic algorithm.
+function y = paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes)   
+     x = x>=0.5;
+     allSubLabelProbs = cat(2, subLabelProbs{x});
+     allSubPosProbs = cat(2, subPosProbs{x});
+     allCoveredNodes = cat(2, subCoveredNodes{x});
+     
+     % The following objective function implementation does not
+     % differentiate label, position probability contributions from each
+     % prediction.
+    logProbs = allSubLabelProbs + allSubPosProbs;
+    
+     %% Get max log probs for every child.
+     [vals, idx] = sort(logProbs, 'descend');
+     sortedCoveredNodes = allCoveredNodes(idx);
+     [~, IA, ~] = unique(sortedCoveredNodes, 'stable');
+     vals = vals(IA);
+     y = round(-sum(double(vals)));
+end
+
+% Fitness function 3 for the genetic algorithm.
+function y = paramfunc3(x, ~, ~, subCoveredNodes)   
+     x = x>=0.5;
+     allCoveredNodes = cat(2, subCoveredNodes{x});
+     numberOfNodes = numel(allCoveredNodes);
+     allCoveredNodes = fastsortedunique(sort(allCoveredNodes));
+     y = -2*numel(allCoveredNodes) + numberOfNodes;
 end

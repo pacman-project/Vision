@@ -176,13 +176,10 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.articulationsPerCategory = 3; % We reduced  is this number multipli
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.stoppingCoverage = 0.99; % Between [0.00, 1.00].
-                                           % The default value is 0.99.
-                                           % When the training data
-                                           % coverage is reached to this
-                                           % percent, reconstructive part 
-                                           % selection stops.
-    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 50; % The maximum 
+                                           % number of reconstructive parts
+                                           % that can be selected.
+    options.reconstruction.numberOfORNodes = 20; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 

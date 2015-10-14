@@ -74,7 +74,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     singlePrecision = options.singlePrecision;
     optimizationFlag = options.optimizationFlag;
     partSelectionFlag = options.partSelectionFlag;
-    stoppingCoverage = options.reconstruction.stoppingCoverage;
     optimalThreshold = orgThreshold;
     if options.validationFlag
         validationFolds = options.validationFolds;
@@ -111,21 +110,17 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     allLabels = cat(1, graphLevel.labelId);
     assignedEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
         assignedEdges(nonemptyEdgeIdx), 'UniformOutput', false);
-%    allNodeProbs = cat(1, graphLevel.nodeProbability);
-    allEdgeProbs = {graphLevel.edgeProbabilities};
     allNodeProbs = cat(1, graphLevel.nodeProbability);
     allNodeActivations = cat(1, graphLevel.activation);
     allEdges(numel(graphLevel)) = AdjInfo();
     [allEdges.adjInfo] = deal(assignedEdges{:});
     allEdgeNodePairs = cat(1,allEdges.adjInfo);
     allEdgeNodePairs = allEdgeNodePairs(:,1:2);
- %   allEdgesArr = {allEdges.adjInfo};
     clear assignedEdges;
     
     % Obtain real node labels and edge distributions for likelihood
     % processing.
     realNodeLabels = [graphLevel.realLabelId];
-    realEdgeLabels = {graphLevel.realEdgeLabels};
     nodePositions = cat(1, graphLevel.position);
     edgeCoords = options.edgeCoords;
     
@@ -416,9 +411,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         display(['[SUBDUE] We have found ' num2str(numberOfBestSubs) ' subs with ' num2str(numberOfInstances) ' instances.']);
        %% If required, we'll pick best parts based on the reconstruction of the data.
        if partSelectionFlag
-           [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, realNodeLabels, realEdgeLabels,...
-               nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, allEdges, allEdgeProbs, singlePrecision, ...
-               stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, ...
+           [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, realNodeLabels,...
+               nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, singlePrecision, ...
+               numberOfReconstructiveSubs, orgThreshold, ...
                validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, ...
                isSupervisedSelectionRunning);
            
@@ -430,11 +425,11 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                display(['[SUBDUE] Validation accuracy has dropped from %' num2str(100 * previousAccuracy) ' to %' num2str(100 * optimalAccuracy) '.']);
                display('[SUBDUE] We switch to supervised learning from now on.');
                isSupervisedSelectionRunning = true;
-               [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, realNodeLabels, realEdgeLabels, ...
-                   nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, allEdges, allEdgeProbs, singlePrecision, ...
-                   stoppingCoverage, numberOfReconstructiveSubs, orgThreshold, ...
-               validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns,...
-               isSupervisedSelectionRunning);
+               [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, realNodeLabels, ...
+                   nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, singlePrecision, ...
+                   numberOfReconstructiveSubs, orgThreshold, ...
+                   validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns,...
+                   isSupervisedSelectionRunning);
            else
                previousAccuracy = optimalAccuracy;
            end

@@ -131,7 +131,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
     % and group parts based on their similarities. We have a limited number
     % of resources when selecting parts.
     % First, we check for the necessity.
-    if size(newDistanceMatrix,1) <= options.reconstruction.numberOfReconstructiveSubs
+    if size(newDistanceMatrix,1) <= options.reconstruction.numberOfORNodes
         nodeDistributions = cell(size(newDistanceMatrix,1),1);
         for itr = 1:numel(nodeDistributions)
              nodeDistributions{itr} = single([itr, 1]);
@@ -143,7 +143,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
     % All good, group the nodes here.
     newDistanceMatrixVect = squareform(newDistanceMatrix);
     Z = linkage(newDistanceMatrixVect, 'average');
-    clusters = cluster(Z, 'maxclust', options.reconstruction.numberOfReconstructiveSubs);
+    clusters = cluster(Z, 'maxclust', options.reconstruction.numberOfORNodes);
     
     % Combine parts falling in the same clusters by setting their distances to zero.
     [~, IA, IC] = unique(clusters, 'stable');
