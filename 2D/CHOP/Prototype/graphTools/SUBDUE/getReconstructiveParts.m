@@ -37,10 +37,10 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    coveragePartSelectionMethod = 'Greedy'; % 'Genetic' or 'Greedy'
    % Override part selection method if we have too many parts to select
    % from.
+   numberOfBestSubs = numel(bestSubs);
    if numberOfBestSubs > 2000
         coveragePartSelectionMethod = 'Greedy';
    end
-   numberOfBestSubs = numel(bestSubs);
    prevGraphNodeCount = numel(uniqueChildren);
    maxChildId = max(uniqueChildren);
    prevGraphNodeLogProbs = zeros(1, maxChildId, 'single');
@@ -150,77 +150,101 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
      % another pass using a data likelihood measure. This step implements a
      % coverage-based part selection mechanism.
      
-     if strcmp(coveragePartSelectionMethod, 'Genetic')
-          A = ones(1, numberOfBestSubs);
-          b = numberOfFinalSubs;
-          LB = zeros(1,numberOfBestSubs);
-          UB = ones(1,numberOfBestSubs);
-          IntCon = 1:numberOfBestSubs;
-          %   IntCon = [];
-          selectedSubIdx = ones(1,numberOfBestSubs) > 0;
-          stoppingFVal = coverageStoppingVal * f(selectedSubIdx);
-          options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
-               'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
-               'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
-          [selectedSubIdx, fval, exitFlag] = ga(h, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
-          display(['Exit flag for genetic algorithm: ' num2str(exitFlag) ', with fval: ' num2str(fval) '.']);
-     else
-          subCounter = 0; 
-          selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
-          curFVal = 0;
-          valueArr = inf(1,numberOfBestSubs);
-          while subCounter < numberOfFinalSubs
-               maxLocVal = 0;
-               maxSubIdx = [];
+    if strcmp(coveragePartSelectionMethod, 'Genetic')
+        A = ones(1, numberOfBestSubs);
+        b = numberOfFinalSubs;
+        LB = zeros(1,numberOfBestSubs);
+        UB = ones(1,numberOfBestSubs);
+        IntCon = 1:numberOfBestSubs;
+        %   IntCon = [];
+        selectedSubIdx = ones(1,numberOfBestSubs) > 0;
+        stoppingFVal = coverageStoppingVal * f(selectedSubIdx);
+        options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
+           'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
+           'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
+        [selectedSubIdx, fval, exitFlag] = ga(h, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
+        display(['Exit flag for genetic algorithm: ' num2str(exitFlag) ', with fval: ' num2str(fval) '.']);
+    else
+        subCounter = 0; 
+        addedValueArr = [];
+        selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
+        curFVal = 0;
+        valueArr = inf(1,numberOfBestSubs);
+        while subCounter < numberOfFinalSubs
+            maxLocVal = -inf;
+            maxLoc = 0;
+            maxSubIdx = [];
 
-               for subItr = 1:numberOfBestSubs
-                    if selectedSubIdx(subItr) == 1 || maxLocVal > valueArr(subItr)
-                         continue;
-                    end
-                    tempSubIdx = selectedSubIdx;
-                    tempSubIdx(subItr) = 1;
-                    diffVal = -h(tempSubIdx);
+           for subItr = 1:numberOfBestSubs
+                if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal > valueArr(subItr)
+                     continue;
+                end
+                tempSubIdx = selectedSubIdx;
+                tempSubIdx(subItr) = 1;
+                diffVal = (curFVal - h(tempSubIdx));
 
-                    % Save diffVal.
-                    if diffVal < valueArr(subItr)
-                         valueArr(subItr) = diffVal;
-                    end
+                % Save diffVal.
+                if diffVal < valueArr(subItr)
+                     valueArr(subItr) = diffVal;
+                end
 
-                    % Save value if this part has maximum value.
-                    if diffVal > 0 && diffVal > maxLocVal
-                         maxLocVal = diffVal;
-                         maxSubIdx = tempSubIdx;
-                    end
-               end
-               valueArr(maxSubIdx) = 0;
-               if isempty(maxSubIdx)
-                    break;
-               end
-               curFVal = h(maxSubIdx);
-               selectedSubIdx = maxSubIdx;
-               subCounter = subCounter + 1;
-          end
-     end
-   fval = curFVal;
-   validSubs = find(selectedSubIdx >= 0.5);
-   subCoveredNodes = subCoveredNodes(validSubs);
-   subLabelProbs = subLabelProbs(validSubs);
-   subPosProbs = subPosProbs(validSubs);
+                % Save value if this part has maximum value.
+                if diffVal > 0 && diffVal > maxLocVal
+                     maxLocVal = diffVal;
+                     maxLoc = subItr;
+                     maxSubIdx = tempSubIdx;
+                end
+           end
+           if isempty(maxSubIdx)
+                break;
+           end
+           
+           % Save info, and move on to the next iteration.
+           addedValueArr = [addedValueArr, maxLocVal]; %#ok<AGROW>
+           valueArr(maxSubIdx) = 0;
+           curFVal = h(maxSubIdx);
+           selectedSubIdx = maxSubIdx;
+           subCounter = subCounter + 1;
+           
+           % Calculate coverage, and check if we've covered enough data.
+            % Then, break if necessary.
+           allCoveredNodes = cat(2, subCoveredNodes{selectedSubIdx});
+           coverage = numel(fastsortedunique(sort(allCoveredNodes))) / prevGraphNodeCount;
+           if coverage >= coverageStoppingVal 
+               break;
+           end
+           
+           % Print output.
+           if rem(subCounter, 10) == 1 && subCounter > 1
+               display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
+                   num2str(maxLoc) ', and coverage %' num2str(coverage*100) '.']);
+           end
+        end
+    end
+    fval = curFVal;
+    validSubs = find(selectedSubIdx >= 0.5);
+    subCoveredNodes = subCoveredNodes(validSubs);
+    subLabelProbs = subLabelProbs(validSubs);
+    subPosProbs = subPosProbs(validSubs);
+    numberOfBestSubs = numel(validSubs);
    
+    options = optimset('Display', 'iter', 'MaxFunEvals', 200*numel(validSubs), 'MaxIter', 200*numel(validSubs));
+    [x, exitflag, output] = fminsearch(f, ones(1, numel(validSubs)), options);
+    
      %% Now, it's time for a data likelihood-driven part selection.
-   %    A = ones(1, numberOfBestSubs);
-%    b = numberOfFinalSubs;
-%    LB = zeros(1,numberOfBestSubs);
-%    UB = ones(1,numberOfBestSubs);
-% %   IntCon = 1:numberOfBestSubs;
-%    IntCon = [];
-%    selectedSubIdx = ones(1,numberOfBestSubs) > 0;
-%    stoppingFVal = coverageStoppingVal * f(selectedSubIdx);
-%    options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
-%    'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
-%    'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
-%    [selectedSubIdx, fval, exitFlag] = ga(h, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
-   
+    A = ones(1, numberOfBestSubs);
+    b = numberOfFinalSubs;
+    LB = zeros(1,numberOfBestSubs);
+    UB = ones(1,numberOfBestSubs);
+    %   IntCon = 1:numberOfBestSubs;
+    IntCon = [];
+    selectedSubIdx = ones(1,numberOfBestSubs) > 0;
+    stoppingFVal = likelihoodStoppingVal * f(selectedSubIdx);
+    options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
+    'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
+    'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
+    [selectedSubIdx, fval, exitFlag] = ga(h, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
+ 
    % Calculate statistics.
    allCoveredNodes = cat(2, subCoveredNodes{:});
    allCoveredNodes = unique(allCoveredNodes);
@@ -283,5 +307,6 @@ function y = paramfunc3(x, ~, ~, subCoveredNodes)
      allCoveredNodes = cat(2, subCoveredNodes{x});
      numberOfNodes = numel(allCoveredNodes);
      allCoveredNodes = fastsortedunique(sort(allCoveredNodes));
-     y = -2*numel(allCoveredNodes) + numberOfNodes;
+     y = -numel(allCoveredNodes);
+%     y = -2*numel(allCoveredNodes) + numberOfNodes;
 end
