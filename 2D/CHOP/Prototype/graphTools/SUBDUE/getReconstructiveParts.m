@@ -33,7 +33,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
 
    minNodeProbability = 0.00001;
    coverageStoppingVal = 0.999;
-   likelihoodStoppingVal = 0.99;
+   likelihoodStoppingVal = 0.9999;
    coveragePartSelectionMethod = 'Greedy'; % 'Genetic' or 'Greedy'
    % Override part selection method if we have too many parts to select
    % from.
@@ -141,7 +141,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    % Create a genetic algorithm instance to solve the part selection
    % problem.
    f = @(x) paramfunc(x, subLabelProbs, subPosProbs, subCoveredNodes);
-   g = @(x) paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes);
+   g = @(x) paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes); %#ok<NASGU>
    h = @(x) paramfunc3(x, subLabelProbs, subPosProbs, subCoveredNodes);
      
      %% Finally, we implement an algorithm for part selection. 
@@ -170,7 +170,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
         selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
         curFVal = 0;
         valueArr = inf(1,numberOfBestSubs);
-        while subCounter < numberOfFinalSubs
+        while subCounter < numberOfFinalSubs*2
             maxLocVal = -inf;
             maxLoc = 0;
             maxSubIdx = [];
@@ -221,36 +221,48 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
            end
         end
     end
-    fval = curFVal;
+%     fval = curFVal;
     validSubs = find(selectedSubIdx >= 0.5);
     subCoveredNodes = subCoveredNodes(validSubs);
     subLabelProbs = subLabelProbs(validSubs);
     subPosProbs = subPosProbs(validSubs);
     numberOfBestSubs = numel(validSubs);
    
-    options = optimset('Display', 'iter', 'MaxFunEvals', 200*numel(validSubs), 'MaxIter', 200*numel(validSubs));
-    [x, exitflag, output] = fminsearch(f, ones(1, numel(validSubs)), options);
+%     options = optimset('Display', 'iter', 'MaxFunEvals', 200*numel(validSubs), 'MaxIter', 200*numel(validSubs));
+%     [x, exitflag, output] = fminsearch(f, ones(1, numel(validSubs)), options);
     
-     %% Now, it's time for a data likelihood-driven part selection.
-    A = ones(1, numberOfBestSubs);
-    b = numberOfFinalSubs;
-    LB = zeros(1,numberOfBestSubs);
-    UB = ones(1,numberOfBestSubs);
-    %   IntCon = 1:numberOfBestSubs;
-    IntCon = [];
-    selectedSubIdx = ones(1,numberOfBestSubs) > 0;
-    stoppingFVal = likelihoodStoppingVal * f(selectedSubIdx);
-    options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
-    'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
-    'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
-    [selectedSubIdx, fval, exitFlag] = ga(h, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
- 
+   if numberOfBestSubs > numberOfFinalSubs
+          %    % Now, it's time for a data likelihood-driven part selection.
+         selectedSubIdx = ones(1,numberOfBestSubs) > 0;
+        % Create fitness functions and linear constraints, upper bounds etc for genetic algorithm.
+         f = @(x) paramfunc(x, subLabelProbs, subPosProbs, subCoveredNodes);
+         g = @(x) paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes); %#ok<NASGU>
+         h = @(x) paramfunc3(x, subLabelProbs, subPosProbs, subCoveredNodes); %#ok<NASGU>
+         maxFVal = f(selectedSubIdx);
+         stoppingFVal = maxFVal * likelihoodStoppingVal;
+         A = ones(1, numberOfBestSubs);
+         b = numberOfFinalSubs;
+         LB = zeros(1,numberOfBestSubs);
+         UB = ones(1,numberOfBestSubs);
+         IntCon = 1:numberOfBestSubs;
+     %     options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
+     %     'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
+     %     'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'PopulationType', 'bitstring');
+     %    options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'PopulationType', 'bitstring', 'PopulationSize', 1000, 'FitnessLimit', stoppingFVal);
+         options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'PopulationSize', 1000, 'FitnessLimit', stoppingFVal, 'TolFun', 1e-8, 'CreationFcn', @gacreationlinearfeasible);
+         [selectedSubIdx, fval, exitFlag] = ga(f, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
+         validSubs = validSubs(selectedSubIdx>0);
+         subCoveredNodes = subCoveredNodes(selectedSubIdx>0);
+         display(['Exit flag for genetic algorithm: ' num2str(exitFlag) ', with fval: ' num2str(fval) ', which is as good as %' num2str(100*fval/maxFVal) ' of the best fval possible.']);
+   else
+         fval = f(selectedSubIdx);
+   end
+   
    % Calculate statistics.
    allCoveredNodes = cat(2, subCoveredNodes{:});
    allCoveredNodes = unique(allCoveredNodes);
    overallCoverage = numel(allCoveredNodes) / prevGraphNodeCount;
-%   dataLikelihood = 1 - (fval / prevGraphNodeCount - minLogProb * 2) / (-minLogProb * 2);
-   dataLikelihood = fval/prevGraphNodeCount;
+   dataLikelihood = 1 - (fval / prevGraphNodeCount - minLogProb * 2) / (-minLogProb * 2);
    
    % Printing.
    display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
@@ -305,7 +317,6 @@ end
 function y = paramfunc3(x, ~, ~, subCoveredNodes)   
      x = x>=0.5;
      allCoveredNodes = cat(2, subCoveredNodes{x});
-     numberOfNodes = numel(allCoveredNodes);
      allCoveredNodes = fastsortedunique(sort(allCoveredNodes));
      y = -numel(allCoveredNodes);
 %     y = -2*numel(allCoveredNodes) + numberOfNodes;
