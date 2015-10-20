@@ -22,18 +22,15 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 %> Separate mode learning from this function on 28.01.2014
-function [nodeEdges] = extractEdgesInference(nodes, modes, leafNodeArr, firstLevelAdjNodes, options, currentLevelId)
+function [nodeEdges, edgeProbs] = extractEdgesInference(nodes, modes, modeProbArr, leafNodeArr, firstLevelAdjNodes, options, currentLevelId)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
-    scale = (1/options.scaling)^(currentLevelId-1);
-    neighborhood = floor(options.edgeRadius * scale);
     numberOfNodes = size(nodes,1);
     nodeIds = nodes(:,1);
     nodeCoords = nodes(:,2:3);
     edgeIdMatrix = options.edgeIdMatrix;
-    halfMatrixSize = (options.edgeQuantize+1)/2;
-    matrixSize = [options.edgeQuantize, options.edgeQuantize];
-    downsampleRatio = floor((options.edgeQuantize-1)/2) / neighborhood;
+    halfMatrixSize = (options.receptiveFieldSize+1)/2;
+    matrixSize = [options.receptiveFieldSize, options.receptiveFieldSize];
     edgeType = options.edgeType;
     
     %% Program options into variables.
@@ -46,6 +43,7 @@ function [nodeEdges] = extractEdgesInference(nodes, modes, leafNodeArr, firstLev
     % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
     averageNodeDegree = maxNodeDegree;
     nodeEdges = cell(numberOfNodes,1);
+    edgeProbs = cell(numberOfNodes,1);
     
     % If there are no nodes in this image, move on.
     if numberOfNodes == 0
@@ -61,7 +59,10 @@ function [nodeEdges] = extractEdgesInference(nodes, modes, leafNodeArr, firstLev
     for nodeItr = 1:numberOfNodes
        centerArr = repmat(nodeCoords(nodeItr,:), numberOfNodes,1);
        distances = sqrt(sum((nodeCoords - centerArr).^2, 2));
-       adjacentNodes = distances <= neighborhood;
+       adjacentNodes = nodeCoords(:,1) > (centerArr(:,1) - halfMatrixSize) & ...
+           nodeCoords(:,1) < (centerArr(:,1) + halfMatrixSize) & ...
+           nodeCoords(:,2) > (centerArr(:,2) - halfMatrixSize) & ...
+           nodeCoords(:,2) < (centerArr(:,2) + halfMatrixSize);
 
        %% Check for edge novelty.
        adjacentNodeIdx = find(adjacentNodes);
@@ -123,57 +124,36 @@ function [nodeEdges] = extractEdgesInference(nodes, modes, leafNodeArr, firstLev
 
     % Update data structures based on removed edges.
     allEdges = allEdges(validEdges,:);
-    edgeCoords = double(edgeCoords(validEdges,:));
-    normalizedEdgeCoords = fix(fix(downsampleRatio * edgeCoords) + halfMatrixSize);
-
-    % Double check in order not to go out of bounds.
-    normalizedEdgeCoords(normalizedEdgeCoords < 1) = 1;
-    normalizedEdgeCoords(normalizedEdgeCoords > matrixSize(1)) = matrixSize(1);
-
+    edgeCoords = edgeCoords(validEdges,:);
+    edgeCoords = edgeCoords + halfMatrixSize;
+    
     %Find edge labels.
-    matrixInd = sub2ind(matrixSize, normalizedEdgeCoords(:,1), normalizedEdgeCoords(:,2));
+    matrixInd = sub2ind(matrixSize, edgeCoords(:,1), edgeCoords(:,2));
     edgeIds = edgeIdMatrix(matrixInd);
     edges = [allEdges(:,1:2), edgeIds, directedArr];
-
-    % Due to some approximations in neighborhood calculations, some edgeIds might 
-    % have been assigned as 0. Eliminate such cases.
-    edges = edges(edgeIds>0,:);
     
     %% Finally, we assign modes to the edges.
      % Edges empty, do nothing.
+     probArr = zeros(size(edges,1),1, 'single');
      if ~isempty(edges)
-          allEdgeCoords = options.edgeCoords;
-          edgeNodeLabels = nodeIds(edges(:, 1:2));
-          if size(edgeNodeLabels,2) ~= 2
-               edgeNodeLabels = edgeNodeLabels';
-          end
-
           % Assign each edge a to a relevant mode.
-          validEdgeIdx = ones(size(edges,1),1) > 0;
           for edgeItr = 1:size(edges,1)
-               relevantModes = modes(modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2), :);
-
-               % If no modes exist, we delete edges.
+               relevantIdx = modes(:, 1) == node1Labels(edgeItr) & modes(:,2) == node2Labels(edgeItr);
+               relevantModes = modes(relevantIdx,:);
                if isempty(relevantModes)
-                    validEdgeIdx(edgeItr) = 0;
                     continue;
                end
-
-               % Go through every relevant mode, and get the most likely
-               % distribution's id.
-               probs = zeros(size(relevantModes,1),1);
-               for relevantModeItr = 1:size(relevantModes,1)
-                    try
-                         probs(relevantModeItr) = mvnpdf(allEdgeCoords(edges(edgeItr,3), :), relevantModes(relevantModeItr,4:5), [relevantModes(relevantModeItr,6:7); relevantModes(relevantModeItr,8:9)]);
-                    catch %#ok<CTCH>
-                         probs(relevantModeItr) = mvnpdf(allEdgeCoords(edges(edgeItr,3), :), relevantModes(relevantModeItr,4:5), relevantModes(relevantModeItr,[6, 9]));
-                    end
+               relevantCoords = edgeCoords(edges(edgeItr,3),:);
+               clusterProbs = modeProbArr(relevantIdx,relevantCoords(1),relevantCoords(2));
+               [probability, clusterId] = max(clusterProbs);
+               try
+                    probArr(edgeItr) = probability;
+               catch
+                    1
                end
-               [~, newLabelIdx] = max(probs);
-               newLabel = int32(relevantModes(newLabelIdx(1),3));
+               newLabel = int32(relevantModes(clusterId,3));
                edges(edgeItr,3) = newLabel;
           end
-          edges = edges(validEdgeIdx, :);
      end
 
    %% Assign all edges to their respective nodes in the final graph.
@@ -182,6 +162,7 @@ function [nodeEdges] = extractEdgesInference(nodes, modes, leafNodeArr, firstLev
            edgeIdx = edges(:,1) == (nodeItr);
            if nnz(edgeIdx) > 0
                nodeEdges(nodeItr) = {edges(edgeIdx,2:3)};
+               edgeProbs(nodeItr) = {probArr(edgeIdx)};
            end
        end
    end;

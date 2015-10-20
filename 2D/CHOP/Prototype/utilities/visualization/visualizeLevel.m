@@ -61,7 +61,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     if levelId > 1
         leafNodeSets = {graphLevel.leafNodes}';
         centerPos = int32(round(cat(1, graphLevel.precisePosition)));
-        nodeLabelIds = cat(1, graphLevel.labelId);
+        nodeLabelIds = cat(1, graphLevel.realLabelId);
         nodeImageIds = cat(1, graphLevel.imageId);
         nodeActivations = cat(1, graphLevel.activation);
         leafNodeLabelIds = leafNodes(:, 1);

@@ -141,7 +141,7 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = 2000; %Max dimension of the 
                                        % images the algorithm will work
@@ -152,8 +152,8 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 10;    % The maximum level count for training.
-    options.maxInferenceLevels = 10; % The maximum level count for testing.
+    options.maxLevels = 4;    % The maximum level count for training.
+    options.maxInferenceLevels = 4; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -176,10 +176,10 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
     options.articulationsPerCategory = 3; % We reduced  is this number multipli
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 200; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 100; % The maximum 
+    options.reconstruction.numberOfORNodes = 50; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -262,7 +262,7 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 5; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 6; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

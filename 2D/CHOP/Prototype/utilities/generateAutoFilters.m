@@ -114,27 +114,42 @@ function [ ] = generateAutoFilters( datasetName, fileType )
     visY = ceil(numberOfFilters/visX);
     imageSize = [visX * options.autoFilterSize + (visX-1), ...
         visY * options.autoFilterSize + (visY-1), round(size(C,2)/(options.autoFilterSize^2))];
-    finalImage = zeros(imageSize);
-    filterItr = 1;
-    visC = C *invMat + repmat(mu, size( C,1),1);
-    for xItr = 1:visX
-        for yItr = 1:visY
-            if ((xItr-1)*visY)+yItr > numberOfFilters
-                continue;
-            end
-            gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]); %#ok<NASGU>
-            printedGaborFilt = reshape(visC(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]);                                             
-            printedGaborFilt = uint8(round(printedGaborFilt));
-	    finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
-                 ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = printedGaborFilt;
-            imwrite(printedGaborFilt, [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
-            save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
-            filterItr = filterItr+1;
-        end
+    for imgItr = 1:2
+         finalImage = zeros(imageSize);
+         filterItr = 1;
+         if imgItr == 1
+              visC = C *invMat + repmat(mu, size( C,1),1);
+         else
+              visC = C;
+         end
+         if max(max(visC)) > 255
+              visC = visC / 256;
+         end
+         for xItr = 1:visX
+             for yItr = 1:visY
+                 if ((xItr-1)*visY)+yItr > numberOfFilters
+                     continue;
+                 end
+                 gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]); %#ok<NASGU>
+                 printedGaborFilt = reshape(visC(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]);     
+                 finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
+                      ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = printedGaborFilt;
+                 if imgItr == 1
+                      imwrite(uint8(printedGaborFilt), [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
+                      save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
+                 end
+                 filterItr = filterItr+1;
+             end
+         end
+         if imgItr == 1
+               finalImage = uint8(round(finalImage));
+               imwrite(finalImage, [options.currentFolder '/filters/vis/' datasetName '/C_Im.png']);
+         else
+               finalImage = (finalImage - min(min(min(finalImage)))) / (max(max(max(finalImage))) - min(min(min(finalImage))));
+               imwrite(finalImage, [options.currentFolder '/filters/vis/' datasetName '/C_True.png']);
+         end
     end
-    finalImage = double(finalImage);
-    finalImage = (finalImage - min(min(min(finalImage)))) / (max(max(max(finalImage))) - min(min(min(finalImage))));
-    imwrite(finalImage, [options.currentFolder '/filters/vis/' datasetName '/C.png']);
+    
     close(gcf);
 end
 

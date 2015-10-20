@@ -19,6 +19,9 @@ classdef VocabNode
         parents@int32 % Label ids of this node's parents in the next level.
         adjInfo@int32 % Edge information of the form (v2 edgeId isDirected; 
                                                % v3 edgeId isDirected; ...)
+        childrenNodeProbs@single % Nx2 array, in the form of [realNodeId, probability; ...]
+                                                     % which assigns a probability to each
+                                                     % alternative or node label.
         childrenPosMean@single % The relative position of the children with 
                            % respect to the center of gravity. Used to
                            % perform precise reconstruction of nodes. (Nx2,

@@ -46,6 +46,7 @@ function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius )
         levelItr = levelItr - 1;
     end
     nodes = int32(round(nodes(:,1:3)));
+%    nodes(:,2:3) = nodes(:,[3 2]);
     
     %% Then, we perform a simple inhibition process to remove overlapping level 1 instances.
     validNodes = ones(size(nodes,1),1) > 0;

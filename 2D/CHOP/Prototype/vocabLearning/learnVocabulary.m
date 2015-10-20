@@ -113,10 +113,6 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         % Test if the mapping is correct (for debugging).
 %        testSuccess = testMapping(vocabLevel, graphLevel, newDistanceMatrix, mainGraph{levelItr-1});
         
-        %% Here, we calculate the log likelihood of the nodes in graph
-        % level.
-%        graphLevel = calculateLogLikelihood(graphLevel, mainGraph{levelItr-1});
-        
         % Open/close matlabpool to save memory.
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
@@ -219,6 +215,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% Step 2.4: In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
         vocabLevel = learnChildPositions(vocabLevel, allModes{levelItr-1});
+%        vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1});
         
         %% Step 2.5: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);

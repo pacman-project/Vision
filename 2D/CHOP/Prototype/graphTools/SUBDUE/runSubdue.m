@@ -86,6 +86,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
     end
     parentsPerSet = 50;
+    sigmoidMultiplier = 5;
  %   minNodeProbability = 0.00001;
     
     % At this point we get more subs than we need, since we're trying to
@@ -111,6 +112,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     assignedEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
         assignedEdges(nonemptyEdgeIdx), 'UniformOutput', false);
     allNodeProbs = cat(1, graphLevel.nodeProbability);
+    allEdgeProbs = {graphLevel.edgeProbabilities};
     allNodeActivations = cat(1, graphLevel.activation);
     allEdges(numel(graphLevel)) = AdjInfo();
     [allEdges.adjInfo] = deal(assignedEdges{:});
@@ -542,7 +544,14 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                instanceSigns = num2cell(allSigns(centerIdx));
                
                % Activations (TODO: ADD EDGE PROBABILITIES AS WELL!)
-               instanceActivations = num2cell(cellfun(@(x) mean(allNodeProbs(x) .* allNodeActivations(x)), instanceChildren));
+               instanceEdges = bestSubs(bestSubItr).instanceEdges;
+               if ~isempty(instanceEdges)
+                    instanceEdges = mat2cell(instanceEdges, ones(size(instanceEdges,1),1), size(instanceEdges,2));
+                    instancePosProbs = cellfun(@(x, y) [single(1); x(y)], allEdgeProbs(centerIdx), instanceEdges', 'UniformOutput', false)';
+               else
+                    instancePosProbs = num2cell(ones(numberOfInstances, 1,'single'));
+               end
+               instanceActivations = num2cell(cellfun(@(x,y) logsig(sigmoidMultiplier * (mean(allNodeProbs(x) .* allNodeActivations(x) .* y) - 0.5)), instanceChildren, instancePosProbs));
                
                % Assign fields to graphs.
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).labelId] = deal(labelIds{:});

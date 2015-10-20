@@ -34,6 +34,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    minNodeProbability = 0.00001;
    coverageStoppingVal = 0.999;
    likelihoodStoppingVal = 0.9999;
+   groupingThr = 0.8;
    coveragePartSelectionMethod = 'Greedy'; % 'Genetic' or 'Greedy'
    % Override part selection method if we have too many parts to select
    % from.
@@ -152,13 +153,13 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
      
     if strcmp(coveragePartSelectionMethod, 'Genetic')
         A = ones(1, numberOfBestSubs);
-        b = numberOfFinalSubs;
+        b = numberOfFinalSubs * 2;
         LB = zeros(1,numberOfBestSubs);
         UB = ones(1,numberOfBestSubs);
         IntCon = 1:numberOfBestSubs;
         %   IntCon = [];
         selectedSubIdx = ones(1,numberOfBestSubs) > 0;
-        stoppingFVal = coverageStoppingVal * f(selectedSubIdx);
+        stoppingFVal = coverageStoppingVal * h(selectedSubIdx);
         options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
            'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
            'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
@@ -168,6 +169,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
         subCounter = 0; 
         addedValueArr = [];
         selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
+        stoppingFVal = h(ones(1, numberOfBestSubs) > 0);
         curFVal = 0;
         valueArr = inf(1,numberOfBestSubs);
         while subCounter < numberOfFinalSubs*2
@@ -208,8 +210,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
            
            % Calculate coverage, and check if we've covered enough data.
             % Then, break if necessary.
-           allCoveredNodes = cat(2, subCoveredNodes{selectedSubIdx});
-           coverage = numel(fastsortedunique(sort(allCoveredNodes))) / prevGraphNodeCount;
+           coverage = h(selectedSubIdx) / stoppingFVal;
            if coverage >= coverageStoppingVal 
                break;
            end
@@ -231,7 +232,48 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
 %     options = optimset('Display', 'iter', 'MaxFunEvals', 200*numel(validSubs), 'MaxIter', 200*numel(validSubs));
 %     [x, exitflag, output] = fminsearch(f, ones(1, numel(validSubs)), options);
     
-   if numberOfBestSubs > numberOfFinalSubs
+   % We will now define linear constraints for the part selection process. 
+   % What we are trying to do is to select a set of parts that have as less
+   % redundancy as possible. In order to do that, we now group parts based
+   % on the shareability of their instances. E.g. If two parts are grouped
+   % together, we want to select only one of these parts, not two.
+   shareabilityIdx = cell(numberOfBestSubs-1,1);
+   numberOfChildrenArr = cellfun(@(x) numel(x), subCoveredNodes);
+   parfor subItr = 1:(numberOfBestSubs-1)
+         subChildren = subCoveredNodes{subItr};
+         shareabilityVect = zeros(1, numberOfBestSubs);
+         shareabilityVect(subItr) = 1;
+         for subItr2 = (subItr+1):numberOfBestSubs
+              subChildren2 = subCoveredNodes{subItr2};
+              shareabilityVect(subItr2) = 2 * numel(intersect(subChildren, subChildren2)) / (numberOfChildrenArr(subItr) + numberOfChildrenArr(subItr2));
+         end
+         shareabilityIdx{subItr} = shareabilityVect;
+   end
+   shareabilityIdx = cat(1, shareabilityIdx{:});
+   
+   % Group similar nodes together, and create linear constraints.
+   shareabilityIdx = shareabilityIdx > groupingThr;
+   rowSums = sum(shareabilityIdx,2);
+   validRows = rowSums>1;
+   
+   % Finally, eliminate constraints that are already covered by previous
+   % constraints.
+   shareabilityIdx = shareabilityIdx(validRows,:);
+   validRows = ones(size(shareabilityIdx,1),1) > 0;
+   for rowItr = size(shareabilityIdx,1):-1:2
+         for rowItr2 = 1:rowItr
+              tempArr = shareabilityIdx(rowItr2,shareabilityIdx(rowItr,:));
+              if numel(tempArr) == sum(tempArr)
+                   validRows(rowItr) = 0;
+              end
+         end
+   end
+   % Create constraints.
+   shareabilityIdx = double(shareabilityIdx(validRows,:));
+   shareabilityB = ones(nnz(validRows),1);
+
+   % If needed, we perform a genetic algorithm-based search.
+   if numberOfBestSubs > numberOfFinalSubs || ~isempty(shareabilityIdx)
           %    % Now, it's time for a data likelihood-driven part selection.
          selectedSubIdx = ones(1,numberOfBestSubs) > 0;
         % Create fitness functions and linear constraints, upper bounds etc for genetic algorithm.
@@ -240,8 +282,8 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
          h = @(x) paramfunc3(x, subLabelProbs, subPosProbs, subCoveredNodes); %#ok<NASGU>
          maxFVal = f(selectedSubIdx);
          stoppingFVal = maxFVal * likelihoodStoppingVal;
-         A = ones(1, numberOfBestSubs);
-         b = numberOfFinalSubs;
+         A = [ones(1, numberOfBestSubs); shareabilityIdx];
+         b = [numberOfFinalSubs; shareabilityB];
          LB = zeros(1,numberOfBestSubs);
          UB = ones(1,numberOfBestSubs);
          IntCon = 1:numberOfBestSubs;
@@ -266,7 +308,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    
    % Printing.
    display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
-        ' out of ' num2str(numberOfBestSubs) ' subs.. Coverage: ' num2str(overallCoverage) ', average data point likelihood:' num2str(dataLikelihood) '.']);
+        ' out of ' num2str(numel(bestSubs)) ' subs.. Coverage: ' num2str(overallCoverage) ', average data point likelihood:' num2str(dataLikelihood) '.']);
 
 end
 

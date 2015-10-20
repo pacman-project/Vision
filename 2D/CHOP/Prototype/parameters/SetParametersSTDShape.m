@@ -52,7 +52,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.autoFilterSize = 20;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
     options.auto.inhibitionRadius = 1;
-    options.autoFilterThr = 0.2;       % Min response threshold for convolved 
+    options.autoFilterThr = 0;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
@@ -63,7 +63,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
                                        % implementation of matlab.                                 
-    options.auto.deadFeatureStd = 0.001; % In case of auto-learned features, 
+    options.auto.deadFeatureStd = 0; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
                                        % used to eliminate uniform
@@ -97,18 +97,18 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.0001;           % The novelty threshold used in the 
+    options.noveltyThr = 0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeType = 'contour';     % If 'centroid', downsampling is
+    options.edgeType = 'centroid';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
@@ -135,7 +135,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = 5; % DEFAULT 5
     else
-        options.receptiveFieldSize = 5;
+        options.receptiveFieldSize = 9;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -143,7 +143,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                          % 1/scaling.
     options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxImageDim = options.receptiveFieldSize*50; %Max dimension of the 
+    options.maxImageDim = 2000; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in
                                        % the dataset is larger than this
@@ -152,8 +152,8 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 10;    % The maximum level count for training.
-    options.maxInferenceLevels = 10; % The maximum level count for testing.
+    options.maxLevels = 4;    % The maximum level count for training.
+    options.maxInferenceLevels = 4; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -176,22 +176,22 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.articulationsPerCategory = 3; % We reduced  is this number multipli
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 50; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 20; % The maximum 
+    options.reconstruction.numberOfORNodes = 50; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
     %% ========== GRAPH MATCHING PARAMETERS ==========
-    options.nodeSimilarityAllowed = true; % If true, node similarities are 
+    options.nodeSimilarityAllowed = false; % If true, node similarities are 
                                            % considered in graph matching.
                                            % If not, identicality in labels
                                            % represents zero-cost matching,
                                            % while every other kind of node
                                            % correspondance yields a cost
                                            % of 1 (max value). 
-    options.edgeSimilarityAllowed = true;  % If true, edge similarities are 
+    options.edgeSimilarityAllowed = false;  % If true, edge similarities are 
                                            % considered in graph matching.
                                            % If not, identicality in labels
                                            % represents zero-cost matching,
@@ -200,7 +200,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                            % of 1 (max value). 
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'likelihood';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -262,7 +262,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 3; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 6; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

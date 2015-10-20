@@ -21,7 +21,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     options.currentFolder = options.currentFolder;
     
     %% Learn edge-based distance matrix once and for all.
-    [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.edgeQuantize, options.distType, options.edgeSimilarityAllowed);
+    [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.receptiveFieldSize, options.distType, options.edgeSimilarityAllowed);
     options.edgeIdMatrix = edgeIdMatrix;
     options.edgeDistanceMatrix = edgeDistanceMatrix;
     options.edgeCoords = edgeCoords;
@@ -47,7 +47,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         end
     
         if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
-            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'graphLevelIndices', 'categoryNames', 'optimalThresholds', 'edgeChangeLevel');
+            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'graphLevelIndices', 'categoryNames', 'orNodeProbs', 'modeProbs', 'optimalThresholds', 'edgeChangeLevel');
             load([options.currentFolder '/output/' datasetName '/export.mat']);
         else
             display('No vocabulary exists!');
@@ -82,22 +82,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             save([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'categoryLabel');
         end
         
-        %% We have modified the ranking in vocabulary based on frequency, after learning them using MDL. 
-        % Now, we revert back to the original ranking.
-        vocabUpdatedLabels = [];
-        if numel(vocabulary)>1 %#ok<NODEF>
-            vocabUpdatedLabels = cell(numel(vocabulary)-1, 1);
-            for levelItr = 2:numel(vocabulary)
-                vocabLevel = vocabulary{levelItr};
-                arrToSort = [vocabLevel.orgRank];
-                [~, sortIdx] = sort(arrToSort, 'ascend');
-                vocabUpdatedLabels(levelItr-1) = {sortIdx};
-                vocabLevel = vocabLevel(sortIdx);
-                % Assign labels.
-                vocabulary(levelItr) = {vocabLevel}; %#ok<AGROW>
-            end
-        end
-        
         % For some weird reason, Matlab workers cannot access variables
         % read from the file. They have to be used in the code. Here's my
         % workaround: 
@@ -109,10 +93,10 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
-        parfor testImgItr = 1:size(testFileNames,1) 
+        for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, vocabUpdatedLabels, edgeChangeLevel, options); 
+            singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, orNodeProbs, modeProbs, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, edgeChangeLevel, options); 
         end
         totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');

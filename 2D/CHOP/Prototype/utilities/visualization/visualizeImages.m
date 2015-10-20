@@ -272,7 +272,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
             for nodeItr = 1:numel(nodes)
                 edges = nodes(nodeItr).adjInfo;
                 if ~isempty(edges)
-                    edges = edges(edges(:,2) > edges(:,1), :);
+ %                   edges = edges(edges(:,2) > edges(:,1), :);
                     edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
                     if ~isempty(edges)
                         for edgeItr = 1:size(edges,1)
