@@ -152,8 +152,8 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 4;    % The maximum level count for training.
-    options.maxInferenceLevels = 4; % The maximum level count for testing.
+    options.maxLevels = 10;    % The maximum level count for training.
+    options.maxInferenceLevels = 10; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 

@@ -135,7 +135,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
             % Go through each composition in current node set.
             for nodeItr = 1:numel(nodeSet)
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
-                labelId = vocabNodeSet(nodeItr);
+                labelId = vocabLevelIdx(vocabNodeSet(nodeItr));
                 nodeInstances = find(nodeLabelIds==labelId);
                 validIdx = nodeLabelIds==labelId;
                 instanceActivations = nodeActivations(validIdx);

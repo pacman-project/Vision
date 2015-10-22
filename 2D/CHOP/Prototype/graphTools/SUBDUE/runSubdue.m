@@ -87,7 +87,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     end
     parentsPerSet = 50;
     sigmoidMultiplier = 5;
- %   minNodeProbability = 0.00001;
+    precisionMult = 1/options.singlePrecision;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
@@ -400,7 +400,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     
     % Remove duplicate instances from each sub.
     display('[SUBDUE/Parallel] Removing duplicate instances from each sub, and updating their match scores..');
-    bestSubs = removeDuplicateInstances(bestSubs);
+%    bestSubs = removeDuplicateInstances(bestSubs);
     
     %% Allocate space for new graphLevel and vocabLevel.
     numberOfInstances = 0;
@@ -551,7 +551,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                else
                     instancePosProbs = num2cell(ones(numberOfInstances, 1,'single'));
                end
-               instanceActivations = num2cell(cellfun(@(x,y) logsig(sigmoidMultiplier * (mean(allNodeProbs(x) .* allNodeActivations(x) .* y) - 0.5)), instanceChildren, instancePosProbs));
+               instanceActivations = cellfun(@(x,y) logsig(sigmoidMultiplier * (mean(allNodeProbs(x) .* allNodeActivations(x) .* y) - 0.5)), instanceChildren, instancePosProbs);
+               instanceActivations = single(floor(double(instanceActivations)*precisionMult)/precisionMult);
+               instanceActivations = num2cell(instanceActivations);
                
                % Assign fields to graphs.
                [graphLevel(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1)).labelId] = deal(labelIds{:});

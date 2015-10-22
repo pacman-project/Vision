@@ -20,6 +20,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, all
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     firstLevelAdjNodes = [];
     sigmoidMultiplier = 5;
+    precisionMult = 1/options.singlePrecision;
     
     % If fast inference is not required, we do not perform inhibition.
     singlePrecision = options.singlePrecision;
@@ -151,24 +152,17 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, all
                 instanceMatchCosts = instanceMatchCosts(validChildren,:);
                 instancePosProbs = instancePosProbs(validChildren,:);
              end
-             instanceChildren = sort(instanceChildren, 2);
+            sortedInstanceChildren = sort(instanceChildren, 2);
              
            %% Eliminating duplicate entries in instanceChildren.
             % We handle these cases by only keeping
             % unique instances. In addition, for each instance, the minimum
             % cost of matching is kept here.
-            [~, sortIdx] = sort(instanceMatchCosts, 'ascend');
-            sortedChildren = instanceChildren(sortIdx, :);
-            sortedPosProbs = instancePosProbs(sortIdx,:);
-            [~, validIdx, ~] = unique(sortedChildren, 'rows', 'stable');
+            [~, validIdx, ~] = unique(sortedInstanceChildren, 'rows', 'stable');
 
             % Get minimum matching costs and children.
-            sortedChildren = sortedChildren(validIdx, :);
-            sortedPosProbs = sortedPosProbs(validIdx, :);
-
-            % Finally, order children by rows.
-            [instanceChildren, idx] = sortrows(sortedChildren);
-            instancePosProbs = sortedPosProbs(idx,:);
+            instanceChildren = instanceChildren(validIdx, :);
+            instancePosProbs = instancePosProbs(validIdx, :);
            
           %% In case of single node subs, we eliminate instances which have outgoing edges.
            if isempty(vocabEdges) && ~isempty(instanceChildren)
@@ -196,6 +190,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, all
                     tempActivations = tempActivations';
                end
                instanceActivations = logsig(sigmoidMultiplier * (mean(tempProbs .* tempActivations .* instancePosProbs, 2) - 0.5));
+               instanceActivations = single(floor(double(instanceActivations)*precisionMult)/precisionMult);
                vocabRealizationsActivations(vocabItr) = {instanceActivations};
            end
         end

@@ -16,6 +16,7 @@ classdef VocabNode
         mdlScore@double % Estimated MDL score of the part.
         normMdlScore@double % Normalized MDL score of the part.
         children@int32 % Label ids of this node's children in the previous level.
+        realChildren@int32 % Label ids of this node's children in the previous level.
         parents@int32 % Label ids of this node's parents in the next level.
         adjInfo@int32 % Edge information of the form (v2 edgeId isDirected; 
                                                % v3 edgeId isDirected; ...)

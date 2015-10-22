@@ -35,7 +35,7 @@ function [vocabLevel] = learnChildPositions(vocabLevel, modes)
             meanChildrenCov(childItr,:) = relevantMode(6:9);
         end
         meanLocation = mean(meanChildrenPos,1);
-        vocabLevel(vocabItr).childrenPosMean = meanChildrenPos - repmat(meanLocation, size(meanChildrenPos,1), 1);
+        vocabLevel(vocabItr).childrenPosMean = meanChildrenPos;
         vocabLevel(vocabItr).childrenPosCov = meanChildrenCov;
     end
 end

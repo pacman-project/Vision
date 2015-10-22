@@ -128,7 +128,8 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
 
         % Eliminate instances which have the same node set, and the same
         % center node. 
-        [~, validIdx, ~] = unique([sortedCenterIdx, sortedAllChildren], 'rows', 'stable');
+ %       [~, validIdx, ~] = unique([sortedCenterIdx, sortedAllChildren], 'rows', 'stable');
+        validIdx = (1:numel(sortedCenterIdx))';
         
         % Keep ordering but remove duplicates.
         sortIdx = sortIdx(validIdx);

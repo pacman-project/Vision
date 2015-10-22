@@ -278,6 +278,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'validationIdx', 'poseArr', '-append'); 
+        save([options.currentFolder '/output/' datasetName '/mainGraph.mat'], 'mainGraph'); 
     end
     
     % Close thread pool if opened.

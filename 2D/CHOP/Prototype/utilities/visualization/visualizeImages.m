@@ -110,6 +110,12 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
         img = imread([processedFolder '/' fileName '.png']);
         actualImg = img;
         
+        % If this is a depth image, we need to reduce the data
+        % to 8 bit.
+        if isa(actualImg, 'uint16')
+             actualImg = uint8(double(actualImg)/256);
+        end
+        
         % If original image's band count is less than 3, duplicate
         % bands to have a 3-band image.
         if size(actualImg,3) == 1

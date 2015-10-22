@@ -173,6 +173,10 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
         
+        %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
+%        vocabLevel = learnChildPositions(vocabLevel, allModes{levelItr-1});
+        vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1});
+        
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
@@ -213,10 +217,6 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
-        %% Step 2.4: In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
-        vocabLevel = learnChildPositions(vocabLevel, allModes{levelItr-1});
-%        vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1});
-        
         %% Step 2.5: Create the parent relationships between current level and previous level.
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
@@ -251,7 +251,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         end
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
-            printConvolutionFilters(vocabLevel, orNodeProbs{levelItr-1}, allModes{levelItr-1}, modeProbs{levelItr-1}, levelItr, numel(vocabulary{levelItr-1}), options.debug, options.CNNFolder);
+%            printConvolutionFilters(vocabLevel, orNodeProbs{levelItr-1}, allModes{levelItr-1}, modeProbs{levelItr-1}, levelItr, numel(vocabulary{levelItr-1}), options.debug, options.CNNFolder);
             visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             if options.debug
                display('........ Visualizing realizations on images...');

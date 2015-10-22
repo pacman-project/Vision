@@ -32,6 +32,7 @@ function [nodeEdges, edgeProbs] = extractEdgesInference(nodes, modes, modeProbAr
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
     matrixSize = [options.receptiveFieldSize, options.receptiveFieldSize];
     edgeType = options.edgeType;
+    edgeCoords = options.edgeCoords + halfMatrixSize;
     
     %% Program options into variables.
     if options.fastInference
@@ -113,22 +114,24 @@ function [nodeEdges, edgeProbs] = extractEdgesInference(nodes, modes, modeProbAr
     node2Labels = nodeIds(allEdges(:,2));
     node1Coords = nodeCoords(allEdges(:,1),:);
     node2Coords = nodeCoords(allEdges(:,2),:);
-    edgeCoords = node2Coords - node1Coords;
+    allEdgeCoords = node2Coords - node1Coords;
 
     % Remove edges between overlapping (same position) nodes having same id.
     labelEqualityArr = node1Labels == node2Labels;
-    validEdges = ~(labelEqualityArr & (edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0));
+    validEdges = ~(labelEqualityArr & (allEdgeCoords(:,1) == 0 & allEdgeCoords(:,2) == 0));
 
     % If receptive fields are used, every edge is directed.
     directedArr = ones(nnz(validEdges),1, 'int32');
 
     % Update data structures based on removed edges.
     allEdges = allEdges(validEdges,:);
-    edgeCoords = edgeCoords(validEdges,:);
-    edgeCoords = edgeCoords + halfMatrixSize;
+    allEdgeCoords = allEdgeCoords(validEdges,:);
+    node1Labels = node1Labels(validEdges,:);
+    node2Labels = node2Labels(validEdges,:);
+    allEdgeCoords = allEdgeCoords + halfMatrixSize;
     
     %Find edge labels.
-    matrixInd = sub2ind(matrixSize, edgeCoords(:,1), edgeCoords(:,2));
+    matrixInd = sub2ind(matrixSize, allEdgeCoords(:,1), allEdgeCoords(:,2));
     edgeIds = edgeIdMatrix(matrixInd);
     edges = [allEdges(:,1:2), edgeIds, directedArr];
     
@@ -146,11 +149,7 @@ function [nodeEdges, edgeProbs] = extractEdgesInference(nodes, modes, modeProbAr
                relevantCoords = edgeCoords(edges(edgeItr,3),:);
                clusterProbs = modeProbArr(relevantIdx,relevantCoords(1),relevantCoords(2));
                [probability, clusterId] = max(clusterProbs);
-               try
-                    probArr(edgeItr) = probability;
-               catch
-                    1
-               end
+               probArr(edgeItr) = probability;
                newLabel = int32(relevantModes(clusterId,3));
                edges(edgeItr,3) = newLabel;
           end

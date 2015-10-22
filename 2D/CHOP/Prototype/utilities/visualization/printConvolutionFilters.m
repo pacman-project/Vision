@@ -26,6 +26,7 @@ function [ ] = printConvolutionFilters( vocabLevel, orNodeProbs, modes, modeProb
           end
      end
      
+     realLabels = [vocabLevel.label];
      % Create a distribution image for center nodes.
      convFilterSize = [size(modeProbArr, 2), size(modeProbArr, 3)];
      centerCoords = ceil(convFilterSize/2);
@@ -34,11 +35,11 @@ function [ ] = printConvolutionFilters( vocabLevel, orNodeProbs, modes, modeProb
      
      % Go through the list of filters and visualize them.
      convFilters = cell(numel(vocabLevel),1);
-     parfor vocabLevelItr = 1:numel(vocabLevel)
+     for vocabLevelItr = 1:numel(vocabLevel)
           convFilter = zeros(previousNodeCount, convFilterSize(1), convFilterSize(2), 'single');
           
           % Add center node's distribution.
-          children = vocabLevel(vocabLevelItr).children;
+          children = realLabels(vocabLevel(vocabLevelItr).children);
           for childItr = 1:numel(children)
                
                if childItr == 1

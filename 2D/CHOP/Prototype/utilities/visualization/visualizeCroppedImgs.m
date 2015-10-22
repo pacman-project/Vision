@@ -21,6 +21,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
     visualizedNodes = options.vis.visualizedNodes;
+    orgImgWeight = 0.5;
     
     if isempty(currentLevel)
        return; 
@@ -69,7 +70,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
                     midPoint = round([size(img,1), size(img,2)] / 2);
                     lowHalf = midPoint - round(([size(falseColorImg,1), size(falseColorImg,2)]-1) / 2);
                     highHalf = midPoint + ([size(falseColorImg,1), size(falseColorImg,2)] - (1 + round(([size(falseColorImg,1), size(falseColorImg,2)]-1) / 2)));
-                    img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :) = round(double(0.25 * double(img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :))) + 0.75 * double(falseColorImg));
+                    img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :) = round(double(orgImgWeight * double(img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :))) + (1-orgImgWeight) * double(falseColorImg));
                     
                     % Stretch the histogram.
                     img = uint8(round(double(img) * ( 255 / double(max(max(max(img)))))));

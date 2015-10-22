@@ -19,7 +19,7 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim )
      activations = cat(1, graphLevel.activation);
      
      % Get unique nodes for each label, image, coord triplet.
-     combinedArr = [labelIds, imageIds, coords];
+     combinedArr = double([labelIds, imageIds, coords]);
      
      % Sort combinedArr so that it is sorted by decreasing activations.
      [~, idx] = sort(activations, 'descend');

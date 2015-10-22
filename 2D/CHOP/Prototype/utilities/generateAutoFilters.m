@@ -121,6 +121,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
               visC = C *invMat + repmat(mu, size( C,1),1);
          else
               visC = C;
+              visC = (visC - min(min(visC))) / (max(max(visC)) - min(min(visC)));
          end
          if max(max(visC)) > 255
               visC = visC / 256;
@@ -134,8 +135,8 @@ function [ ] = generateAutoFilters( datasetName, fileType )
                  printedGaborFilt = reshape(visC(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]);     
                  finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
                       ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = printedGaborFilt;
-                 if imgItr == 1
-                      imwrite(uint8(printedGaborFilt), [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
+                 if imgItr == 2
+                      imwrite(uint8(printedGaborFilt * 255), [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
                       save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
                  end
                  filterItr = filterItr+1;
