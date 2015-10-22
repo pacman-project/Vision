@@ -233,7 +233,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, all
          newNodes(:,1) = vocabLevelLabels(newNodes(:,1));
   
          %% Perform pooling.
-         combinedArr = newNodes;
+         combinedArr = double(newNodes);
          % Sort combinedArr so that it is sorted by decreasing activations.
          [~, idx] = sort(activationArr, 'descend');
          combinedArr = combinedArr(idx,:);

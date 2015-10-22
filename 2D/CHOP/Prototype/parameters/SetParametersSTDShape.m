@@ -47,7 +47,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                         % size in which weaker responses other 
                                         % than the seed node will
                                         % be surpressed.
-    options.gabor.stride = 3;           % Stride to use when extracting gabor
+    options.gabor.stride = 1;           % Stride to use when extracting gabor
                                        % features.     
     options.autoFilterSize = 20;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
@@ -91,7 +91,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % contourGTNeighborhood). 
                                        % 'bbox' type gt: nodes in the
                                        % gt bounding box are examined.
-    options.contourGTNeighborhood = 8;% width of the band along the contour 
+    options.contourGTNeighborhood = 0;% width of the band along the contour 
                                        % (half width, actual width is
                                        % double this value)  in which nodes
                                        % and relations are examined.

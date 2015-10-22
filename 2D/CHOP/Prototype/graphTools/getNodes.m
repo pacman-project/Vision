@@ -197,6 +197,8 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     % Use this feature to get rid of most peaks.
     [activationImg, nodeIdImg] = max(responseImgs, [], 3);
     smoothActivationImg = activationImg;
+%    smoothActivationImg = smoothActivationImg>0;
+    smoothActivationImg = smoothActivationImg/max(max(max(smoothActivationImg)));
     clear responseImgs;
     peaks = find(activationImg);
     

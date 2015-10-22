@@ -91,7 +91,7 @@ function [ options ] = SetParametersSTDDepth( datasetName, options )
                                        % contourGTNeighborhood). 
                                        % 'bbox' type gt: nodes in the
                                        % gt bounding box are examined.
-    options.contourGTNeighborhood = 8;% width of the band along the contour 
+    options.contourGTNeighborhood = 0;% width of the band along the contour 
                                        % (half width, actual width is
                                        % double this value)  in which nodes
                                        % and relations are examined.
