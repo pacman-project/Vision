@@ -20,7 +20,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain

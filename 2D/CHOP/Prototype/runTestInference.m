@@ -93,7 +93,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
-        for testImgItr = 1:size(testFileNames,1) 
+        parfor testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, orNodeProbs, modeProbs, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, edgeChangeLevel, options); 
