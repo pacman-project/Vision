@@ -87,7 +87,6 @@ if K < nd
           c_mi(i) = mean(mi_array(idxleft(i), 1:(k-1))); 
        end;
        
-    %   [tmp, fea(k)] = max(t_mi(1:ncand) ./ c_mi(1:ncand));
        [valArr(k-1), fea(k)] = max(t_mi(1:ncand) ./ (c_mi(1:ncand) + 0.01));
        tmpidx = fea(k); fea(k) = idxleft(tmpidx); idxleft(tmpidx) = [];
 

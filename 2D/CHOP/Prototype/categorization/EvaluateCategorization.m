@@ -24,10 +24,6 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
            load(fileNames{fileItr});
            % Process this image and estimate category label.
            [estimatedCategoryLabel, decisionLevel] = getCategoryLabel(vocabulary, exportArr, activationArr, minLevels, maxLevels);
-           if estimatedCategoryLabel == -1
-              1 
-           end
-           
            decisionLevels(fileItr) = decisionLevel;
            gtArr(fileItr) = categoryLabel;
            detectionArr(fileItr) = estimatedCategoryLabel;
@@ -70,9 +66,6 @@ function [ ] = EvaluateCategorization( datasetName, perfType, minLevels, maxLeve
     end
     accuracy = mean(classAcc);
     confMat = confusionmat(gtArr, detectionArr);
-%     if ~isempty(customOrder)
-%         confMat= confMat(customOrder, customOrder);
-%     end
     
     save([options.outputFolder '/perf.mat'], 'accuracy', 'classAcc', 'confMat', 'decisionLevels', 'avgDecisionLevel', 'levelWiseAccuracyArr');
     display(['Accuracy: ' num2str(accuracy)]);

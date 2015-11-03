@@ -47,7 +47,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         end
     
         if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
-            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'graphLevelIndices', 'categoryNames', 'orNodeProbs', 'modeProbs', 'optimalThresholds', 'edgeChangeLevel');
+            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'categoryNames', 'orNodeProbs', 'modeProbs', 'optimalThresholds', 'edgeChangeLevel');
             load([options.currentFolder '/output/' datasetName '/export.mat']);
         else
             display('No vocabulary exists!');
@@ -90,6 +90,9 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         categoryNames = categoryNames; %#ok<ASGSL>
         edgeChangeLevel = edgeChangeLevel; %#ok<ASGSL,NODEF>
         allModes = allModes; %#ok<ASGSL,NODEF>
+        vocabulary = vocabulary; %#ok<ASGSL,NODEF>
+        orNodeProbs = orNodeProbs; %#ok<ASGSL,NODEF>
+        modeProbs = modeProbs; %#ok<ASGSL,NODEF>
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;

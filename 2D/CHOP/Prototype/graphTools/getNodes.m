@@ -20,7 +20,7 @@
 %> Ver 1.1 on 03.12.2013 Response inhibition added.
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
 %> Ver 1.3 on 17.01.2014 GT use implemented.
-function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNodes( img, gtFileName, options )
+function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseImgs ] = getNodes( img, gtFileName, options )
     %% Step 1: Get grayscaled image and assign method parameters.
     if strcmp(options.filterType, 'gabor')
         stride = options.gabor.stride;
@@ -50,7 +50,6 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     filterBandSize = filterSize(1:2);
     img = double(img);
     filterCount = numel(options.filters);
-    borderSize = ceil(size(filterSize,1) / stride) + 1;
     
     %% Get gt info in the form of a mask.
     if options.useGT && ~isempty(gtFileName)
@@ -190,8 +189,8 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     else
         inhibitionHalfSize = options.auto.inhibitionRadius;
     end
-    responseImgs([1:inhibitionHalfSize, (end-inhibitionHalfSize):end],:, :) = 0;
-    responseImgs(:,[1:inhibitionHalfSize, (end-inhibitionHalfSize):end], :) = 0;
+    responseImgs([1:inhibitionHalfSize, ((end-inhibitionHalfSize)+1):end],:, :) = 0;
+    responseImgs(:,[1:inhibitionHalfSize, ((end-inhibitionHalfSize)+1):end], :) = 0;
 
     % Each response will clear other weak responses at the very same pixel.
     % Use this feature to get rid of most peaks.
@@ -199,7 +198,6 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     smoothActivationImg = activationImg;
 %    smoothActivationImg = smoothActivationImg>0;
     smoothActivationImg = smoothActivationImg/max(max(max(smoothActivationImg)));
-    clear responseImgs;
     peaks = find(activationImg);
     
     %% Here, we will run a loop till we clear all weak responses.
@@ -225,10 +223,10 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg ] = getNod
     % Write the responses in the final image.
     responseImg = zeros(size(activationImg));
     responseImg(orderedPeaks(validPeaks)) = nodeIdImg(orderedPeaks(validPeaks));
-    responseImg([1:borderSize, (end-borderSize):end],:) = 0;
-    responseImg(:,[1:borderSize, (end-borderSize):end]) = 0;
-    activationImg([1:borderSize, (end-borderSize):end],:) = 0;
-    activationImg(:,[1:borderSize, (end-borderSize):end]) = 0;
+%     responseImg([1:borderSize, (end-borderSize):end],:) = 0;
+%     responseImg(:,[1:borderSize, (end-borderSize):end]) = 0;
+%     activationImg([1:borderSize, (end-borderSize):end],:) = 0;
+%     activationImg(:,[1:borderSize, (end-borderSize):end]) = 0;
     activationImg = activationImg / max(max(activationImg));
 
     %% Eliminate nodes outside GT mask. If gt is not used, this does not have effect.

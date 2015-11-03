@@ -1,6 +1,6 @@
 function [ accuracy ] = TestCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgSize)
     % Load relevant info.
-    load([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '.mat']);
+    load([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '_' num2str(poolSize) '.mat']);
     load([pwd '/output/' datasetName '/vb.mat'], 'categoryNames');
 %    load([pwd '/models/' datasetName '_testLabels.mat']);
     testData = fuf([pwd '/output/' datasetName '/test/inference/*.mat'], 1, 'detail');
@@ -34,12 +34,7 @@ function [ accuracy ] = TestCategoryModel(datasetName, minLevel, maxLevel, poolS
             end
         end
     end
-%    features = features/normFactor;
-%    features = (W' * features')';
-%     features = double(features > 0);
-%     features = features * COEFF;
-%     features = features(:,1:20);
-%     features = (W' * features')';
+    features = normr(features);
 %     
     cmd='';
     %  [predicted_category_label, accuracy, prob_estimates] = svmpredict(labels_sub, features, LearnedModels.category_model, cmd);

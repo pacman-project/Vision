@@ -11,8 +11,8 @@ function [img] = overlayFeaturesWithImage(level1Nodes, img, filters)
     end
     img = uint8(round(imageWeight * double(img)));
     
-    minVal = min(cellfun(@(x) min(min(x)), filters));
-    maxVal = max(cellfun(@(x) max(max(x)), filters));
+    minVal = min(cellfun(@(x) min(min(min(x))), filters));
+    maxVal = max(cellfun(@(x) max(max(max(x))), filters));
     filters = cellfun(@(x) uint8(255 * ((x - minVal)/(maxVal - minVal))), filters, 'UniformOutput', false);
     
     for nodeItr = 1:size(level1Nodes,1)

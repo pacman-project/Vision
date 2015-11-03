@@ -20,7 +20,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, all
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     firstLevelAdjNodes = [];
     sigmoidMultiplier = 5;
-    precisionMult = 1/options.singlePrecision;
+    precisionMult = 1000;
     
     % If fast inference is not required, we do not perform inhibition.
     singlePrecision = options.singlePrecision;
@@ -152,17 +152,6 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, all
                 instanceMatchCosts = instanceMatchCosts(validChildren,:);
                 instancePosProbs = instancePosProbs(validChildren,:);
              end
-            sortedInstanceChildren = sort(instanceChildren, 2);
-             
-           %% Eliminating duplicate entries in instanceChildren.
-            % We handle these cases by only keeping
-            % unique instances. In addition, for each instance, the minimum
-            % cost of matching is kept here.
-            [~, validIdx, ~] = unique(sortedInstanceChildren, 'rows', 'stable');
-
-            % Get minimum matching costs and children.
-            instanceChildren = instanceChildren(validIdx, :);
-            instancePosProbs = instancePosProbs(validIdx, :);
            
           %% In case of single node subs, we eliminate instances which have outgoing edges.
            if isempty(vocabEdges) && ~isempty(instanceChildren)
@@ -239,7 +228,7 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, all
          combinedArr = combinedArr(idx,:);
    
          % Downsample the coordinates (pooling), and then perform max operation.
-         combinedArr(:,2:3) = floor(combinedArr(:,2:3) / poolDim);
+         combinedArr(:,2:3) = floor((combinedArr(:,2:3) - 1)/poolDim) + 1;
          [~, IA, ~] = unique(combinedArr, 'rows', 'stable');
 
          % Save real indices and activations.
@@ -261,13 +250,16 @@ function [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, all
              children = children(children>0);
              newLeafNodeArr(instanceItr) = {unique(cat(2, leafNodeArr{children}))};
         end
-        leafNodeArr = newLeafNodeArr;
-         
+
+        % Order nodes.
+        [~, sortIdx] = sortrows(newNodes);
+
         %% Write to output and move on to the next level.
-        allNodes(vocabLevelItr) = {newNodes};
-        allActivations(vocabLevelItr) = {activationArr};
-        nodes = newNodes;
-        precisePositions = newPrecisePositions;
+        allNodes(vocabLevelItr) = {newNodes(sortIdx,:)};
+        leafNodeArr = newLeafNodeArr(sortIdx);
+        allActivations(vocabLevelItr) = {activationArr(sortIdx)};
+        nodes = newNodes(sortIdx,:);
+        precisePositions = newPrecisePositions(sortIdx,:);
     end
     activationArr = cat(1, allActivations{:});
     

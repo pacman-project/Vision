@@ -98,7 +98,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
         display('Clustering features...');
         opts = statset('MaxIter', 200);
         [~, C] = kmeans(Xwh, options.autoFilterCount, 'Start', 'cluster', ...
-            'EmptyAction', 'Singleton', 'Replicates', 3, 'Display', 'iter', 'Options', opts);
+            'EmptyAction', 'Singleton', 'Display', 'iter', 'Options', opts);
 
         %% Save cluster centers, along with other info.
         save([options.currentFolder '/filters/vis/' datasetName '/C.mat'], 'C', 'mu', 'invMat', 'whMat');
@@ -133,12 +133,14 @@ function [ ] = generateAutoFilters( datasetName, fileType )
                  end
                  gaborFilt = reshape(C(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]); %#ok<NASGU>
                  printedGaborFilt = reshape(visC(((xItr-1)*visY)+yItr, :), [options.autoFilterSize, options.autoFilterSize, imageSize(3)]);     
+                 if imgItr == 2
+                      printedGaborFilt = (printedGaborFilt - min(min(min(printedGaborFilt)))) / (max(max(max(printedGaborFilt))) - min(min(min(printedGaborFilt))));
+                      save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
+                 else
+                      imwrite(uint8(round(printedGaborFilt)), [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
+                 end
                  finalImage(((xItr-1)*(options.autoFilterSize+1)+1):(xItr*(options.autoFilterSize+1)-1), ...
                       ((yItr-1)*(options.autoFilterSize+1)+1):(yItr*(options.autoFilterSize+1)-1), :) = printedGaborFilt;
-                 if imgItr == 2
-                      imwrite(uint8(printedGaborFilt * 255), [options.currentFolder '/filters/auto/filt' num2str(filterItr) '.png']);
-                      save([options.currentFolder '/filters/auto/filt' num2str(filterItr) '.mat'], 'gaborFilt');
-                 end
                  filterItr = filterItr+1;
              end
          end
@@ -146,7 +148,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
                finalImage = uint8(round(finalImage));
                imwrite(finalImage, [options.currentFolder '/filters/vis/' datasetName '/C_Im.png']);
          else
-               finalImage = (finalImage - min(min(min(finalImage)))) / (max(max(max(finalImage))) - min(min(min(finalImage))));
+   %            finalImage = (finalImage - min(min(min(finalImage)))) / (max(max(max(finalImage))) - min(min(min(finalImage))));
                imwrite(finalImage, [options.currentFolder '/filters/vis/' datasetName '/C_True.png']);
          end
     end

@@ -1,5 +1,5 @@
 function [] = TrainCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgSize)
-    if ~exist([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '.mat'], 'file')
+    if ~exist([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '_' num2str(poolSize) '.mat'], 'file')
         % Load relevant info.
         load([pwd '/output/' datasetName '/vb.mat']);
         load([pwd '/output/' datasetName '/export.mat']);
@@ -44,10 +44,11 @@ function [] = TrainCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgS
                 end
             end
         end
-        normFactor = max(max(features));
-        features = features / max(max(features));
-        features = double(features > 0);
-        W = [];
+%        normFactor = max(max(features));
+%        features = features / max(max(features));
+        features = normr(features);
+ %       features = double(features > 0);
+  %      W = [];
         
         %% Apply linear discriminant analysis
         % First, prevent overfitting by applying PCA.
@@ -59,21 +60,20 @@ function [] = TrainCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgS
         %% parameter selection for 1-vs-1 multi-class classification
          bestcv = 0;
          bestc = -1;
-         bestg = -1;
-   %      for log2c = 7:15,
-   %        for log2g = [1/32, 1/16, 1/8,1/4,  1/2, 1, 2, 4, 8]
-        for log2c = 7
-            for log2g = 1/32;
-             cmd = ['-v 10 -t 2 -c ', num2str(log2c), ' -g ', num2str(log2g),' -q '];
+         for log2c = -5:1:15
+ %          for log2g = -15:2:5
+   %          cmd = ['-v 5 -t 0 -c ', num2str(2^log2c), ' -g ', num2str(2^log2g),' -q '];
+             cmd = ['-v 5 -t 0 -c ', num2str(2^log2c), ' -q '];
              cv = svmtrain(categoryArrIdx, features, cmd);
-             if (cv >= bestcv),
-               bestcv = cv; bestc = log2c; bestg = log2g;
+             if (cv > bestcv),
+               bestcv = cv; bestc = log2c;% bestg = log2g;
              end
-             fprintf('%g %g %g (best c=%g, g=%g, rate=%g)\n', log2c, log2g, cv, bestc, bestg, bestcv);
-           end
+             fprintf('%g %g %g (best c=%g, rate=%g)\n', log2c, log2g, cv, bestc, bestcv);
+%           end
          end
-        cmd = ['-t 2 -c ', num2str(bestc), ' -g ', num2str(bestg),' -q '];
-        learnedModel = svmtrain(categoryArrIdx, features, cmd);
-        save([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '.mat'], 'features', 'categoryArrIdx', 'learnedModel', 'cumSums', 'W', 'normFactor');
+ %       command = ['-t 0 -c ', num2str(num2str(2^bestc)), ' -g ', num2str(2^bestg),' -q '];
+        command = ['-t 0 -c ', num2str(num2str(2^bestc)), ' -q '];
+        learnedModel = svmtrain(categoryArrIdx, features, command);
+        save([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '_' num2str(poolSize) '.mat'], 'features', 'categoryArrIdx', 'learnedModel', 'cumSums');
     end
 end

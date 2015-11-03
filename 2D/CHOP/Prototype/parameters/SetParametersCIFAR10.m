@@ -12,7 +12,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersSTDShape( datasetName, options )
+function [ options ] = SetParametersCIFAR10( datasetName, options )
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -20,7 +20,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
-    options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
+    options.filterType = 'auto'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
@@ -49,16 +49,16 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                         % be surpressed.
     options.gabor.stride = 1;           % Stride to use when extracting gabor
                                        % features.     
-    options.autoFilterSize = 20;         % Size (one side) of a autodetected 
+    options.autoFilterSize = 6;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = 1;
+    options.auto.inhibitionRadius = 0;
     options.autoFilterThr = 0;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
     options.autoFilterCount = 100;      % Number of auto-detected filters.
-    options.autoFilterPatchCount = 4000; % Number of random patches used 
+    options.autoFilterPatchCount = 40000; % Number of random patches used 
                                            % to find auto-detected filters.
-    options.auto.stride = 5;           % Stride to use when extracting first-
+    options.auto.stride = 2;           % Stride to use when extracting first-
                                        % level features. Only works in
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
@@ -141,7 +141,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = 2000; %Max dimension of the 
                                        % images the algorithm will work
@@ -152,8 +152,8 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 10;    % The maximum level count for training.
-    options.maxInferenceLevels = 10; % The maximum level count for testing.
+    options.maxLevels = 5;    % The maximum level count for training.
+    options.maxInferenceLevels = 5; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -179,7 +179,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
     options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 50; % The maximum 
+    options.reconstruction.numberOfORNodes = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -221,7 +221,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 300;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 600;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -263,7 +263,7 @@ function [ options ] = SetParametersSTDShape( datasetName, options )
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 6; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

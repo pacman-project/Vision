@@ -87,7 +87,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     end
     parentsPerSet = 50;
     sigmoidMultiplier = 5;
-    precisionMult = 1/options.singlePrecision;
+    precisionMult = 1000;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.

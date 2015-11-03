@@ -26,7 +26,7 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim )
      combinedArr = combinedArr(idx,:);
      
      %% Downsample the coordinates (pooling), and then perform max operation.
-     combinedArr(:,3:4) = floor(combinedArr(:,3:4) / poolDim);
+     combinedArr(:,3:4) = floor((combinedArr(:,3:4) - 1)/poolDim) + 1;
      [~, IA, ~] = unique(combinedArr, 'rows', 'stable');
      
      % Save real indices and activations.
@@ -42,5 +42,10 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim )
      activations = num2cell(activations);
      [updatedGraphLevel.activation] = deal(activations{:});
      [updatedGraphLevel.position] = deal(updatedPositions{:});
+     
+    % Rearrange graph level so it is sorted by image id.
+    arrayToSort = [[updatedGraphLevel.imageId]', [updatedGraphLevel.labelId]', cat(1, updatedGraphLevel.position)];
+    [~, sortedIdx] = sortrows(arrayToSort);
+    updatedGraphLevel = updatedGraphLevel(sortedIdx);
 end
 

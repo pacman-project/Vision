@@ -33,15 +33,10 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
 
    minNodeProbability = 0.00001;
    coverageStoppingVal = 0.999;
-   likelihoodStoppingVal = 0.9999;
-   groupingThr = 0.8;
-   coveragePartSelectionMethod = 'Greedy'; % 'Genetic' or 'Greedy'
-   % Override part selection method if we have too many parts to select
-   % from.
+   likelihoodStoppingVal = 0.999;
+   groupingThr = 0.9;
+   partSelectionThr = 2000;
    numberOfBestSubs = numel(bestSubs);
-   if numberOfBestSubs > 2000
-        coveragePartSelectionMethod = 'Greedy';
-   end
    prevGraphNodeCount = numel(uniqueChildren);
    maxChildId = max(uniqueChildren);
    prevGraphNodeLogProbs = zeros(1, maxChildId, 'single');
@@ -150,40 +145,48 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
      % parameters (subs to be selected) significiantly. Then, we perform
      % another pass using a data likelihood measure. This step implements a
      % coverage-based part selection mechanism.
-     
-    if strcmp(coveragePartSelectionMethod, 'Genetic')
-        A = ones(1, numberOfBestSubs);
-        b = numberOfFinalSubs * 2;
-        LB = zeros(1,numberOfBestSubs);
-        UB = ones(1,numberOfBestSubs);
-        IntCon = 1:numberOfBestSubs;
-        %   IntCon = [];
-        selectedSubIdx = ones(1,numberOfBestSubs) > 0;
-        stoppingFVal = coverageStoppingVal * h(selectedSubIdx);
-        options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
-           'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
-           'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'TolFun', 1e-8);
-        [selectedSubIdx, fval, exitFlag] = ga(h, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
-        display(['Exit flag for genetic algorithm: ' num2str(exitFlag) ', with fval: ' num2str(fval) '.']);
-    else
+    selectedSubIdx = ones(1,numberOfBestSubs) > 0;
+    if (numberOfBestSubs>partSelectionThr && exist('ga') == 2) || (numberOfBestSubs>numberOfFinalSubs && exist('ga') ~= 2) %#ok<EXIST>
         subCounter = 0; 
         addedValueArr = [];
         selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
-        stoppingFVal = h(ones(1, numberOfBestSubs) > 0);
-        curFVal = 0;
+        markedNodes = zeros(maxChildId,1) > 0;
+        markedLabelProbs = zeros(maxChildId, 1, 'single');
+        markedPosProbs = zeros(maxChildId, 1, 'single');
+        stoppingFVal = -f(ones(1, numberOfBestSubs) > 0) * likelihoodStoppingVal;
         valueArr = inf(1,numberOfBestSubs);
-        while subCounter < numberOfFinalSubs*2
+        if exist('ga') == 2 %#ok<EXIST>
+             subLimit = numberOfFinalSubs*2;
+        else
+             subLimit = numberOfFinalSubs;
+        end
+        cumVal = 0;
+        while subCounter < subLimit
             maxLocVal = -inf;
             maxLoc = 0;
             maxSubIdx = [];
+            maxLocMarkedNodes = [];
+            maxLocLabelProbs = [];
+            maxLocPosProbs = [];
 
            for subItr = 1:numberOfBestSubs
                 if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal > valueArr(subItr)
                      continue;
                 end
+            	 tempMarkedNodes = markedNodes;
+                tempLabelProbs = markedLabelProbs;
+                tempPosProbs = markedPosProbs;
                 tempSubIdx = selectedSubIdx;
                 tempSubIdx(subItr) = 1;
-                diffVal = (curFVal - h(tempSubIdx));
+ %               diffVal = (curFVal - h(tempSubIdx));
+ %               tempMarkedNodes(subCoveredNodes{subItr}) = 1;
+%                diffVal = nnz(tempMarkedNodes) - prevVal;
+                children = subCoveredNodes{subItr};
+                prevVal = sum(tempLabelProbs(children)) + sum(tempPosProbs(children));
+                tempMarkedNodes(children) = 1;
+                tempLabelProbs(children) = subLabelProbs{subItr};
+                tempPosProbs(children) = subPosProbs{subItr};
+                diffVal =  (sum(tempLabelProbs(children)) + sum(tempPosProbs(children))) - prevVal;
 
                 % Save diffVal.
                 if diffVal < valueArr(subItr)
@@ -193,6 +196,9 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
                 % Save value if this part has maximum value.
                 if diffVal > 0 && diffVal > maxLocVal
                      maxLocVal = diffVal;
+                     maxLocMarkedNodes = tempMarkedNodes;
+                     maxLocLabelProbs = tempLabelProbs;
+                     maxLocPosProbs = tempPosProbs;
                      maxLoc = subItr;
                      maxSubIdx = tempSubIdx;
                 end
@@ -204,21 +210,30 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
            % Save info, and move on to the next iteration.
            addedValueArr = [addedValueArr, maxLocVal]; %#ok<AGROW>
            valueArr(maxSubIdx) = 0;
-           curFVal = h(maxSubIdx);
+           markedNodes = maxLocMarkedNodes;
+           markedLabelProbs = maxLocLabelProbs;
+           markedPosProbs = maxLocPosProbs;
+%           prevVal = nnz(markedNodes);
+           cumVal = cumVal + maxLocVal;
+ %          curFVal = h(maxSubIdx);
            selectedSubIdx = maxSubIdx;
            subCounter = subCounter + 1;
            
-           % Calculate coverage, and check if we've covered enough data.
-            % Then, break if necessary.
-           coverage = h(selectedSubIdx) / stoppingFVal;
-           if coverage >= coverageStoppingVal 
+%            % Calculate coverage, and check if we've covered enough data.
+%             % Then, break if necessary.
+            coverage = nnz(markedNodes) / prevGraphNodeCount;
+%            if coverage >= coverageStoppingVal 
+%                break;
+%            end
+%            
+           if cumVal > stoppingFVal
                break;
            end
-           
+
            % Print output.
            if rem(subCounter, 10) == 1 && subCounter > 1
                display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
-                   num2str(maxLoc) ', and coverage %' num2str(coverage*100) '.']);
+                   num2str(maxLoc) ', and coverage %' num2str(coverage*100) ', with current log likelihood:' num2str(cumVal) '.']);
            end
         end
     end
@@ -229,70 +244,80 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
     subPosProbs = subPosProbs(validSubs);
     numberOfBestSubs = numel(validSubs);
    
-%     options = optimset('Display', 'iter', 'MaxFunEvals', 200*numel(validSubs), 'MaxIter', 200*numel(validSubs));
-%     [x, exitflag, output] = fminsearch(f, ones(1, numel(validSubs)), options);
-    
    % We will now define linear constraints for the part selection process. 
    % What we are trying to do is to select a set of parts that have as less
    % redundancy as possible. In order to do that, we now group parts based
    % on the shareability of their instances. E.g. If two parts are grouped
    % together, we want to select only one of these parts, not two.
-   shareabilityIdx = cell(numberOfBestSubs-1,1);
-   numberOfChildrenArr = cellfun(@(x) numel(x), subCoveredNodes);
-   parfor subItr = 1:(numberOfBestSubs-1)
-         subChildren = subCoveredNodes{subItr};
-         shareabilityVect = zeros(1, numberOfBestSubs);
-         shareabilityVect(subItr) = 1;
-         for subItr2 = (subItr+1):numberOfBestSubs
-              subChildren2 = subCoveredNodes{subItr2};
-              shareabilityVect(subItr2) = 2 * numel(intersect(subChildren, subChildren2)) / (numberOfChildrenArr(subItr) + numberOfChildrenArr(subItr2));
-         end
-         shareabilityIdx{subItr} = shareabilityVect;
-   end
-   shareabilityIdx = cat(1, shareabilityIdx{:});
    
-   % Group similar nodes together, and create linear constraints.
-   shareabilityIdx = shareabilityIdx > groupingThr;
-   rowSums = sum(shareabilityIdx,2);
-   validRows = rowSums>1;
-   
-   % Finally, eliminate constraints that are already covered by previous
-   % constraints.
-   shareabilityIdx = shareabilityIdx(validRows,:);
-   validRows = ones(size(shareabilityIdx,1),1) > 0;
-   for rowItr = size(shareabilityIdx,1):-1:2
-         for rowItr2 = 1:rowItr
-              tempArr = shareabilityIdx(rowItr2,shareabilityIdx(rowItr,:));
-              if numel(tempArr) == sum(tempArr)
-                   validRows(rowItr) = 0;
+   if exist('ga') == 2
+        shareabilityIdx = cell(numberOfBestSubs-1,1);
+        numberOfChildrenArr = cellfun(@(x) numel(x), subCoveredNodes);
+        parfor subItr = 1:(numberOfBestSubs-1)
+              subChildren = subCoveredNodes{subItr};
+              shareabilityVect = zeros(1, numberOfBestSubs);
+              shareabilityVect(subItr) = 1;
+              for subItr2 = (subItr+1):numberOfBestSubs
+                   subChildren2 = subCoveredNodes{subItr2};
+                   shareabilityVect(subItr2) = 2 * numel(intersect(subChildren, subChildren2)) / (numberOfChildrenArr(subItr) + numberOfChildrenArr(subItr2));
               end
-         end
+              shareabilityIdx{subItr} = shareabilityVect;
+        end
+        shareabilityIdx = cat(1, shareabilityIdx{:});
+
+        % Group similar nodes together, and create linear constraints.
+        shareabilityIdx = shareabilityIdx > groupingThr;
+        rowSums = sum(shareabilityIdx,2);
+        validRows = rowSums>1;
+
+        % Finally, eliminate constraints that are already covered by previous
+        % constraints.
+        shareabilityIdx = shareabilityIdx(validRows,:);
+        validRows = ones(size(shareabilityIdx,1),1) > 0;
+        for rowItr = size(shareabilityIdx,1):-1:2
+              for rowItr2 = 1:(rowItr-1)
+                   tempArr = shareabilityIdx(rowItr2,shareabilityIdx(rowItr,:));
+                   if numel(tempArr) == sum(tempArr)
+                        validRows(rowItr) = 0;
+                   end
+              end
+        end
+        % Create constraints.
+        shareabilityIdx = double(shareabilityIdx(validRows,:));
+        shareabilityB = ones(nnz(validRows),1);
    end
-   % Create constraints.
-   shareabilityIdx = double(shareabilityIdx(validRows,:));
-   shareabilityB = ones(nnz(validRows),1);
 
    % If needed, we perform a genetic algorithm-based search.
-   if numberOfBestSubs > numberOfFinalSubs || ~isempty(shareabilityIdx)
+   if (numberOfBestSubs > numberOfFinalSubs || ~isempty(shareabilityIdx)) && exist('ga') == 2 %#ok<EXIST>
+        % Now, we change our data structures to have a more efficient
+        % calculation of likelihoods.
+        subLabelProbsArr = sparse(double(numberOfBestSubs), double(maxChildId));
+        subPosProbsArr = subLabelProbsArr;
+        for subItr = 1:numberOfBestSubs
+             children = subCoveredNodes{subItr};
+             subLabelProbsArr(subItr, children) = subLabelProbs{subItr}; %#ok<*SPRIX>
+             subPosProbsArr(subItr, children) = subPosProbs{subItr};
+        end
+        
           %    % Now, it's time for a data likelihood-driven part selection.
          selectedSubIdx = ones(1,numberOfBestSubs) > 0;
         % Create fitness functions and linear constraints, upper bounds etc for genetic algorithm.
-         f = @(x) paramfunc(x, subLabelProbs, subPosProbs, subCoveredNodes);
-         g = @(x) paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes); %#ok<NASGU>
-         h = @(x) paramfunc3(x, subLabelProbs, subPosProbs, subCoveredNodes); %#ok<NASGU>
-         maxFVal = f(selectedSubIdx);
+ %        f = @(x) paramfunc(x, subLabelProbs, subPosProbs, subCoveredNodes);
+         fEff = @(x) likelihoodEff(x, subLabelProbsArr, subPosProbsArr);
+         maxFVal = fEff(selectedSubIdx);
          stoppingFVal = maxFVal * likelihoodStoppingVal;
          A = [ones(1, numberOfBestSubs); shareabilityIdx];
          b = [numberOfFinalSubs; shareabilityB];
          LB = zeros(1,numberOfBestSubs);
          UB = ones(1,numberOfBestSubs);
          IntCon = 1:numberOfBestSubs;
+         
      %     options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'FitnessLimit', stoppingFVal, 'Generations', 1000, ...
      %     'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
      %     'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'PopulationType', 'bitstring');
      %    options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'PopulationType', 'bitstring', 'PopulationSize', 1000, 'FitnessLimit', stoppingFVal);
-         options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'PopulationSize', 1000, 'FitnessLimit', stoppingFVal, 'TolFun', 1e-8, 'CreationFcn', @gacreationlinearfeasible);
-         [selectedSubIdx, fval, exitFlag] = ga(f, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
+         options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'PopulationSize', 1000, 'FitnessLimit', stoppingFVal, 'TimeLimit', 1200, 'CreationFcn', @gacreationlinearfeasible);
+         [selectedSubIdx, fval, exitFlag] = ga(fEff, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
          validSubs = validSubs(selectedSubIdx>0);
          subCoveredNodes = subCoveredNodes(selectedSubIdx>0);
          display(['Exit flag for genetic algorithm: ' num2str(exitFlag) ', with fval: ' num2str(fval) ', which is as good as %' num2str(100*fval/maxFVal) ' of the best fval possible.']);
@@ -310,6 +335,15 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...
         ' out of ' num2str(numel(bestSubs)) ' subs.. Coverage: ' num2str(overallCoverage) ', average data point likelihood:' num2str(dataLikelihood) '.']);
 
+end
+
+% An efficient data likelihood calculation function that uses sparse
+% matrices.
+function y = likelihoodEff(x, subLabelProbsArr, subPosProbsArr)
+     x = x >= 0.5;
+     r1 = max(subLabelProbsArr(x, :), [], 1);
+     r2 = max(subPosProbsArr(x, :),[], 1);
+     y = -round(full(sum(r1+r2)));
 end
 
 % Fitness function 1 for the genetic algorithm.

@@ -45,7 +45,7 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, ~, numberOfThread
     graphLevel = cat(2, nodeSets{:});
 
     % Rearrange graph level so it is sorted by image id.
-    arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];
+    arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]', cat(1, graphLevel.position)];
     [~, sortedIdx] = sortrows(arrayToSort);
     graphLevel = graphLevel(sortedIdx);
 end

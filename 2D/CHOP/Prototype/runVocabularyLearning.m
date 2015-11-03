@@ -122,7 +122,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             img = imread([processedFolder '/' fileName '.png']);
             
             % Get the Level 1 features.
-            [nodes, smoothedImg, nodeActivations, smoothActivationImg] = getNodes(img, gtFileNames{fileItr}, options);
+            [nodes, smoothedImg, nodeActivations, smoothActivationImg, responseImgs] = getNodes(img, gtFileNames{fileItr}, options);
 
             % Keep nodes in the array.
             allNodes(fileItr) = {nodes};
@@ -131,6 +131,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             % Save smoothed image.
             imwrite(smoothedImg, [smoothedFolder '/' fileName '_peaks.png']);
             imwrite(smoothActivationImg, [smoothedFolder '/' fileName '.png']);
+            parsave([smoothedFolder '/' fileName '_responseImgs.mat'], 'responseImgs');
         end
 
         % Reorder images based on their node count. This helps in
@@ -285,4 +286,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     if options.parallelProcessing
         matlabpool close;
     end
+end
+
+function parsave(fname, y)
+     save(fname, 'y')
 end

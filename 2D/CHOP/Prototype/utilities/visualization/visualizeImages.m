@@ -187,9 +187,9 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
                 position = reconstructedNodes(reconNodeItr,2:3);
                 
                 % Learn printed dimensions.
-                halfSize = ceil((size(nodeMask)-1)/2);
+                halfSize = floor((size(nodeMask)-1)/2);
                 halfSize = halfSize(1:2);
-                otherHalfSize = ([size(nodeMask,1), size(nodeMask,2)] - halfSize) -1; 
+                otherHalfSize = ([size(nodeMask,1), size(nodeMask,2)] - halfSize) - 1; 
                 imageSize = size(reconstructedMask);
 
                 %% If patch is out of bounds, do nothing.
@@ -219,7 +219,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) = ... 
                      reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) + ...
-                     writtenMask * activation;
+                     writtenMask;
                  reconstructedMaskCounts((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) = ...
                      reconstructedMaskCounts((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
@@ -251,8 +251,12 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
         end
         
         % Normalize and obtain final reconstructed image.
-        reconstructedMask(reconstructedMaskCounts > 0) = reconstructedMask(reconstructedMaskCounts > 0) ./ ...
-            reconstructedMaskCounts(reconstructedMaskCounts > 0);
+        for bandItr = 1:size(reconstructedMask,3)
+             relevantImg = reconstructedMask(:,:,bandItr);
+             relevantImg(reconstructedMaskCounts > 0) = relevantImg(reconstructedMaskCounts > 0) ./ ...
+                 reconstructedMaskCounts(reconstructedMaskCounts > 0);
+             reconstructedMask(:,:,bandItr) = relevantImg;
+        end
         reconstructedMask = uint8(round(reconstructedMask));
         
         if strcmp(type, 'test') || (strcmp(type, 'train') && printTrainRealizations)
@@ -288,9 +292,10 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
                     end
                 end
             end
+            centerSize = 0;
             for nodeItr = 1:numel(nodes)
-                edgeImg(round(nodes(nodeItr).precisePosition(1)-2):round(nodes(nodeItr).precisePosition(1)+2), ...
-                    round(nodes(nodeItr).precisePosition(2)-2):round(nodes(nodeItr).precisePosition(2)+2)) = nodes(nodeItr).labelId;
+                edgeImg(round(nodes(nodeItr).precisePosition(1)-centerSize):round(nodes(nodeItr).precisePosition(1)+centerSize), ...
+                    round(nodes(nodeItr).precisePosition(2)-centerSize):round(nodes(nodeItr).precisePosition(2)+centerSize)) = nodes(nodeItr).labelId;
             end
             edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
             edgeRgbImg = max(edgeRgbImg, edgeImg);

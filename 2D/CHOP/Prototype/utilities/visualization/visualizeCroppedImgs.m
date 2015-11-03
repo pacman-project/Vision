@@ -21,7 +21,7 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
     visualizedNodes = options.vis.visualizedNodes;
-    orgImgWeight = 0.5;
+    orgImgWeight = 0.9;
     
     if isempty(currentLevel)
        return; 

@@ -23,12 +23,12 @@
 %> Updates
 %> Ver 1.0 on 01.09.2014
 %> Comments updated on 23.06.2015
-function [ distMat, abstractDistMat, nodeProbArr ] = createDistanceMatrix( filters, filterImages, filterType, distType )
+function [ distMat, abstractDistMat, nodeProbArr ] = createDistanceMatrix( filters, filterImages, filterType, ~ )
     distMat = zeros(numel(filters), 'single');
     minFilterValue = 0.05; % If pixel a < max(max(max(filter1))) * minFilterValue,
                            % a is assigned 0 in distance calculations.
     gaborOrThr = 0;
-    autoOrThr = 0.2;
+    autoOrThr = 0.05;
     sigma = 0.005;
     cogFilters = cell(numel(filters),1);
     numberOfFilters = numel(filters);
