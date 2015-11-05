@@ -35,6 +35,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
     matrixSize = [options.receptiveFieldSize, options.receptiveFieldSize];
     edgeType = options.edgeType;
+    imagesPerSet = 100;
     
     %% Program options into variables.
     edgeNoveltyThr = 1-options.edgeNoveltyThr;
@@ -60,127 +61,165 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
        nodeOffset = nodeOffset + nnz(imageNodeIdx);
     end
     
-    %% Process each image separately (and in parallel)
-    parfor imageItr = 1:numberOfImages
-        imageNodeOffset = imageNodeOffsets(imageItr);
-        imageNodeIdx = imageNodeIdxSets{imageItr};
-        numberOfNodes = numel(imageNodeIdx);
-
-        % If there are no nodes in this image, move on.
-        if numberOfNodes == 0
-           continue; 
-        end
-        
-        % Get data structures containing information about the nodes in this image.
-        curNodeIds = imageNodeIdArr{imageItr};
-        curNodeCoords = imageNodeCoordArr{imageItr};
-        curGraphNodes = imageGraphNodeSets{imageItr};
-        curLeafNodes = {curGraphNodes.leafNodes};
-        maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeNoveltyThr;
-        curAdjacentNodes = cell(numberOfNodes,1);
-        
-        %% Find all edges within this image.
-        for nodeItr = 1:numberOfNodes
-           centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
-           distances = sqrt(sum((curNodeCoords - centerArr).^2, 2));
-           adjacentNodes = curNodeCoords(:,1) > (centerArr(:,1) - halfMatrixSize) & ...
-                curNodeCoords(:,1) < (centerArr(:,1) + halfMatrixSize) & ...
-                curNodeCoords(:,2) > (centerArr(:,2) - halfMatrixSize) & ...
-                curNodeCoords(:,2) < (centerArr(:,2) + halfMatrixSize);
-           
-           %% Check for edge novelty.
-           adjacentNodeIdx = find(adjacentNodes);
-           centerLeafNodes = [];
-           if currentLevelId > 1
-               centerLeafNodes = curLeafNodes{nodeItr};
-               commonLeafCounts = cellfun(@(x) sum(ismembc(x, centerLeafNodes)), curLeafNodes(adjacentNodes));
-               novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
-               adjacentNodes = adjacentNodeIdx(novelNodes);
-           else
-               adjacentNodes = adjacentNodeIdx;
-           end
-           adjacentNodes = adjacentNodes(adjacentNodes~=nodeItr);
-           
-           %% A further check is done to ensure boundary/surface continuity.
-           if strcmp(edgeType, 'continuity') && currentLevelId > 1
-               centerLeafEdges = cat(1, firstLevelAdjInfo{centerLeafNodes}); %#ok<PFBNS>
-               centerAdjNodes = sort(centerLeafEdges(:,2));
-               adjLeafNodes = curLeafNodes(adjacentNodes);
-               validAdjacentNodes = cellfun(@(x) nnz(ismembc(x, centerAdjNodes)), adjLeafNodes) > 0;
-               adjacentNodes = adjacentNodes(validAdjacentNodes);
-           end           
-           
-           %% Eliminate adjacent which are far away, if the node has too many neighbors.
-           % Calculate scores (distances).
-           scores = distances(adjacentNodes);
-           
-           % Eliminate nodes having lower scores.
-           if numel(adjacentNodes)>averageNodeDegree
-                [idx] = getLargestNElements(scores, averageNodeDegree);
-                adjacentNodes = adjacentNodes(idx);
-           end
-           
-           %% Assign final adjacent nodes.
-           curAdjacentNodes(nodeItr) = {[repmat(int32(nodeItr), numel(adjacentNodes),1), adjacentNodes]}; 
-        end
-        
-        % Get rid of empty entries in curAdjacentNodes.
-        nonemptyCurAdjacentNodeIdx = cellfun(@(x) ~isempty(x), curAdjacentNodes);
-        curAdjacentNodes = curAdjacentNodes(nonemptyCurAdjacentNodeIdx);
-        
-        % Obtain edges and count them.
-        allEdges = cat(1, curAdjacentNodes{:});
-        numberOfAllEdges = size(allEdges,1);
-        
-        if numberOfAllEdges == 0
-           continue;
-        end
-        
-        % Collect info to form the edges.
-        node1Labels = curNodeIds(allEdges(:,1));
-        node2Labels = curNodeIds(allEdges(:,2));
-        node1Coords = curNodeCoords(allEdges(:,1),:);
-        node2Coords = curNodeCoords(allEdges(:,2),:);
-        edgeCoords = node2Coords - node1Coords;
-        
-        % Remove edges between overlapping (same position) nodes having same id.
-        labelEqualityArr = node1Labels == node2Labels;
-        validEdges = ~(labelEqualityArr & (edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0));
-
-        % If receptive fields are used, every edge is directed.
-        directedArr = ones(nnz(validEdges),1, 'int32');
-        
-        % Update data structures based on removed edges.
-        allEdges = allEdges(validEdges,:);
-        edgeCoords = double(edgeCoords(validEdges,:));
-        normalizedEdgeCoords = edgeCoords + halfMatrixSize;
-        
-        % Double check in order not to go out of bounds.
-        normalizedEdgeCoords(normalizedEdgeCoords < 1) = 1;
-        normalizedEdgeCoords(normalizedEdgeCoords > matrixSize(1)) = matrixSize(1);
-        
-        %Find edge labels.
-        matrixInd = sub2ind(matrixSize, normalizedEdgeCoords(:,1), normalizedEdgeCoords(:,2));
-        edgeIds = edgeIdMatrix(matrixInd);
-        edges = [allEdges(:,1:2) + imageNodeOffset, edgeIds, directedArr];
-        
-        % Due to some approximations in neighborhood calculations, some edgeIds might 
-        % have been assigned as 0. Eliminate such cases.
-        edges = edges(edgeIds>0,:);
-        
-       %% Assign all edges to their respective nodes in the final graph.
-       if ~isempty(edges)
-           for nodeItr = 1:numberOfNodes
-               edgeIdx = edges(:,1) == (nodeItr + imageNodeOffset);
-               if nnz(edgeIdx) > 0
-                   curGraphNodes(nodeItr).adjInfo = edges(edgeIdx,:);
-               end
-           end
-       end
-       imageGraphNodeSets(imageItr) = {curGraphNodes};
+    % Put images in sets, for better parallelization
+    if numberOfImages > imagesPerSet
+         finalSet = rem(numberOfImages, imagesPerSet);
+         numberOfSets = floor(numberOfImages/imagesPerSet);
+         sets = repmat(imagesPerSet, numberOfSets, 1);
+         if finalSet > 0
+              sets = [sets; finalSet];
+         end
+         sets = mat2cell(1:numberOfImages, 1, sets);
+    else
+         sets = {1:numberOfImages};
+         numberOfSets = 1;
     end
-    currentLevel = [imageGraphNodeSets{:}];
-    clear imageGraphNodeSets;
+    
+    % Create data structures for parallel processing.
+    setNodeIdxSets = cell(numberOfSets,1);
+    setGraphNodeSets = cell(numberOfSets,1);
+    setNodeIdArr = cell(numberOfSets,1);
+    setNodeCoordArr = cell(numberOfSets,1);
+    for setItr = 1:numberOfSets
+         imageIdx = sets{setItr};
+         setNodeIdxSets{setItr} = imageNodeIdxSets(imageIdx);
+         setGraphNodeSets{setItr} = imageGraphNodeSets(imageIdx);
+         setNodeIdArr{setItr} = imageNodeIdArr(imageIdx);
+         setNodeCoordArr{setItr} = imageNodeCoordArr(imageIdx);
+    end
+    
+    %% Process each set separately (and in parallel)
+    parfor setItr = 1:numberOfSets
+         imageIdx = sets{setItr};
+         imageNodeIdxSets = setNodeIdxSets{setItr};
+         imageGraphNodeSets = setGraphNodeSets{setItr};
+         imageNodeIdArr = setNodeIdArr{setItr} ;
+         imageNodeCoordArr = setNodeCoordArr{setItr};
+         
+         % For every image in this set, find edges and save them.
+         for imageItr = 1:numel(imageIdx)
+             imageNodeOffset = imageNodeOffsets(imageIdx(imageItr)); %#ok<PFBNS>
+             imageNodeIdx = imageNodeIdxSets{imageItr};
+             numberOfNodes = numel(imageNodeIdx);
+
+             % If there are no nodes in this image, move on.
+             if numberOfNodes == 0
+                continue; 
+             end
+
+             % Get data structures containing information about the nodes in this image.
+             curNodeIds = imageNodeIdArr{imageItr};
+             curNodeCoords = imageNodeCoordArr{imageItr};
+             curGraphNodes = imageGraphNodeSets{imageItr};
+             curLeafNodes = {curGraphNodes.leafNodes};
+             maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeNoveltyThr;
+             curAdjacentNodes = cell(numberOfNodes,1);
+
+             %% Find all edges within this image.
+             for nodeItr = 1:numberOfNodes
+                centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
+                distances = sqrt(sum((curNodeCoords - centerArr).^2, 2));
+                adjacentNodes = curNodeCoords(:,1) > (centerArr(:,1) - halfMatrixSize) & ...
+                     curNodeCoords(:,1) < (centerArr(:,1) + halfMatrixSize) & ...
+                     curNodeCoords(:,2) > (centerArr(:,2) - halfMatrixSize) & ...
+                     curNodeCoords(:,2) < (centerArr(:,2) + halfMatrixSize);
+
+                %% Check for edge novelty.
+                adjacentNodeIdx = find(adjacentNodes);
+                centerLeafNodes = [];
+                if currentLevelId > 1
+                    centerLeafNodes = curLeafNodes{nodeItr};
+                    commonLeafCounts = cellfun(@(x) sum(ismembc(x, centerLeafNodes)), curLeafNodes(adjacentNodes));
+                    novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
+                    adjacentNodes = adjacentNodeIdx(novelNodes);
+                else
+                    adjacentNodes = adjacentNodeIdx;
+                end
+                adjacentNodes = adjacentNodes(adjacentNodes~=nodeItr);
+
+                %% A further check is done to ensure boundary/surface continuity.
+                if strcmp(edgeType, 'continuity') && currentLevelId > 1
+                    centerLeafEdges = cat(1, firstLevelAdjInfo{centerLeafNodes}); %#ok<PFBNS>
+                    centerAdjNodes = sort(centerLeafEdges(:,2));
+                    adjLeafNodes = curLeafNodes(adjacentNodes);
+                    validAdjacentNodes = cellfun(@(x) nnz(ismembc(x, centerAdjNodes)), adjLeafNodes) > 0;
+                    adjacentNodes = adjacentNodes(validAdjacentNodes);
+                end           
+
+                %% Eliminate adjacent which are far away, if the node has too many neighbors.
+                % Calculate scores (distances).
+                scores = distances(adjacentNodes);
+
+                % Eliminate nodes having lower scores.
+                if numel(adjacentNodes)>averageNodeDegree
+                     [idx] = getLargestNElements(scores, averageNodeDegree);
+                     adjacentNodes = adjacentNodes(idx);
+                end
+
+                %% Assign final adjacent nodes.
+                curAdjacentNodes(nodeItr) = {[repmat(int32(nodeItr), numel(adjacentNodes),1), adjacentNodes]}; 
+             end
+
+             % Get rid of empty entries in curAdjacentNodes.
+             nonemptyCurAdjacentNodeIdx = cellfun(@(x) ~isempty(x), curAdjacentNodes);
+             curAdjacentNodes = curAdjacentNodes(nonemptyCurAdjacentNodeIdx);
+
+             % Obtain edges and count them.
+             allEdges = cat(1, curAdjacentNodes{:});
+             numberOfAllEdges = size(allEdges,1);
+
+             if numberOfAllEdges == 0
+                continue;
+             end
+
+             % Collect info to form the edges.
+             node1Labels = curNodeIds(allEdges(:,1));
+             node2Labels = curNodeIds(allEdges(:,2));
+             node1Coords = curNodeCoords(allEdges(:,1),:);
+             node2Coords = curNodeCoords(allEdges(:,2),:);
+             edgeCoords = node2Coords - node1Coords;
+
+             % Remove edges between overlapping (same position) nodes having same id.
+             labelEqualityArr = node1Labels == node2Labels;
+             validEdges = ~(labelEqualityArr & (edgeCoords(:,1) == 0 & edgeCoords(:,2) == 0));
+
+             % If receptive fields are used, every edge is directed.
+             directedArr = ones(nnz(validEdges),1, 'int32');
+
+             % Update data structures based on removed edges.
+             allEdges = allEdges(validEdges,:);
+             edgeCoords = double(edgeCoords(validEdges,:));
+             normalizedEdgeCoords = edgeCoords + halfMatrixSize;
+
+             % Double check in order not to go out of bounds.
+             normalizedEdgeCoords(normalizedEdgeCoords < 1) = 1;
+             normalizedEdgeCoords(normalizedEdgeCoords > matrixSize(1)) = matrixSize(1);
+
+             %Find edge labels.
+             matrixInd = sub2ind(matrixSize, normalizedEdgeCoords(:,1), normalizedEdgeCoords(:,2));
+             edgeIds = edgeIdMatrix(matrixInd);
+             edges = [allEdges(:,1:2) + imageNodeOffset, edgeIds, directedArr];
+
+             % Due to some approximations in neighborhood calculations, some edgeIds might 
+             % have been assigned as 0. Eliminate such cases.
+             edges = edges(edgeIds>0,:);
+
+            %% Assign all edges to their respective nodes in the final graph.
+            if ~isempty(edges)
+                for nodeItr = 1:numberOfNodes
+                    edgeIdx = edges(:,1) == (nodeItr + imageNodeOffset);
+                    if nnz(edgeIdx) > 0
+                        curGraphNodes(nodeItr).adjInfo = edges(edgeIdx,:);
+                    end
+                end
+            end
+            imageGraphNodeSets(imageItr) = {curGraphNodes};
+         end
+         setGraphNodeSets{setItr} = imageGraphNodeSets;
+    end
+    currentLevel = cat(1, setGraphNodeSets{:});
+    currentLevel = [currentLevel{:}];
+    clear setGraphNodeSets setNodeIdxSets setNodeIdArr setNodeCoordArr;
     mainGraph(currentLevelId) = {currentLevel};
     clear currentLevel;
 end
