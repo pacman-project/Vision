@@ -1,9 +1,9 @@
-% this is Vladislav's implementation fro Isodata algorithm which is
+% this is Vladislav's implementation of Isodata algorithm which is
 % described here:
 % https://github.com/himanshusingh/Machine-Learning-Tools-for-Opticks/wiki/ISODATA-Algorithm
 % http://www.cs.umd.edu/~mount/Projects/ISODATA/ijcga07-isodata.pdf
 
-% I also did some minor modifications to adapt algorithm to the input data
+% I also made some minor modifications to adapt algorithm to the input data
 % and to the particular task
 
 % parameters
@@ -16,29 +16,35 @@
 % sigmaMax - maximal standard deviation
 % LMin minimum requested distance between two clusters
 % pMax - maximum number of pairs to be mearged per iteration
+% is_descrete - indicates if cluster centres are in discrete (integer), or
+% continuous (float) space
 
 %my parameter - percentUnclustered - percentage of the pixels which can be
 %not clustered.
 
-function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin, iterations, sigmaMax, LMin, pMax, want_disp)
-
-
+function [Z, sampleLables] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin, iterations, sigmaMax, LMin, pMax, want_disp, is_descrete)
+    
     sumF = sum(frequencies);
-%   (1) rundomly assign cluster centres
 
-    if ~want_disp
-        str = ['Isodata starts...'];
-        disp(str);
+    range = 20;
+    nClustersIter = zeros(iterations, 1);
+    
+    if want_disp
+        disp('Isodata starts...');
     end
 
     [n, d] = size(X);
-    % (1) rundomly assign cluster centres
+    % (1) randomly assign cluster centres
 %     Z = rand(kInit, d); % centers of clusters
 %     Z = Z * (rangeMax - rangeMin) + rangeMin; % Z*8 + 1
     
 %   (1) Assign cluster centres in a much better way
     % take kInit points with maximal frequencies
-    [freqSort,IX] = sort(frequencies, 'descend');
+    [~,IX] = sort(frequencies, 'descend');
+    
+    if kInit > n
+        kInit = n;
+    end
     IX = IX(1:kInit);
     Z = X(IX, :);
     
@@ -48,15 +54,16 @@ function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin
 
     for i = 1:iterations
         
+        
         if want_disp
-            str = [num2str(i), ' iteration starts...'];
+            str = [num2str(i), ' iteration ...'];
             disp(str);
         end
         
 %       (2) assign each point to the closest cluster center
         clusterFrequencies = zeros(nClusters, 1);
         clusterLables = 1:1:nClusters;
-        distances = Isodata_distances(X, Z, n, nClusters, false, want_disp);     % distances from each sample to each cluster center
+        distances = Isodata_distances(X, Z, n, nClusters, false, false);     % distances from each sample to each cluster center
 
         % find minimum distance and mark all samples correspondingly
         minDists = min(distances, [], 2);
@@ -66,12 +73,7 @@ function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin
             ind = r(1);  % index of the closest cluster
             sampleLables(ii) = ind;
             clusterFrequencies(ind) = clusterFrequencies(ind) + frequencies(ii);
-        end
-        
-        if want_disp
-            str = '(2) each point assigned to the closest cluster center';
-            disp(str);
-        end
+        end 
         clear('distances'); 
 
 %       (3) remove cluster centres with frequency fewer than nMin  
@@ -85,41 +87,39 @@ function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin
             [sampleLables, clusterLables, clusterFrequencies, Z, nClusters] = Isodata_deleteCluster(deletedClusterInds, nDeleted, replaced_marks, sampleLables, clusterLables, clusterFrequencies, Z, nClusters);                                                                                         
         end
         
-       if want_disp
+        if want_disp && nDeleted > 0
             str = ['(3) ', num2str(nDeleted) ,' clusters removed. Remaining ', num2str(nClusters) ,' clusters' ];
             disp(str);
-       end
+        end
         
 %     (4) move each cluster centers to the centroid  of the associated
 %     % cluster points
 
-      centroids = zeros(nClusters, d);
-      sumPixels = zeros(nClusters);
-      for ii = 1:n
-          curCluster = sampleLables(ii);
-          if curCluster ~= 0 % some pixels are not marked!
-              centroids(curCluster, :) = centroids(curCluster, :) + X(ii,:)* frequencies(ii);
-              sumPixels(curCluster) = sumPixels(curCluster) + frequencies(ii);
-          end
-      end
+        centroids = zeros(nClusters, d);
+        sumPixels = zeros(nClusters, 1);
+        for ii = 1:n
+            curCluster = sampleLables(ii);
+            if curCluster ~= 0 % some pixels are not marked!
+                centroids(curCluster, :) = centroids(curCluster, :) + X(ii,:)* frequencies(ii);
+                sumPixels(curCluster) = sumPixels(curCluster) + frequencies(ii);
+            end
+        end
+
+        Z = centroids./repmat(sumPixels, [1,d]); % new centers of clusters are now there          
+
+        if is_descrete
+            Z = round(Z);
+        end
       
-      for ii = 1:nClusters
-          Z(ii,:) = centroids(ii,:)/sumPixels(ii); % new centers of clusters are now there          
-      end
-      
-      if want_disp
-            str = ['(4) each cluster centers to the centroid  of the associated cluster points...' ];
-            disp(str);
-      end
       
 %     (5) compute average distance for each cluster and overall average distance
       %
         [delta, deltaOverall] = Isodata_distances_step5(X, sampleLables, frequencies, clusterFrequencies, Z, n, nClusters);
         
-      if want_disp
-            str = ['(5) deltaOverall = ', num2str(deltaOverall)];
-            disp(str);
-      end
+%         if want_disp
+%             str = ['(5) deltaOverall = ', num2str(deltaOverall)];
+%             disp(str);
+%         end
 
 %     (6)
         bNeedDivide = 0; 
@@ -127,9 +127,9 @@ function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin
         if (i == iterations) 
             LMin = 0; 
             bNeedJoint = 1; 
-        elseif nClusters<=kInit/2 
+        elseif nClusters<=kInit/range 
             bNeedDivide = 1; 
-        elseif nClusters>=2*kInit 
+        elseif nClusters>=range*kInit 
             bNeedJoint = 1; 
         elseif mod(i,2)==0 
             bNeedJoint = 1; 
@@ -139,13 +139,9 @@ function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin
         
         if (bNeedDivide~=0)
 %     (7) for each cluster compute standard deviation in each direction
-            if want_disp
-                str = '(7) Devide clusters';
-                disp(str);
-            end
 
             V = zeros(nClusters, d);
-            denominators = zeros(nClusters);
+            denominators = zeros(nClusters, 1);
             for ii = 1:n
                 curCluster = sampleLables(ii);
                 if curCluster ~= 0 % some pixels are not marked!
@@ -154,9 +150,8 @@ function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin
                     denominators(curCluster) = denominators(curCluster) + curFrequency;
                 end
             end
-            for ii = 1:nClusters
-                V(ii,:) = V(ii,:)/denominators(ii);
-            end
+            
+            V = V./repmat(denominators, [1,d]);
             V = sqrt(V);
 %     (8) split big clusters
             is_split = 0;
@@ -176,24 +171,18 @@ function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin
                     end
                 end
             end
-            if is_split > 0
-                nClusters = nClustersNew;
-                if want_disp
-                    str = ['(8). We have split ', num2str(is_split), ' clusters. Now we have ', num2str(nClusters), ' clusters'];
-                    disp(str);
-                end
-                bNeedJoint~=0;
+            nClusters = nClustersNew;
+            if want_disp && is_split > 0
+                str = ['(8). We have split ', num2str(is_split), ' clusters. Now we have ', num2str(nClusters), ' clusters'];
+                disp(str);
             end
 
         end
         
         if (bNeedJoint~=0)
-            if want_disp
-                str = '(9) Join clusters';
-                disp(str);
-            end
-    %     (9) Compute pairvise intercluss distances
-            interClassDists = Isodata_distances(Z, Z, nClusters, nClusters, true, want_disp); % in fact matrix is diagonal!
+
+    %     (9) Compute pairvise interclass distances
+            interClassDists = Isodata_distances(Z, Z, nClusters, nClusters, true, false); % in fact matrix is diagonal!
             % make it diagonal
 
     %     (10) % select the subset with intercluster distance less than LMin
@@ -201,65 +190,69 @@ function [Z] = Isodata_Vladislav(X, frequencies, rangeMin, rangeMax ,kInit, nMin
             values = values(values > 0);
             values = sort(values, 'ascend');
             len = length(values);
-            
-            row = [];
-            col = [];
-            ii = 1;
-            while ii <= len
-                [rowCur, colCur] = find(interClassDists == values(ii));
-                row = [row; rowCur];
-                col = [col; colCur];
-                ii = ii + length(rowCur);
-            end
+            if ~isempty(values)
+                row = [];
+                col = [];
+                ii = 1;
+                while ii <= len
+                    [rowCur, colCur] = find(interClassDists == values(ii));
+                    row = [row; rowCur];
+                    col = [col; colCur];
+                    ii = ii + length(rowCur);
+                end
 
-            % pMax - maximum number of pairs to be mearged per iteration
-            % mearge clusters 
-            ii = length(row); 
-            deletedClusterInds = [];
-            ndeleted = 0; 
-            replaced_marks = [];
-            while (ii > 0 && ndeleted < pMax)
-                % always mearge clusters row(1) -> col(1)
-                deletedClusterInds = [deletedClusterInds, row(1)];
-                replaced_marks = [replaced_marks, col(1)];
-                ndeleted = ndeleted + 1;
+                % pMax - maximum number of pairs to be mearged per iteration
+                % mearge clusters 
+                ii = length(row); 
+                deletedClusterInds = [];
+                ndeleted = 0; 
+                replaced_marks = [];
+                while (ii > 0 && ndeleted < pMax)
+                    % always mearge clusters row(1) -> col(1)
+                    deletedClusterInds = [deletedClusterInds, row(1)];
+                    replaced_marks = [replaced_marks, col(1)];
+                    ndeleted = ndeleted + 1;
 
-                inds = find(row == row(1));
-                inds1 = find(col == col(1));
-                inds = [inds; inds1];
-                row(inds) = [];
-                col(inds) = [];
+                    inds = find(row == row(1));
+                    inds1 = find(col == col(1));
+                    inds = [inds; inds1];
+                    row(inds) = [];
+                    col(inds) = [];
 
-                ii = length(row);
+                    ii = length(row);
+                end
+                % recompute cluster centres and frequencies
+                for ii = 1:ndeleted
+                    x1 = deletedClusterInds(ii);
+                    x2 = replaced_marks(ii); % cluster indexes
+                    n1 = clusterFrequencies(x1);
+                    n2 = clusterFrequencies(x2); % weights of both clusters
+                    Z1 = Z(x1,:);
+                    Z2 = Z(x2,:); % claster centres
+                    clusterFrequencies(x1) = clusterFrequencies(x1) + clusterFrequencies(x2);
+                    Z(x1,:) = (n1 * Z1 + n2 * Z2)/(n1 + n2); % new cluster centre (Z(x2,:) is to be deleted)
+                end
+                [sampleLables, clusterLables, clusterFrequencies, Z, nClusters] = Isodata_deleteCluster(deletedClusterInds, ndeleted, replaced_marks, sampleLables, clusterLables, clusterFrequencies, Z, nClusters);   
+                if want_disp
+                    str = ['(10). We have mearged ', num2str(ndeleted), ' pairs. Now we have ', num2str(nClusters), ' clusters'];
+                    disp(str);
+                end    
             end
-            % recompute cluster centres and frequencies
-            for ii = 1:ndeleted
-                x1 = deletedClusterInds(ii);
-                x2 = replaced_marks(ii); % cluster indexes
-                n1 = clusterFrequencies(x1);
-                n2 = clusterFrequencies(x2); % weights of both clusters
-                Z1 = Z(x1,:);
-                Z2 = Z(x2,:); % claster centres
-                clusterFrequencies(x1) = clusterFrequencies(x1) + clusterFrequencies(x2);
-                Z(x1,:) = (n1 * Z1 + n2 * Z2)/(n1 + n2); % new cluster centre (Z(x2,:) is to be deleted)
-            end
-            [sampleLables, clusterLables, clusterFrequencies, Z, nClusters] = Isodata_deleteCluster(deletedClusterInds, ndeleted, replaced_marks, sampleLables, clusterLables, clusterFrequencies, Z, nClusters);   
-            if want_disp
-                str = ['(10). We have mearged ', num2str(ndeleted), ' pairs. Now we have ', num2str(nClusters), ' clusters'];
-                disp(str);
-            end    
         end       
         
 %       (11) show statistics and go to step 2
         str = ['iteration = ', num2str(i)];
         disp(str);
         str = ['Number of clusters = ', num2str(nClusters)];
+        nClustersIter(i) = nClusters;
         disp(str);
-        str = ['(5) deltaOverall = ', num2str(deltaOverall)];
+%         str = ['(5) deltaOverall = ', num2str(deltaOverall)];
+%         disp(str);
+        str = ['Percent of unclustered pixels = ', num2str(sumF_deleted/sumF)];
         disp(str);
-%        str = ['Percent of unclustered pixels = ', num2str(sumF_deleted/sumF)];
-%        disp(str);
     end
+    plot(nClustersIter);
+    a = 2;
     
 end
 

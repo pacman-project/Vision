@@ -7,9 +7,9 @@
 % fieldSize is a vector [sizeX, SizeY, sizeZ]
 % depthStep - real number (presumably 95/5)
 
-function [out] = surfaceVisualizerT(fieldSize, positions, elements, nClusters, cluster1Centres, depthStep, faceColor, isFlip, transparency)
+function [out] = surfaceVisualizerT(fieldSize, positions, elements, elementRadius, nClusters, cluster1Centres, depthStep, faceColor, isFlip, transparency)
 
-    if nargin < 9
+    if nargin == 1
         transparency = 1.0;
         edgeTransparency = 1.0;
     else
@@ -18,7 +18,7 @@ function [out] = surfaceVisualizerT(fieldSize, positions, elements, nClusters, c
     
         
     % set default parameters here
-    if (nargin == 6)
+    if (nargin == 7)
         faceColor = [0 0 1];
         isFlip = false;
     elseif (nargin == 7)
@@ -36,7 +36,9 @@ function [out] = surfaceVisualizerT(fieldSize, positions, elements, nClusters, c
     V = zeros(lenV, 3);
     F = zeros(lenF, 3);
     
-    offset = 1;
+    offset = elementRadius/5;
+    delta = elementRadius/10;
+    positions = positions + offset;
     
     if fieldSize(1) > fieldSize(2)
         maxDim = fieldSize(1) + 2*offset;
@@ -44,7 +46,7 @@ function [out] = surfaceVisualizerT(fieldSize, positions, elements, nClusters, c
         maxDim = fieldSize(2) + 2*offset;
     end
     
-    step = 2.5;
+    step = elementRadius - delta;
     
     for i = 1:len
         if elements(i) == emptyID
@@ -81,9 +83,8 @@ function [out] = surfaceVisualizerT(fieldSize, positions, elements, nClusters, c
 
     trisurf(F, V(:,1),V(:,2),V(:,3),'FaceColor',faceColor, 'EdgeColor', faceColor, 'FaceAlpha', transparency, 'EdgeAlpha', edgeTransparency);
     xlabel('x')
-    ylabel('y')
-    axis equal; 
-    axis([0, maxDim, 0, maxDim, 0, fieldSize(3), 50, 60]); % ceil(1 + scale * rangeZ), ceil(rangeZ - scale * rangeZ)
+    ylabel('y') 
+    axis([0, maxDim, 0, maxDim, 0, maxDim, 50, 60]); % ceil(1 + scale * rangeZ), ceil(rangeZ - scale * rangeZ)
     if isFlip
         set(gca,'zdir','reverse')
     end

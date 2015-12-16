@@ -29,21 +29,16 @@ dataSetNames = getDataSetNames();
 
 if dataSetNumber < 5
     inputDataType = 1;      % depth images
-    partSelectionMethod = 1;
-    
 elseif dataSetNumber == 5
-    inputDataType = 2;  % meshes
-    partSelectionMethod = 2;
-    
+    inputDataType = 2;  % meshes 
 else
     inputDataType = 3;  % point clouds
-    partSelectionMethod = 3;
 end
 
+nClusters = 1;
+n2Clusters = 1;
 
-nClusters = 7;
-is_GPU_USED = false;
-n2Clusters = nClusters^2;
+is_GPU_USED = true;
 if is_GPU_USED
     g = gpuDevice(1);
     reset(g);
@@ -51,22 +46,19 @@ end
 
 is_multyScale = true;
 
-if partSelectionMethod == 1 % for depth images only
-    
-     meargeThresh = defineMeargeThreshes(1, dataSetNumber);
-     [iterations, lenSelected, fieldSize, maxRelDepth, quant, partsCoverArea, numSimilar, threshPair, sieve_thresh] = loadPartSelectionParameters(dataSetNumber);
-    
-elseif partSelectionMethod == 2  % for meshes
-    
-     meargeThresh = defineMeargeThreshes(1, dataSetNumber);
-     [iterations, lenSelected, fieldSize, maxRelDepth, quant, partsCoverArea, numSimilar, threshPair, sieve_thresh] = loadPartSelectionParameters(dataSetNumber);
-    
+% [~, ~, ~, ~, offsetsConventional] = loadLearningInferenceStructElement(dataSetNumber);
+
+if inputDataType == 1
+    [iterations, lenSelected, fieldSize, maxRelDepth, quant, partsCoverArea, numSimilar, threshPair, sieve_thresh] = loadPartSelectionParameters(dataSetNumber);
+else
+    [iterations, lenSelected, fieldSize, maxRelDepth, quant, partsCoverArea, numSimilar, threshPair, sieve_thresh] = loadPartSelectionParametersMesh(dataSetNumber);
 end
 
+[statMapPropertiesAll, pairClusteringOptionsAll] = loadStatMapProperties(dataSetNumber);  
 [inputPath] = getPathToData(dataSetNumber, commonRoot);
 [scales, lineAdders]  = getScales(dataSetNumber, is_multyScale); 
 computeAllscales(scales, inputPath{1,1}, lineAdders, dataSetNumber, inputDataType); % convert all input images to different scales
-
+[receptiveField, offsetsConventional] = getReceptiveFieldSize(dataSetNumber);
 
 
 %% define output file names
@@ -93,12 +85,12 @@ displ{5} = 18;
 displ{7} = 52;
 isFIG = false;
 
-if ~exist(vocabulary1Layer, 'file');
-    [cluster1Centres, cluster1Bounds, thresh] = defineFirstLayerQuantiles(nClusters, dataSetNumber);
-    save(vocabulary1Layer, 'cluster1Centres', 'cluster1Bounds', 'thresh');
-else
-    load(vocabulary1Layer); % cluster1Centres, cluster1Bounds, thresh
-end
+% if ~exist(vocabulary1Layer, 'file');
+%     [cluster1Centres, cluster1Bounds, thresh] = defineFirstLayerQuantiles(nClusters, dataSetNumber);
+%     save(vocabulary1Layer, 'cluster1Centres', 'cluster1Bounds', 'thresh');
+% else
+%     load(vocabulary1Layer); % cluster1Centres, cluster1Bounds, thresh
+% end
 
 % [ is_ok ] = VisualizeCornerParts(cluster1Centres); 
 % a = 2;
@@ -109,27 +101,25 @@ if inputDataType == 1   % depth images
 %     options = GetOptions(filtOptions);
 end
 
-[learningElType, learningElRadius, ~, ~, offsetsConventional] = loadLearningInferenceStructElement(dataSetNumber);
-
 
 %% Define what we have to learn
 %                                    {1,2,3,4,5,6,7,8}
-is_layer =                           {1,1,1,1,1,1,1,1};
+is_layer =                           {1,0,1,0,0,1,1,1};
 is_statisticalMap =                  {0,0,0,0,0,0,0,0};
-is_statistics_collection =           {0,0,1,1,1,1,0,0};
+is_statistics_collection =           {0,0,0,0,0,1,0,0};
 
 %                                    {1,2,3,4,5,6,7,8}
-is_statistics_sieve_aggregate_Weak = {0,0,1,1,1,1,1,1};
+is_statistics_sieve_aggregate_Weak = {0,0,0,0,1,1,1,1};
 is_localization =                    {0,0,0,0,0,0,0,0};
 is_Entropy =                         {0,0,0,0,0,0,0,0};
 is_partSelectionSpecialNeeded =      {0,0,0,0,0,0,0,0};
 
 %                                    {1,2,3,4,5,6,7,8}
-is_statistics_sieve_aggregate_Strong={0,0,1,1,1,0,0,0};
-is_partSelectionNeeded =             {0,0,1,0,0,0,0,0};
-combinePartSelection =               {0,0,1,1,1,1,0,0};
-visualizeLayer =                     {0,0,1,1,1,1,1,1};
-is_inferenceNeeded =                 {0,0,1,1,1,1,1,1};
+is_statistics_sieve_aggregate_Strong={0,0,0,0,1,0,0,0};
+is_partSelectionNeeded =             {0,0,0,0,0,0,0,0};
+combinePartSelection =               {0,0,0,0,1,1,0,0};
+visualizeLayer =                     {0,0,0,0,1,1,1,1};
+is_inferenceNeeded =                 {1,1,0,0,0,1,1,1};
 isDownsampling  =                    {0,0,0,0,0,0,0,0};
 
 %% downsampling of input images
@@ -159,13 +149,15 @@ end
 
 nNClusters{1} = nClusters;
 nNClusters{2} = n2Clusters;
+nNClusters{3} = 5;
+nNClusters{4} = 7;
+nNClusters{5} = 10; 
 
 for i = 3:8
     tripleOutDepth{i}   = [];
     triplesCurOut{i}    = [];
     partsOutSpecial{i}   = [];
     nNClustersSpecial{i} = [];
-    nNClusters{i} = 0;
 end
 
 
@@ -194,14 +186,27 @@ is_subset = false;
 subsetPercent = 1.0;
 
 
-%% learn the FIRST LEVEL PARTS
+%% learn the FIRST LEVEL PARTs (non-planar)
+% 
+% if is_layer{1}
+%     layerID = 1;
+%     methodID_FL = 1;
+%     for i = 1:length(scales)
+%         % get path to the input data at this scale
+%         str = inputPath{layerID, 1};
+%         input_path = getPathScale(str, lineAdders{i});
+%         [list_input, ~, ~, lenFiles] = extractFileListGeneral(input_path, is_subset, subsetPercent, dataSetNumber);
+%         learnNonPlanarParts(list_input, lenFiles, dataSetNumber, patchRad, methodID_FL);
+%     end
+% end
 
-for layerID = 2:6
+%%
+
+for layerID = 2:8
     
  if is_layer{layerID}
     
     nPrevClusters = nNClusters{layerID-1};
- 
     if is_inferenceNeeded{layerID - 1} 
         infArray = zeros(1, 8);
         infArray(layerID-1) = 1; % inference of the previous layer
@@ -209,14 +214,7 @@ for layerID = 2:6
     end
     
     if layerID == 2
-        continue;  % nothing to learn at this stage
-    elseif layerID == 3
-        % learn the third layer
-        
-    elseif layerID > 3
-        load(partsLayerAll{layerID - 1});              % 'triplesCurOut', 'nNClusters', 'partsEntropy';
-        load(fileForVisualizationLayer{layerID - 1});  % 'tripleOutDepth'
-        clear('partsEntropy');
+        continue;  % only inference is needed for this layer
     end
               
 %     if (layerID == 5 && isDownsampling{5}) || (layerID == 7 && isDownsampling{7}) % downsamplind required
@@ -241,49 +239,95 @@ for layerID = 2:6
 %     [list_els] = makeElList(list_input, inputPath{layerID, 1}, elPath{layerID-1, 2});
       
     str = ['Learning of the layer ', num2str(layerID), '...'];
-    disp(str);    
- 
-    %% build statistical maps
-    if is_statisticalMap{layerID}
-        
-        filterThresh = 20;
-        [stats5D, sumSamples] = buildStatMap_NextLayers(list_els, list_input, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius,...
-                                                        nPrevClusters, depthStep, dataSetNumber, ...
-                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, fieldSize{layerID}, filterThresh);
-                                                    
-        save(statisticalMapLayer{layerID}, 'stats5D', 'sumSamples');
-                                        
-        % after this we may be interested to visualize the statistical maps
-        visualizeStatisticalMaps( layerID - 1, tripleOutDepth, displ, ...
-                                            nClusters, nPrevClusters, folderForLayerStatMap{layerID}, fieldSize{layerID}, depthStep, cluster1Centres, isFIG, stats5D);
-    end
-    
+    disp(str);     
     
     %% collect statistics
 
     if is_statistics_collection{layerID} 
+        
+        if inputDataType == 1
+            
+            % statistics collection for all scales
+            for i = 1:length(scales)
+                % get path to the input data at this scale
+                str = inputPath{layerID, 1};
+                input_path = getPathScale(str, lineAdders{i});
+                elPath = getElPath(input_path, layerID-1);
 
-        for i = 1:length(scales)
-            
-            % get path to the input data at this scale
-            str = inputPath{layerID, 1};
-            input_path = getPathScale(str, lineAdders{i});
-            elPath = getElPath(input_path, layerID-1);
-            
-            % get a list of elements and depth images
-            [list_input, list_mask, ~, lenF] = extractFileListGeneral(input_path, is_subset, subsetPercent, dataSetNumber);
-            [list_els] = makeElList(list_input, input_path, elPath);
-            [statisticsLayer, ~, ~, ~, ~] = GetStatisticsFiles(root, dsN, nCl, lineAdders{i}, layerID);
-            if inputDataType == 1
-                distp('TODO');
-            elseif inputDataType == 2
-                [outputStatistics, outputCoords, outputFrames, curTS] = CollectStats_NextLayersMesh_PC(list_els, list_input, lenF, nPrevClusters, layerID, ...
-                                                                        depthStep, dataSetNumber, maxRelDepth{3}, cluster1Bounds, nClusters, offsetsConventional);
+                % get a list of elements and depth images
+                [list_input, list_mask, ~, lenF] = extractFileListGeneral(input_path, is_subset, subsetPercent, dataSetNumber);
+                [list_els] = makeElList(list_input, input_path, elPath);
+                [statisticsLayer, ~, ~, ~, ~] = GetStatisticsFiles(root, dsN, nCl, lineAdders{i}, layerID);
+
+                disp('ERROR:TODO');
             end
-            
-            save(statisticsLayer, 'outputStatistics', 'outputCoords', 'outputFrames', 'curTS', '-v7.3');
-            save('Temp/depth_files.mat', 'list_input', 'list_mask', 'list_els');
         end
+        
+        list_input = {};
+        list_els = {};
+        
+        if inputDataType == 2
+                
+            % statistics collection for all scales
+            for is = 1:length(scales)
+                str = inputPath{1, 1};
+                input_path = getPathScale(str, lineAdders{is});
+                
+                [list_input, ~, ~, lenF] = extractFileListGeneral(input_path, is_subset, subsetPercent, dataSetNumber);
+                strI21 = inputPath{2,1};
+                str2 = getPathScale(strI21, lineAdders{is});
+                elPath = getElPath(str2, layerID-1);
+                
+                list_els = makeElList(list_input, input_path, elPath);
+%                 [outputStatistics, outputCoords, outputFrames] = CollectStats_NextLayersMesh_PC(list_els, list_input, lenF, nPrevClusters, layerID, ...
+%                                                                     dataSetNumber, offsetsConventional{layerID}, statMapPropertiesAll{layerID}, is);
+            end
+
+            lenF = 1;
+%             [statMapLeft, statMapRight] = buildStatMap_NextLayers(lenF, nPrevClusters, offsetsConventional{layerID}, statMapPropertiesAll{layerID}, layerID, is_GPU_USED);                                                   
+%             save('Temp/statMap.mat', 'statMapLeft', 'statMapRight', '-v7.3');
+
+            % clustering of the staistical maps
+%              [pairsLeft, pairsRight] = statMapClustering(nPrevClusters, statMapPropertiesAll{layerID}, pairClusteringOptionsAll{layerID}, offsetsConventional{layerID}, layerID);
+             dd = load('Temp/pairsLR.mat'); 
+             pairsLeft = dd.pairsLeft;
+             pairsRight = dd.pairsRight;
+             
+%             % assign each point in the file with statistics by the ID
+%              assignIdsToStatisticsFile(pairsLeft, pairsRight, pairClusteringOptionsAll{layerID}, nPrevClusters, lenF, statMapPropertiesAll{layerID}, is_GPU_USED);
+
+            % aggregate statistics of the layers
+            nPrevClusters = size(pairsLeft, 1) + size(pairsRight, 1);
+            sieve_thresh = 10^3;
+%             [X, frequencies, triples] = Aggregate_statVI(lenF, nPrevClusters, sieve_thresh, pairsLeft, pairsRight);
+            
+            % perform part selection at this layer
+            iterations = 30;
+            lenSelected = 40;
+%             [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, list_els, lenF, nPrevClusters, iterations, lenSelected);
+%             
+%             partsOut = partsOut(1:lenOut, :);
+%             coverageOut = coverageOut(1:lenOut);
+%             pairsAll = [pairsLeft; pairsRight];
+%             nNClusters{layerID} = lenOut;
+%             save('Temp/partSelection6.mat', 'partsOut', 'pairsAll', 'nNClusters', 'coverageOut');
+            
+             VisualizeLayerVI(layerID);
+
+%             inference of the next layer based on statistics
+             layerInferenceNext_VI(list_input, list_els, lenF, layerID, is_GPU_USED);
+
+            
+            if layerID > 4 
+                MakeOrNode(layerID);
+            end
+
+             a = 2;
+        end
+                
+%             save(statisticsLayer, 'outputStatistics', 'outputCoords', 'outputFrames', '-v7.3');
+%             save('Temp/depth_files.mat', 'list_input', 'list_mask', 'list_els');
+%             a = 2;
     end
     
     load('Temp/depth_files.mat');
@@ -292,18 +336,20 @@ for layerID = 2:6
 
     if is_statistics_sieve_aggregate_Weak{layerID}
         
-        weak_multiplier = 0.1;
+        weak_multiplier = 0.01;
         
         for i = 1:length(scales)
             
             % load statistics
             [statisticsLayer, statisticsLayerSieved_Weak, statisticsLayerAggregated_Weak, ~, ~] = GetStatisticsFiles(root, dsN, nCl, lineAdders{i}, layerID);
             load(statisticsLayer);
+            
+            [outputStatistics, ~] = DiscretizeOrientations(outputStatistics, layerID, curTS, nClusters);
 
             % sieve
             numDisps = 2;
             pairThresh = weak_multiplier *curTS * threshPair{layerID};
-            [statistics, outputCoords, outputScales, outputFrames, clusterCurDepths, curTS] = sieveStatistics(outputStatistics, outputCoords, outputScales, outputFrames, numDisps, ...
+            [statistics, outputCoords, outputFrames, clusterCurDepths, curTS] = sieveStatistics(outputStatistics, outputCoords, outputFrames, numDisps, ...
                                                             pairThresh, nPrevClusters, quant{layerID}, maxRelDepth{layerID}, is_GPU_USED);
             clear('outputStatistics');
 
@@ -313,13 +359,12 @@ for layerID = 2:6
             [X, frequencies, triples, is_sparse] = Aggregate_3Layer(statistics, nPrevClusters, curTS, sieveThresh, is_GPU_USED);
             [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieveThresh, is_sparse, is_GPU_USED);
             outputCoords = outputCoords(ind, :);
-            outputScales = outputScales(ind, :);
             outputFrames = outputFrames(ind, :);
             curTS = size(outputCoords, 1);
 
             % save the processed statistics
 
-            save(statisticsLayerSieved_Weak, 'statistics', 'clusterCurDepths', 'outputCoords', 'outputScales', 'outputFrames', '-v7.3');
+            save(statisticsLayerSieved_Weak, 'statistics', 'clusterCurDepths', 'outputCoords', 'outputFrames', '-v7.3');
             save(statisticsLayerAggregated_Weak, 'X' ,'frequencies', 'curTS', 'triples', '-v7.3');
         end
     end
@@ -391,18 +436,19 @@ for layerID = 2:6
     
     if is_statistics_sieve_aggregate_Strong{layerID} 
         
-        strongMultiplier = 1.0;
+        strongMultiplier = 0.05;
         
         for i = 1:length(scales)
             
             [statisticsLayer, ~, ~, statisticsLayerSieved, statisticsLayerAggregated] = GetStatisticsFiles(root, dsN, nCl, lineAdders{i}, layerID);
             load(statisticsLayer);
 
+            [outputStatistics, ~] = DiscretizeOrientations(outputStatistics, layerID, curTS, nClusters);
             % sieve
             pairThresh = strongMultiplier * curTS * threshPair{layerID};
             numDisps = 2;
 
-            [statistics, outputCoords, outputScales, outputFrames, clusterCurDepths, curTS] = sieveStatistics(outputStatistics, outputCoords, outputScales, outputFrames, numDisps, ...
+            [statistics, outputCoords, outputFrames, clusterCurDepths, curTS] = sieveStatistics(outputStatistics, outputCoords, outputFrames, numDisps, ...
                                                 pairThresh, nPrevClusters, quant{layerID}, maxRelDepth{layerID}, is_GPU_USED);
             clear('outputStatistics');
 
@@ -411,11 +457,10 @@ for layerID = 2:6
             [X, frequencies, triples, is_sparse] = Aggregate_3Layer(statistics, nPrevClusters, curTS, sieveThresh, is_GPU_USED);
             [ind, statistics] = Sieve3afterAggregation(statistics, triples, sieveThresh, is_sparse, is_GPU_USED);
             outputCoords = outputCoords(ind, :);
-            outputScales = outputScales(ind, :);
             outputFrames = outputFrames(ind, :);
             curTS = size(outputCoords, 1);
 
-            save(statisticsLayerSieved, 'statistics', 'clusterCurDepths', 'outputCoords', 'outputScales', 'outputFrames', '-v7.3');
+            save(statisticsLayerSieved, 'statistics', 'clusterCurDepths', 'outputCoords', 'outputFrames', '-v7.3');
             save(statisticsLayerAggregated, 'X' ,'frequencies', 'curTS', 'triples', '-v7.3');
         end
         
@@ -426,60 +471,46 @@ for layerID = 2:6
  %% Coverage-based part selection procedure   
          
     if is_partSelectionNeeded{layerID}
-        if partSelectionMethod == 1
             
-            if inputDataType == 1  % depth images
-                [triplesCurOut{layerID}, coverageOut, nNClusters{layerID}] = PartSelectionFull(nClusters, nPrevClusters, dataSetNumber, partsCoverArea{layerID}, ... 
-                    iterations{layerID}, layerID, fileForVisualizationLayer, lenSelected{layerID}, cluster1Centres, numSimilar{layerID}, offsetsConventional, depthStep, ...
-                    is_multyScale, scales, lineAdders, inputPath{layerID, 1}, is_subset, subsetPercent, root, dsN, nCl);
-            elseif inputDataType == 2  % meshes
-                
+        if inputDataType == 1  % depth images
+            
+            [triplesCurOut{layerID}, coverageOut, nNClusters{layerID}] = PartSelectionFull(nClusters, nPrevClusters, dataSetNumber, partsCoverArea{layerID}, ... 
+                iterations{layerID}, layerID, fileForVisualizationLayer, lenSelected{layerID}, cluster1Centres, numSimilar{layerID}, offsetsConventional, depthStep, ...
+                is_multyScale, scales, lineAdders, inputPath{layerID, 1}, is_subset, subsetPercent, root, dsN, nCl);
+            
+        elseif inputDataType == 2  % meshes
+            for i = 1:length(scales)
+                % get path to the input data at this scale
+                str = inputPath{layerID, 1};
+                input_path = getPathScale(str, lineAdders{i});
+                elPath = getElPath(input_path, layerID-1);
+
+                % get a list of elements and depth images
+                [list_input, list_mask, ~, lenF] = extractFileListGeneral(input_path, is_subset, subsetPercent, dataSetNumber);
+                [list_els] = makeElList(list_input, input_path, elPath);
+
+                [statisticsLayer, ~, ~, statisticsLayerSieved, statisticsLayerAggregated] = GetStatisticsFiles(root, dsN, nCl, lineAdders{i}, layerID);
+                [triplesCurOut{layerID}, coverageOut,nNClusters{layerID}] = PartSelectionMeshMDL(statisticsLayer, statisticsLayerSieved, statisticsLayerAggregated, list_input, list_els, layerID,...
+                            nClusters, n2Clusters, fileForVisualizationLayer, offsetsConventional, depthStep, fieldSize{layerID}, cluster1Centres, iterations{layerID}, ...
+                            numSimilar{layerID}, lenSelected{layerID});
             end
-            
-            partEntropyMain = 5*ones(nNClusters{layerID},1);    
-            % previously selected 
-            save(partsLayer{layerID}, 'triplesCurOut', 'coverageOut', 'nNClusters', 'partEntropyMain'); 
-            
-            
-%             % define parts entropy: TODO
-%             
-%             load(partsLayer{layerID});
-%             inFolder = elPath{layerID-1, 1};
-%             outFolder = elPath{layerID, 1};
-%             
-%             InferenceNext_simple(statistics, outputCoords, outputScales, outputFrames, curTS, inFolder, outFolder, list_els, ...
-%                                 triplesCurOut{layerID}, nNClusters{1}^2, nNClusters{layerID});
         end
+
+        partEntropyMain = 5*ones(nNClusters{layerID},1);    
+        % previously selected 
+        save(partsLayer{layerID}, 'triplesCurOut', 'coverageOut', 'nNClusters', 'partEntropyMain');            
+                  
+
     end
     
     % store the visualization of the vocabulary to the folder
     
     if combinePartSelection{layerID}
         
-%         try
-%             load(partsLayer{layerID});                 % 'triplesCurOut', 'coverageOut', 'nNClusters' 'partEntropyMain'
-%             load(partsSpecialSelected{layerID});       % 'partsOutSpecial', 'nNClustersSpecial', 'partEntropySpecial'
-%         
-%         % this is to compute part's entropy for triplesCurOut
-%         
-%             partsEntropy{layerID} = [partEntropyMain; partEntropySpecial];
-%             triplesCurOut{layerID} = [triplesCurOut{layerID}; partsOutSpecial{layerID}];
-%             nNClusters{layerID} = nNClusters{layerID} + nNClustersSpecial{layerID};
-% 
-%             save(partsLayerAll{layerID}, 'triplesCurOut', 'nNClusters', 'partsEntropy');
-%         catch exception
-%     
-%             % if there on of the files does not exist
-%             load(partsLayer{layerID});
-%             partsEntropy = partEntropyMain;
-%             save(partsLayerAll{layerID}, 'triplesCurOut', 'nNClusters', 'partsEntropy');
-%         end
-           
         try
             load(partsSpecialSelected{layerID});       % 'partsOutSpecial', 'nNClustersSpecial', 'partEntropySpecial'
         
             % this is to compute part's entropy for triplesCurOut
-        
             partsEntropy{layerID} = [partEntropySpecial];
             triplesCurOut{layerID} = [partsOutSpecial{layerID}];
             nNClusters{layerID} = nNClustersSpecial{layerID};
@@ -500,7 +531,8 @@ for layerID = 2:6
     if visualizeLayer{layerID}
 
         load(partsLayerAll{layerID});
-        load(statisticsLayerSieved{layerID});      %  'statistics', 'clusterCurDepths', 'outputCoords'
+        [~, ~, ~, statisticsLayerSieved, ~] = GetStatisticsFiles(root, dsN, nCl, lineAdders{1}, layerID);
+        load(statisticsLayerSieved);      %  'statistics', 'clusterCurDepths', 'outputCoords'
         
         if mod(layerID,2) == 1
             LI = layerID + 1;  % to make a squared visualization field
@@ -512,17 +544,18 @@ for layerID = 2:6
 
         % prepare data for visualization (convert to the right format)
         if layerID == 3
-            tripleOutDepth{layerID} = store3Layer(triplesCurOut{layerID}, clusterCurDepths, nNClusters{layerID}, nClusters, partSelectionMethod);
+            tripleOutDepth{layerID} = store3Layer(triplesCurOut{layerID}, clusterCurDepths, nNClusters{layerID}, nClusters);
         else
-            tripleOutDepth{layerID} = store4Layer(triplesCurOut{layerID}, clusterCurDepths, nNClusters{layerID}, nClusters, partSelectionMethod);
+            tripleOutDepth{layerID} = store4Layer(triplesCurOut{layerID}, clusterCurDepths, nNClusters{layerID}, nClusters);
         end
         
         save(fileForVisualizationLayer{layerID}, 'tripleOutDepth');
 
         [is_ok] = layer_N_demonstrator(layerID, tripleOutDepth, offsetsConventional, ...
-                                            nClusters, nNClusters{layerID}, folderForLayer{layerID}, fieldSize{LI}, depthStep, cluster1Centres, isFIG);
-    end
-    
+                                            nClusters, nNClusters{layerID}, folderForLayer{layerID}, fieldSize{LI}, depthStep, cluster1Centres, isFIG, receptiveField{2}/2);
+%                                         (layerID, tripleOutDepth, offsetsConventional, ...
+%                                             nClusters, nNClusters, str_folder, fieldSize, depthStep, cluster1Centres, isFIG, elementRadius)
+    end 
   end
 end
 

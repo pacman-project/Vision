@@ -36,8 +36,8 @@ if size(vertex,1)==2
     return;
 end
 
-% can flip to accept data in correct ordering
-[vertex,face] = check_face_vertex(vertex,face);
+% % can flip to accept data in correct ordering
+% [vertex,face] = check_face_vertex(vertex,face);
 
 if size(face,1)==4
     %%%% tet mesh %%%%

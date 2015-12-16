@@ -84,8 +84,8 @@ function [learningElType, learningElRadius, inferenceElType, inferenceElRadius, 
         offsetsConventional{3} = 0.005;
         offsetsConventional{4} = 0.005;
         
-        offsetsConventional{3} = 0.015;
-        offsetsConventional{4} = 0.015;
+        offsetsConventional{5} = 0.015;
+        offsetsConventional{6} = 0.015;
         
     end
 

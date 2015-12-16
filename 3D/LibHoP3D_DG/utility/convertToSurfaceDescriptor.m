@@ -18,10 +18,10 @@ function [X_first, nPrevClusters, emptyIndicator] = convertToSurfaceDescriptor(X
         tripleOutDepth = [];
     elseif layerID == 3
         nPrevClusters = n2Clusters;
-        tripleOutDepth{3} = store3Layer(X, clusterCurDepths, lenCombs, nClusters, 1);
+        tripleOutDepth{3} = store3Layer(X, clusterCurDepths, lenCombs, nClusters);
     else
        nPrevClusters = size(tripleOutDepth{layerID - 1}, 1);
-       tripleOutDepth{layerID} = store4Layer(X, clusterCurDepths, lenCombs, nClusters, 1);
+       tripleOutDepth{layerID} = store4Layer(X, clusterCurDepths, lenCombs, nClusters);
     end
         
     

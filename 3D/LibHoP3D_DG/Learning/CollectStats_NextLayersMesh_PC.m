@@ -7,314 +7,314 @@
 % isFull is true when all elements exist in a row
 % fieldSize is [sizeX, sizeY, sizeZ]
 
-function [outputStatisticsAll, outputCoordsAll, outputFramesAll, curTSAll] = CollectStats_NextLayersMesh_PC(list_els, list_input, lenF, ...
-                                                        nPrevClusters, layerID, depthStep, dataSetNumber, ...
-                                                        maxRelDepth, cluster1Bounds, nClusters, offsetsConventional)
+function [outputStatisticsAll, outputCoordsAll, outputFramesAll] = CollectStats_NextLayersMesh_PC(list_els, list_input, lenF, ...
+                                                        nPrevClusters, layerID, dataSetNumber, offsetsConventional, statMapProperties, curScale)
+                                                 
+%     is_visualization = false;
 
-                                                    
-    is_visualization = false;                                                
-                                                    
+    numCombs = 6;
     disp('collecting co-occurrence statistics...');
-    %  for example displacements = [0 0; 0 -6; 0 6]; or displacements = [0 0; -6, 0; 6, 0];
-    %      2 1 3  or
-    %     2
-    %     1
-    %     3
-
-    emptyCellID = nPrevClusters + 1;
     
+%     stepI = 2;
+    
+    multX = statMapProperties.multX;
+    multY = statMapProperties.multY;
+    xyzStep = statMapProperties.xyzStep;
+    angleStep = statMapProperties.angleStep; 
+                                                    
+
+    emptyCellID = nPrevClusters + 1; 
     if dataSetNumber ~= 2
         list_mask = zeros(1, lenF);
     end
-    
-    tic;
-    nf = 20;
-    
-    outputStatisticsAll = [];
-    outputCoordsAll = [];
-    outputScalesAll = [];
-    outputFramesAll = [];
-    curTSAll = 0;
-    
-    step = 60;
-    iiiPrev = 1;
-    
-    if layerID == 3;
-        central = compute2elementIndex(ceil(nClusters/2), ceil(nClusters/2), nClusters);
+
+    if layerID <= 4
+        kkMax = 5;
+    else 
+        kkMax = 8;
     end
-    
-    for iii = 1:step:lenF % This is done to speed up
-        
-        outputStatistics = [];
-        outputCoords = [];
-        outputScales = [];
-        outputFrames = [];
-        curTS = 0;
-        
-        indStart = iiiPrev;
-        rest = lenF - iii;
-        if rest < step
-            indEnd = lenF;
-        else
-            indEnd = iii;
+    outputStatisticsAll = {};
+    outputCoordsAll = {};
+    outputFramesAll = {};
+    curTSAll = 0;
+      
+
+    for i = 1:lenF 
+
+        fileName = list_els{i};
+        outFileM = [fileName(1:end-4), '.mat'];   
+
+        % load files
+        [~, F, ~] = meshRead(list_input{i});
+        aaa = load(outFileM);
+        Vout = aaa.Vout;
+        Nout = aaa.Nout;
+        darFrames = aaa.darFrames;
+        partIDs = aaa.partIDs;
+        pointIDx = aaa.pointIDx;
+        clear('aaa');
+
+
+%             if is_visualization
+%                 radii = 0.005 * ones(size(Vout, 2),1);
+%                 [V_vis, F_vis] = prepareForVisualization(radii, Vout, Nout);
+%                 VisualizeTriangulation(F_vis, V_vis);
+%                 hold on
+%             end
+
+        if size(Vout, 1) == 3
+            Vout = Vout';
+            Nout = Nout';
         end
-    
-        for i = 2:2%indStart:indEnd
-                      
-            numEl = 0;
 
-            fileName = list_input{i};
-            outFileM = [fileName(1:end-4), '.mat'];   
-            outFileAP = [fileName(1:end-4), 'AP.mat']; 
-            
-            [V, F, ~] = meshRead(fileName);
-            aaa = load(outFileM);   % 'Vout', 'Nout', 'darFrames', 'partIDs';   % THESE ARE PARTS OF THE PREVIOUS LAYER
-            Vout = aaa.Vout;
-            Nout = aaa.Nout;
-            darFrames = aaa.darFrames;
-            partIDs = aaa.partIDs;
-%             load(outFileAP);  % 'VAll', 'NAll', 'numPoints', 'areCentral' % THESE ARE ADDITIONAL POINTs generated from the mesh
+        nEl = size(Vout, 1);
+        lenF = size(F, 2);
+        tic
+        fringAll = ComputeFringDeep(F, kkMax, lenF);   % to address: fringAll{2}{13}
+        toc
+        
+%     outputStatisticsAll = zeros(numInitial, 27);
+%     outputCoordsAll = zeros(numInitial, 4);
+%     outputFramesAll = zeros(numInitial, 9);
+        
+        outputStatistics = {};
+        outputCoords = {};
+        outputFrames = {};
+        tempF2part = {};
 
-            if size(Vout, 1) == 3
-                Vout = Vout';
-                Nout = Nout';
+        for ii = 1:size(F,2)
+            tempF2part{ii} = [];
+        end
+        for ii = 1:size(partIDs,1)
+            tempF2part{partIDs(ii, 2)} = [tempF2part{partIDs(ii, 2)}, ii];
+        end
+
+
+        parfor j = 1:nEl   
+
+            central_pos = Vout(j, :);
+            NormalCentral = Nout(j, :);
+            centralInf = partIDs(j, :);
+
+            if layerID <= 6       
+                %% compute neighbours
+
+                facesId = fringAll{kkMax}{partIDs(j,2)};
+                ids = [];
+                if ~isempty(facesId)
+%                   ids = ismember(partIDs(:,2), facesId); % too slow!
+                    ids = [tempF2part{facesId}]';
+                end
+                
+                if nnz(ids) < 3  % not enought points in the neighbourhood
+                    continue;
+                end  
+
+                points = Vout(ids, :);
+                normals = Nout(ids, :);
+                parts = partIDs(ids, :);   % part_number, fid, pointID
+
+%                     if is_visualization
+%                         radii = 0.005 * ones(size(points, 1),1);
+%                         [V_vis, F_vis] = prepareForVisualization(radii, points, normals);
+%                         VisualizeTriangulation(F_vis, V_vis, [1.0, 0,0], [0.2, 0,0], 0.4);
+%                         hold on
+%                     end
+
+                % local frame of reference at this point
+                DF = darFrames(j, :);
+                DF = reshape(DF, [3,3]);
+
+                if layerID == 3 || layerID == 5
+                    curDisp = DF(:,2);
+                elseif layerID == 4 || layerID == 6
+                    curDisp = DF(:,3);
+                end
             end
 
-            fring = compute_face_ring(F);
+            curOffset = zeros(3, 2);
+            curOffset(:, 1) =   curDisp * offsetsConventional; 
+            curOffset(:, 2) = - curDisp * offsetsConventional;
+
+%                 if is_visualization
+%                     plotVector(curOffset(:, 1), 1.0, [1,0,0], central_pos);
+%                     plotVector(curOffset(:, 2), 1.0, [0,1,0], central_pos);
+%                 end
+
+            % find the closest point from  central_pos + curOffset(:, k)
+            is_ok = true;
+
+            for k = 1:2  % left and right neigbours
+
+                cent_cur = central_pos + curOffset(:, k)';
                 
-            nEl = size(Vout, 1);
-
-            for j = 1:nEl 
-
-                central_pos = Vout(j, :);
-                NormalCentral = Nout(j, :);
-                if layerID == 4
-                    disp('TODO:define the central element!')
-                end
-
-
-                if layerID == 3 || layerID == 4        
-                    %% compute neighbours
-                    
-                    % Create a list of faces
-                    [facesId, nf] = ExtractAdjacentFaces(partIDs(j,2), nf, fring);
-                    
-                    % points normals and parts in the local neibourhood
-                    points = zeros(1,3);
-                    normals = zeros(1,3);
-                    parts = zeros(1,1);
-                    
-                    % extract all parts that belong to these faces
-                    startPoint = 1;
-                    
-                    for jj = 1:nf
-                        ids = find(partIDs(:,2) == facesId(jj));
-                        endPoint = startPoint + length(ids) - 1;
-                        
-                        points(startPoint:endPoint, :) = Vout(ids, :);
-                        normals(startPoint:endPoint, :) = Nout(ids, :);
-                        parts(startPoint:endPoint) = partIDs(ids, 1);
-                        startPoint = endPoint + 1;
-                    end
-
-                    
-                    if endPoint < 3  % not enought points in the neighbourhood
-                        continue;
-                    end
-                    
-                    % local frame of reference at this point
-                    DF = darFrames(j, :);
-                    DF = reshape(DF, [3,3]);
-
-                    if layerID == 3
-                        curDisp = DF(:,2);
-                    elseif layerID == 4
-                        curDisp = DF(:,3);
-                    end
-                end
-
-                curOffset = zeros(3, 2);
-                curOffset(:, 1) =   curDisp * offsetsConventional{layerID}; 
-                curOffset(:, 2) = - curDisp * offsetsConventional{layerID};
+                %distances1 = ComputeEuclDists(cent_cur, points, 3);  % TOO SLOW
+%                distances1 = sqrt(sum((points - repmat(cent_cur, size(points,1), 1)).^2, 2));
                 
-                % find the closest point from  central_pos + curOffset(:, k)
-                is_ok = true;
-                
-                for k = 1:2  % left and right neigbours
+                distances = sqrt(sum(([points(:,1)-cent_cur(1),points(:,2)-cent_cur(2),points(:,3)-cent_cur(3)]).^2, 2));
+    
+%                 % take the point with the smallest distance
+%                 minD = min(distances);
+%                 if minD > offsetsConventional{layerID}/3;
+%                     is_ok = false; 
+%                     continue
+%                 end
 
-                    cent_cur = central_pos + curOffset(:, k)';
-                    distances = ComputeEuclDists(cent_cur, points, 3);
-                    % take the point with the smallest distance
-                    minD = min(distances);
-                    if minD > offsetsConventional{layerID}/3;
-                        is_ok = false; 
-                        break;
-                    end
-                    
-                    inds = find(distances == minD);
-                    if k == 1;
-                        lefts = parts(inds(1));
-                        V_left = points(inds(1), :);
-                        NormalLeft = normals(inds(1),:);
-                    else
-                        rights = parts(inds(1));
-                        V_right = points(inds(1), :);
-                        NormalRight = normals(inds(1),:);
-                    end
-                    if minD > offsetsConventional{layerID}/2;
-                        is_ok = false;
-                    end                                      
-                end
-                
-                if ~is_ok
+                % take all point with distance smaller than
+                % offsetsConventional{layerID}*0.9
+                minD = offsetsConventional*0.9;
+
+                inds = find(distances < minD);
+                if length(inds)< 0
                     continue;
                 end
+                if k == 1;
+                    leftInf = parts(inds, :);    % part_number, fid, pointID
+                    V_left = points(inds, :);  % vertex position
+                    NormalLeft = normals(inds,:); 
+                elseif k == 2
+                    rightInf = parts(inds, :);   % part_number, fid, pointID
+                    V_right = points(inds, :); % vertex position
+                    NormalRight = normals(inds,:);
+                end                                      
+            end
 
-                if layerID == 3
 
-                    if length(lefts) > 1  % find the one with the largest scale and shortest distance 
-                        
-                       disp('Something went wrong');
-                       lenE = length(lefts);
-%                        score = double(options.weight * lefts) - distsLeft;
-                       id = find(score == max(score));
-                       if length(id) > 1
-                           id = id(1);
-                       end
-                       [lefts, indsXLeft, indsYLeft, distsLeft] = myFilter4(lefts,indsXLeft,indsYLeft,distsLeft, id);
-                       depthsLeft= depthsLeft(id);
-                    end
+%             if is_visualization
+%                 XXX = [indsXLeft, indsXRight] - x + centre;
+%                 YYY = [indsYLeft, indsYRight] - y + centre;
+%                 ZZZ = [depthsLeft; depthsRight];
+%                 scatter3(XXX, YYY, ZZZ, 'green');
+%                 hold on
+%                 plotFrame(NormalLeft, [indsXLeft-x+centre, indsYLeft-y+centre, depthsLeft], vecLen, vectColors, 1);
+%                 plotFrame(NormalRight,[indsXRight-x+centre, indsYRight-y+centre, depthsRight], vecLen, vectColors, 1);
+%             end
 
-                    if length(rights) > 1  % find the one with the largest scale and shortest distance 
-                       disp('Something went wrong');
-                       lenE = length(rights);
-%                        score = double(options.weight * rights) - distsRight;
-                       id = find(score == max(score));
-                       if length(id) > 1
-                           id = id(1);
-                       end
-                       [rights, indsXRight, indsYRight, distsRight] = myFilter4(rights,indsXRight,indsYRight,distsRight, id);
-                       depthsRight = depthsRight(id);
-                    end
+            % compute and quantize relative orienations of
+            % normals
+            Xtemp = DF(:,2);
+            Ytemp = DF(:,3);  % local x and y axis
 
-%                     if is_visualization
-%                         XXX = [indsXLeft, indsXRight] - x + centre;
-%                         YYY = [indsYLeft, indsYRight] - y + centre;
-%                         ZZZ = [depthsLeft; depthsRight];
-%                         scatter3(XXX, YYY, ZZZ, 'green');
-%                         hold on
-% 
-%                     end
+            %% compute relative depths of the pixels
+            T = eye(4); T(1:3,4) = -central_pos';   % T(2,4) = -central_pos(2); T(3,4) = -central_pos(3);
+            R = eye(4,4); R(1:3, 1) = Xtemp'; R(1:3, 2) = Ytemp'; R(1:3, 3) = NormalCentral';
+            
+%           T2 = eye(4); T2(1,4) = central_pos(1); T2(2,4) = central_pos(2); T2(3,4) = central_pos(3);
+%           M = inv(R)*T;
 
-%                     if is_visualization
-%                             plotFrame(NormalLeft, [indsXLeft-x+centre, indsYLeft-y+centre, depthsLeft], vecLen, vectColors, 1);
-%                             plotFrame(NormalRight,[indsXRight-x+centre, indsYRight-y+centre, depthsRight], vecLen, vectColors, 1);
-%                     end
+            M = R\T;
 
-                    % compute and quantize relative orienations of
-                    % normals
-                    Xtemp = DF(:,2);
-                    Ytemp = DF(:,3);  % local x and y axis
-
-                    % compute projections
-                    angleXLeft =  90 - 180 * acos(dot(Xtemp,NormalLeft)/norm(NormalLeft)) /pi;
-                    angleYLeft =  90 - 180 * acos(dot(Ytemp,NormalLeft)/norm(NormalLeft)) /pi;
-                    angleXRight = 90 -  180 * acos(dot(Xtemp,NormalRight)/norm(NormalRight))/pi;
-                    angleYRight = 90 - 180 * acos(dot(Ytemp,NormalRight)/norm(NormalRight))/pi;
-
-                    clusterXLeft = define1Cluster(angleXLeft, cluster1Bounds, nClusters);
-                    clusterYLeft  = define1Cluster(angleYLeft, cluster1Bounds, nClusters);
-                    clusterXRight = define1Cluster(angleXRight, cluster1Bounds, nClusters);
-                    clusterYRight = define1Cluster(angleYRight, cluster1Bounds, nClusters);
-
-                    if clusterXLeft <= 0 || clusterYLeft <= 0 || clusterXRight <=0 || clusterYRight <=0
-                        continue;
-                    end
-
-                    % define left and right neighbours
-                    left = compute2elementIndex(clusterXLeft, clusterYLeft, nClusters);
-                    right = compute2elementIndex(clusterXRight, clusterYRight, nClusters);
-
-                    %% compute relative depths of the pixels
-                    T = eye(4); T(1,4) = -central_pos(1); T(2,4) = -central_pos(2); T(3,4) = -central_pos(3);
-                    R = eye(4,4); R(1:3, 1) = Xtemp'; R(1:3, 2) = Ytemp'; R(1:3, 3) = NormalCentral';
-%                     T2 = eye(4); T2(1,4) = central_pos(1); T2(2,4) = central_pos(2); T2(3,4) = central_pos(3);
-                    M = inv(R)*T; 
-
-                    % coordinates of the neighbours in the local frame
-                    % of reference
-                    coordsLeft = M * [V_left(1);  V_left(2);  V_left(3);  1];
-                    coordsRight = M * [V_right(1);  V_right(2);  V_right(3); 1];
-
-                    offsetXLeft = abs(coordsLeft(1));
-                    offsetXRight = abs(coordsRight(1));
-
-                    depthLeft = coordsLeft(3)  * offsetsConventional{layerID}/offsetXLeft;
-                    depthRight = coordsRight(3)* offsetsConventional{layerID}/offsetXRight;
-
-                    if offsetXLeft == 0 || offsetXRight == 0;
-                        continue;
-                    end
+            % coordinates of the neighbours in the local frame
+            % of reference
+            coordsLeft =  M * [V_left, ones(size(V_left,1),  1)]';
+            coordsRight = M * [V_right, ones(size(V_right,1),1)]';
+            
+            % filter out those that are far form the predicted positions
+            if layerID == 3 || layerID == 5
+                idsTrueLeft  = abs(coordsLeft(1,:) - offsetsConventional) < offsetsConventional *multX  & abs(coordsLeft(2,:)) < offsetsConventional*multY;
+                idsTrueRight = abs(coordsRight(1,:) + offsetsConventional) < offsetsConventional*multX & abs(coordsRight(2,:)) < offsetsConventional*multY;
+            elseif layerID == 4 || layerID == 6
+                idsTrueLeft  = abs(coordsLeft(1,:)) < offsetsConventional *multX  & abs(coordsLeft(2,:) - offsetsConventional) < offsetsConventional*multY;
+                idsTrueRight = abs(coordsRight(1,:)) < offsetsConventional*multX & abs(coordsRight(2,:) + offsetsConventional) < offsetsConventional*multY;
+            end
+            numLeft = nnz(idsTrueLeft);  numRight = nnz(idsTrueRight);
+            
+            if  numLeft ~= 0 && numRight ~= 0
+                
+                if numLeft>numCombs
+                    idsTrueLeft = find(idsTrueLeft);
+                    ids = randperm(numLeft, numCombs);
+                    idsTrueLeft = idsTrueLeft(ids);
+                    numLeft = numCombs;
                 end
-
-
-
-                if central ~= 0 && left ~= 0 && right ~= 0 && (left ~= emptyCellID || right ~= emptyCellID) % element is detected
-
-                    line = zeros(1, 3*2 - 1); 
-                    line(1) = central;
-                    line(2) = left;
-                    line(4) = right;
-
-                    relDepthL = round(depthLeft / depthStep);  % relative depth
-                    if relDepthL > maxRelDepth
-                        relDepthL = maxRelDepth;
-                    elseif relDepthL < -maxRelDepth
-                        relDepthL = -maxRelDepth; % for one bite coding
-                    end
-                    line(3) = relDepthL;
-
-                    relDepthR = round(depthRight / depthStep);  % relative depth
-                    if relDepthR > maxRelDepth
-                        relDepthR = maxRelDepth;
-                    elseif relDepthR < -maxRelDepth
-                        relDepthR = -maxRelDepth; % for one bite coding
-                    end
-                    line(5) = relDepthR;
-
-                    line = int16(line);
-
-                    curCoords = [i, central_pos(1), central_pos(2), central_pos(3)];  % image, x, y
-                    curCoords = uint16(curCoords);
-                    outputCoords = [outputCoords; curCoords];
-                    outputStatistics = [outputStatistics; line];
-                    outputFrames = [outputFrames; DF(:)'];
-
-                    curTS = curTS + 1;
-                    numEl = numEl +1;
-
+                if numRight>numCombs
+                    idsTrueRight = find(idsTrueRight);
+                    ids = randperm(numRight, numCombs);
+                    idsTrueRight = idsTrueRight(ids);
+                    numRight = numCombs;
                 end
+                coordsLeft = coordsLeft(:, idsTrueLeft);
+                coordsRight = coordsRight(:, idsTrueRight);
+                leftInf = leftInf(idsTrueLeft', :);
+                rightInf = rightInf(idsTrueRight', :);
+                NormalLeft = NormalLeft(idsTrueLeft', :);
+                NormalRight = NormalRight(idsTrueRight', :);
+            else
+                continue;
             end
             
-%             if numEl == 0;
-%                 list_input{i}
-%             end
-            i
+            % make a list of pairs of lefts and rights
+            vec1 = 1:numLeft; vec2 = 1:numRight;
+            [p,q] = meshgrid(vec1, vec2);
+            vec1 = p(:);
+            vec2 = q(:);
+
+            % line shold have the following format:
+            % partID_central 1, 
+            % partID_left 2, 3-5: [x,y,z], 6:14 [N, X_axis, Y_axis] 
+            % partID_right 15, 16-18: [x,y,z], 19-27: [N, X_axis, Y_axis]
+            % X_axis, Y_axis might be unused for the first layers
+
+            
+            lenVec = length(vec1);
+            outputStatisticsTemp = zeros(27, lenVec);
+            outputCoordsTemp = zeros(4, lenVec);
+            outputFramesTemp = zeros(9, lenVec);
+            
+            for k = 1:lenVec
+                line = zeros(27, 1);
+                
+                line(1) = centralInf(1); 
+                line(2) = leftInf(vec1(k), 1);
+                line(3:5) = coordsLeft(1:3, vec1(k));  % round(coordsLeft(1:3, vec1(k)) / xyzStep);
+                NL = NormalLeft(vec1(k),:);
+                line(6:8) = [NL*Xtemp; NL*Ytemp; NL*NormalCentral']; %round([NL*Xtemp; NL*Ytemp; NL*NormalCentral']/angleStep);
+                
+                line(15) = rightInf(vec2(k), 1);
+                line(16:18) = coordsRight(1:3, vec2(k)); % round(coordsRight(1:3, vec2(k)) / xyzStep);
+                NR = NormalRight(vec2(k),:);
+                line(19:21) = [NR*Xtemp; NR*Ytemp; NR*NormalCentral']; %round([NR*Xtemp; NR*Ytemp; NR*NormalCentral']/angleStep);
+
+                curCoords = [i; pointIDx{centralInf(2)}(centralInf(3)); pointIDx{leftInf(vec1(k), 2)}(leftInf(vec1(k),3)); pointIDx{rightInf(vec2(k),2)}(rightInf(vec2(k),3))];  % meshID, poindIDx_c, poindIDx_l, poindIDx_r
+                
+                outputStatisticsTemp(:, k) = line;
+                outputCoordsTemp(:, k) = curCoords;
+                outputFramesTemp(:, k) = DF(:);
+            end
+
+            if mod(j, 10^4) == 0
+                str = [num2str(j), ' out of ', num2str(nEl)];
+                disp(str);
+            end
+            
+            outputStatistics{j} = outputStatisticsTemp;
+            outputCoords{j} = int32(outputCoordsTemp);
+            outputFrames{j} = single(outputFramesTemp);
         end
         
-        outputStatisticsAll = [outputStatisticsAll; outputStatistics];
-        outputCoordsAll = [outputCoordsAll; outputCoords];
-        outputScalesAll = [outputScalesAll; outputScales];
-        outputFramesAll = [outputFramesAll; outputFrames];
-        curTSAll = curTSAll + curTS;
+        outputCoordsAll{i} = [outputCoords{:}];
+        outputFramesAll{i} = [outputFrames{:}];
+        
+        tempSt = [outputStatistics{:}]; % vertcat
+        tempSt = convertWorldUnitsToFile(tempSt, xyzStep, angleStep);
+        outputStatisticsAll{i} = tempSt;
+        
+        if mod(i, 1) == 0
+            str = ['Temp/outputStatisticsAll_', num2str(i), '.mat'];
+            save(str, 'outputStatisticsAll', '-v7.3');
+            
+            str = ['Temp/outputCoordsAll_', num2str(i) ,'.mat'];
+            save(str, 'outputCoordsAll', '-v7.3');
+            
+            outputStatisticsAll = {};
+            outputCoordsAll = {};
+            outputFramesAll = {};
+        end
 
-        iiiPrev = iii + 1;
-    
+        disp(['Image - ', num2str(i)]);
     end
-    
-    disp('Statistics collection time is ...');
-    toc
-
+     
+%     disp('Statistics collection time is ...');
 end
 
 function [af, bf, cf, df] = myFilter4(a,b,c,d, ids)
@@ -338,6 +338,97 @@ function plotFrame(V, centre, vecLen, vectColors, n)
 
     end
 end
+
+function plotVector(V, vecLen, vectColors, point)
+
+    XX = [point(1), point(1) + vecLen * V(1)];
+    YY = [point(2), point(2) + vecLen * V(2)];
+    ZZ = [point(3), point(3) + vecLen * V(3)];
+
+    plot3(XX, YY, ZZ, 'Color', vectColors);
+    hold on
+
+end
+
+function statistics = convertWorldUnitsToFile(statistics, xyzStep, angleStep)
+    idsAngles = [(6:8)'; (19:21)'];
+    idsCoords = [(3:5)'; (16:18)'];
+    statistics(idsCoords, :) = round(statistics(idsCoords, :) / xyzStep);
+    statistics(idsAngles, :) = round(statistics(idsAngles, :) / angleStep);
+    statistics = int8(statistics);
+end
+
+
+
+
+                % compute projections
+%                 angleXLeft =  90 - 180 * acos(dot(Xtemp,NormalLeft)/norm(NormalLeft))   /pi;
+%                 angleYLeft =  90 - 180 * acos(dot(Ytemp,NormalLeft)/norm(NormalLeft))   /pi;
+%                 angleXRight = 90 - 180 * acos(dot(Xtemp,NormalRight)/norm(NormalRight)) /pi;
+%                 angleYRight = 90 - 180 * acos(dot(Ytemp,NormalRight)/norm(NormalRight)) /pi;
+
+%                 try
+% 
+%                 clusterXLeft = define1Cluster(angleXLeft, cluster1Bounds, nClusters);
+%                 clusterYLeft  = define1Cluster(angleYLeft, cluster1Bounds, nClusters);
+%                 clusterXRight = define1Cluster(angleXRight, cluster1Bounds, nClusters);
+%                 clusterYRight = define1Cluster(angleYRight, cluster1Bounds, nClusters);
+% 
+%                 catch error1
+%                     continue;
+%                 end
+% 
+%                 if clusterXLeft <= 0 || clusterYLeft <= 0 || clusterXRight <=0 || clusterYRight <=0
+%                     continue;
+%                 end
+% 
+%                 % define left and right neighbours
+%                 leftRO = compute2elementIndex(clusterXLeft, clusterYLeft, nClusters);    % relative orientation
+%                 rightRO = compute2elementIndex(clusterXRight, clusterYRight, nClusters); % relative orientation
+
+
+
+%                 offsetXLeft = abs(coordsLeft(1));
+%                 offsetXRight = abs(coordsRight(1));
+% 
+%                 depthLeft = coordsLeft(3)  * offsetsConventional{layerID}/offsetXLeft;
+%                 depthRight = coordsRight(3)* offsetsConventional{layerID}/offsetXRight;
+% 
+%                 if offsetXLeft == 0 || offsetXRight == 0;
+%                     continue;
+%                 end
+
+
+
+
+%                     if length(lefts) > 1  % find the one with the shortest distance 
+                        
+%                        disp('Something went wrong');
+%                        lenE = length(lefts);
+% %                        score = double(options.weight * lefts) - distsLeft;
+%                        id = find(score == max(score));
+%                        if length(id) > 1
+%                            id = id(1);
+%                        end
+%                        [lefts, indsXLeft, indsYLeft, distsLeft] = myFilter4(lefts,indsXLeft,indsYLeft,distsLeft, id);
+%                        depthsLeft= depthsLeft(id);
+%                     end
+% 
+%                     if length(rights) > 1  % find the one with the largest scale and shortest distance 
+%                        disp('Something went wrong');
+%                        lenE = length(rights);
+% %                        score = double(options.weight * rights) - distsRight;
+%                        id = find(score == max(score));
+%                        if length(id) > 1
+%                            id = id(1);
+%                        end
+%                        [rights, indsXRight, indsYRight, distsRight] = myFilter4(rights,indsXRight,indsYRight,distsRight, id);
+%                        depthsRight = depthsRight(id);
+%                     end
+
+
+
+
 
 
 %                     while length(facesId) < nf

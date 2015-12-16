@@ -11,10 +11,12 @@ function [scales, lineAdders] = getScales(dataSetNumber, is_multyScale)
 
     if dataSetNumber == 3  % Vladislav_STD
         scales = [1.0, 0.82 0.66, 0.50, 0.33];
-    elseif dataSetNumber == 5  % Vladislav_STD
+    elseif dataSetNumber == 5  % Aim@Shap meshes
 %         scaleStep = 0.25;
 %         scales = 2.0:-scaleStep:0.25;
-        scales = 0.50; 
+%        scales = [0.33, 0.66, 1.0, 1.5];
+
+        scales = 1.0;
     end
     
     for i = 1: length(scales)       
