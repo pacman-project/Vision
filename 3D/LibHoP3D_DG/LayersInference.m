@@ -46,7 +46,7 @@ dowsample_rate = 1;
 
 
 % define all filtering parameters 
-receptiveField = getReceptiveFieldSize(dataSetNumber);
+[receptiveFieldRad, offsetsConventional] = getReceptiveFieldSize(dataSetNumber);
 if is_multyScale
     [scales, lineAdders] = getScales(dataSetNumber, is_multyScale);
     lenSc = length(scales);
@@ -75,14 +75,15 @@ nCl = num2str(nClusters);
 is_overwrite = true;
 
 
-vocabulary1Layer = [root, 'statistics/statistics_1_', dsN, '_', nCl, '.mat'];
-load(vocabulary1Layer); %  cluster1Centres, cluster1Bounds, thresh
-% depthStep = thresh/4;
+% vocabulary1Layer = [root, 'statistics/statistics_1_', dsN, '_', nCl, '.mat'];
+% load(vocabulary1Layer); %  cluster1Centres, cluster1Bounds, thresh
+% % depthStep = thresh/4;
 
 % [~, statisticsLayerSieved_Strong, statisticsLayerAggregated_Strong, statisticsLayerSieved_Weak, statisticsLayerAggregated_Weak, ...
 %     ~, fileForVisualizationLayer, ~, ~, ~, partsLayerAll, calibrationFile] = getStandardFilePaths(root, dsN, nCl);
 
-[~, fileForVisualizationLayer, ~, ~, ~, partsLayerAll, calibrationFile] = getStandardFilePaths(root, dsN, nCl);
+[partsLayer, fileForVisualizationLayer, ~, ~, ~, partsLayerAll, calibrationFile] = getStandardFilePaths(root, dsN, nCl);
+% [partsLayer, fileForVisualizationLayer, partsLayerLoc, partsLayerEnt, partsSpecialSelected, partsLayerAll, calibrationFile] = getStandardFilePaths(root, dsN, nCl);
 
 if inputDataType == 1
     zScale = load(calibrationFile);
@@ -94,19 +95,32 @@ if infArray(2) % perform inference of the second layer
     disp('Inference of the 2nd layer ...');
     
     if is_multyScale  % perform inference at each scale separately
+        %crossScaleStructure = {};
         
-        for i = lenSc:-1:1  % For each scale perform inference separately
+        for i = 1:lenSc  % For each scale perform inference separately
             str = inputPath{1, 1};
             str1 = getPathScale(str, lineAdders{i});
             [list_input, ~, ~, lenF] = extractFileListGeneral(str1, is_subset, subsetPercent, dataSetNumber);
             strI21 = inputPath{2,1};
             str2 = getPathScale(strI21, lineAdders{i});
             strE = getElPath(str2, 2);
+            
+%             load('Temp/crossScaleStructure.mat');
+%             if i >=3
+
             if inputDataType == 1 % depth images
-                performInference2DG(list_input, lenF, inputDataType, receptiveField{1}, str2, zScale, filtOptions, is_overwrite, strE);
+                performInference2DG(list_input, lenF, inputDataType, offsetsConventional{2}, str2, zScale, filtOptions, is_overwrite, strE);
             elseif inputDataType == 2 % meshes
-                PerformInference1MeshTrialFixed(list_input, lenF, dataSetNumber, receptiveField{2}, is_overwrite, strE);
+                PerformInference1MeshTrialFixed(list_input, lenF, receptiveFieldRad{2}, receptiveFieldRad{3}, is_overwrite, strE); % crossScaleStructure, i);
             end
+            
+%             else
+%                  crossScaleStructure = reviseFaces(crossScaleStructure, list_input, lenF, receptiveField{4}, strE, lenSc, i);
+%             end
+            
+%             if i == 2
+%                 save('Temp/crossScaleStructure.mat', 'crossScaleStructure');
+%             end
         end
     end
 end
@@ -114,60 +128,93 @@ end
 
 % LIST_MASK - TO DELETE
 
-for layerID = 3:6
-    
-    if infArray(layerID)
-        
-        str = ['Inference of the layer ', num2str(layerID), '...'];
-        disp(str); 
+if inputDataType == 1 % depth images
+    for layerID = 3:6
 
-        [list_input, list_mask, ~, lenF] = extractFileListGeneral(inputPath{layerID-1, 2}, is_subset, subsetPercent, dataSetNumber); 
-        [list_els] = makeElList(list_input, inputPath{layerID-1, 2}, elPath{layerID-1, 2});
-        
-        try   
-            load(statisticsLayerAggregated_Weak{layerID});  % 'X' ,'frequencies', 'curTS', 'triples'
-            load(statisticsLayerSieved_Weak{layerID});     %   'statistics', 'clusterCurDepths', 'outputCoords'
-        catch exception  % if this statistics is not computed
-            load(statisticsLayerSieved_Strong{layerID});     %   'statistics', 'clusterCurDepths', 'outputCoords'
-            load(statisticsLayerAggregated_Strong{layerID});  % 'X' ,'frequencies', 'curTS', 'triples'
-        end
-        
-        load(partsLayerAll{layerID});   % 'triplesCurOut', 'nNClusters', 'partEntropy'
-        clear('statistics', 'outputCoords', 'triples', 'frequencies');
+        if infArray(layerID)
 
-        triplesCurOut{layerID} = triplesCurOut{layerID}(1:nNClusters{layerID}, :);
+            str = ['Inference of the layer ', num2str(layerID), '...'];
+            disp(str); 
 
-        performInferenceNext(list_input, list_els, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
-                    nNClusters{layerID-1}, nNClusters{layerID}, nClusters, X, triplesCurOut{layerID}, partsEntropy{layerID}, displ, ...
-                    elPath{layerID, 1}, is_inhibition, inferenceElType{layerID}, inferenceElRadius{layerID}, ...  
-                    is_downsampling, dowsample_rate, elPath{layerID-1, 2}, meargeThresh{layerID}, isErrosion, discRadius, is_guided, r_guided, eps, ...
-                    is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, clusterCurDepths, fileForVisualizationLayer{layerID-1}, ...
-                    dataSetNumber, layerID, cluster1Centres, fieldSize{layerID}, cluster1Bounds, numSimilar{layerID}, is_overwrite);
+            [list_input, list_mask, ~, lenF] = extractFileListGeneral(inputPath{layerID-1, 2}, is_subset, subsetPercent, dataSetNumber); 
+            [list_els] = makeElList(list_input, inputPath{layerID-1, 2}, elPath{layerID-1, 2});
 
-        % count number of detections for each part
+            try   
+                load(statisticsLayerAggregated_Weak{layerID});  % 'X' ,'frequencies', 'curTS', 'triples'
+                load(statisticsLayerSieved_Weak{layerID});     %   'statistics', 'clusterCurDepths', 'outputCoords'
+            catch exception  % if this statistics is not computed
+                load(statisticsLayerSieved_Strong{layerID});     %   'statistics', 'clusterCurDepths', 'outputCoords'
+                load(statisticsLayerAggregated_Strong{layerID});  % 'X' ,'frequencies', 'curTS', 'triples'
+            end
 
-        [list_els, ~, ~, lenF] = extractFileListForClassificationGeneral(elPath{layerID, 1}, is_subset, 1.0, dataSetNumber);
-        tableEls = ComputeStatsAfterInference(list_els, nNClusters{layerID});
-        tableEls = tableEls';
-        a = [triplesCurOut{layerID}, tableEls];
-        
-            % perform downsampling immediately after inference procedure
-    
-        if isDownsampling{layerID}                                                     % downsamples MARKS images in place!!!
+            load(partsLayerAll{layerID});   % 'triplesCurOut', 'nNClusters', 'partEntropy'
+            clear('statistics', 'outputCoords', 'triples', 'frequencies');
 
-            marksDownsampling(list_els, lenF, downSamplingFactor, elPath{layerID, 1}, elPath{layerID, 2});
-            
-            % check statistics after downsampling
-            [list_els, ~, ~, lenF] = extractFileListForClassificationGeneral(elPath{layerID, 2}, is_subset, 1.0, dataSetNumber);
-            [ tableEls ] = ComputeStatsAfterInference(list_els, nNClusters{layerID});
+            triplesCurOut{layerID} = triplesCurOut{layerID}(1:nNClusters{layerID}, :);
+
+            performInferenceNext(list_input, list_els, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, ...
+                        nNClusters{layerID-1}, nNClusters{layerID}, nClusters, X, triplesCurOut{layerID}, partsEntropy{layerID}, displ, ...
+                        elPath{layerID, 1}, is_inhibition, inferenceElType{layerID}, inferenceElRadius{layerID}, ...  
+                        is_downsampling, dowsample_rate, elPath{layerID-1, 2}, meargeThresh{layerID}, isErrosion, discRadius, is_guided, r_guided, eps, ...
+                        is_mask_extended, maxExtThresh1, maxExtThresh2, depthStep, clusterCurDepths, fileForVisualizationLayer{layerID-1}, ...
+                        dataSetNumber, layerID, cluster1Centres, fieldSize{layerID}, cluster1Bounds, numSimilar{layerID}, is_overwrite);
+
+            % count number of detections for each part
+
+            [list_els, ~, ~, lenF] = extractFileListForClassificationGeneral(elPath{layerID, 1}, is_subset, 1.0, dataSetNumber);
+            tableEls = ComputeStatsAfterInference(list_els, nNClusters{layerID});
             tableEls = tableEls';
             a = [triplesCurOut{layerID}, tableEls];
 
-        end
+                % perform downsampling immediately after inference procedure
 
+            if isDownsampling{layerID}                                                     % downsamples MARKS images in place!!!
+
+                marksDownsampling(list_els, lenF, downSamplingFactor, elPath{layerID, 1}, elPath{layerID, 2});
+
+                % check statistics after downsampling
+                [list_els, ~, ~, lenF] = extractFileListForClassificationGeneral(elPath{layerID, 2}, is_subset, 1.0, dataSetNumber);
+                [ tableEls ] = ComputeStatsAfterInference(list_els, nNClusters{layerID});
+                tableEls = tableEls';
+                a = [triplesCurOut{layerID}, tableEls];
+
+            end
+
+        end
     end
+elseif inputDataType == 2  % inference from the mesh
+     for layerID = 3:6
+ 
+        if infArray(layerID)
+            
+            for i = 1:length(scales)
+                
+                strDisp = ['Inference of the layer ', num2str(layerID), '...'];
+                disp(strDisp); 
+                
+                str = inputPath{layerID, 1};
+                input_path = getPathScale(str, lineAdders{i});
+                inFolder = getElPath(input_path, layerID-1);
+                outFolder = getElPath(input_path, layerID);
+
+                [list_input, ~, ~, lenF] = extractFileListGeneral(input_path, is_subset, subsetPercent, dataSetNumber);
+                [list_els] = makeElList(list_input, input_path, inFolder);
+
+                load(partsLayer{layerID});
+                InferenceNext_simple(statistics, outputCoords, outputScales, outputFrames, curTS, inFolder, outFolder, list_els, ...
+                                    triplesCurOut{layerID}, nNClusters{1}^2, nNClusters{layerID});
+                                
+                a = 2;
+            end
+        end
+     end
 end
-end
+
+
+
+
+
+end  % end of the function
 
 function sP = getPathScale(pathBase, adder)
     sP = [pathBase, '_', adder];

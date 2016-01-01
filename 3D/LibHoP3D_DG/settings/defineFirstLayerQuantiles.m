@@ -10,9 +10,22 @@ function [cluster1Centres, cluster1Bounds, thresh] = defineFirstLayerQuantiles(n
         end
     end
     
+    if nClusters == 9
+        if dataSetNumber == 5
+            cluster1Bounds = [-70, -50, -35, -20, -7, 7, 20, 35, 50, 70];
+            thresh = 40;
+        elseif dataSetNumber == 3
+            cluster1Bounds = [-75   -50   -35   -20     -10    10    20    35    50    75];
+            thresh = 40;
+        end
+    end
+    
     if nClusters == 11
         if dataSetNumber == 5
             cluster1Bounds = [-90, -70, -50, -35, -20, -7, 7, 20, 35, 50, 70, 90];
+            thresh = 40;
+        elseif dataSetNumber == 3
+            cluster1Bounds = [-78   -58   -39   -25   -15     -7    7    15    25    39    58    78];
             thresh = 40;
         end
     end

@@ -6,22 +6,18 @@
 % triple3OutDepth has the folowing format:
 % leftX leftY left_depthMin, left_depthMax, left_avg, centralX, centralY, rightX rightY right_depthMin, right_depthMax, right_avg
 
-function [triple3OutDepth] = store3Layer(triples3Out, cluster3Depths, n3Clusters, nClusters, partSelectionMethod)
+function [triple3OutDepth] = store3Layer(triples3Out, cluster3Depths, n3Clusters, nClusters)
 
     triple3OutDepth = zeros(n3Clusters, 12); % 5+2+5
     
     for i = 1:n3Clusters
         cur = triples3Out(i,:);
-        
-        if partSelectionMethod == 1 % rewrite to format: leftX leftY centralX, centralY, rightX rightY
 
-            [clusterXL, clusterYL] = compute2derivatives(cur(1), nClusters);
-            [clusterXC, clusterYC] = compute2derivatives(cur(2), nClusters);
-            [clusterXR, clusterYR] = compute2derivatives(cur(3), nClusters);
+        [clusterXL, clusterYL] = compute2derivatives(cur(1), nClusters);
+        [clusterXC, clusterYC] = compute2derivatives(cur(2), nClusters);
+        [clusterXR, clusterYR] = compute2derivatives(cur(3), nClusters);
 
-            cur = [clusterXL, clusterYL, clusterXC, clusterYC, clusterXR, clusterYR];
-        end
-        
+        cur = [clusterXL, clusterYL, clusterXC, clusterYC, clusterXR, clusterYR];
         line = zeros(1,12);
         
         inds = [1,2,6,7,8,9];

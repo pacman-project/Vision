@@ -9,8 +9,6 @@ function [X, frequencies, triples, is_sparse] = Aggregate_3Layer(statistics, nPr
     % now we do not care about depths
     nPrevClusters = nPrevClusters + 1;  % to tacle empty cells
     
-    inds3 = [2,1,4];
-    statistics = statistics(:, inds3);
     
     is_sparse = false;
     if nPrevClusters > 700

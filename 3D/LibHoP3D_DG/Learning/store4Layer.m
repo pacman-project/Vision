@@ -11,7 +11,7 @@
 % triple3OutDepth has the folowing format:
 % left3 left_depthMin, left_depthMax, left_avg, central3, right3 right_depthMin, right_depthMax, right_avg
 
-function [triple4OutDepth] = store4Layer(triples4Out, cluster4Depths, n4Clusters, nClusters, partSelectionMethod)
+function [triple4OutDepth] = store4Layer(triples4Out, cluster4Depths, n4Clusters, nClusters)
 
     triple4OutDepth = zeros(n4Clusters, 9); % 4+1+4  % top - central - bottom 
     
@@ -21,9 +21,9 @@ function [triple4OutDepth] = store4Layer(triples4Out, cluster4Depths, n4Clusters
 %         end
         cur = triples4Out(i,:);
         
-        if partSelectionMethod == 1 % rewrite to format: leftX leftY centralX, centralY, rightX rightY
-            cur = [cur(1), cur(2) cur(3)];
-        end
+        % rewrite to format: leftX leftY centralX, centralY, rightX rightY
+        cur = [cur(1), cur(2) cur(3)];
+
         
         line = zeros(1,9);
         

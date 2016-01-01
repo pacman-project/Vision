@@ -43,7 +43,7 @@ end
 
 object_name = 'curobj';
 
-fprintf(fid, ['g\n# object ' object_name ' to come\n']);
+% fprintf(fid, ['g\n# object ' object_name ' to come\n']);
 
 % vertex position
 fprintf(fid, '# %d vertex\n', size(vertex,1));

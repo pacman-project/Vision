@@ -1,173 +1,139 @@
-% this function collects co-occurrence statistics each layer starting form
-% the 3rd one and encode it as 3D statistical maps
+% this function builds statistical maps out of co-occurrence statistic
+% files
 
-
-function [statistics, sumSamples] = buildStatMap_NextLayers(list_elements, list_depths, list_mask, lenF, sigma, sigmaKernelSize, dxKernel, isErrosion, discRadius,...
-                                                        nPrevClusters, depthStep, dataSetNumber, ...
-                                                        is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, fieldSize, filterThresh)
+function [statMapLeft, statMapRight] = buildStatMap_NextLayers(lenFiles, nPrevClusters, offsetConventional, statMapProperties, layerID, is_GPU)
                                                     
-    disp('constructing statistical maps...');
-    %  for example displacements = [0 0; 0 -6; 0 6]; or displacements = [0 0; -6, 0; 6, 0];
-    %      2 1 3  or
-    %     2
-    %     1
-    %     3
+    idsLeft  = (3:8)';
+%     idsXYLeft = (3:4)';
+%     idsZLeft = 5;
+    idsRight = (16:21)';
+%     idsXYRight = (16:17)';
+%     idsZRight = 18;
     
-    errosionAdder = 0;
-    emptyCellID = nPrevClusters + 1;
-    isY = false;
-    isX = false;
-    isX_FB = false;
-    
-    halfFieldSize = floor(fieldSize/2);
-    maxRelDepth = halfFieldSize(3);
-    
-    
-    isTrim = false; % parameters for preliminary processing
-    
-    if dataSetNumber ~= 2
-        list_mask = zeros(1, lenF);
-    end
-    
-    tic;
-    statBox = zeros(fieldSize(1), fieldSize(2), fieldSize(3));
+    statMapLeft = {};
+    statMapRight = {};
     
     for i = 1:nPrevClusters
         for j = 1:nPrevClusters
-            statistics{i}{j} = statBox;
+            statMapLeft{i,j} = {};
+            statMapRight{i,j} = {};
         end
     end
     
-    
-    sumSamples = zeros(nPrevClusters, nPrevClusters);
-    halfFieldSize = floor(fieldSize/2);
-    fieldCentre = ceil(fieldSize/2);
+    [sizeXY, sizeZ, sizeAngle, centreXY, centreZ, centreAngle] = computeStatMapSizes(statMapProperties, offsetConventional);
     
     
-    step = 100;
-    iiiPrev = 1;
-    
-    for iii = step:step:lenF % This is done to speed up
+    for i = lenFiles:lenFiles %20:20:lenFiles
         
-        outputStatistics = [];
-        outputCoords = [];
-        curTS = 0;
+        str = ['Temp/outputStatisticsAll_', num2str(i) ,'.mat'];
+        aa = load(str);
+        outputStatisticsAll = aa.outputStatisticsAll;
         
-        indStart = iiiPrev;
-        rest = lenF - iii;
-        if rest < step
-            indEnd = lenF;
-        else
-            indEnd = iii;
-        end
+        outputStatistics = [outputStatisticsAll{:}];
         
-    
-        for i = indStart:indEnd
-
-                I = imread(list_depths{i});     % depth image
-                marksPrev = imread(list_elements{i});  % elements of the previous layer
-
-                I = I(:,:,1);
-
-                if dataSetNumber == 2
-                    mask = imread(list_mask{i});
-                else
-                    mask = [];
-                end
-
-
-                if dataSetNumber == 1 || dataSetNumber == 3 % Aim@Shape dataset || Vladislav_STD
-
-                    [I, ~, ~, mask, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius + errosionAdder, isX, isY, isX_FB, isTrim, dxKernel, sigmaKernelSize, sigma, ...
-                                                                            is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, ...
-                                                                            [],[],[],[]);
-
-                elseif dataSetNumber == 2  % Washington data set
-
-
-                    [I, ~, ~, ~, r, c, is_successfull] = preliminaryProcessing(I, mask, isErrosion, discRadius + errosionAdder, isX, isY, isX_FB, isTrim, dxKernel, sigmaKernelSize, sigma, ...
-                                                                            is_guided, r_guided, eps,  is_mask_extended, maxExtThresh1, maxExtThresh2, ...
-                                                                            [],[],[],[]);
-
-                end
-
-                if ~is_successfull
-                    continue;
-                end
-
-                [rEl, cEl] = size(mask);  % all three images should be of the same size!
-                if r~=rEl || c ~= cEl
-                    disp('ERROR');
-                end
-                [rEl, cEl] = size(marksPrev);
-                if r~=rEl || c ~= cEl
-                    disp('ERROR');
-                end
-                if ~is_successfull
-                    disp('ERROR');
-                end
-
-                % next we try to match the next layer element around each window
-
-
-                [rows, cols] = find(marksPrev > 0);
-                nEl = length(rows);
-
-                for j = 1: nEl
-
-
-                    el = marksPrev(rows(j), cols(j));
-                    depthCentral = I(rows(j), cols(j));
-                    
-                    indsW = find(rows >= rows(j) - halfFieldSize(2) & rows <= rows(j) + halfFieldSize(2) & cols >= cols(j) - halfFieldSize(1) & cols <= cols(j) + halfFieldSize(1));
-                    
-                    lenIW = length(indsW);
-                    
-                    for iiii = 1:lenIW
-                        
-                        curEl = marksPrev(rows(indsW(iiii)), cols(indsW(iiii)));
-                        relDepth = round((I(rows(indsW(iiii)), cols(indsW(iiii))) - depthCentral) / depthStep);  % relative depth
-                        shiftX = fieldCentre(1) + cols(indsW(iiii)) - cols(j);
-                        shiftY = fieldCentre(2) + rows(indsW(iiii)) - rows(j);
-                        
-                        if relDepth > maxRelDepth
-                            relDepth = maxRelDepth;
-                        elseif relDepth < -maxRelDepth
-                            relDepth = -maxRelDepth; % for one bite coding
-                        end
-                        relDepth = relDepth + fieldCentre(3);
-                        
-                        
-                        
-                        
-                        
-                        statistics{el}{curEl}(shiftX, shiftY, relDepth) = statistics{el}{curEl}(shiftX, shiftY, relDepth) + 1;
-                        sumSamples(el, curEl) = sumSamples(el, curEl) + 1;
-                    end
-
-
-                end
-
-            i
+        if isempty(outputStatistics)
+            continue;
         end
 
-        iiiPrev = iii + 1;
-    
-    end
-    
-    % filter out those pairs of statistics which 
-    
-    for i = 1:nPrevClusters
-        for j = 1:nPrevClusters
-            if sumSamples(i, j) < filterThresh
-                statistics{i}{j} = [];
+        if ~is_GPU
+            centrals = outputStatistics(1,:);
+            lefts = outputStatistics(2, :);
+            rights = outputStatistics(15, :);
+
+            combsLeft = unique([centrals; lefts]', 'rows');
+            combsRight = unique([centrals; rights]', 'rows');  %TOO SLOW
+        else                
+            centrals = gpuArray(outputStatistics(1,:));
+            lefts = gpuArray(outputStatistics(2, :));
+            rights = gpuArray(outputStatistics(15, :));
+
+            combsLeft = gather(uniqueMyRows(double([centrals; lefts])))';
+            combsRight = gather(uniqueMyRows(double([centrals; rights])))';
+        end
+ 
+        % convert outputStatistics to the units of the statistical map
+        outputStatistics = fromFileToStatMap(outputStatistics, statMapProperties, centreXY, centreZ, centreAngle, offsetConventional, layerID);
+
+        for k = 1:size(combsLeft, 1)
+            if isempty(statMapLeft{combsLeft(k,1), combsLeft(k,2)})
+                statMapLeft{combsLeft(k,1), combsLeft(k,2)} = uint8(zeros(sizeXY,sizeXY,sizeZ,sizeAngle,sizeAngle,sizeAngle));
             end
         end
-    end
+        for k = 1:size(combsRight, 1)
+            if isempty(statMapRight{combsRight(k,1), combsRight(k,2)})
+                statMapRight{combsRight(k,1), combsRight(k,2)} = uint8(zeros(sizeXY,sizeXY,sizeZ,sizeAngle,sizeAngle,sizeAngle));
+            end
+        end
 
+        for k = 1:size(combsLeft,1)
+            tempMatr = uint8(zeros(sizeXY,sizeXY,sizeZ,sizeAngle,sizeAngle,sizeAngle));
+            ids = centrals == combsLeft(k,1) & lefts == combsLeft(k,2);
+            statisticsTemp = double(outputStatistics(idsLeft, ids));
+            inds = sub2ind(size(tempMatr), statisticsTemp(1,:), statisticsTemp(2,:), statisticsTemp(3,:) ,...
+                statisticsTemp(4,:), statisticsTemp(5,:), statisticsTemp(6,:));
+            t = unique(inds);
+            if length(t) > 1
+                [freq, idds] = hist(inds, t);
+                tempMatr(idds) = freq;
+            else
+                tempMatr(inds) = length(t);
+            end
+            statMapLeft{combsLeft(k,1), combsLeft(k,2)} = statMapLeft{combsLeft(k,1), combsLeft(k,2)} + tempMatr;
+        end
+
+        for k = 1:size(combsRight,1)
+            tempMatr = uint8(zeros(sizeXY,sizeXY,sizeZ,sizeAngle,sizeAngle,sizeAngle));
+            ids = centrals == combsRight(k,1) & rights == combsRight(k,2);
+            statisticsTemp = double(outputStatistics(idsRight, ids));
+            inds = sub2ind(size(tempMatr), statisticsTemp(1,:), statisticsTemp(2,:), statisticsTemp(3,:) ,...
+                statisticsTemp(4,:), statisticsTemp(5,:), statisticsTemp(6,:));
+            t = unique(inds);
+            if length(t) > 1
+                [freq, idds] = hist(inds, t);
+                tempMatr(idds) = freq;
+            else
+                tempMatr(inds) = length(t);
+            end
+            statMapRight{combsRight(k,1), combsRight(k,2)} = statMapRight{combsRight(k,1), combsRight(k,2)} + tempMatr;
+        end
+    end
 end
 
 
+function combs = uniqueMyRows(matr)
+    values = 9999 * matr(1,:) + matr(2,:);
+    [~,ia,~] = unique(values);
+    combs = matr(:, ia');
+end
+
+% unit conversion
+function outputStatistics = fromFileToStatMap(outputStatistics, statMapProperties, centreXY, centreZ, centreAngle, offsetConventional, layerID)
+
+    idsAngles = [(6:8)'; (19:21)'];
+    
+    xyzStep = statMapProperties.xyzStep;
+    vectStep = statMapProperties.vectStep;
+    
+    if layerID == 3 || layerID == 5
+        outputStatistics(idsAngles, :) = round(outputStatistics(idsAngles, :)/vectStep) + centreAngle;
+        outputStatistics(3, :) = outputStatistics(3, :) - offsetConventional/xyzStep + centreXY;
+        outputStatistics(4, :) = outputStatistics(4, :) + centreXY;
+        outputStatistics(5, :) = outputStatistics(5, :) + centreZ;
+        outputStatistics(16, :) = outputStatistics(16, :) + offsetConventional/xyzStep + centreXY;
+        outputStatistics(17, :) = outputStatistics(17, :) + centreXY;
+        outputStatistics(18, :) = outputStatistics(18, :) + centreZ;
+        
+    elseif layerID == 4 || layerID == 6
+        outputStatistics(idsAngles, :) = round(outputStatistics(idsAngles, :)/vectStep) + centreAngle;
+        outputStatistics(3, :) = outputStatistics(3, :) + centreXY;
+        outputStatistics(4, :) = outputStatistics(4, :) - offsetConventional/xyzStep + centreXY;
+        outputStatistics(5, :) = outputStatistics(5, :) + centreZ;
+        outputStatistics(16, :) = outputStatistics(16, :) + centreXY;
+        outputStatistics(17, :) = outputStatistics(17, :) + offsetConventional/xyzStep + centreXY;
+        outputStatistics(18, :) = outputStatistics(18, :) + centreZ;
+    end
+    
+end
 
 
 

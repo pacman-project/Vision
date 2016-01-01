@@ -1,281 +1,309 @@
 % this is to perform inference of the first layer parts with FIXED size of
 % the part
 
-function PerformInference1MeshTrialFixed(list_input, lenFiles, dataSetNumber, patchRad, is_overwrite, strE)
+function PerformInference1MeshTrialFixed(list_input, lenFiles, patchRad, receptiveFieldNext_Rad, is_overwrite, strE)%, crossScaleStructure, curScale)
   
-    is_visualization = false;
+    is_visualization = true;
+    
+    kkMax = 6;
+    maxNumPointDF = 100;
+
     
     for kk = 1:lenFiles
-        fileName = list_input{kk};        
-%         fileName = 'D:\Input Data\Meshes\Aim@Shape_Selected_2.00\D00002.obj';
+        
+        tic
+         fullFileName = list_input{kk};        
+%         fullFileName = 'D:\Input Data\Meshes\cupQuadr.obj';
 
-        [folderName, flieName] = getFolderName(list_input{kk});
-        outFileM = [fileName(1:end-4), '.mat'];
-        outFileAP = [fileName(1:end-4), 'AP.mat'];
+        [~, fileName] = getFolderName(fullFileName);
+        outFileM =  [strE, '/', fileName(1:end-4), '.mat'];
+        outFilePS = [strE, '/', fileName(1:end-4), 'PS.mat'];
+        outFileLH = [strE, '/', fileName(1:end-4), 'LH.mat'];
+        outFileNP = [strE, '/', fileName(1:end-4), 'NP.mat'];
 
-        %     if kk < 10 
-        %         fileName  =  ['D0000', num2str(kk) ,'.obj'];
-        %         fileNameM =  ['D0000', num2str(kk) ,'.mat'];
-        %         fileNameAP = ['D0000', num2str(kk), 'AP.mat'];  % additional points
-        %     elseif kk < 100 
-        %         fileName  = ['D000', num2str(kk) ,'.obj'];
-        %         fileNameM = ['D000', num2str(kk) ,'.mat'];
-        %     elseif kk > 100
-        %         fileName  = ['D00', num2str(kk) ,'.obj'];
-        %         fileNameM = ['D00', num2str(kk) ,'.mat'];
-        %     end
-
-        [V, F, ~] = meshRead(fileName);
-
-        %% make sure that size of the object is 1 at its larger dimension
-
-        threshPlanar = 12; % degrees
-        gridStep = patchRad/5;
-        vecLen = 0.05;
-        vectColors = eye(3);
-
-        % visualize the mesh and some of the normals
-        [V,F] = check_face_vertex(V,F);   
-
-%         trisurf(F',V(1,:),V(2,:),V(3,:), 'FaceColor', [0.5, 0.0, 0.0], 'EdgeColor', [0.0, 0.0, 0.5], 'FaceAlpha', 1.0);
-%         light('Position',[-1.0,-1.0,100.0],'Style','infinite');
-%         axis equal;
-%         lighting phong;
-        %     hold on
-        %     plotFrame(W, vecLen, vectColors, origin); 
-
-        %     scatter3(V(1,:),V(2,:),V(3,:), 'marker', '.');
-        %     axis equal;  
+        [V, F, ~] = meshRead(fullFileName);
+%       V = perform_normal_displacement(V,F, 0.001);
 
         lenV = size(V, 2);
         lenF = size(F, 2);
+        fringAll = ComputeFringDeep(F, kkMax, lenF);
+        fring = fringAll{kkMax};
+        
+        [N, ~] = compute_normal(V,F);
+        
+        %% make sure that size of the object is 1 at its larger dimension
 
-        fring = compute_face_ring(F);
-        vring = compute_vertex_ring(F);
-        [N,~] = compute_normal(V,F);
+        threshPlanar = 10; % degrees
+        gridStep = patchRad/3;
+        vecLen = 0.06;
+        vectColors = eye(3);
+        curvThresh = 1/(20*patchRad);
 
-        % get additional points in the middle (centre of gravity) of each triangle
-        %     areas = compute_Areas(V, F);
-        %     q30 = quantile(areas, 0.2);
-        %     q90 = quantile(areas, 0.9);
+%         % visualize the mesh and some of the normals
+%         [V,F] = check_face_vertex(V,F); 
 
-        [VAll, NAll, pointIDx, numPoints, areCentral, pointIndexing] = compute_AdditionalPointsRegular(V, F, N, gridStep);
 
-        %     numPointsAll = sum(numPoints);
-        %     points = zeros(3, numPointsAll);
-        %     Normals = zeros(3, numPointsAll);
-        %     startPoint = 1;
-        %     
-        %     for j = 1:lenF
-        %         if numPoints(j) > 0
-        %             endPoint = startPoint + numPoints(j) - 1;
-        %             points(:,  startPoint:endPoint) = VAll{j}';
-        %             Normals(:, startPoint:endPoint) = NAll{j}';
-        %             startPoint = endPoint + 1;
-        %         end
-        %     end
+        F1= F(1,:); F2 = F(2,:); F3 = F(3,:);
+        V1 = V(:,F1); V2 = V(:,F2); V3 = V(:,F3);
+%       N1 = N(:,F1); N2 = N(:,F2); N3 = N(:,F3);
 
-        %     points = points(:, 1:endPoint);
-        %     scatter3(points(1,:),points(2,:),points(3,:), 'marker', '.');
-        %     axis equal; 
 
-        %     perform_point_picking(V, F);
-        % 
-        %     trisurf(F(:, iidd)',V(1,:),V(2,:),V(3,:), 'FaceColor', [0.1, 0.1, 0.1], 'EdgeColor', [0.3, 0.3, 0.3], 'FaceAlpha', 1.0);
-        %     light('Position',[-1.0,-1.0,100.0],'Style','infinite');
-        %     axis equal;
-        %     lighting phong;
-        %     hold on
-        %     plotFrame(W, vecLen, vectColors, origin);  
+        FposAll = (V1+V2+V3)/3;  % centre of each face
+%         
+%         N1 = N1*0.06;
+%         
+%         for nn = 565:570
+%             
+%             F(:, nn)
+%             nnn = nn;
+%             trisurf(F(:, nn)',V(1,:),V(2,:),V(3,:), 'FaceColor', [0.2, 0.2, 0.2], 'EdgeColor', 'black', 'FaceAlpha', 0.3);
+%             light('Position',[-1.0,-1.0,100.0],'Style','infinite');
+%             axis equal;
+%             lighting phong;
+%             axis equal;
+%             hold on
+% 
+% %             quiver3(FposAll(1,1:nn), FposAll(2,1:nn), FposAll(3,1:nn), Nf(1,1:nn), Nf(2,1:nn), Nf(3,1:nn), 'blue');
+% 
+%             quiver3(V1(1,nn:nnn), V1(2,nn:nnn), V1(3,nn:nnn), N1(1,nn:nnn), N1(2,nn:nnn), N1(3,nn:nnn), 'blue');
+%             a = 2;
+%          end
+   
+%         N = N * 1.5;       
+%         nn = 2740; 
+%         quiver3(V(1,1:nn), V(2,1:nn), V(3,1:nn), N(1,1:nn), N(2,1:nn), N(3,1:nn), 'blue');
+%         axis equal
+  
+        % Make a list of faces where there is no inference
+%         stopInference = zeros(1, lenF);
+%         for t = 1:curScale - 1
+%             stopInference = stopInference + crossScaleStructure{kk}(t,:);
+%         end
+%         stopInference(stopInference > 1) = 1;
+%         stopInference = zeros(1, lenF);
 
-        nf = 20; % can be 1:4,10
+        [VAll, NAll, pointIDx, numPoints, areCentral, pointIndexing] = compute_AdditionalPointsRegular(V, F, N, gridStep); %, stopInference);
+        
+%         for i = 20841:20943
+%             a = VAll{i};
+%             figure();
+%             VTemp = [V(:, F(1,i)), V(:, F(2,i)), V(:, F(3,i))];
+%             scatter3(a(:,1), a(:,2), a(:,3));
+%             axis equal
+%             hold on
+%             scatter3(VTemp(1,:), VTemp(2, :), VTemp(3,:), 'red');
+%             pause(0.5);
+%         end
 
-        radii = [];
         Vout = [];
         Nout = [];
         Fout = [];   % shows to which face does this part belong
         darFrames = [];
-        NeiOut = {};
+        likelihoods = [];
+        NeiOutTemp = {};
+        
+        listOfFaces = zeros(1, lenF); % scale of each face
+        
+        for sc = 3:1
+            
+            parfor i = 1:lenF % 20841  
 
-        parfor i = 1:lenF
+                facesId = [i, fring{i}];
+                Fpos = FposAll(:,facesId)';
+                Fdist = pdist2(Fpos(1,:), Fpos);
 
-            % Create a list of faces
-            facesId = ExtractAdjacentFaces(i, nf, fring);
+                idsF = Fdist <= 9 * receptiveFieldNext_Rad;
+                facesId = facesId(idsF);
 
-            points = zeros(3, 100);
-            Normals = zeros(3, 100);
-            FaceIDs = zeros(1, 100);
-            pointIDs = zeros(1, 100);
+                points = zeros(3, 100);
+                Normals = zeros(3, 100);
+                FaceIDs = zeros(1, 100);
+                pointIDs = zeros(1, 100);
 
-            % EXTRACT POINTS AND NORMALS THAT BELONG TO THESE FACES    
-            startPoint = 1;
-            endPoint = 0;
-            for j = 1:length(facesId)
-                if numPoints(facesId(j)) > 0
-                    endPoint = startPoint + numPoints(facesId(j)) - 1;
-                    points(:,  startPoint:endPoint) = VAll{facesId(j)}';
-                    Normals(:, startPoint:endPoint) = NAll{facesId(j)}';
-                    FaceIDs(startPoint:endPoint) = facesId(j);
-                    pointIDs(startPoint:endPoint) = 1:numPoints(facesId(j));
-                    startPoint = endPoint + 1;
+                % EXTRACT POINTS AND NORMALS THAT BELONG TO THESE FACES    
+                startPoint = 1;
+                endPoint = 0;
+                for j = 1:length(facesId)
+                    if numPoints(facesId(j)) > 0
+                        endPoint = startPoint + numPoints(facesId(j)) - 1;
+                        points(:,  startPoint:endPoint) = VAll{facesId(j)}';
+                        Normals(:, startPoint:endPoint) = NAll{facesId(j)}';
+                        FaceIDs(startPoint:endPoint) = facesId(j);
+                        pointIDs(startPoint:endPoint) = 1:numPoints(facesId(j));
+                        startPoint = endPoint + 1;
+                    end
                 end
-            end
-            if endPoint == 0
-                continue;
-            end
-
-            points = points(:, 1:endPoint);
-            Normals = Normals(:, 1:endPoint);
-            FaceIDs = FaceIDs(1:endPoint);
-            pointIDs = pointIDs(1:endPoint);
-            areCentralF = areCentral{i};
-
-            idsCent = find(areCentralF == 1);
-
-            for k = 1:nnz(areCentralF)
-
-                partIDx = idsCent(k);
-                Vcentre = VAll{i}(idsCent(k),:)';
-                Ncentre = NAll{i}(idsCent(k),:)';
-
-                % COMPUTE DISTANCES FROM THE CENTRAL POINT      
-                dists = ComputeEuclDists(Vcentre, points, 3);
-                ids = find(dists>0 & dists <= 1.5 * patchRad);
-                idsN = find(dists>0 & dists <= patchRad);
-                
-                dists = dists(ids);
-                pointsTemp = points(:, ids);
-                NormalsTemp = Normals(:, ids);
-                
-
-                %sort according to a distance
-                [dists, ix] = sort(dists, 'ascend');
-                pointsTemp  = pointsTemp(:, ix);
-                NormalsTemp = NormalsTemp(:, ix);
-
-                rad = 0;
-                counter = 0;
-                is_ok = false;
-
-                for j = 1:size(pointsTemp, 2)
-                    if abs(angleVec(Ncentre, NormalsTemp(:,j))) <= threshPlanar
-                        rad = dists(j);
-                    else
-                        counter = counter + 1;
-                    end
-
-                    if rad >= patchRad * 0.66
-                        is_ok = true;
-                        break;
-                    end
-                    if counter == 3 && ~is_ok  % no planar patch here
-                        break;
-                    end
-
-                end
-
-                if is_ok
-                    radii = [radii, rad];
-                    Vout = [Vout, Vcentre];
-                    Nout = [Nout, Ncentre];
-                    Fout = [Fout; [i, partIDx]];
-
-                    % estimate the darboux frame here
-                    [V,D] = computeDarbouxFrame(Ncentre, pointsTemp(1,:), pointsTemp(2,:), pointsTemp(3,:));
-                    darFrames = [darFrames; V(:)'];
-                    
-                    % get a list of points that belong to this planar patch
-                    FaceIDsTemp = FaceIDs(idsN);
-                    pointIDsTemp = pointIDs(idsN);
-                    Pind = [];
-                    for nn = 1:length(FaceIDsTemp)
-                        Pind = [Pind, pointIDx{FaceIDsTemp(nn)}(pointIDsTemp(nn))];
-                    end
-                    NeiOut{i}{partIDx} = Pind;
-                end
-
-
-    %             cur = cur + 1;
-    %             radii(cur) = rad;
-    %             Vout(:,cur) = Vcentre;
-    %             Nout(:,cur) = Ncentre;
-            end
-
-            if mod(i, 100) == 0
-                i
-            end 
-        end
-    
-    %     ind = find(radii > 2*patchRad/3);
-    %     radii = radii(ind);
-    %     Vout = Vout(:, ind);
-    %     Nout = Nout(:, ind);
-
-        lenParts = length(radii);
-
-        % TRY TO VISUALIZE THE RECONSTRUCTION 
-        V = zeros(4 * lenParts, 3);
-        F = zeros(2 * lenParts, 3);
-        j = 1; 
-
-        if is_visualization
-            for i = 1:length(radii)
-
-                if radii(i) == 0
+                if endPoint == 0
                     continue;
                 end
 
-                position = Vout(:, i);
-                Norm = Nout(:, i);
-                Norm = Norm/norm(Norm);
+                points = points(:, 1:endPoint);
+                Normals = Normals(:, 1:endPoint);
+                FaceIDs = FaceIDs(1:endPoint);
+                pointIDs = pointIDs(1:endPoint);
+                areCentralF = areCentral{i};
+                idsCent = find(areCentralF == 1);
+                numM = nnz(areCentralF);
 
-                if dot(Norm, [1;0;0]) > 10^-4
-                    xtemp = [1;0;0];
-                else
-                    xtemp = [0;1;0];
+                for k = 1:numM
+
+                    pointID = idsCent(k);
+
+    %                 if partIDx == 4
+    %                     a = 2;
+    %                 end
+                    Vcentre = VAll{i}(idsCent(k),:)';
+                    Ncentre = NAll{i}(idsCent(k),:)';
+
+                    % COMPUTE DISTANCES FROM THE CENTRAL POINT      
+    %               dists = ComputeEuclDists(Vcentre, points, 3);
+                    dists = sqrt(sum((points - repmat(Vcentre, 1, size(points,2))).^2, 1))';
+
+    %                 dists2 = sqrt(sum((bsxfun(@minus, points, Vcentre)).^2, 1))';
+    %                 points = points';
+    %                 dists = sqrt(sum(([points(:,1)-Vcentre(1),points(:,2)-Vcentre(2),points(:,3)-Vcentre(3)]).^2, 2));
+    %                 dists4 = sqrt(sum((bsxfun(@minus, points, Vcentre')).^2, 2));
+    %                 points = points';
+
+                    ids = find(dists>0 & dists <= patchRad);
+                    idsDF  = find(dists>0.8*patchRad & dists <= 3 * receptiveFieldNext_Rad);
+                    idsDF2 = find(dists>2 * patchRad & dists <= 9 * receptiveFieldNext_Rad);
+
+                    if length(ids) < 4 || length(idsDF) < 6
+                        continue;
+                    end
+
+                    % this is done in order to speed up
+                    if length(idsDF) > maxNumPointDF
+                        idsTemp = randperm(length(idsDF), maxNumPointDF);
+                        idsDF = idsDF(idsTemp);
+                    end
+                    if length(idsDF2) > maxNumPointDF2
+                        idsTemp = randperm(length(idsDF2), maxNumPointDF2);
+                        idsDF2 = idsDF2(idsTemp);
+                    end
+
+    %                 if length(ids) > maxNumPointsPatch
+    %                     idsTemp = randperm(length(ids), maxNumPointsPatch);
+    %                     ids = ids(idsTemp);
+    %                 end
+
+    %                 dists = dists(ids);
+                    pointsTemp = points(:, ids);
+                    NormalsTemp = Normals(:, ids);
+
+    %                 %sort according to a distance
+    %                 [dists, ix] = sort(dists, 'ascend');
+    %                 pointsTemp  = pointsTemp(:, ix);
+    %                 NormalsTemp = NormalsTemp(:, ix);
+
+                    %% TOO SLOW
+
+    %                 for j = 1:size(pointsTemp, 2)
+    %                     err = err + abs(angleVec(Ncentre, NormalsTemp(:,j)));
+    %                 end                 
+    %                 err = err / length(ids);
+
+                    %% TRY TO SPEED UP
+
+                    nc = repmat(Ncentre, [1, size(pointsTemp, 2)]);
+                    an = abs( acos(sum(nc.*NormalsTemp,1))  * 180 / pi); % dot(nc, NormalsTemp, 1)
+                    err = sum(an) / size(pointsTemp, 2);
+
+
+                    if err < threshPlanar
+
+                        likelihood = max(0, 1 - err/threshPlanar);
+                        Vout = [Vout, Vcentre];
+                        Nout = [Nout, Ncentre];
+                        Fout = [Fout, [i; pointID]];
+                        likelihoods = [likelihoods; likelihood];
+
+                        pointsDFTemp = points(:, idsDF);
+                        normalsDFTemp = Normals(:, idsDF);
+                        pointsDFTemp = pointsDFTemp - repmat(Vcentre, [1, length(idsDF)]);
+                        [VV, ~] = computeDarbouxFrame_V_N(Ncentre, pointsDFTemp, normalsDFTemp, curvThresh);
+
+
+                        darFrames =  [darFrames,  VV(:)];
+
+    %                     plotFrame(VV, vecLen, vectColors, Vcentre);
+    %                     hold on
+
+                        % get a list of points that belong to this planar patch
+                        FaceIDsTemp = FaceIDs(ids);
+                        pointIDsTemp = pointIDs(ids);
+                        Pind = pointIDx{i}(pointID);
+                        for nn = 1:length(FaceIDsTemp)
+                            Pind = [Pind, pointIDx{FaceIDsTemp(nn)}(pointIDsTemp(nn))];
+                        end
+                        NeiOutTemp{i}{pointID} = Pind;
+                        %NeiOut{pointIDxCur} = Pind;
+                    end
+
                 end
-
-                Ytemp = cross(Norm, xtemp);
-                Xtemp = cross(Norm, Ytemp);
-                Ytemp = (radii(i)/2)*(Ytemp/norm(Ytemp));
-                Xtemp = (radii(i)/2)*(Xtemp/norm(Xtemp));
-
-                % establish 4 vertices and two riangles here
-                V((j-1)*4 + 1, :) = (position + Xtemp + Ytemp)';  % vertex
-                V((j-1)*4 + 2, :) = (position + Xtemp - Ytemp)';  % vertex  
-                V((j-1)*4 + 3, :) = (position - Xtemp - Ytemp)';  % vertex  
-                V((j-1)*4 + 4, :) = (position - Xtemp + Ytemp)';  % vertex  
-
-                F((j-1)*2 + 1, :) = [(j-1)*4 + 1, (j-1)*4 + 2, (j-1)*4 + 3]; % faces
-                F((j-1)*2 + 2, :) = [(j-1)*4 + 1, (j-1)*4 + 3, (j-1)*4 + 4];
-
-                j = j+1;
 
                 if mod(i, 1000) == 0
-                    i
-                end
+                    str = [num2str(i), ' out of ', num2str(lenF)];
+                    disp(str);
+                end 
             end
+            
+        end % end scale loop
+        
+        NeiOut = {};
+        lenNO = length(NeiOutTemp);
+        for i = 1:size(pointIndexing, 1)
+            temp = pointIndexing(i, :);
+            if temp(1) < lenNO && temp(2) < length(NeiOutTemp{temp(1)})
+                NeiOut{i} = NeiOutTemp{temp(1)}{temp(2)};
+            else
+                NeiOut{i} = [];
+            end
+                
+        end
+        
+        darFrames = darFrames';
+        darFrames2 = darFrames2';
+        Fout = Fout';
 
-            numNormals = 1;
+        % VISUALIZE THE RECONSTRUCTION 
+        lenParts = length(likelihoods);
+        radii = patchRad * ones(size(likelihoods));
+
+        if is_visualization
+            cmap = load('settings/colormapGray.mat');  cmap = cmap.cmap;
+            
+            is_subset = false;
+            
+            if is_subset
+                iiddss = randperm(lenParts,50);
+                Vout = Vout(:, iiddss);
+                Nout = Nout(:, iiddss);
+                radii = radii(iiddss);
+                likelihoods = likelihoods(iiddss);
+            end
+            [V_vis, F_vis, likelihoodsOut] = prepareForVisualization(radii, Vout, Nout, likelihoods);
+            VisualizeTriangulation(F_vis, V_vis, likelihoodsOut, cmap);
+            hold on
+            
+            numNormals = 200;
             rr = randperm(lenParts, numNormals);
 
-            trisurf(F,V(:,1),V(:,2),V(:,3), 'FaceColor', [0.1, 0.1, 0.1], 'EdgeColor', [0.3, 0.3, 0.3], 'FaceAlpha', 0.4);
-            light('Position',[-1.0,-1.0,100.0],'Style','infinite');
-            axis equal;
-            lighting phong;
-            hold on
-
-            for kkk = 1:numNormals
-                VD = darFrames(rr(kkk), :);
+            for kkkk = 1:numNormals
+                VD = darFrames2(rr(kkkk), :);
                 VD = reshape(VD, [3,3]);
-                Vcentre = Vout(:, rr(kkk));
+                Vcentre = Vout(:, rr(kkkk));
                 plotFrame(VD, vecLen, vectColors, Vcentre);
             end
 
         end  % if is_visualization
 
         partIDs = ones(lenParts, 3);
-        partIDs(:,2:3) = Fout;
+        
+        if ~isempty(partIDs)
+            partIDs(:,2:3) = Fout;
+        end
 
         if ~exist(strE, 'dir')
            mkdir(strE);
@@ -284,23 +312,17 @@ function PerformInference1MeshTrialFixed(list_input, lenFiles, dataSetNumber, pa
         if is_overwrite || ~exist(outFileM, 'file')
             doWrite = 1;
         end
-        
         if doWrite
-            save(outFileM, 'Vout', 'Nout', 'darFrames', 'partIDs', 'NeiOut', 'pointIndexing');
-            save(outFileAP, 'VAll', 'NAll', 'numPoints', 'areCentral');
+            save(outFileM,  'Vout', 'Nout', 'darFrames', 'darFrames2', 'partIDs', 'pointIDx');  % needed for statistics collection
+            save(outFilePS, 'NeiOut');                     % needed for part selection
+            save(outFileLH, 'likelihoods', 'partIDs');                      % needed for  reviseFaces
+            save(outFileNP, 'numPoints');                                   % needed for  reviseFaces
         end
         disp(kk);
+        toc
     end
 end
 
-function ed = euclDist(D1, D2)
-    ed = sqrt(sum((D1 - D2).^2));
-end
-
-function an = angleVec(V1, V2) % angle of two vectors
-    an = acos(dot(V1, V2) / sqrt(dot(V1, V1)*dot(V2, V2)));
-    an = an * 180 / pi;
-end
 
 function plotFrame(V, vecLen, vectColors, point)
     for ii = 1:3
@@ -332,121 +354,37 @@ function pIdx = FindPointIndex(faceID, pointID)
     pIdx = find(pointIndexing(:, 1) == faceID & pointIndexing(:, 2) == pointID);
 end
 
-% function [meanV, W, Evalues, V] = PCA_model(V)
-% 
-%     meanV = mean(V, 2);
-%     
-%     V = V - repmat(meanV, [1, size(V, 2)]);
-%     [W, EvalueMatrix] = eig(cov(V'));
-%     Evalues = diag(EvalueMatrix);
-%     [Evalues, ids] = sort(Evalues, 'descend');
-%     W = W(:, ids);
-%     
-%     W(:,1) = W(:,1) / norm(W(:,1));
-%     W(:,2) = W(:,2) / norm(W(:,2));
-%     W(:,3) = W(:,3) / norm(W(:,3));
-%     
-%     V = W * V;
-% end
 
-
-%     % remove the mean variable-wise (row-wise)
-%         V=V-repmat(mean(V,2),1,size(V,2));
-% 
-%     % calculate eigenvectors (loadings) W, and eigenvalues of the covariance matrix
-%         [W, EvalueMatrix] = eig(cov(V));
-%         Evalues = diag(EvalueMatrix);
-% 
-%     % order by largest eigenvalue
-%         Evalues = Evalues(end:-1:1);
-%         W = W(:,end:-1:1); W=W';  
-% 
-% %     % generate PCA component space (PCA scores)
-%          V = W * V;
-
-
-
-%     for i = 1:lenF
-% 
-%         is_planar = true;
-% 
-%         % set of vertices that can be fit with a planar patch
-%         Vid = zeros(1,40);
-%         Vcur = zeros(3,40);
-%         
-%         % initially we take points from 
-%         Vid(1:3) = F(:, i);  
-%         Vcur(:,1) = V(:,F(1, i));
-%         Vcur(:,2) = V(:,F(2, i));
-%         Vcur(:,3) = V(:,F(3, i));
-%         
-%         curCentre = Vadd(:, i);
-%         normCentre = Nf(:, i);
-%         planarRad = euclDist(curCentre, Vcur(:,3));
-%         
-%         candidates = []; % candidates to a planar patch
-%         lv = 3;
-% 
-%         while is_planar
-%             
-%             if isempty(candidates)
-%                 for j = 1:lv
-%                     candidates = union(candidates, vring{Vid(j)}); 
-%                 end
+%           try
+%             if stopInference(i)
+%                 continue;
 %             end
-%             % circumcenter
+
+%             a = VAll{i};
+%             b = NAll{i};
+%             b = b*0.02;
+%             figure();
+%             VTemp = [V(:, F(1,i)), V(:, F(2,i)), V(:, F(3,i))];
 %             
-%             % sort all candidates by distances
-%             dists = (V(:, candidates) - repmat(curCentre, [1, length(candidates)])).^2;
-%             dists = sqrt(sum(dists,1));
+%             NTemp = [N(:, F(1,i)), N(:, F(2,i)), N(:, F(3,i))];
+%             NTemp = NTemp*0.1;
 %             
-%             [dists, ids] = sort(dists, 'ascend');
-%             candidates = candidates(ids);
-%             
-%             for j = 1:length(candidates) % sort candidates by distance
-%                 if ismember(candidates(j), Vid)
-%                     continue;
-%                 else
-%                     if abs(angleVec(N(:, candidates(j)), normCentre)) < threshPlanar
-%                         planarRad = dists(j);
-%                         lv = lv + 1;
-%                         Vid(lv) = candidates(j);
-%                     else
-%                         is_planar = false;
-%                         break;
-%                     end
-%                 end
-%             end
-%             
-%             
-%         end
-% 
-%         a = 2;
-% 
-%     %     V1 = V(:, curF(1));
-%     %     V2 = V(:, curF(2));
-%     %     V3 = V(:, curF(3));
+%             scatter3(a(:,1), a(:,2), a(:,3));
+%             axis equal
+%             hold on
+%             scatter3(VTemp(1,:), VTemp(2, :), VTemp(3,:), 'red');
+%             hold on
+%             quiver3(a(:,1), a(:,2), a(:,3), b(:,1), b(:,2), b(:,3), 'color', 'blue');           
+%             hold on
+%             quiver3(VTemp(1,:), VTemp(2, :), VTemp(3,:), NTemp(1,:), NTemp(2, :), NTemp(3,:), 'color', 'blue');
 
 
-%         for j = 1:5:numPoints*nf
-%             plotFrame(Normals(:, j), vecLen, vectColors, points(:, j));
-%         end
-%    
-
-
-%     [VCent, NCent] = compute_gravitycentre(V, F, N);
-
-%         while length(facesId) < nf
-%             if length(facesId) == 1
-%                 facesId = [facesId, fring{facesId}];
-%             else
-%                 facesIdNew = facesId;
-%                 for j = 1:length(facesId)
-%                     facesIdNew = union(facesIdNew, fring{facesId(j)});
-%                 end
-%                 facesId = facesIdNew;
-%             end
-%         end
-
-
+%             perform_point_picking(V, F);
+%         
+%             trisurf(F(:, iidd)',V(1,:),V(2,:),V(3,:), 'FaceColor', [0.1, 0.1, 0.1], 'EdgeColor', [0.3, 0.3, 0.3], 'FaceAlpha', 1.0);
+%             light('Position',[-1.0,-1.0,100.0],'Style','infinite');
+%             axis equal;
+%             lighting phong;
+        %     hold on
+        %     plotFrame(W, vecLen, vectColors, origin);  
 

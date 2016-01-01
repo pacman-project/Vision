@@ -1,6 +1,6 @@
 % this function is to sieve statistics of all layers
 
-function [statistics, outputCoords, outputScales, outputFrames, clusterCurDepths, curTS] = sieveStatistics(statistics, outputCoords, outputScales, outputFrames, numDisps,...
+function [statistics, outputCoords, outputFrames, clusterCurDepths, curTS] = sieveStatistics(statistics, outputCoords, outputFrames, numDisps,...
                                                         threshCurPair, nPrevClusters, quant, maxRelDepth, is_GPU_USED)
 
         curTS = size(statistics, 1);
@@ -11,7 +11,6 @@ function [statistics, outputCoords, outputScales, outputFrames, clusterCurDepths
         [~, order] = sort(statistics(:,1));
         statistics = statistics(order,:);
         outputCoords = outputCoords(order,:);
-        outputScales = outputScales(order, :);
         outputFrames = outputFrames(order, :);
 
         elseif is_GPU_USED
@@ -19,18 +18,15 @@ function [statistics, outputCoords, outputScales, outputFrames, clusterCurDepths
             
             statistics = gpuArray(statistics);
             outputCoords = gpuArray(outputCoords);
-            outputScales = gpuArray(outputScales);
             outputFrames = gpuArray(outputFrames);
 
             [~, order] = sort(statistics(:, 1));     
             statistics = statistics(order, :);
             outputCoords = outputCoords(order, :);
-            outputScales = outputScales(order, :);
             outputFrames = outputFrames(order, :);
 
             statistics = gather(statistics);
             outputCoords = gather(outputCoords);
-            outputScales = gather(outputScales);
             outputFrames = gather(outputFrames);
         end
 
@@ -40,7 +36,6 @@ function [statistics, outputCoords, outputScales, outputFrames, clusterCurDepths
         % filter out rows with the least frequent pairs. those pairs with less than threshCurPair occurrances will be filtered out
         [order, statistics, curTS] = Sieve3Pairs(statistics, curTS, tablePairs, numDisps, is_GPU_USED);
         outputCoords = outputCoords(order, :);
-        outputScales = outputScales(order, :);
         outputFrames = outputFrames(order, :);
         disp(curTS);
 
@@ -50,7 +45,6 @@ function [statistics, outputCoords, outputScales, outputFrames, clusterCurDepths
         % now we have to filter out the depths with discontinuity
         [order, statistics, curTS] = Sieve3PairsD(statistics, curTS, clusterCurDepths, numDisps, is_GPU_USED);
         outputCoords = outputCoords(order, :);
-        outputScales = outputScales(order, :);
         outputFrames = outputFrames(order, :);
 
         if is_GPU_USED

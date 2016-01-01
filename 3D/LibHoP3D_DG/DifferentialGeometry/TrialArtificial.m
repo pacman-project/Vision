@@ -3,7 +3,7 @@
 function TrialArtificial()
 
 elementType = 2;
-elementRadius = 10;
+elementRadius = 15;
 is2D = false;
 
 imSize = 300;
@@ -14,7 +14,7 @@ methodId = 2;
 isIteration = 1;
 numIter = 2;
 %% here we create a primitive
-primType = 4; % cylinder
+primType = 1; % cylinder
 zeroThresh = 10^(-3);
 slant = pi/6;
 elevation = 1;
@@ -174,15 +174,13 @@ axis equal;
 hold on
 
 
- for x = 150:10:150      % 80:10:220% 90:10:210
-    for y = 120:10:120     % 100:40:180
+ for x = 150:150        % 80:10:220% 90:10:210
+    for y = 150:150     % 100:40:180
 
         curDepth = I(y,x);
         [indsXOut, indsYOut, depths] = computeNeighbors(I, x, y, elementRadius, is2D, minDepth);
         
-        
-        
-    %       % test for a neihbourhood found 
+    %   test for a neihbourhood found 
         scatter3(indsXOut, indsYOut, depths);
 
 
@@ -191,6 +189,11 @@ hold on
         xs = indsXOut - x;
         ys = indsYOut - y;
         zs = depths - I(y,x);
+        
+        xs = xs(2:end);
+        ys = ys(2:end);
+        zs = zs(2:end);
+        
 %         imtool(I, [min(min(I)), max(max(I))]);
 
 %         ids1 = find(xs < 0);
@@ -210,7 +213,7 @@ hold on
 
         elseif methodId == 2 % method of Gabriel Taubin (modified)
 
-            [V, D] = computeDarbouxFrame(Ix(y,x), Iy(y,x), xs, ys, zs); 
+            [V, D] = computeDarbouxFrame([0,0,1]', xs, ys, zs); 
             plotFrame(V, vecLen, vectColors, x,y,curDepth);
 
         end
