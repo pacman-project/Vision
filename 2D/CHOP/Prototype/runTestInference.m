@@ -20,6 +20,12 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     options = SetParameters(datasetName, false);
     options.currentFolder = options.currentFolder;
     
+    % Remove output folder.
+    if exist(options.testInferenceFolder, 'dir')
+         rmdir(options.testInferenceFolder, 's');
+    end
+    mkdir(options.testInferenceFolder);
+    
     %% Learn edge-based distance matrix once and for all.
     [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.receptiveFieldSize, options.distType, options.edgeSimilarityAllowed);
     options.edgeIdMatrix = edgeIdMatrix;
@@ -96,7 +102,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
-        parfor testImgItr = 1:size(testFileNames,1) 
+        for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, orNodeProbs, modeProbs, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, edgeChangeLevel, options); 

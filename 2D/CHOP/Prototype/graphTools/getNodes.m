@@ -223,10 +223,11 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
     % Write the responses in the final image.
     responseImg = zeros(size(activationImg));
     responseImg(orderedPeaks(validPeaks)) = nodeIdImg(orderedPeaks(validPeaks));
-%     responseImg([1:borderSize, (end-borderSize):end],:) = 0;
-%     responseImg(:,[1:borderSize, (end-borderSize):end]) = 0;
-%     activationImg([1:borderSize, (end-borderSize):end],:) = 0;
-%     activationImg(:,[1:borderSize, (end-borderSize):end]) = 0;
+    borderSize = ceil(halfSize / stride);
+    responseImg([1:borderSize, (end+1-borderSize):end],:) = 0;
+    responseImg(:,[1:borderSize, (end+1-borderSize):end]) = 0;
+    activationImg([1:borderSize, (end+1-borderSize):end],:) = 0;
+    activationImg(:,[1:borderSize, (end+1-borderSize):end]) = 0;
     activationImg = activationImg / max(max(activationImg));
 
     %% Eliminate nodes outside GT mask. If gt is not used, this does not have effect.

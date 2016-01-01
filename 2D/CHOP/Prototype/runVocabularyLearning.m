@@ -133,6 +133,12 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             imwrite(smoothActivationImg, [smoothedFolder '/' fileName '.png']);
             parsave([smoothedFolder '/' fileName '_responseImgs.mat'], 'responseImgs');
         end
+        
+        % Calculate image size.
+        [~, fileName, ~] = fileparts(trainingFileNames{1});
+        img = imread([processedFolder '/' fileName '.png']);
+        imageSize = size(img);
+        options.imageSize = imageSize(1:2);
 
         % Reorder images based on their node count. This helps in
         % efficient parallelization. 
@@ -271,14 +277,14 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
         % Export realizations into easily-readable arrays.
-        [exportArr, activationArr] = exportRealizations(mainGraph); %#ok<ASGLU,NASGU>
+        [exportArr, activationArr, precisePositions] = exportRealizations(mainGraph); %#ok<ASGLU,NASGU>
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'optimalThresholds', 'distanceMatrices', 'orNodeProbs', 'modeProbs', 'trainingFileNames', 'categoryNames', 'options', 'edgeChangeLevel');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'validationIdx', 'poseArr', '-append'); 
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'validationIdx', 'poseArr', 'precisePositions', '-append'); 
         save([options.currentFolder '/output/' datasetName '/mainGraph.mat'], 'mainGraph'); 
     end
     

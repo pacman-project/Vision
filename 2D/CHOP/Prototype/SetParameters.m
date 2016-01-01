@@ -20,8 +20,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
     else
         options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
-    end                             
-    options.vis.printTrainRealizations = 0;
+    end
+    options.vis.printTrainRealizations = false;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as

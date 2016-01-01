@@ -28,7 +28,7 @@ function [ distMat, abstractDistMat, nodeProbArr ] = createDistanceMatrix( filte
     minFilterValue = 0.05; % If pixel a < max(max(max(filter1))) * minFilterValue,
                            % a is assigned 0 in distance calculations.
     gaborOrThr = 0;
-    autoOrThr = 0.05;
+    autoOrThr = 0.25;
     sigma = 0.005;
     cogFilters = cell(numel(filters),1);
     numberOfFilters = numel(filters);
@@ -42,7 +42,9 @@ function [ distMat, abstractDistMat, nodeProbArr ] = createDistanceMatrix( filte
     % cog to estimate correct distance between pairs of filters.
     for filtItr = 1:numel(filters)
         filter1 = filters{filtItr};
-        filterImage = filterImages{filtItr};
+ %       filterImage = filterImages{filtItr};
+        filterImage = filter1;
+        filterImage = (filterImage - min(min(min(filterImage)))) / (max(max(max(filterImage))) - min(min(min(filterImage))));
         trueFilter = filter1;
         filter1 = abs(filter1);
         for dimItr = 1:size(filter1,3)
@@ -113,6 +115,20 @@ function [ distMat, abstractDistMat, nodeProbArr ] = createDistanceMatrix( filte
               nodeProbArr{filtItr} = [realEntries, probs];
          end
     else
+%          % First, we find rank-distance among the filters. 
+%          ranks = 1:numberOfFilters;
+%          tempDistMat = zeros(size(newDistMat), 'single');
+%         for filtItr = 1:numberOfFilters
+%              distances = newDistMat(filtItr,:);
+%              [~, sortIdx] = sort(distances, 'ascend');
+%              tempRanks = zeros(numberOfFilters,1);
+%              tempRanks(sortIdx) = ranks;
+%              tempDistMat(filtItr,:) = tempDistMat(filtItr,:) + tempRanks';
+% %             tempDistMat(:,filtItr) = tempDistMat(:,filtItr) + tempRanks;
+%         end
+%         tempDistMat = tempDistMat / max(max(tempDistMat));
+%         newDistMat = tempDistMat;
+         
         for filtItr = 1:numberOfFilters
               % Rank closest filters, and assign probabilities based on
               % these ranks.

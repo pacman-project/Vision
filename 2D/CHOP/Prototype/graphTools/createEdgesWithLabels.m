@@ -44,7 +44,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     averageNodeDegree = maxNodeDegree;
     
     %% Put each image's node set into a different bin.
-    numberOfImages = max(imageIds);
+    numberOfImages = double(max(imageIds));
     imageNodeIdxSets = cell(numberOfImages, 1);
     imageNodeOffsets = zeros(numberOfImages, 1, 'int32');
     imageGraphNodeSets = cell(numberOfImages, 1);

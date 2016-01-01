@@ -31,7 +31,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     for itr = 1:max(vocabLevelLabels)
          vocabLevelIdx(itr) = find(vocabLevelLabels == itr, 1, 'first');
     end
-    currentLevel = currentLevel(vocabLevelIdx);
+%    currentLevel = currentLevel(vocabLevelIdx);
     
     % These parameter relate to drawing the approximate model of each node
     % in the vocabulary.
@@ -47,6 +47,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     else
         instanceImgDim = round(sqrt(instancePerNode));
     end
+    
     % We decrease this number by 1, since the best match is printed twice.
     instancePerNode = instancePerNode-1;
     filterType = options.filterType;
@@ -91,7 +92,8 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
         %% In other levels, combine the nodes of previous levels depending on mode info and visualize current level.
         % Read previous layer's masks.
         firstLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(1) '/reconstruction/'];
-        numberOfNodes = double(max(vocabLevelLabels));
+%        numberOfNodes = double(max(vocabLevelLabels));
+        numberOfNodes = numel(vocabLevelLabels);
         firstNodeMasks = cell(numberOfFirstLevelNodes,1);
         avgFirstNodeMasks = cell(numberOfFirstLevelNodes,1);
         firstLevelPatchLowDims = zeros(numberOfFirstLevelNodes,2);
@@ -126,7 +128,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
         setImgs = cell(numberOfThreadsUsed,1);
-        for setItr = 1:numberOfThreadsUsed
+        parfor setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -135,21 +137,24 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
             % Go through each composition in current node set.
             for nodeItr = 1:numel(nodeSet)
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
-                labelId = vocabLevelIdx(vocabNodeSet(nodeItr));
+   %             labelId = vocabLevelIdx(vocabNodeSet(nodeItr));
+                labelId = vocabNodeSet(nodeItr);
                 nodeInstances = find(nodeLabelIds==labelId);
                 validIdx = nodeLabelIds==labelId;
                 instanceActivations = nodeActivations(validIdx);
                 instanceImageIds = nodeImageIds(validIdx);
-                [~, sortIdx] = sort(instanceActivations, 'descend');
-                bestNodeInstance = nodeInstances(sortIdx(1));
-                if numel(nodeInstances)>instancePerNode
-                     % Get best instances to print.
-                     [~, validSortIdx] = unique(instanceImageIds(sortIdx), 'stable');
-                     sortIdx = sortIdx(validSortIdx);
-                     if numel(sortIdx) > instancePerNode
-                         sortIdx = sortIdx(1:instancePerNode);
+                bestNodeInstance = -1;
+                if ~isempty(instanceActivations)
+                     [~, sortIdx] = sort(instanceActivations, 'descend');
+                     if numel(nodeInstances)>instancePerNode
+                          % Get best instances to print.
+                          [~, validSortIdx] = unique(instanceImageIds(sortIdx), 'stable');
+                          sortIdx = sortIdx(validSortIdx);
+                          if numel(sortIdx) > instancePerNode
+                              sortIdx = sortIdx(1:instancePerNode);
+                          end
+                          nodeInstances = sort(nodeInstances(sortIdx));
                      end
-                     nodeInstances = sort(nodeInstances(sortIdx));
                 end
                 nodeInstances = [bestNodeInstance; nodeInstances]; %#ok<AGROW>
                 instanceImgs = cell(numel(nodeInstances),1);
@@ -234,7 +239,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                         if nodeInstanceItr == 1
                             assignedWeight = 1;
                         else
-                            assignedWeight = firstActivations(instanceLeafNodes(childItr));
+                            assignedWeight = firstActivations(instanceLeafNodes(childItr)); %#ok<PFBNS>
                         end
                         
                         currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
@@ -299,7 +304,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                         
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
                         imwrite(falseColorImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_falseColor.png']);
-                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_' num2str(currentLevel(nodeSet(nodeItr)).mdlScore) '.png']);
+                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_' num2str(currentLevel(nodeSet(nodeItr)).mdlScore) '.png']); %#ok<PFBNS>
                         imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
                     else
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_var_' num2str(nodeInstanceItr) '.png']);
@@ -320,6 +325,10 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
         nodeImgs = cat(1, setImgs{:});
         clear leafNodeSets centerPos nodeLabelIds leafNodeLabelIds leafNodePos prevNodeMasks avgPrevNodeMasks parallelNodeSets;
     end
+    
+%     % Update number of nodes, and visualize valid nodes.
+%     numberOfNodes = double(max(vocabLevelLabels));
+%     nodeImgs = nodeImgs(vocabLevelIdx);
     
     %% Combine all compositions and show them within a single image.
     % Learn number of rows/columns.

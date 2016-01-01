@@ -32,15 +32,16 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
             nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren)
 
    minNodeProbability = 0.00001;
-   coverageStoppingVal = 0.999;
-   likelihoodStoppingVal = 0.999;
+   coverageStoppingVal = 0.98;
+   likelihoodStoppingVal = 0.99;
    groupingThr = 0.9;
-   partSelectionThr = 2000;
+   partSelectionThr = 3000;
    numberOfBestSubs = numel(bestSubs);
    prevGraphNodeCount = numel(uniqueChildren);
    maxChildId = max(uniqueChildren);
    prevGraphNodeLogProbs = zeros(1, maxChildId, 'single');
    minLogProb = single(log(minNodeProbability));
+   runGA = false;
    
    %% Initially, we learn distributions of data points given each sub's center.
    RFSize = sqrt(size(edgeCoords,1));
@@ -146,7 +147,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
      % another pass using a data likelihood measure. This step implements a
      % coverage-based part selection mechanism.
     selectedSubIdx = ones(1,numberOfBestSubs) > 0;
-    if (numberOfBestSubs>partSelectionThr && exist('ga') == 2) || (numberOfBestSubs>numberOfFinalSubs && exist('ga') ~= 2) %#ok<EXIST>
+    if (numberOfBestSubs>partSelectionThr && runGA && exist('ga') == 2) || (numberOfBestSubs>numberOfFinalSubs && (~runGA || exist('ga') ~= 2)) %#ok<EXIST>
         subCounter = 0; 
         addedValueArr = [];
         selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
@@ -155,7 +156,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
         markedPosProbs = zeros(maxChildId, 1, 'single');
         stoppingFVal = -f(ones(1, numberOfBestSubs) > 0) * likelihoodStoppingVal;
         valueArr = inf(1,numberOfBestSubs);
-        if exist('ga') == 2 %#ok<EXIST>
+        if exist('ga') == 2 && runGA %#ok<EXIST>
              subLimit = numberOfFinalSubs*2;
         else
              subLimit = numberOfFinalSubs;
@@ -222,9 +223,9 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
 %            % Calculate coverage, and check if we've covered enough data.
 %             % Then, break if necessary.
             coverage = nnz(markedNodes) / prevGraphNodeCount;
-%            if coverage >= coverageStoppingVal 
-%                break;
-%            end
+            if coverage >= coverageStoppingVal 
+                break;
+            end
 %            
            if cumVal > stoppingFVal
                break;
@@ -249,8 +250,8 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    % redundancy as possible. In order to do that, we now group parts based
    % on the shareability of their instances. E.g. If two parts are grouped
    % together, we want to select only one of these parts, not two.
-   
-   if exist('ga') == 2
+   shareabilityIdx = [];
+   if exist('ga') == 2 && runGA
         shareabilityIdx = cell(numberOfBestSubs-1,1);
         numberOfChildrenArr = cellfun(@(x) numel(x), subCoveredNodes);
         parfor subItr = 1:(numberOfBestSubs-1)
@@ -288,7 +289,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    end
 
    % If needed, we perform a genetic algorithm-based search.
-   if (numberOfBestSubs > numberOfFinalSubs || ~isempty(shareabilityIdx)) && exist('ga') == 2 %#ok<EXIST>
+   if (numberOfBestSubs > numberOfFinalSubs || ~isempty(shareabilityIdx)) && exist('ga') == 2 && runGA %#ok<EXIST>
         % Now, we change our data structures to have a more efficient
         % calculation of likelihoods.
         subLabelProbsArr = sparse(double(numberOfBestSubs), double(maxChildId));
@@ -316,7 +317,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
      %     'CreationFcn', @gacreationlinearfeasible, 'CrossoverFcn', @crossoverintermediate, 'HybridFcn', @fminsearch, ...
      %     'MutationFcn', @mutationadaptfeasible, 'PopulationSize', 1000, 'PopulationType', 'bitstring');
      %    options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'PopulationType', 'bitstring', 'PopulationSize', 1000, 'FitnessLimit', stoppingFVal);
-         options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'PopulationSize', 1000, 'FitnessLimit', stoppingFVal, 'TimeLimit', 1200, 'CreationFcn', @gacreationlinearfeasible);
+         options = gaoptimset('Display', 'diagnose', 'UseParallel', 'Always', 'Generations', numberOfBestSubs * 200, 'PopulationSize', 1000, 'FitnessLimit', stoppingFVal, 'TimeLimit', 1800, 'CreationFcn', @gacreationlinearfeasible);
          [selectedSubIdx, fval, exitFlag] = ga(fEff, numberOfBestSubs, A, b, [], [], LB, UB, [], IntCon, options);
          validSubs = validSubs(selectedSubIdx>0);
          subCoveredNodes = subCoveredNodes(selectedSubIdx>0);

@@ -1,65 +1,90 @@
+%> Name: projectImages
+%>
+%> Description: Given the inference of parts in a dataset, this function
+%> backprojects detected object models in real images. The backprojection
+%> starts from the top level detections in every image, and continues all
+%> the way to the bottom level. The same operation is performed both
+%> training and test images.
+%>
+%> @param datasetName Name of the dataset to work on. 
+%> 
+%> Author: Rusen
+%>
+%> Updates
+%> Ver 1.0 on 19.11.2015
 function [ ] = projectImages( datasetName)
     options = SetParameters(datasetName, false);
     outputFolder = [pwd '/output/' datasetName];
-    if strcmp(options.filterType, 'gabor')
-       inhibitionRadius = options.gabor.inhibitionRadius; 
-    else
-       inhibitionRadius = options.auto.inhibitionRadius;
-    end
     numberOfFeatures = options.numberOfGaborFilters;
     radius = round(options.gaborFilterSize/2);
     
-    filters = options.filters;
+    filters = options.filterImages;
     
     %% Backproject training images.
-    load([outputFolder '/export.mat'], 'exportArr', 'trainingFileNames', 'categoryNames');
+    load([outputFolder '/export.mat'], 'exportArr', 'trainingFileNames', 'categoryNames', 'precisePositions');
     load([outputFolder '/vb.mat'], 'vocabulary');
-    filters = cellfun(@(x) uint8(round(255 * (x - min(min(min(x)))) / (max(max(max(x))) - min(min(min(x)))))), filters, 'UniformOutput', false);
-    img = imread(trainingFileNames{1});
-    bandCount = size(img,3);
-    if size(filters{1}, 3) < bandCount
-        filters = cellfun(@(x) repmat(x, [1 1 bandCount]), filters, 'UniformOutput', false);
-    end
-    
+    load([outputFolder '/mainGraph.mat'], 'mainGraph');
+    realLabels = cellfun(@(x) [x.realLabelId], mainGraph, 'UniformOutput', false);
+    realLabels = cat(2, realLabels{:})';
+    exportArr(:,1) = realLabels;
     numberOfImages = max(exportArr(:,5));
     logLikelihoodArr = zeros(numberOfImages,1);
     for imgItr = 1:numberOfImages
        % Obtain image-specific realizations.
-       imageExportArr = exportArr(exportArr(:,5)==imgItr,:);
+       idx = exportArr(:,5)==imgItr;
+       imageExportArr = exportArr(idx,:);
+       imagePrecisePositionArr = precisePositions(idx,:);
        
        % If there are no realizations, move on.
        if isempty(imageExportArr)
            continue;
        end
-       
        maxLevel = max(imageExportArr(:,4));
        level1DataPoints = imageExportArr(imageExportArr(:,4) == 1, 1:3);
-       imageExportArr = imageExportArr(imageExportArr(:,4) == maxLevel, :);
        
-       % Get original image.
        [~, fileName, ~] = fileparts(trainingFileNames{imgItr});
+
+       % Create a folder if needed.
+       imgFolder = [pwd '/output/' datasetName '/reconstruction/train/' fileName];
+       if exist(imgFolder, 'dir')
+            rmdir(imgFolder, 's');
+       end
+       mkdir(imgFolder);
+
+       % Get original image.
        img = imread(trainingFileNames{imgItr});
        
-       % Now, we get the top realizations and backproject to the original
-       % image.
-       level1Nodes = projectNode(imageExportArr(:,1:4), vocabulary, inhibitionRadius);
-       level1NodesOrg = level1Nodes;
-       % Calculate a mapping betweeen data points and reconstructed points.
-       [level1DataPoints, level1Nodes] = mapNodes(level1DataPoints, level1Nodes, radius);
-       
-       % Finally, calculate log likelihood of the data. 
-       estimator = Estimator;
-       estimator = estimator.SetCoords(level1DataPoints(:,2:3), 0);
-       estimator = estimator.SetCoords(level1Nodes(:,2:3), 1);
-       estimator = estimator.SetLabels(level1DataPoints(:,1),0);
-       estimator = estimator.SetLabels(level1Nodes(:,1),1);
-       estimator = estimator.SetNumberOfFeatures(numberOfFeatures);
-       estimator = estimator.SetRadius(radius);
-       logLikelihoodArr(imgItr) = estimator.CalculateLogLikelihood();
+       % Backproject from all possible levels.
+       for levelItr = 1:maxLevel
+            idx = imageExportArr(:,4) == levelItr;
+            curExportArr = imageExportArr(idx, :);
+            curPrecisePositionArr = imagePrecisePositionArr(idx, :);
+            curExportArr(:,2:3) = int32(round(curPrecisePositionArr));
+
+            % Now, we get the top realizations and backproject to the original
+            % image.
+            level1Nodes = projectNode(curExportArr(:,1:4), vocabulary, 0);
+            level1NodesOrg = level1Nodes;
+            if levelItr == maxLevel
+                 % Calculate a mapping betweeen data points and reconstructed points.
+                 [level1DataPoints, level1Nodes] = mapNodes(level1DataPoints, level1Nodes, radius);
+
+                 % Finally, calculate log likelihood of the data. 
+                 estimator = Estimator;
+                 estimator = estimator.SetCoords(level1DataPoints(:,2:3), 0);
+                 estimator = estimator.SetCoords(level1Nodes(:,2:3), 1);
+                 estimator = estimator.SetLabels(level1DataPoints(:,1),0);
+                 estimator = estimator.SetLabels(level1Nodes(:,1),1);
+                 estimator = estimator.SetNumberOfFeatures(numberOfFeatures);
+                 estimator = estimator.SetRadius(radius);
+                 logLikelihoodArr(imgItr) = estimator.CalculateLogLikelihood();
+            end
         
-       % For visualization, overlay the original image with reconstructed nodes.
-       img = overlayFeaturesWithImage(level1NodesOrg, img, filters);
-       imwrite(img, [pwd '/output/' datasetName '/reconstruction/train/' fileName '_backProjection.png']);
+            % For visualization, overlay the original image with reconstructed nodes.
+            projectionImg = overlayFeaturesWithImage(level1NodesOrg, img, filters, 1);
+            imwrite(projectionImg, [pwd '/output/' datasetName '/reconstruction/train/' fileName '/' fileName '_1Projection' num2str(levelItr) '.png']);
+            imwrite(img, [pwd '/output/' datasetName '/reconstruction/train/' fileName '/' fileName '_2Original.png']);
+       end
     end
     trainLogLikelihood = sum(logLikelihoodArr);
     save([pwd '/output/' datasetName '/logLikelihood.mat'], 'trainLogLikelihood', 'logLikelihoodArr');
@@ -97,7 +122,7 @@ function [ ] = projectImages( datasetName)
     for imgItr = 1:numberOfImages
        [~, testFileName, ~] = fileparts(testFileNames{imgItr});
        outputFile = [options.testInferenceFolder '/' categoryNames{categoryArrIdx(imgItr)} '_' testFileName '_test.mat'];
-       load(outputFile, 'exportArr');
+       load(outputFile);
        % Obtain image-specific realizations.
        imageExportArr = exportArr;
        
@@ -106,34 +131,51 @@ function [ ] = projectImages( datasetName)
            continue;
        end
        
+      % Create a folder if needed.
+       imgFolder = [pwd '/output/' datasetName '/reconstruction/test/' testFileName];
+       if exist(imgFolder, 'dir')
+            rmdir(imgFolder, 's');
+       end
+       mkdir(imgFolder);
+       
+       % Backproject from all levels.
        maxLevel = max(imageExportArr(:,4));
        level1DataPoints = imageExportArr(imageExportArr(:,4) == 1, 1:3);
-       imageExportArr = imageExportArr(imageExportArr(:,4) == maxLevel, :);
        
-       % Get original image.
-       [~, fileName, ~] = fileparts(testFileNames{imgItr});
-       img = imread(testFileNames{imgItr});
-       
-       % Now, we get the top realizations and backproject to the original
-       % image.
-       level1Nodes = projectNode(imageExportArr(:,1:4), vocabulary, inhibitionRadius);
-       level1NodesOrg = level1Nodes;
-       % Calculate a mapping betweeen data points and reconstructed points.
-       [level1DataPoints, level1Nodes] = mapNodes(level1DataPoints, level1Nodes, radius);
-       
-       % Finally, calculate log likelihood of the data. 
-       estimator = Estimator;
-       estimator = estimator.SetCoords(level1DataPoints(:,2:3), 0);
-       estimator = estimator.SetCoords(level1Nodes(:,2:3), 1);
-       estimator = estimator.SetLabels(level1DataPoints(:,1),0);
-       estimator = estimator.SetLabels(level1Nodes(:,1),1);
-       estimator = estimator.SetNumberOfFeatures(numberOfFeatures);
-       estimator = estimator.SetRadius(radius);
-       testLogLikelihoodArr(imgItr) = estimator.CalculateLogLikelihood();
-        
-       % For visualization, overlay the original image with reconstructed nodes.
-       img = overlayFeaturesWithImage(level1NodesOrg, img, filters);
-       imwrite(img, [pwd '/output/' datasetName '/reconstruction/test/' fileName '_backProjection.png']);
+       for levelItr = 1:maxLevel
+            idx = imageExportArr(:,4) == levelItr;
+            curExportArr = imageExportArr(idx, :);
+            curExportArr(:,2:3) = int32(round(precisePositions(idx, :)));
+
+            % Get original image.
+            [~, fileName, ~] = fileparts(testFileNames{imgItr});
+            img = imread(testFileNames{imgItr});
+
+            % Now, we get the top realizations and backproject to the original
+            % image.
+            level1Nodes = projectNode(curExportArr(:,1:4), vocabulary, 0);
+            level1NodesOrg = level1Nodes;
+
+            if levelItr == maxLevel
+                 % Calculate a mapping betweeen data points and reconstructed points.
+                 [level1DataPoints, level1Nodes] = mapNodes(level1DataPoints, level1Nodes, radius);
+                 
+                 % Finally, calculate log likelihood of the data. 
+                 estimator = Estimator;
+                 estimator = estimator.SetCoords(level1DataPoints(:,2:3), 0);
+                 estimator = estimator.SetCoords(level1Nodes(:,2:3), 1);
+                 estimator = estimator.SetLabels(level1DataPoints(:,1),0);
+                 estimator = estimator.SetLabels(level1Nodes(:,1),1);
+                 estimator = estimator.SetNumberOfFeatures(numberOfFeatures);
+                 estimator = estimator.SetRadius(radius);
+                 testLogLikelihoodArr(imgItr) = estimator.CalculateLogLikelihood();
+            end
+            
+            % For visualization, overlay the original image with reconstructed nodes.
+            projectionImg = overlayFeaturesWithImage(level1NodesOrg, img, filters, 1);
+            imwrite(projectionImg, [imgFolder '/' fileName '_1Projection' num2str(levelItr) '.png']);
+            imwrite(img, [imgFolder '/' fileName '_2Original.png']);
+       end
     end
     testLogLikelihood = sum(testLogLikelihoodArr);
     save([pwd '/output/' datasetName '/logLikelihood.mat'], 'testLogLikelihood', 'testLogLikelihoodArr', '-append');

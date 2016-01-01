@@ -39,12 +39,12 @@ function [] = singleTestImage(testFileName, vocabulary, allModes, nodeProbs, mod
     % Save smoothed image.
     % Assign nodes their image ids.
     nodes = int32(cell2mat(cellNodes));
-    [exportArr, activationArr] = inferSubs(vocabulary, nodes, allModes, nodeProbs, modeProbs, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options); %#ok<ASGLU,NASGU>
+    [exportArr, activationArr, precisePositions] = inferSubs(vocabulary, nodes, allModes, nodeProbs, modeProbs, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options); %#ok<ASGLU,NASGU>
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', '-append');
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', 'precisePositions', '-append');
     else
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize');
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', 'precisePositions');
     end
 end

@@ -3,8 +3,7 @@ function [] = runAnalysis(datasetName, experimentStr)
     % First, we run the experiment.
     Experiment(datasetName, '.png');
 
-    % Run node analysis and visualizations.
-    projectImages(datasetName);
+    % Run node analysis.
     runDiscriminativeAnalysis(datasetName);
     plotDiscriminativeAnalysis(datasetName);
     

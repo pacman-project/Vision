@@ -1,4 +1,4 @@
-function [ accuracy ] = TestCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgSize)
+function [ accuracy, confMat ] = TestCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgSize)
     % Load relevant info.
     load([pwd '/models/' datasetName '_data_' num2str(minLevel) '_' num2str(maxLevel) '_' num2str(poolSize) '.mat']);
     load([pwd '/output/' datasetName '/vb.mat'], 'categoryNames');

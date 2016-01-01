@@ -400,18 +400,25 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     
     % Remove duplicate instances from each sub.
     display('[SUBDUE/Parallel] Removing duplicate instances from each sub, and updating their match scores..');
-%    bestSubs = removeDuplicateInstances(bestSubs);
+    bestSubs = removeDuplicateInstances(bestSubs);
     
     %% Allocate space for new graphLevel and vocabLevel.
     numberOfInstances = 0;
     for bestSubItr = 1:numberOfBestSubs
         numberOfInstances = numberOfInstances + size(bestSubs(bestSubItr).instanceCenterIdx,1);
     end
+    
+    %% Calculate maximum coverage possible based on the data at hand.
+    allRemainingChildren = {bestSubs.instanceChildren};
+    allRemainingChildren = cellfun(@(x) x(:), allRemainingChildren, 'UniformOutput', false);
+    allRemainingChildren = unique(cat(1, allRemainingChildren{:}));
+    maxCoverage = numel(allRemainingChildren) / numel(graphLevel);
+    display(['[SUBDUE] Maximal coverage possible: %' num2str(maxCoverage * 100) '.']);
     clear vocabLevel graphLevel
     
+  %% If required, we'll pick best parts based on the reconstruction of the data.
     if numberOfInstances>0
         display(['[SUBDUE] We have found ' num2str(numberOfBestSubs) ' subs with ' num2str(numberOfInstances) ' instances.']);
-       %% If required, we'll pick best parts based on the reconstruction of the data.
        if partSelectionFlag
            [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, realNodeLabels,...
                nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, singlePrecision, ...
@@ -553,6 +560,10 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                end
                instanceActivations = cellfun(@(x,y) logsig(sigmoidMultiplier * (mean(allNodeProbs(x) .* allNodeActivations(x) .* y) - 0.5)), instanceChildren, instancePosProbs);
                instanceActivations = single(floor(double(instanceActivations)*precisionMult)/precisionMult);
+               
+               % TODO: Remove this line.
+ %              instanceActivations = ones(size(instanceActivations), 'single');
+               
                instanceActivations = num2cell(instanceActivations);
                
                % Assign fields to graphs.

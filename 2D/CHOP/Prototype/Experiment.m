@@ -23,6 +23,6 @@ function [] = Experiment(datasetName, fileType)
     runVocabularyLearning(datasetName, fileType, '.png');
     MarkCategoryLabels(datasetName);
     runTestInference(datasetName, fileType);
-    EvaluateCategorization(datasetName, 'test', 1, 10);
+    projectImages(datasetName);
     diary off;
 end

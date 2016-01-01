@@ -51,7 +51,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                        % features.     
     options.autoFilterSize = 6;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = 0;
+    options.auto.inhibitionRadius = 1;
     options.autoFilterThr = 0;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
@@ -176,10 +176,10 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
     options.articulationsPerCategory = 3; % We reduced  is this number multipli
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 300; % The maximum 
+    options.reconstruction.numberOfORNodes = 400; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -263,7 +263,7 @@ function [ options ] = SetParametersCIFAR10( datasetName, options )
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 6; % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 20000;  % Maximum number of nodes allowed in a level.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

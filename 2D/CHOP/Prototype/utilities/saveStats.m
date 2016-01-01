@@ -16,12 +16,24 @@
 %>
 %> Updates
 %> Ver 1.0 on 11.02.2014
-function [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, state, levelItr)
+function [avgShareability, avgCoverage, maxCoverageVals] = saveStats(vocabLevel, graphLevel, leafNodeCoords, maxCoverageVals, numberOfImages, options, state, levelItr)
     if isempty(vocabLevel) || isempty(graphLevel)
         avgShareability = 0;
         avgCoverage = 0;
         return;
     end
+    
+    % Find filter size, and area boundaries to cover. 
+    filterSize = size(options.filters{1});
+    filterSize = filterSize(1:2);
+    topHalfSize = ceil(filterSize/2) - 1;
+    bottomHalfSize = floor(filterSize/2);
+    imageSize = options.imageSize;
+    if levelItr == 1
+         maxCoverageVals = zeros(numberOfImages,1);
+    end
+    leafNodeCoords = double(leafNodeCoords);
+    
     %% Calculate shareability of each composition in vocabulary.
     % This is done by simply estimating number of images this composition is
     % seen in. 
@@ -37,15 +49,24 @@ function [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leaf
     avgShareability = mean(compositionImageCountArr(~isnan(compositionImageCountArr))) * 100;
     
     %% Calculate coverage of each image's leaf nodes in detected realizations.
-    leafNodeIds = int32(1:size(leafNodes,1));
-    leafImageIds = leafNodes(:,4);
     imageCoverageArr = zeros(numberOfImages,1);
     for imageItr = 1:numberOfImages
-        detectedLeafNodes = int32(unique([graphLevel(imageIds == imageItr).leafNodes]));
-        imageCoverageArr(imageItr) = numel(ismembc(detectedLeafNodes, leafNodeIds(leafImageIds == imageItr))) / ...
-            numel(leafNodeIds(leafImageIds == imageItr));
+       detectedLeafNodes = int32(unique([graphLevel(imageIds == imageItr).leafNodes]));
+       detectedLeafNodeCoords = leafNodeCoords(detectedLeafNodes, :);
+       imageMatrix = zeros(imageSize) > 0;
+       for leafNodeItr = 1:numel(detectedLeafNodes)
+            topLeft = detectedLeafNodeCoords(leafNodeItr,:) - topHalfSize;
+            bottomRight = detectedLeafNodeCoords(leafNodeItr,:) + bottomHalfSize;
+            imageMatrix(topLeft(1):bottomRight(1), topLeft(2):bottomRight(2)) = 1;
+       end
+       imageCoverageArr(imageItr) = nnz(imageMatrix);
+       if levelItr == 1
+           maxCoverageVals(imageItr) = nnz(imageMatrix);
+       end
     end
-    avgCoverage = mean(imageCoverageArr(~isnan(imageCoverageArr)));
+    
+    %% After obtaining coverage array, we calculate actual coverage in terms of image pixels.
+    avgCoverage = sum(imageCoverageArr) / sum(maxCoverageVals);
     
     %% Save info.
     statFile = [options.currentFolder '/output/' options.datasetName '/' state '_' num2str(levelItr) '.mat'];

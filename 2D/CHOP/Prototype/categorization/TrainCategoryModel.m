@@ -68,7 +68,7 @@ function [] = TrainCategoryModel(datasetName, minLevel, maxLevel, poolSize, imgS
              if (cv > bestcv),
                bestcv = cv; bestc = log2c;% bestg = log2g;
              end
-             fprintf('%g %g %g (best c=%g, rate=%g)\n', log2c, log2g, cv, bestc, bestcv);
+             fprintf('%g %g %g (best c=%g, rate=%g)\n', log2c, cv, bestc, bestcv);
 %           end
          end
  %       command = ['-t 0 -c ', num2str(num2str(2^bestc)), ' -g ', num2str(2^bestg),' -q '];

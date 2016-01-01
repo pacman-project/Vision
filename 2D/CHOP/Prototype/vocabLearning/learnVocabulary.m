@@ -77,7 +77,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
     
     %% Calculate statistics from this graph.
     display('........ Estimating statistics for level 1..');
-    [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', 1);
+    [avgShareability, avgCoverage, maxCoverageVals] = saveStats(vocabLevel, graphLevel, leafNodeCoords, [], numberOfImages, options, 'preInhibition', 1);
     display(['........ Average coverage of leaf nodes: ' num2str(avgCoverage) ', while average shareability is: ' num2str(avgShareability) ' percent.']); 
     
     %% Load categories. Analyzing categorization properties of the nodes. 
@@ -141,7 +141,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% Calculate statistics from this graph.
         display('........ Before we apply inhibition, estimating statistics..');
-        [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'preInhibition', levelItr);
+        [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodeCoords, maxCoverageVals, numberOfImages, options, 'preInhibition', levelItr);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
          %% If the subs have all been eliminated, finish processing.
@@ -175,7 +175,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
 %        vocabLevel = learnChildPositions(vocabLevel, allModes{levelItr-1});
-        vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1});
+        vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1}, allModes{levelItr-1}, modeProbs{levelItr-1}, levelItr, options);
         
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
@@ -202,7 +202,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% Calculate statistics from this graph.
         display('........ Estimating post-inhibition statistics..');
-        [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodes, numberOfImages, options, 'postInhibition', levelItr);
+        [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodeCoords, maxCoverageVals, numberOfImages, options, 'postInhibition', levelItr);
         
         %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
         if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid')
@@ -253,6 +253,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
             display('........ Visualizing previous levels...');
 %            printConvolutionFilters(vocabLevel, orNodeProbs{levelItr-1}, allModes{levelItr-1}, modeProbs{levelItr-1}, levelItr, numel(vocabulary{levelItr-1}), options.debug, options.CNNFolder);
             visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+            visualizeORNodes( vocabLevel, levelItr, options);
             if options.debug
                display('........ Visualizing realizations on images...');
                if ~isempty(vocabLevel)
