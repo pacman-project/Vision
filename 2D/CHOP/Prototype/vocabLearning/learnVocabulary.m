@@ -175,7 +175,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
 %        vocabLevel = learnChildPositions(vocabLevel, allModes{levelItr-1});
-        vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1}, allModes{levelItr-1}, modeProbs{levelItr-1}, levelItr, options);
+        vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1}, levelItr, options);
         
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
@@ -221,6 +221,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
         
+        % If we've reached max number of layers, don't keep going forward.
         if levelItr == options.maxLevels
             vocabulary = vocabulary(1:(levelItr),:);
             allModes = allModes(1:(levelItr), :);

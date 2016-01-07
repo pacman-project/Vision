@@ -128,7 +128,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
         setImgs = cell(numberOfThreadsUsed,1);
-        parfor setItr = 1:numberOfThreadsUsed
+        for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
             vocabNodeSet = parallelVocabNodeSets{setItr};
@@ -164,7 +164,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                      if nodeInstanceItr == 1
                          %% Here, we get the description of the node, and print that.
                          % It is supposed to provide an approximate view that the algorithm has learned.
-                         projectedNodes = projectNode([labelId, 0, 0, levelId], vocabulary, inhibitionRadius);
+                         projectedNodes = projectNode([labelId, 0, 0, levelId], vocabulary, inhibitionRadius, 'modal');
                          children = projectedNodes(:,1);
                          childrenCoords = projectedNodes(:,2:3);
                          patchLowDims = firstLevelPatchLowDims;

@@ -23,16 +23,11 @@ classdef VocabNode
         childrenNodeProbs@single % Nx2 array, in the form of [realNodeId, probability; ...]
                                                      % which assigns a probability to each
                                                      % alternative or node label.
-        childrenPosMean@single % The relative position of the children with 
-                           % respect to the center of gravity. Used to
-                           % perform precise reconstruction of nodes. (Nx2,
-                           % with each row representing x, y position of a
-                           % child.
-        childrenPosCov@single % The relative position of the children with 
-                           % respect to the center of gravity. Used to
-                           % perform precise reconstruction of nodes. (Nx2,
-                           % with each row representing x, y position of a
-                           % child.
+        childrenLabelDistributions@single % Array containing possible label combinations
+                                                                 % and their probabilities.
+        childrenPosDistributions % Cell array of multi-modal gaussian distributions 
+                                                                 % modelling joint space of children positions. 
+                                                                 % One for every discrete combination.
         categoryArr@single % 1 x numberOfCategories array. Sums up to 1. 
                     % Determines how much this node has been found in each
                     % category.

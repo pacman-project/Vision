@@ -23,7 +23,7 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, ~, numberOfThread
     nodeSets((end-setCountDiff+1):end, :) = nodeSets((end-setCountDiff+1):end, :) - 1;
     nodeSets = nodeSets(nodeSets>0);
     nodeSets = mat2cell(graphLevel, 1, nodeSets);
-    parfor setItr = 1:numel(nodeSets)
+    for setItr = 1:numel(nodeSets)
         subLevel = nodeSets{setItr};
         for newNodeItr = 1:numel(subLevel)
             nodeChildren = subLevel(newNodeItr).children;
@@ -34,10 +34,8 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, ~, numberOfThread
                nodeLeafNodes(childItr) = {previousLevel(nodeChildren(childItr)).leafNodes}; 
             end
             nodeLeafNodes = unique([nodeLeafNodes{:}]);
-            precisePosition = sum(cat(1, previousLevel(nodeChildren).precisePosition),1) ...
-                / numberOfChildren;
-            subLevel(newNodeItr).precisePosition = precisePosition;
-            subLevel(newNodeItr).position = int32(round(mean(cat(1, previousLevel(nodeChildren).position),1)));
+            subLevel(newNodeItr).precisePosition = previousLevel(nodeChildren(1)).precisePosition;
+            subLevel(newNodeItr).position = previousLevel(nodeChildren(1)).position;
             subLevel(newNodeItr).leafNodes = nodeLeafNodes;
         end
         nodeSets(setItr) = {subLevel};
