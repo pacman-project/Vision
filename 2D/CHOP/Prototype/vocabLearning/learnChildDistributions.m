@@ -19,19 +19,22 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
     labelIds = [graphLevel.labelId];
     prevRealLabelIds = [previousLevel.realLabelId]';
     prevPosition = double(cat(1, previousLevel.precisePosition));
-    dummySigma = 0.001;
+    noiseSigma = 0.001;
+    dummySigma = 0.1;
     posDim = size(prevPosition,2);
     generatedSampleCount = 200;
-    maxClusters = 2;
+    maxClusters = 3;
     minPoints = 10;
     
-    pointSymbols = {'mo', 'bx', 'y*', 'rx', 'ko'};
+    % Close warnings.
+    w = warning('off', 'all');
+    
+    pointSymbols = {'mo', 'bx', 'r*', 'kx', 'go'};
     
     debugFolder = [options.debugFolder '/level' num2str(levelItr) '/jointStats'];
     if ~exist(debugFolder, 'dir')
          mkdir(debugFolder);
     end
-%    set(gcf, 'Visible', 'off');
     
     % Second, we go through each node, and collect statistics.
     for vocabItr = 1:numberOfNodes
@@ -43,6 +46,9 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
         instances = graphLevel(relevantIdx);
         instanceChildren = cat(1, instances.children);
         instanceChildrenCombinedLabels = double(prevRealLabelIds(instanceChildren));
+        if size(instanceChildren,1) == 1 && size(instanceChildren,2) > 1
+             instanceChildrenCombinedLabels = instanceChildrenCombinedLabels';
+        end
         instanceChildrenCombinedPos = zeros(size(instanceChildren,1), (size(instanceChildren,2)-1) * posDim);
         
         % Find real-valued combinations. We learn a discrete distribution
@@ -104,7 +110,6 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
                   save([debugFolder '/part' num2str(vocabItr) '_' mat2str(combs(combItr,:)) '.mat'], 'relevantSamples');
 
                   %% Get principle components and visualize samples in 2d space.
- %                 figure('Visible', 'off'), hold on;
                   figure('Visible', 'off'), hold on;
                   axis square
                   subplot(1,3,1), plot(scores(:,1), scores(:,2), 'ro');
@@ -114,26 +119,30 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
 
                   %% Now, we try to fit multiple gaussians to the sample points. 
                   % First, we learn the number of clusters.
-                  noiseArr = normrnd(0, dummySigma, size(relevantSamples));
+                  noiseArr = normrnd(0, noiseSigma, size(relevantSamples));
                   relevantSamples = relevantSamples + noiseArr;
 
                   % Find the number of clusters, and fit a gaussian mixture
                   % distribution with the given number of clusters.
+                  regularizeTerm = 1e-10;
                   if size(relevantSamples,1) < minPoints || size(relevantSamples,1) <= size(relevantSamples,2)
                        if size(relevantSamples,1) == 1
-                            covMat = eye(size(relevantSamples,2));
+                            covMat = eye(size(relevantSamples,2)) * dummySigma + regularizeTerm;
                        else
-                            covMat = cov(relevantSamples);
+                            covMat = cov(relevantSamples) + regularizeTerm;
                        end
                        mu = mean(relevantSamples,1);
                        numberOfClusters = 1;
                        ids = ones(size(relevantSamples,1),1);
-                       obj = gmdistribution(mu, covMat);
+                       try
+                            obj = gmdistribution(mu, covMat);
+                       catch %#ok<CTCH>
+                            display('Error in learnChildDistributions.m');
+                       end
                   else
-                       regularizeTerm = 1e-10;
                        ids = mec(relevantSamples, 'c', maxClusters);
                        numberOfClusters = max(ids);
-                       options = statset('MaxIter', 500);
+                       options = statset('MaxIter', 500, 'maxIter', 10);
                        obj = gmdistribution.fit(relevantSamples, numberOfClusters, 'Regularize', regularizeTerm, 'Start', ids, 'Options', options);
                   end
                   y = random(obj, generatedSampleCount);
@@ -173,7 +182,10 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
         end
         
         vocabLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
-        vocabLevel(vocabItr).childrenPosDistributions = childrenPosDistributions;
+        vocabLevel(vocabItr).childrenPosDistributions{1} = childrenPosDistributions;
         vocabLevel(vocabItr).realChildren = children;
     end
+
+     % Re-open warnings.
+     warning(w);
 end

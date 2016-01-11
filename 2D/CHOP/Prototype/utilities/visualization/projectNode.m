@@ -56,7 +56,8 @@ function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius, samplingM
             % most contribution, and sampling from that. 
             % TODO: We are planning to replace this with a smarter
             % search mechanism.
-            posDistributions = vocabNode.childrenPosDistributions{assignedRow};
+            posDistributions = vocabNode.childrenPosDistributions{1};
+            posDistributions = posDistributions{assignedRow};
             if ~isempty(posDistributions)
                  mixturePs = (posDistributions.PComponents)'; 
                  % Sample from the distribution.
@@ -68,6 +69,7 @@ function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius, samplingM
                  end
                  
                  % Assign positions.
+                 newNodeSet(1,2:3) = nodes(nodeItr,2:3);
                  for childItr = 2:numel(nodeCombination)
                     newNodeSet(childItr,2:3) = posVect(:,((childItr-2) * posDim + 1):((childItr-1)*posDim)) + nodes(nodeItr,2:3);
                  end

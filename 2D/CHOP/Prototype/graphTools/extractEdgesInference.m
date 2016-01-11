@@ -103,6 +103,7 @@ function [nodeEdges, edgeProbs] = extractEdgesInference(nodes, modes, modeProbAr
     nonemptyCurAdjacentNodeIdx = cellfun(@(x) ~isempty(x), curAdjacentNodes);
     curAdjacentNodes = curAdjacentNodes(nonemptyCurAdjacentNodeIdx);
 
+    % Obtain edges and count them.
     allEdges = cat(1, curAdjacentNodes{:});
     numberOfAllEdges = size(allEdges,1);
 
@@ -127,6 +128,8 @@ function [nodeEdges, edgeProbs] = extractEdgesInference(nodes, modes, modeProbAr
     allEdges = allEdges(validEdges,:);
     allEdgeCoords = allEdgeCoords(validEdges,:);
     node1Labels = node1Labels(validEdges,:);
+    
+    % Double check in order not to go out of bounds.
     node2Labels = node2Labels(validEdges,:);
     allEdgeCoords = allEdgeCoords + halfMatrixSize;
     

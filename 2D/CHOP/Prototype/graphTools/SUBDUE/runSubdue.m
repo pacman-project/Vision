@@ -86,8 +86,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
     end
     parentsPerSet = 50;
-    sigmoidMultiplier = 5;
-    precisionMult = 1000;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
@@ -111,9 +109,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     allLabels = cat(1, graphLevel.labelId);
     assignedEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
         assignedEdges(nonemptyEdgeIdx), 'UniformOutput', false);
-    allNodeProbs = cat(1, graphLevel.nodeProbability);
-    allEdgeProbs = {graphLevel.edgeProbabilities};
-    allNodeActivations = cat(1, graphLevel.activation);
     allEdges(numel(graphLevel)) = AdjInfo();
     [allEdges.adjInfo] = deal(assignedEdges{:});
     allEdgeNodePairs = cat(1,allEdges.adjInfo);
@@ -541,8 +536,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                % Get instance children
                instanceChildren = instanceChildrenDescriptors(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
                instanceChildren( :, all(~instanceChildren,1) ) = [];
+               numberOfInstances = numel(centerIdx);
                
-               % Get mappings
+               % Get mappings and signs for assignment.
                 instanceMappings = instanceChildrenMappings(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
                 instanceMappings( :, all(~instanceMappings,1) ) = [];
                
@@ -550,20 +546,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                instanceMappings = mat2cell(instanceMappings, ones(numberOfInstances,1), size(instanceMappings,2));
                instanceSigns = num2cell(allSigns(centerIdx));
                
-               % Activations (TODO: ADD EDGE PROBABILITIES AS WELL!)
-               instanceEdges = bestSubs(bestSubItr).instanceEdges;
-               if ~isempty(instanceEdges)
-                    instanceEdges = mat2cell(instanceEdges, ones(size(instanceEdges,1),1), size(instanceEdges,2));
-                    instancePosProbs = cellfun(@(x, y) [single(1); x(y)], allEdgeProbs(centerIdx), instanceEdges', 'UniformOutput', false)';
-               else
-                    instancePosProbs = num2cell(ones(numberOfInstances, 1,'single'));
-               end
-               instanceActivations = cellfun(@(x,y) logsig(sigmoidMultiplier * (mean(allNodeProbs(x) .* allNodeActivations(x) .* y) - 0.5)), instanceChildren, instancePosProbs);
-               instanceActivations = single(floor(double(instanceActivations)*precisionMult)/precisionMult);
-               
-               % TODO: Remove this line.
- %              instanceActivations = ones(size(instanceActivations), 'single');
-               
+               % Calculate activations.
+               instanceActivations = ones(numberOfInstances,1, 'single'); 
                instanceActivations = num2cell(instanceActivations);
                
                % Assign fields to graphs.

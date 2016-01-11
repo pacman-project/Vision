@@ -162,10 +162,8 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
                % Eliminate instances which have edges leading out.
                if nnz(validInstances) > 0    
                    instanceChildren = instanceChildren(validInstances, :);
-                   instancePosProbs = instancePosProbs(validInstances,:);
                else
                    instanceChildren = [];
-                   instancePosProbs = [];
                end
            end
 
@@ -174,14 +172,7 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
            
            % Calculating activations here.
            if ~isempty(instanceChildren)
-               tempProbs = nodeProbs(instanceChildren);
-               tempActivations = prevActivations(instanceChildren);
-               if size(tempProbs,2) ~= size(instanceChildren,2)
-                    tempProbs = tempProbs';
-                    tempActivations = tempActivations';
-               end
-               instanceActivations = logsig(sigmoidMultiplier * (mean(tempProbs .* tempActivations .* instancePosProbs, 2) - 0.5));
-               instanceActivations = single(floor(double(instanceActivations)*precisionMult)/precisionMult);
+               instanceActivations = ones(size(instanceChildren,1), 1, 'single');
                vocabRealizationsActivations(vocabItr) = {instanceActivations};
            end
         end
@@ -217,8 +208,8 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
            end
            for instanceItr = 1:size(children,1)
                newNodes(startIdx,1) = vocabNodeItr;
-               newPrecisePositions(startIdx,:) = mean(precisePositions(children(instanceItr,:),:),1);
-               newNodes(startIdx,2:3) = round(mean(nodes(children(instanceItr,:), 2:3),1));
+               newPrecisePositions(startIdx,:) = precisePositions(children(instanceItr,1),:);
+               newNodes(startIdx,2:3) = nodes(children(instanceItr,1), 2:3);
                startIdx = startIdx+1;
            end
         end

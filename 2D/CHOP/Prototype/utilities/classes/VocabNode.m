@@ -25,7 +25,7 @@ classdef VocabNode
                                                      % alternative or node label.
         childrenLabelDistributions@single % Array containing possible label combinations
                                                                  % and their probabilities.
-        childrenPosDistributions % Cell array of multi-modal gaussian distributions 
+        childrenPosDistributions = cell(1,1); % Cell array of multi-modal gaussian distributions 
                                                                  % modelling joint space of children positions. 
                                                                  % One for every discrete combination.
         categoryArr@single % 1 x numberOfCategories array. Sums up to 1. 

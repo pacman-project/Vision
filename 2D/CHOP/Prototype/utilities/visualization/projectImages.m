@@ -63,7 +63,7 @@ function [ ] = projectImages( datasetName)
 
             % Now, we get the top realizations and backproject to the original
             % image.
-            level1Nodes = projectNode(curExportArr(:,1:4), vocabulary, 0);
+            level1Nodes = projectNode(curExportArr(:,1:4), vocabulary, 0, 'modal');
             level1NodesOrg = level1Nodes;
             if levelItr == maxLevel
                  % Calculate a mapping betweeen data points and reconstructed points.
@@ -153,7 +153,7 @@ function [ ] = projectImages( datasetName)
 
             % Now, we get the top realizations and backproject to the original
             % image.
-            level1Nodes = projectNode(curExportArr(:,1:4), vocabulary, 0);
+            level1Nodes = projectNode(curExportArr(:,1:4), vocabulary, 0, 'modal');
             level1NodesOrg = level1Nodes;
 
             if levelItr == maxLevel
