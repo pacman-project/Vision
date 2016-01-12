@@ -15,12 +15,10 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary, nodes, allModes, allNodeProbs, modeProbs, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options)
+function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary, nodes, allModes, ~, modeProbs, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options)
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     firstLevelAdjNodes = [];
-    sigmoidMultiplier = 5;
-    precisionMult = 1000;
     
     % If fast inference is not required, we do not perform inhibition.
     singlePrecision = options.singlePrecision;
@@ -39,18 +37,7 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
     allPrecisePositions(1) = {precisePositions};
     
     for vocabLevelItr = 2:numel(vocabulary)
-        prevActivations = allActivations{vocabLevelItr-1};
         poolDim = options.poolDim;
-        % Find node probabilities.
-        if vocabLevelItr == 2
-             nodeProbs = ones(size(nodes,1), 1, 'single');
-        else
-             nodeProbs = allNodeProbs{vocabLevelItr-1};
-             nodeProbs = cat(1, nodeProbs{:});
-             [~, idx] = sort(nodeProbs(:,1));
-             nodeProbs = nodeProbs(idx, 2);
-             nodeProbs = nodeProbs(nodes(:,1));
-        end
         
         %% Match subs from vocabLevel to their instance in graphLevel.
         vocabLevel = vocabulary{vocabLevelItr};
@@ -214,16 +201,17 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
            end
         end
         
-        %% Order the nodes in newNodes in order to match training process.
-         [~, sortedIdx] = sortrows(newNodes);
+         %% Assign OR node labels to parts.
+         newNodes(:,1) = vocabLevelLabels(newNodes(:,1));
+        
+         %% Order the nodes in newNodes with real labels first.
+         arrayToSort = [newNodes, double(vocabRealizationsChildren)];
+         [~, sortedIdx] = sortrows(arrayToSort);
          newNodes = newNodes(sortedIdx, :);
          newPrecisePositions = newPrecisePositions(sortedIdx,:);
          activationArr = activationArr(sortedIdx,:);
          vocabRealizationsChildren = vocabRealizationsChildren(sortedIdx,:);
         
-         %% Assign OR node labels to parts.
-         newNodes(:,1) = vocabLevelLabels(newNodes(:,1));
-  
          %% Perform pooling.
          combinedArr = double(newNodes);
          % Sort combinedArr so that it is sorted by decreasing activations.

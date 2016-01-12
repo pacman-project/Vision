@@ -264,7 +264,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                 if isempty(childSubs) 
                     continue;
                 end
-                
+
                 %% Step 2.3: Eliminate subs that match to more frequent subs.
                  [childSubs, ~] = getNonOverlappingSubs(childSubs, nodeDistanceMatrix, edgeDistanceMatrix, ...
                       adaptiveMinThreshold, singlePrecision);
@@ -541,10 +541,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                % Get mappings and signs for assignment.
                 instanceMappings = instanceChildrenMappings(actualInstanceOffset:(actualInstanceOffset + numberOfInstances-1),:);
                 instanceMappings( :, all(~instanceMappings,1) ) = [];
-               
-               instanceChildren = mat2cell(instanceChildren, ones(numberOfInstances,1), size(instanceChildren,2));
-               instanceMappings = mat2cell(instanceMappings, ones(numberOfInstances,1), size(instanceMappings,2));
-               instanceSigns = num2cell(allSigns(centerIdx));
+                instanceChildren = mat2cell(instanceChildren, ones(numberOfInstances,1), size(instanceChildren,2));
+                instanceMappings = mat2cell(instanceMappings, ones(numberOfInstances,1), size(instanceMappings,2));
+                instanceSigns = num2cell(allSigns(centerIdx));
                
                % Calculate activations.
                instanceActivations = ones(numberOfInstances,1, 'single'); 
