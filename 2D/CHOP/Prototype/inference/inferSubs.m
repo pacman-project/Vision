@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary, nodes, allModes, ~, modeProbs, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options)
+function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary, nodes, allModes, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options)
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     firstLevelAdjNodes = [];
@@ -53,7 +53,7 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
         if edgeChangeLevel == (vocabLevelItr - 1)
            options.edgeType = 'centroid';
         end
-        [allEdges, allEdgeProbs] = extractEdgesInference(nodes, modes, modeProbs{vocabLevelItr-1}, leafNodeArr, firstLevelAdjNodes, options, vocabLevelItr-1);
+        [allEdges, allEdgeProbs] = extractEdgesInference(nodes, modes, leafNodeArr, firstLevelAdjNodes, options, vocabLevelItr-1);
         if vocabLevelItr == 2
            nonemptyAdjNodeIdx = cellfun(@(x) ~isempty(x), allEdges);
            firstLevelAdjNodes = cell(size(allEdges));

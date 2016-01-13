@@ -32,7 +32,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 12;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -69,7 +69,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'prob'; % If 'euc': Euclidean distance 
+    options.distType = 'modal'; % If 'euc': Euclidean distance 
                                                    % (normalized by number
                                                    % of nonzero pixels)
                                                    % will define the

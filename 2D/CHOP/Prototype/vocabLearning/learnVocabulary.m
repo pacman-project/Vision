@@ -23,16 +23,14 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, orNodeProbs, modeProbs, edgeChangeLevel, options] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords, ...
-                                                            options, fileList, modes, modeProbArr)
+function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, edgeChangeLevel, options] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords, ...
+                                                            options, fileList, modes, ~)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
     allModes = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
-    orNodeProbs = cell(options.maxLevels,1);
-    modeProbs = cell(options.maxLevels,1);
     optimalThresholds = single(repmat(options.subdue.threshold, options.maxLevels,1));
     
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
@@ -40,13 +38,11 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
     vocabulary(1) = {vocabLevel};
     mainGraph(1) = {graphLevel};
     allModes(1) = {modes};
-    modeProbs(1) = {modeProbArr};
     
     %% Create distance matrices of the first level.
-    [eucDistanceMatrix, nodeDistanceMatrix, nodeProbArr] = createDistanceMatrix(options.filters, options.filterImages, options.filterType, options.distType);
+    [eucDistanceMatrix, nodeDistanceMatrix] = createDistanceMatrix(options.filters, options.filterImages, options.filterType, options.distType);
     distanceMatrices(1) = {nodeDistanceMatrix};
     newDistanceMatrix = distanceMatrices{1};
-    orNodeProbs(1) = {nodeProbArr};
     
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));
@@ -124,8 +120,6 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
            mainGraph = mainGraph(1:(levelItr-1),:);
            allModes = allModes(1:(levelItr-1), :);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
-           orNodeProbs = orNodeProbs(1:(levelItr-1),:);
-           modeProbs = modeProbs(1:(levelItr-1),:);
            optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            break; 
         end
@@ -152,8 +146,6 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
            optimalThresholds = optimalThresholds(1:(levelItr-1),:);
            mainGraph = mainGraph(1:(levelItr-1),:);
            distanceMatrices = distanceMatrices(1:(levelItr-1),:);
-           orNodeProbs = orNodeProbs(1:(levelItr-1),:);
-           modeProbs = modeProbs(1:(levelItr-1),:);
            break; 
         end
         
@@ -181,11 +173,10 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         % In addition, we re-assign the node ids in graphLevel.
         if ~isempty(vocabLevel)
             display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
-            [vocabLevel, graphLevel, eucDistanceMatrix, nodeDistributions] = postProcessParts(vocabLevel, graphLevel, eucDistanceMatrix, options);
+            [vocabLevel, graphLevel, eucDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, levelItr, options);
             newDistanceMatrix = inf(size(eucDistanceMatrix,1), size(eucDistanceMatrix,1), 'single');
             newDistanceMatrix(1:(size(eucDistanceMatrix,1)+1):size(eucDistanceMatrix,1)*size(eucDistanceMatrix,1)) = 0;
             distanceMatrices{levelItr} = newDistanceMatrix;
-            orNodeProbs{levelItr} = nodeDistributions;
         else
             newDistanceMatrix = [];
         end
@@ -228,8 +219,6 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
             optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
-            orNodeProbs = orNodeProbs(1:(levelItr),:);
-            modeProbs = modeProbs(1:(levelItr),:);
             break;
         end
         
@@ -279,8 +268,6 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
             optimalThresholds = optimalThresholds(1:(levelItr),:);
             mainGraph = mainGraph(1:(levelItr),:);
             distanceMatrices = distanceMatrices(1:(levelItr),:);
-            orNodeProbs = orNodeProbs(1:(levelItr),:);
-            modeProbs = modeProbs(1:(levelItr),:);
         end
     end
 end

@@ -272,7 +272,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryNames', 'categoryArrIdx', 'validationIdx');
-        [vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, orNodeProbs, modeProbs, edgeChangeLevel] = learnVocabulary(vocabLevel, graphLevel, leafNodes, leafNodeCoords, ...
+        [vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices, edgeChangeLevel] = learnVocabulary(vocabLevel, graphLevel, leafNodes, leafNodeCoords, ...
                                         options, trainingFileNames, modes, modeProbArr); %#ok<NASGU,ASGLU>
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
         
@@ -281,7 +281,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         % Print everything to files.
         save([options.currentFolder '/output/' datasetName '/trtime.mat'], 'tr_stop_time');
-        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'optimalThresholds', 'distanceMatrices', 'orNodeProbs', 'modeProbs', 'trainingFileNames', 'categoryNames', 'options', 'edgeChangeLevel');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'optimalThresholds', 'distanceMatrices', 'trainingFileNames', 'categoryNames', 'options', 'edgeChangeLevel');
         % categoryArr is kept for backward-compatibility. It will be
         % removed in further releases.
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'exportArr', 'activationArr', 'categoryArr', 'categoryArrIdx', 'validationIdx', 'poseArr', 'precisePositions', '-append'); 
