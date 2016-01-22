@@ -48,7 +48,7 @@
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
 function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, ...
     graphLevel, orgThreshold, nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, ...
-    supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, options)
+    supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Nodes, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -75,6 +75,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     optimizationFlag = options.optimizationFlag;
     partSelectionFlag = options.partSelectionFlag;
     optimalThreshold = orgThreshold;
+    minRFCoverage = options.subdue.minRFCoverage;
     if options.validationFlag
         validationFolds = options.validationFolds;
     else
@@ -86,6 +87,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
     end
     parentsPerSet = 50;
+    RFSize = options.receptiveFieldSize;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
@@ -114,6 +116,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     allEdgeNodePairs = cat(1,allEdges.adjInfo);
     allEdgeNodePairs = allEdgeNodePairs(:,1:2);
     clear assignedEdges;
+    
+    % Get leaf nodes for each child.
+    allLeafNodes = {graphLevel.leafNodes};
     
     % Obtain real node labels and edge distributions for likelihood
     % processing.
@@ -208,7 +213,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                
                % Evaluate them.
                 singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, false);
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, false, ...
+                    allLeafNodes, level1Nodes, minRFCoverage, RFSize, double(nodePositions));
 
                 %% Remove those with no instances. 
                 centerIdxArr = {singleNodeSubsFinal.instanceCenterIdx};
@@ -260,7 +266,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
-                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, overallThreshold);
+                childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, ...
+                     overallThreshold);
                 if isempty(childSubs) 
                     continue;
                 end
@@ -274,28 +281,37 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                 [childSubsFinal, childSubsExtend] = getFinalSubs(childSubs, adaptiveThreshold);
                  
                 %% Step 2.4: Evaluate childSubs, find their instances.
-                childSubsFinal = evaluateSubs(childSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
-                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, false);
+                [childSubsFinal, validSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
+                    allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, ...
+                    false, allLeafNodes, level1Nodes, minRFCoverage, RFSize, double(nodePositions));
                 
                 % Assign mdl scores of subs chosen for extension as well. 
                 [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
+                childSubsFinal = childSubsFinal(validSubs);
                 
                 %% Eliminate childSubs which will render useless to preserve memory.
-                mdlScores = [childSubsFinal.mdlScore];
-                validMdlScoreIdxFinal = mdlScores > minMdlScoreFinal;
-                childSubsFinal = childSubsFinal(validMdlScoreIdxFinal);
+                if ~isempty(childSubsFinal)
+                     finalMdlScores = [childSubsFinal.mdlScore];
+                     validMdlScoreIdxFinal = finalMdlScores > minMdlScoreFinal;
+                     childSubsFinal = childSubsFinal(validMdlScoreIdxFinal);
+                end
+                mdlScores = [childSubsExtend.mdlScore];
                 validMdlScoreIdxExtend = mdlScores > minMdlScoreExtend;
                 childSubsExtend = childSubsExtend(validMdlScoreIdxExtend);
                     
                 % If no subs are remaining, continue.
-                if isempty(childSubsFinal) 
+                if isempty(childSubsExtend) 
                     continue;
                 end
                 
                 %% Sort childSubs by the mdl scores.
-                mdlScores = [childSubsFinal.mdlScore];
-                [sortedMdlScoresFinal, sortIdx] = sort(mdlScores, 'descend');
-                childSubsFinal = childSubsFinal(sortIdx);
+                if ~isempty(childSubsFinal)
+                     mdlScores = [childSubsFinal.mdlScore];
+                     [sortedMdlScoresFinal, sortIdx] = sort(mdlScores, 'descend');
+                     childSubsFinal = childSubsFinal(sortIdx);
+                else
+                     sortedMdlScoresFinal = [];
+                end
                 
                 mdlScores = [childSubsExtend.mdlScore];
                 [sortedMdlScoresExtend, sortIdx] = sort(mdlScores, 'descend');
@@ -418,7 +434,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, realNodeLabels,...
                nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, singlePrecision, ...
                numberOfReconstructiveSubs, orgThreshold, ...
-               validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, ...
+               validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, allLeafNodes, level1Nodes, ...
                isSupervisedSelectionRunning);
            
            % If supervision flag is set, and the performance has dropped
@@ -432,7 +448,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, realNodeLabels, ...
                    nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, singlePrecision, ...
                    numberOfReconstructiveSubs, orgThreshold, ...
-                   validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns,...
+                   validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, allLeafNodes, level1Nodes, ...
                    isSupervisedSelectionRunning);
            else
                previousAccuracy = optimalAccuracy;
@@ -442,7 +458,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            
            % Re-evaluate best subs.
            bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
-               allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised, false); 
+               allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised, false, ...
+               allLeafNodes, level1Nodes, minRFCoverage, RFSize, double(nodePositions));
            
            % Sort bestSubs by their mdl scores.
            mdlScores = [bestSubs.mdlScore];

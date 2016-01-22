@@ -26,7 +26,11 @@ function [ muImg, varImg ] = obtainPoE( level1Nodes, imgSize, options )
                location = [itr1, itr2];
                distances = repmat(location, numberOfGabors, 1) - posArr;
                actualDistances = round(sqrt(sum(distances.^2,2))) + 1;
+               try
                sigmaVals = allSigmaVals(actualDistances);
+               catch
+                    1
+               end
                overlappingIds = distances(:,1) >(-firstHalf-1) & distances(:,1) < (secHalf+1) & distances(:,2) >(-firstHalf-1) & distances(:,2) < (secHalf+1);
 
                % If there's at least one overlapping filter, get

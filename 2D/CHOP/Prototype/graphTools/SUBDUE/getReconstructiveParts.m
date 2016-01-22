@@ -29,12 +29,13 @@
 %> Updates
 %> Ver 1.0 on 08.10.2015
 function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(bestSubs, realNodeLabels, ...
-            nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren)
+            nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren, allLeafNodes, level1Nodes)
 
    minNodeProbability = 0.00001;
    coverageStoppingVal = 0.99;
    likelihoodStoppingVal = 0.99;
    groupingThr = 0.9;
+   minCoverThr = 0.8;
    partSelectionThr = 3000;
    numberOfBestSubs = numel(bestSubs);
    prevGraphNodeCount = numel(uniqueChildren);
@@ -48,6 +49,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    largeRFSize = RFSize * 2 - 1;
    largeRFSizes = [largeRFSize, largeRFSize];
    halfSize = RFSize;
+   halfRFSize = floor(RFSize/2);
    
    % Allocate space for node/edge distributions, both discrete.
    % We start by calculating number of sub, child pairs.
@@ -60,10 +62,28 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    posProbArr = zeros(numberOfSubChildPairs, largeRFSize, largeRFSize);
    subLabelProbs = cell(numberOfBestSubs, 1);
    subPosProbs = cell(numberOfBestSubs, 1);
+   subCoverFlags = cell(numberOfBestSubs,1);
    subCoveredNodes = cell(numberOfBestSubs,1);
    
+   % For every center node, we calculate the number of layer nodes inside
+   % its RF. This will be useful to decide coverage.
+   coveredLevel1Nodes = cell(maxChildId,1);
+   coveredLevel1NodeCounts = zeros(maxChildId,1);
+   for nodeItr = 1:numel(uniqueChildren)
+        centerPosition = double(nodePositions(nodeItr,:));
+        leafNodes = allLeafNodes{uniqueChildren(nodeItr)};
+        imageId = level1Nodes(leafNodes(1),1);
+        overlappingLevel1Nodes = find(level1Nodes(:,1) == imageId & ...
+                                                     level1Nodes(:,2) >= (centerPosition(1) - halfRFSize) & ...
+                                                     level1Nodes(:,2) <= (centerPosition(1) + halfRFSize) & ...
+                                                     level1Nodes(:,3) >= (centerPosition(2) - halfRFSize) & ...
+                                                     level1Nodes(:,3) <= (centerPosition(2) + halfRFSize));
+        coveredLevel1Nodes(nodeItr) = {overlappingLevel1Nodes};   
+        coveredLevel1NodeCounts(nodeItr) = numel(overlappingLevel1Nodes);
+   end
+   
    % Go over all possible part-subpart pairs, and calculate probabilities.
-   parfor subItr = 1:numberOfBestSubs
+   for subItr = 1:numberOfBestSubs
        instanceChildren = bestSubs(subItr).instanceChildren;
        numberOfInstances = size(instanceChildren,1);
        numberOfChildren = size(instanceChildren,2);
@@ -87,6 +107,30 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
        end
        labelLogProbs = prevGraphNodeLogProbs;
        posLogProbs = labelLogProbs;
+       nodeCovers = labelLogProbs > 0;
+       
+       % Calculate coverage of layer 1 nodes for every instance.
+       instanceCoverages = zeros(numberOfInstances,1);
+       for instanceItr = 1:numberOfInstances
+            coveredLeafNodes = fastsortedunique(sort([allLeafNodes{instanceChildren(instanceItr,:)}]));
+            instanceCoverages(instanceItr) = numel(coveredLeafNodes) / ...
+                 coveredLevel1NodeCounts(instanceChildren(instanceItr,1));
+       end
+       
+       % Then, transfer coverage info from instances to individual nodes.
+       arrayToSort = zeros(numberOfInstances * numberOfChildren, 2);
+       offset = 1;
+       for childItr = 1:numberOfChildren
+            arrayToSort(offset:(offset+numberOfInstances-1),:) = [double(instanceChildren(:,childItr)), instanceCoverages];
+            offset = offset + numberOfInstances;
+       end
+       
+       % Sort array, and obtain entries.
+       [~, idx] = sort(arrayToSort(:,2), 'descend');
+       arrayToSort = arrayToSort(idx,:);
+       [~, IA, ~] = unique(arrayToSort(:,1), 'stable');
+       arrayToSort = arrayToSort(IA, :);
+       nodeCovers(arrayToSort(:,1)) = arrayToSort(:,2) >= minCoverThr;
        
        % Finally, collect statistics for every child.
        for childItr = 1:numberOfChildren
@@ -125,10 +169,20 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
         % Save child probabilities.
         allNodes = unique(instanceChildren);
         allNodes = (allNodes(:))';
+        allNodes = allNodes(nodeCovers(allNodes));
         subCoveredNodes{subItr} = allNodes;
         subLabelProbs{subItr} = labelLogProbs(allNodes);
         subPosProbs{subItr} = posLogProbs(allNodes);
    end
+   
+   % Measure maximum possible coverage.
+   maxCoverageArr = zeros(1, maxChildId) > 0;
+   for subItr = 1:numberOfBestSubs
+        relevantChildren = subCoveredNodes{subItr};
+        maxCoverageArr(relevantChildren) = 1;
+   end
+   coverageMultiplier = nnz(maxCoverageArr) / numel(uniqueChildren);
+   coverageStoppingVal =coverageStoppingVal * coverageMultiplier;
    
    % Check for a potential error condition.
    if size(posProbArr,2) ~= largeRFSize || size(posProbArr,3) ~= largeRFSize
@@ -156,6 +210,11 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
         markedPosProbs = zeros(maxChildId, 1, 'single');
         stoppingFVal = -f(ones(1, numberOfBestSubs) > 0) * likelihoodStoppingVal;
         valueArr = inf(1,numberOfBestSubs);
+        
+        % Mark invalid nodes.
+        invalidArr = cellfun(@(x) numel(x), subCoveredNodes);
+        valueArr(invalidArr == 0) = 0;
+        
         if exist('ga') == 2 && runGA %#ok<EXIST>
              subLimit = numberOfFinalSubs*2;
         else
@@ -183,6 +242,8 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
  %               tempMarkedNodes(subCoveredNodes{subItr}) = 1;
 %                diffVal = nnz(tempMarkedNodes) - prevVal;
                 children = subCoveredNodes{subItr};
+                
+                % Calculate value of a sub.
                 prevVal = sum(tempLabelProbs(children)) + sum(tempPosProbs(children));
                 tempMarkedNodes(children) = 1;
                 tempLabelProbs(children) = subLabelProbs{subItr};

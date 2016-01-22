@@ -21,12 +21,13 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
     visualizedNodes = options.vis.visualizedNodes;
-    orgImgWeight = 0.9;
+    orgImgWeight = 0.6;
     
     if isempty(currentLevel)
        return; 
     end
-    numberOfVocabLevelNodes = double(max([currentLevel.label]));
+ %   numberOfVocabLevelNodes = double(max([currentLevel.label]));
+    numberOfVocabLevelNodes = numel(currentLevel);
     
     %% Create output folder structure.
     croppedDir = [currentFolder '/debug/' datasetName '/level' num2str(levelId) '/cropped/'];
@@ -125,9 +126,8 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             margins = (compMaskSize - [size(tempMask2,1), size(tempMask2,2)])/2;
             finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
                 (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
+           
             % A make-up to fill in NaNs (empty points).
-  %          fillInValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
-  %          finalTempMask(finalTempMask == 0) = fillInValue;
             instanceImgs{instItr} = finalTempMask;
             imwrite(finalTempMask, [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png']);
         end
@@ -153,7 +153,6 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+compMaskSize(1)-1), ...
                 (colStart2+colInstStart):((colStart2+colInstStart)+compMaskSize(2)-1), :) = compFinalMask;
         end
-  %      imwrite(instanceImgs{1}, [reconstructionDir num2str(nodeItr) '_uni.png']);
     end
 
     clear instanceImgs nodeImgs setImgs;

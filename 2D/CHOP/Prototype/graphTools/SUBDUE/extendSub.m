@@ -78,6 +78,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     allLocalEdgeIdx = [allLocalEdgeIdx{:}]';
     
     % Allocate space for new subs and fill them in.
+    validSubs = ones(numberOfEdgeTypes,1) > 0;
     extendedSubs(numberOfEdgeTypes) = Substructure;
     for edgeTypeItr = 1:numberOfEdgeTypes
         % Assign sub-definition type and other info
@@ -106,7 +107,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         allChildren = [sub.instanceChildren(edgeInstanceIds,:), ...
              allUnusedEdges(edgesToExtendIdx,2)];
 %        [allChildren, allChildrenSortIdx] = sort(allChildren, 2);
-        
+
         % Calculate mappings of instances' nodes to the description.
         newMappings = [sub.instanceMappings(edgeInstanceIds, :), ...
             ones(size(edgeInstanceIds,1), 1, 'uint8') * size(allChildren,2)];
@@ -114,7 +115,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
 %         R = repmat((1:rows)',[1 cols]);
 %         nIdx = R + (allChildrenSortIdx-1)*rows;
 %         newMappings = newMappings(nIdx);
-         
+        
         %% Note: allChildren may have duplicate entries, since an instance can
         % have multiple parse trees. We handle these cases by only keeping
         % unique instances. In addition, for each instance, the minimum
@@ -175,4 +176,6 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         % All instances assigned, good to go.
         extendedSubs(edgeTypeItr) = newSub;
     end
+    
+    extendedSubs = extendedSubs(validSubs);
 end

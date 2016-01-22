@@ -25,10 +25,11 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
-    options.gaborFilterThr = 0.2; % Min response threshold for convolved features, 
+    options.gaborFilterThr = 0.1; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.absGaborFilterThr = 0; % Absolute response threshold for low-level 
+    options.innerGaborFilterThr = 0.01; % Min response threshold for inner contours.
+    options.absGaborFilterThr = 0; % Absolute response threshold for low-level  % For depth!
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
@@ -41,7 +42,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = 2;
+    options.gabor.inhibitionRadius = 1;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
@@ -69,20 +70,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'modal'; % If 'euc': Euclidean distance 
-                                                   % (normalized by number
-                                                   % of nonzero pixels)
-                                                   % will define the
-                                                   % distance between two
-                                                   % filters. If 'man',
-                                                   % manifold distance to
-                                                   % be used. If 'rank',
-                                                   % manifold distance is
-                                                   % used, however, the
-                                                   % features are ranked
-                                                   % with their distances,
-                                                   % and the ranking is the
-                                                   % new distance function.
+    options.distType = 'hog'; % Either 'modal', 'hog' or 'hu'.
     %% ========== GT Parameters ==========
     options.useGT = true;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
@@ -135,7 +123,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = 5; % DEFAULT 5
     else
-        options.receptiveFieldSize = 9;
+        options.receptiveFieldSize = 7;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -176,10 +164,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.articulationsPerCategory = 3; % We reduced  is this number multipli
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 500; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 20; % The maximum 
+    options.reconstruction.numberOfORNodes = 100; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -221,7 +209,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 300;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1200;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -262,9 +250,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 5; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = 10; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 100;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.beam = 3000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
@@ -272,6 +260,8 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                      % are taken into account (DEFAULT).
                                      % Also, redundancy is removed from the
                                      % main graph.
+     options.subdue.minRFCoverage = 0; % Only parts which cover (on average) this 
+                                                                   % percentage of their receptive fields are considered.
      options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 

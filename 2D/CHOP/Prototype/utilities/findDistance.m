@@ -18,16 +18,16 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.01.2016
-function [ minDistance ] = findDistance( muArr1, muArr2, varArr1, varArr2, distType, searchHalfSize )
+function [ minDistance ] = findDistance( muArr1, muArr2, varArr1, varArr2, distType, searchHalfSize, searchMultiplier )
      % Program variables.
      imgSize = size(muArr1);
-     lowVals = floor((imgSize - 2*searchHalfSize)/2);
-     highVals = imgSize - (2*searchHalfSize + 1) - lowVals;
-     centerPoint = lowVals + 1 + searchHalfSize;
+     lowVals = floor((imgSize - 2*searchHalfSize * searchMultiplier)/2);
+     highVals = imgSize - (2*searchHalfSize*searchMultiplier + 1) - lowVals;
+     centerPoint = lowVals + 1 + searchHalfSize * searchMultiplier;
      
      % Create random center points to test the hypothesis.
-     [sampleCenterX, sampleCenterY] = meshgrid((centerPoint(1)-searchHalfSize):(centerPoint(1)+searchHalfSize), ...
-          (centerPoint(2)-searchHalfSize):(centerPoint(2)+searchHalfSize));
+     [sampleCenterX, sampleCenterY] = meshgrid((centerPoint(1)-searchHalfSize*searchMultiplier):searchMultiplier:(centerPoint(1)+searchHalfSize*searchMultiplier), ...
+          (centerPoint(2)-searchHalfSize * searchMultiplier):searchMultiplier:(centerPoint(2)+searchHalfSize * searchMultiplier));
      sampleCenterX = sampleCenterX(:);
      sampleCenterY = sampleCenterY(:);
      

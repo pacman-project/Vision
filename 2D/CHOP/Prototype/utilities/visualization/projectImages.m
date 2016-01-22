@@ -123,7 +123,9 @@ function [ ] = projectImages( datasetName)
        [~, testFileName, ~] = fileparts(testFileNames{imgItr});
        outputFile = [options.testInferenceFolder '/' categoryNames{categoryArrIdx(imgItr)} '_' testFileName '_test.mat'];
        load(outputFile);
+       exportArr(:,1) = realLabelIds;
        % Obtain image-specific realizations.
+        % Assign real labels.
        imageExportArr = exportArr;
        
        % If there are no realizations, move on.
@@ -142,6 +144,7 @@ function [ ] = projectImages( datasetName)
        maxLevel = max(imageExportArr(:,4));
        level1DataPoints = imageExportArr(imageExportArr(:,4) == 1, 1:3);
        
+
        for levelItr = 1:maxLevel
             idx = imageExportArr(:,4) == levelItr;
             curExportArr = imageExportArr(idx, :);

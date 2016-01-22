@@ -27,7 +27,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     
     % Set initial data structures for processing 
     edges = cat(1, currentLevel.adjInfo);
-    nodeIds = [currentLevel.labelId]';
+    nodeIds = [currentLevel.labelId];
     nodeCoords = cat(1, currentLevel.precisePosition);
     
     % If no edges exist, return.

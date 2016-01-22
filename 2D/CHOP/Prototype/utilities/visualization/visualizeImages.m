@@ -17,7 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, leafNodeCoords, levelItr, options, type )
+function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, type )
     outputTempDir = [options.outputFolder '/reconstruction/' type];
     backgroundDir = [options.outputFolder '/reconstruction/' type '/' options.backgroundClass];
     processedFolder = options.processedFolder;   
@@ -65,46 +65,20 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
        mkdir(croppedOrgFolder); 
     end
     
-    %% If not all realizations need to be printed, we only focus on a limited set. 
-    if ~printTrainRealizations
-        printedNodes = cell(numberOfVocabLevelNodes,1);
-        graphNodeIds = (1:numel(graphLevel))';
-        labelIds = cat(1, graphLevel.labelId); 
-        imageIds = cat(1, graphLevel.imageId);
-        for nodeItr = 1:numberOfVocabLevelNodes
-            relevantIdx = labelIds == nodeItr;
-            nodeInstances = graphNodeIds(relevantIdx);
-            instanceActivations = activations(relevantIdx);
-            instanceImageIds = imageIds(relevantIdx);
-        
-            % We sort activations and get top ones.
-            if numel(instanceActivations)>instancePerNode
-                 % Get best instances to print.
-                 [~, sortIdx] = sort(instanceActivations, 'descend');
-                 [~, validSortIdx] = unique(instanceImageIds(sortIdx), 'stable');
-                 sortIdx = sortIdx(validSortIdx);
-                 if  numel(sortIdx) > instancePerNode
-                     sortIdx = sortIdx(1:instancePerNode);
-                 end
-                 nodeInstances = nodeInstances(sortIdx);
-            end
-            printedNodes{nodeItr} = sort(nodeInstances);
-        end
-        printedNodes = cat(1, printedNodes{:});
-        graphLevel = graphLevel(printedNodes);
-    end
-    
     %% Put realizations into distinct sets so that each image has its own nodes in a set.
     imageIds = [graphLevel.imageId]';
     imageNodeSets = cell(numel(fileList),1);
+    imageNodeIds = cell(numel(fileList), 1);
     for fileItr = 1:numel(fileList)
         imageNodeSets(fileItr) = {graphLevel(imageIds == fileItr)};
+        imageNodeIds(fileItr) = {find(imageIds == fileItr)};
     end
     
     %% Go over the list of images and run reconstruction.
     for fileItr = 1:numel(fileList)
-        
         nodeOffset = numel(find(imageIds<fileItr));
+        relevantNodeIds = imageNodeIds{fileItr};
+        
         %% Learn the size of the original image, and allocate space for new mask.
         [~, fileName, ~] = fileparts(fileList{fileItr});
         img = imread([processedFolder '/' fileName '.png']);
@@ -226,7 +200,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) + ...
                      writtenMaskMap;
                      
-     
                  % First, write the node label to the labeled mask.
                  reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)));
@@ -238,18 +211,19 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
             end
             
             %% Write original image's cropped area to a file.
-%            if usedChildren(nodes(nodeItr).labelId) > 0 && strcmp(type, 'train')
-            if usedChildren(nodes(nodeItr).labelId) > 0
-                usedChildren(nodes(nodeItr).labelId) = usedChildren(nodes(nodeItr).labelId) - 1;
-                imwrite(actualImg(minX:maxX, ...
-                    minY:maxY, :), [croppedOrgFolder '/' num2str(nodes(nodeItr).labelId) '_' num2str(instancePerNode - usedChildren(nodes(nodeItr).labelId)) '.png']);
+            if ~isempty(allNodeInstances)
+                 if ismember(relevantNodeIds(nodeItr), allNodeInstances{nodes(nodeItr).realLabelId})
+                     imgId = find(allNodeInstances{nodes(nodeItr).realLabelId} == relevantNodeIds(nodeItr)) - 1;
+                     imwrite(actualImg(minX:maxX, ...
+                         minY:maxY, :), [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
+                 end
             end
             
             %% Mark the center of each realization with its label id.
             labeledReconstructedMask(round(nodes(nodeItr).precisePosition(1)-1):round(nodes(nodeItr).precisePosition(1)+1), ...
                 round(nodes(nodeItr).precisePosition(2)-1):round(nodes(nodeItr).precisePosition(2)+1)) = nodes(nodeItr).labelId;
         end
-        
+       
         % Normalize and obtain final reconstructed image.
         for bandItr = 1:size(reconstructedMask,3)
              relevantImg = reconstructedMask(:,:,bandItr);
@@ -282,7 +256,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
             for nodeItr = 1:numel(nodes)
                 edges = nodes(nodeItr).adjInfo;
                 if ~isempty(edges)
- %                   edges = edges(edges(:,2) > edges(:,1), :);
                     edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
                     if ~isempty(edges)
                         for edgeItr = 1:size(edges,1)
@@ -292,14 +265,18 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, leafNodes, lea
                     end
                 end
             end
+            
             centerSize = 0;
             for nodeItr = 1:numel(nodes)
                 edgeImg(round(nodes(nodeItr).precisePosition(1)-centerSize):round(nodes(nodeItr).precisePosition(1)+centerSize), ...
                     round(nodes(nodeItr).precisePosition(2)-centerSize):round(nodes(nodeItr).precisePosition(2)+centerSize)) = nodes(nodeItr).labelId;
             end
+            
+            % 
             edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
             edgeRgbImg = max(edgeRgbImg, edgeImg);
 
+            % 
             if levelItr>1
                 imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);

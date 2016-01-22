@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, leafNodeCoords, levelId, numberOfFirstLevelNodes, ~, options)
+function [allNodeInstances] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, leafNodeCoords, levelId, numberOfFirstLevelNodes, ~, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -31,7 +31,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     for itr = 1:max(vocabLevelLabels)
          vocabLevelIdx(itr) = find(vocabLevelLabels == itr, 1, 'first');
     end
-%    currentLevel = currentLevel(vocabLevelIdx);
+    allNodeInstances = [];
     
     % These parameter relate to drawing the approximate model of each node
     % in the vocabulary.
@@ -128,6 +128,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
         % get its mask in the end. Each node is reconstructed using the
         % nodes in the previous layer which contribute to its definition. 
         setImgs = cell(numberOfThreadsUsed,1);
+        allNodeInstances = cell(numberOfNodes,1);
         for setItr = 1:numberOfThreadsUsed
             w = warning('off', 'all');
             nodeSet = parallelNodeSets{setItr};
@@ -158,6 +159,7 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
                 end
                 nodeInstances = [bestNodeInstance; nodeInstances]; %#ok<AGROW>
                 instanceImgs = cell(numel(nodeInstances),1);
+                allNodeInstances{labelId} = nodeInstances;
                 
                 %% Now, we print the rest of the instances.
                 for nodeInstanceItr = 1:numel(nodeInstances)
@@ -340,6 +342,22 @@ function [] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivat
     smallColImgCount = ceil(sqrt(visualizedNodes));
     smallRowImgCount = ceil(visualizedNodes/smallColImgCount);
 
+    % Change visualizations with the PoE predictions.
+    for nodeItr = 1:numberOfNodes
+         imgPath = [options.debugFolder '/level' num2str(levelId) '/modalProjection/' num2str(nodeItr) '.png'];
+         if exist(imgPath, 'file')
+              tempImg = imread([options.debugFolder '/level' num2str(levelId) '/modalProjection/' num2str(nodeItr) '.png']);
+              if size(tempImg,3) > 1
+                   tempImg = rgb2gray(tempImg);
+              end
+              idx = find(tempImg);
+              [x,y] = ind2sub(size(tempImg), idx);
+
+              tempImg = tempImg(min(x):max(x), min(y):max(y),:);
+              nodeImgs{nodeItr}{1} = tempImg;
+         end
+    end
+    
     %% Show the set of compositions in a single image and save it.
     % Read all masks into an array, and get the extreme dimensions.allCompMasks = cell(numberOfNodes,1);
     compMaskSize = [1, 1];

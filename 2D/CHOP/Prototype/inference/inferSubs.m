@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary, nodes, allModes, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options)
+function [exportArr, activationArr, allPrecisePositions, allRealLabelIds] = inferSubs(vocabulary, nodes, allModes, ~, modeProbs, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options)
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     firstLevelAdjNodes = [];
@@ -29,12 +29,14 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
     end
     allNodes = cell(numel(vocabulary),1);
     allPrecisePositions = cell(numel(vocabulary), 1);
+    allRealLabelIds = cell(numel(vocabulary), 1);
     allActivations = cell(numel(vocabulary),1);
     allNodes(1) = {nodes};
     allActivations(1) = {nodeActivations};
     leafNodeArr = num2cell((int32(1:size(nodes,1)))');
     precisePositions = single(nodes(:,4:5));
     allPrecisePositions(1) = {precisePositions};
+    allRealLabelIds(1) = {nodes(:,1)};
     
     for vocabLevelItr = 2:numel(vocabulary)
         poolDim = options.poolDim;
@@ -53,7 +55,7 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
         if edgeChangeLevel == (vocabLevelItr - 1)
            options.edgeType = 'centroid';
         end
-        [allEdges, allEdgeProbs] = extractEdgesInference(nodes, modes, leafNodeArr, firstLevelAdjNodes, options, vocabLevelItr-1);
+        [allEdges, allEdgeProbs] = extractEdgesInference(nodes, modes, modeProbs{vocabLevelItr-1}, leafNodeArr, firstLevelAdjNodes, options, vocabLevelItr-1);
         if vocabLevelItr == 2
            nonemptyAdjNodeIdx = cellfun(@(x) ~isempty(x), allEdges);
            firstLevelAdjNodes = cell(size(allEdges));
@@ -202,6 +204,7 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
         end
         
          %% Assign OR node labels to parts.
+         realLabelIds = newNodes(:,1);
          newNodes(:,1) = vocabLevelLabels(newNodes(:,1));
         
          %% Order the nodes in newNodes with real labels first.
@@ -209,6 +212,7 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
          [~, sortedIdx] = sortrows(arrayToSort);
          newNodes = newNodes(sortedIdx, :);
          newPrecisePositions = newPrecisePositions(sortedIdx,:);
+         newRealLabelIds = realLabelIds(sortedIdx,:);
          activationArr = activationArr(sortedIdx,:);
          vocabRealizationsChildren = vocabRealizationsChildren(sortedIdx,:);
         
@@ -228,6 +232,7 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
          activationArr = activationArr(idx);
          vocabRealizationsChildren =vocabRealizationsChildren(idx,:);
          newPrecisePositions = newPrecisePositions(idx,:);
+         newRealLabelIds = newRealLabelIds(idx,:);
          
          % Create final graphLevel.
          newNodes = newNodes(idx, :);
@@ -251,11 +256,15 @@ function [exportArr, activationArr, allPrecisePositions] = inferSubs(vocabulary,
         allActivations(vocabLevelItr) = {activationArr(sortIdx)};
         nodes = newNodes(sortIdx,:);
         precisePositions = newPrecisePositions(sortIdx,:);
+        realLabelIds = newRealLabelIds(sortIdx,:);
+        allRealLabelIds{vocabLevelItr} = realLabelIds;
         allPrecisePositions{vocabLevelItr} = precisePositions; 
     end
     activationArr = cat(1, allActivations{:});
     numberOfInstances = sum(cellfun(@(x) size(x,1), allNodes));
     allPrecisePositions = cat(1, allPrecisePositions{:});
+    allRealLabelIds = cat(1, allRealLabelIds{:});
+    
     %% If no instances have been found, exit.
     if numberOfInstances<1
         exportArr = [];

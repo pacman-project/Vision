@@ -40,6 +40,7 @@ classdef GraphNode
                   % corresponds to. Particularly important in visualization
                   % and calculation of coverage statistics.
         activation@single; % Used in inference. Signals our confidence in this node.
+        likelihood@single; % log likelihood of this particular node. 
         sign % Sign of the node. Assigned 0 unless the corresponding image 
              % is in background class.   
     end

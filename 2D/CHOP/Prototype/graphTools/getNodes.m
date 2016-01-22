@@ -21,6 +21,20 @@
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
 %> Ver 1.3 on 17.01.2014 GT use implemented.
 function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseImgs ] = getNodes( img, gtFileName, options )
+    % Step 0: Obtain background
+    if size(img,3)>1
+         grayImg = rgb2gray(img(:,:,1:3));
+    else
+         grayImg = img;
+    end
+    backgroundMask = grayImg == 0;
+%     edgeMask = edge(grayImg, 'canny');
+%     edgeMask = imdilate(edgeMask,strel('disk', 2));
+%     edgeMask(backgroundMask) = 0;
+%     
+    % In addition, we filter out weak responses for outside borders of the
+    % object.
+
     %% Step 1: Get grayscaled image and assign method parameters.
     if strcmp(options.filterType, 'gabor')
         stride = options.gabor.stride;
@@ -29,11 +43,11 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
         end
         
         %% Apply denoising to get better responses.
-        for bandItr = 1:size(img,3);
-    %        myfilter = fspecial('gaussian',[3 3], 2);
-    %        img(:,:,bandItr) = imfilter(img(:,:,bandItr), myfilter, 'replicate', 'same', 'conv');
-            img(:,:,bandItr)=medfilt2(img(:,:,bandItr), [3,3]);
-        end
+%         for bandItr = 1:size(img,3);
+%     %        myfilter = fspecial('gaussian',[3 3], 2);
+%     %        img(:,:,bandItr) = imfilter(img(:,:,bandItr), myfilter, 'replicate', 'same', 'conv');
+%             img(:,:,bandItr)=medfilt2(img(:,:,bandItr), [3,3]);
+%         end
         deadFeatures = [];
     elseif strcmp(options.filterType, 'auto')
         stride = options.auto.stride;
@@ -98,10 +112,22 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
     %% Low-level feature extraction.
     if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
         realCoordIdx = zeros(filterCount, prod(newImgSize));
+        
+        % We're using steerable filters here. Mimicking gabor filters.
+%        [res, theta, nms, rotations] = steerableDetector(img, 5, 0.3, filterCount * 2);
+          [res, theta, nms, rotations] = steerableDetector(img, 5, 0.5, filterCount * 2);
+ %       filterOrder = [1,4,3,2,5,8,7,6,9,12,11,10,13,16,15,14];
+%        rotations = rotations(:,:,filterOrder);
         for filtItr = 1:filterCount
-            currentFilter = double(options.filters{filtItr});
-            responseImg = conv2(img, rot90(currentFilter,2), 'same');
-
+%              filtId = rem(filterCount+2-filtItr, filterCount);
+%              if filtId == 0
+%                   filtId = filtId + filterCount;
+%              end
+ %           currentFilter = double(options.filters{filtItr});
+ %           responseImg = conv2(img, rot90(currentFilter,2), 'same');
+            responseImg = max(rotations(:,:,filtItr), rotations(:,:,filtItr+filterCount));
+%            figure, imshow(responseImg);
+            
             % Simulate stride here, and subsample the image.
             [responseImg, idx] = MaxPooling(responseImg, [stride, stride]);
             realCoordIdx(filtItr,:) = idx';
@@ -175,12 +201,56 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
     end
     
     %% We apply a minimum response threshold over response image.
+    % We treat background-foreground edges differently.
     if strcmp(options.filterType, 'gabor')
-       filterThr = options.gaborFilterThr * max(max(max(responseImgs)));
-       responseImgs(responseImgs<max(filterThr, options.absGaborFilterThr)) = 0;
+       filterThr = max(options.absGaborFilterThr, options.gaborFilterThr * max(max(max(responseImgs))));
+       innerFilterThr = options.innerGaborFilterThr * max(max(max(responseImgs)));
     else
-       filterThr = options.autoFilterThr * max(max(max(responseImgs)));
-       responseImgs(responseImgs<filterThr) = 0;
+       filterThr = max(options.autoFilterThr, options.autoFilterThr * max(max(max(responseImgs))));
+    end
+    if strcmp(options.filterType, 'gabor')
+         backgroundMask = imresize(backgroundMask, [size(responseImgs,1), size(responseImgs,2)], 'bilinear');
+         filterMask = ~backgroundMask & imdilate(backgroundMask, strel('disk', 5));
+         innerMask = ~filterMask & ~backgroundMask;
+         maxOutVal = 1;
+         maxInVal = 1;
+         
+         % Find maximum in/out response values.
+         for bandItr = 1:size(responseImgs,3)
+              % Obtain responses.
+              tempImg = squeeze(responseImgs(:,:,bandItr));
+              
+              % Process outer edges.
+              maxOutVal = max(maxOutVal, max(tempImg(filterMask)));
+              
+              % Process inner edges.
+              maxInVal = max(maxInVal, max(tempImg(innerMask)));
+         end
+         
+         for bandItr = 1:size(responseImgs,3)
+              % Obtain responses.
+              tempImg = squeeze(responseImgs(:,:,bandItr));
+              
+              % Process outer edges.
+              vals = tempImg(filterMask);
+              vals(vals<filterThr) = 0;
+              tempImg(filterMask) = vals;
+              tempImg(filterMask) = vals / maxOutVal;
+              
+              % Process inner edges.
+              vals = tempImg(innerMask);
+              vals(vals < innerFilterThr) = 0;
+              tempImg(innerMask) = vals;
+              tempImg(innerMask) = vals / maxInVal;
+              
+              % Set outside points to zero.
+              tempImg(backgroundMask) = 0;
+              
+              % Write everything back.
+              responseImgs(:,:,bandItr) = tempImg;
+         end
+    else
+        responseImgs(responseImgs<filterThr) = 0;
     end
     
    %% Inhibit weak responses in vicinity of powerful peaks.
@@ -195,9 +265,15 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
     % Each response will clear other weak responses at the very same pixel.
     % Use this feature to get rid of most peaks.
     [activationImg, nodeIdImg] = max(responseImgs, [], 3);
+    
+    % Process only edges.
+%     if strcmp(options.filterType, 'gabor')
+%          edgeMask = imresize(edgeMask, size(activationImg));
+%          activationImg(~edgeMask) = 0;
+%          activationImg(activationImg > 0) = 1;
+%          nodeIdImg(~edgeMask) = 0;
+%     end
     smoothActivationImg = activationImg;
-%    smoothActivationImg = smoothActivationImg>0;
-    smoothActivationImg = smoothActivationImg/max(max(max(smoothActivationImg)));
     peaks = find(activationImg);
     
     %% Here, we will run a loop till we clear all weak responses.
@@ -252,6 +328,11 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
        nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY]), round(realCoords(nodeItr,:))};
     end
     nodes = nodes(cellfun(@(x) ~isempty(x), nodes(:,1)),:);
+     
+    % Prepare output image.
+    activationImg = zeros(size(img,1), size(img,2));
+    idx = sub2ind(size(activationImg), realCoords(:,1), realCoords(:,2));
+    activationImg(idx) = nodeActivations;
 end
 
 function patches = normalizeData(patches)

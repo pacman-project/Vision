@@ -27,7 +27,7 @@
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
 function [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs( vocabLevel, graphLevel, ...
-    nodeDistanceMatrix, options, threshold, levelItr, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy)
+    nodeDistanceMatrix, options, threshold, levelItr, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Nodes)
     startTime = tic;
     edgeDistanceMatrix = options.edgeDistanceMatrix;
     display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
@@ -36,7 +36,7 @@ function [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning
     % Search for substructures.
     [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, graphLevel, threshold,...
         nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, ...
-        supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, options);
+        supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Nodes, options);
     
     % Show time elapsed.
     display(['.... Time elapsed: ' num2str(toc(startTime)) ' secs.']);

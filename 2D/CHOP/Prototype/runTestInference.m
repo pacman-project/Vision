@@ -97,13 +97,15 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         edgeChangeLevel = edgeChangeLevel; %#ok<ASGSL,NODEF>
         allModes = allModes; %#ok<ASGSL,NODEF>
         vocabulary = vocabulary; %#ok<ASGSL,NODEF>
+        orNodeProbs = orNodeProbs; %#ok<ASGSL,NODEF>
+        modeProbs = modeProbs; %#ok<ASGSL,NODEF>
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
         for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, edgeChangeLevel, options); 
+            singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, orNodeProbs, modeProbs, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, edgeChangeLevel, options); 
         end
         totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');

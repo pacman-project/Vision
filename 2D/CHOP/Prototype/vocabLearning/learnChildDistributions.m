@@ -22,7 +22,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
     noiseSigma = 0.001;
     dummySigma = 0.1;
     posDim = size(prevPosition,2);
-    generatedSampleCount = 200;
+    generatedSampleCount = 1000;
     maxClusters = 3;
     minPoints = 10;
     
@@ -81,6 +81,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
         % Allocate space for discrete combinations, and their position distributions. 
         childrenLabelDistributions = zeros(size(combs,1), size(combs,2) + 1, 'single');
         childrenPosDistributions = cell(size(combs,1), 1);
+        childrenPosSamples = cell(size(combs,1), 1);
         if numel(IA)>1
              weights = hist(IC, 1:numel(IA))';
              weights = weights / sum(weights);
@@ -142,7 +143,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
                   else
                        ids = mec(relevantSamples, 'c', maxClusters);
                        numberOfClusters = max(ids);
-                       options = statset('MaxIter', 500, 'maxIter', 10);
+                       options = statset('MaxIter', 10);
                        obj = gmdistribution.fit(relevantSamples, numberOfClusters, 'Regularize', regularizeTerm, 'Start', ids, 'Options', options);
                   end
                   y = random(obj, generatedSampleCount);
@@ -174,6 +175,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
 
                   % Save distributions.
                   childrenPosDistributions(combItr) = {obj};
+                  childrenPosSamples(combItr) = {y};
 
                   % Find principal components and visualize them.
                   saveas(gcf, [debugFolder '/part' num2str(vocabItr) '_' mat2str(combs(combItr,:)) '.png']);
@@ -183,6 +185,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
         
         vocabLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
         vocabLevel(vocabItr).childrenPosDistributions{1} = childrenPosDistributions;
+        vocabLevel(vocabItr).childrenPosSamples{1} = childrenPosSamples;
         vocabLevel(vocabItr).realChildren = children;
     end
 
