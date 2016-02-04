@@ -44,10 +44,10 @@
 %> Updates
 %> Ver 1.0 on 13.04.2015
 function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, realNodeLabels, ...
-    nodeDistanceMatrix, edgeDistanceMatrix, nodePositions, edgeCoords, ...
+    nodePositions, edgeCoords, ...
     singlePrecision, numberOfFinalSubs, fixedThreshold, ...
     validationFolds, validationIdx, categoryArrIdx, imageIdx, ...
-    allSigns, allLeafNodes, level1Nodes, supervisionFlag)
+    allSigns, allLeafNodes, possibleLeafNodes, supervisionFlag)
 
     % Keep a list of positive children, if required.
     posNodes = find(allSigns);
@@ -115,7 +115,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
         end
 
         % Select remaining children and filter negative nodes.
-        remainingChildren = fastsortedunique(sort(cat(1, allChildren{validSubIdx}))); %#ok<PFBNS>
+        remainingChildren = fastsortedunique(sort(cat(1, allChildren{validSubIdx})));
         if ~supervisionFlag
             remainingChildren = intersect(remainingChildren, posNodes);
         end
@@ -129,7 +129,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
         else
            [validSubs, ~, ~] = getReconstructiveParts(bestSubs, realNodeLabels, ...
                 nodePositions, edgeCoords, ...
-                optimalCount, remainingChildren, allLeafNodes, level1Nodes);
+                optimalCount, remainingChildren, allLeafNodes, possibleLeafNodes);
         end
         aggregatedSubs{valItr} = validSubIdx(validSubs);
     end

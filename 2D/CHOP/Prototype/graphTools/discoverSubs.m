@@ -36,7 +36,7 @@ function [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning
     % Search for substructures.
     [vocabLevel, graphLevel, optimalThreshold, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, graphLevel, threshold,...
         nodeDistanceMatrix, edgeDistanceMatrix, categoryArrIdx, validationIdx, ...
-        supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Nodes, options);
+        supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Nodes, levelItr, options);
     
     % Show time elapsed.
     display(['.... Time elapsed: ' num2str(toc(startTime)) ' secs.']);

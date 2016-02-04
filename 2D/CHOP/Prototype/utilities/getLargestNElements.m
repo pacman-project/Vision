@@ -15,13 +15,13 @@
 function [idx] = getLargestNElements(vect, n)
     [~, sortedIdx] = sort(vect, 'descend');
     idx = sortedIdx(1:n);
-    restVect = vect(sortedIdx((n+1):end));
-    % Add nodes which qualify, since same-valued nodes are already in idx.
-    % Number of such nodes cannot exceed n.
-    restOfNodes = (find(restVect == vect(idx(end)))+n);
-    if numel(restOfNodes)>n
-       restOfNodes = restOfNodes(1:n); 
-    end
-    idx = [idx; restOfNodes];
+%     restVect = vect(sortedIdx((n+1):end));
+%     % Add nodes which qualify, since same-valued nodes are already in idx.
+%     % Number of such nodes cannot exceed n.
+%     restOfNodes = (find(restVect == vect(idx(end)))+n);
+%     if numel(restOfNodes)>n
+%        restOfNodes = restOfNodes(1:n); 
+%     end
+%     idx = [idx; restOfNodes];
     idx = unique(idx, 'stable');
 end

@@ -17,7 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, type )
+function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, type )
     outputTempDir = [options.outputFolder '/reconstruction/' type];
     backgroundDir = [options.outputFolder '/reconstruction/' type '/' options.backgroundClass];
     processedFolder = options.processedFolder;   
@@ -58,8 +58,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstanc
     end
     
     %% Create folders to put the cropped original images for each realization in.
-    numberOfNodes = numberOfVocabLevelNodes;
-    usedChildren = ones(numberOfNodes, 1) * instancePerNode;
+    usedChildren = ones(numel(vocabLevel), 1) * instancePerNode;
     croppedOrgFolder = [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '/cropped'];
     if ~exist(croppedOrgFolder, 'dir')
        mkdir(croppedOrgFolder); 
@@ -137,9 +136,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstanc
         
         %% Reconstruct each node.
         for nodeItr = 1:numel(nodes)
-            if ~options.vis.printTrainRealizations && ~(usedChildren(nodes(nodeItr).labelId) > 0)
-                continue;
-            end
             activation = nodes(nodeItr).activation;
             
             % Fetch the node list to reconstruct.
@@ -212,10 +208,21 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstanc
             
             %% Write original image's cropped area to a file.
             if ~isempty(allNodeInstances)
-                 if ismember(relevantNodeIds(nodeItr), allNodeInstances{nodes(nodeItr).realLabelId})
-                     imgId = find(allNodeInstances{nodes(nodeItr).realLabelId} == relevantNodeIds(nodeItr)) - 1;
-                     imwrite(actualImg(minX:maxX, ...
-                         minY:maxY, :), [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
+                 representativeNode = representativeNodes(nodes(nodeItr).labelId);
+                 nodeInstances = allNodeInstances{representativeNode};
+                 if ismember(relevantNodeIds(nodeItr), nodeInstances(:,1))
+                     imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
+                     imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
+                         nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(representativeNode) '_' num2str(imgId) '.png']);
+                    usedChildren(representativeNode) = usedChildren(representativeNode) -1;
+                 end
+                 
+                 nodeInstances = allNodeInstances{nodes(nodeItr).realLabelId};
+                 if ismember(relevantNodeIds(nodeItr), nodeInstances(:,1)) && nodes(nodeItr).realLabelId ~= representativeNode
+                     imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
+                     imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
+                         nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
+                    usedChildren(nodes(nodeItr).realLabelId) = usedChildren(nodes(nodeItr).realLabelId) -1;
                  end
             end
             
@@ -253,6 +260,16 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstanc
             %% Add edges to the image for visualization.
             edgeImg = zeros(sizeOfImage);
             edgeRgbImg = rgbImg;
+            
+            nodeImg = zeros(sizeOfImage);
+            centerSize = 1;
+            for nodeItr = 1:numel(nodes)
+                edgeImg(round(nodes(nodeItr).precisePosition(1)-centerSize):round(nodes(nodeItr).precisePosition(1)+centerSize), ...
+                    round(nodes(nodeItr).precisePosition(2)-centerSize):round(nodes(nodeItr).precisePosition(2)+centerSize)) = nodes(nodeItr).labelId;
+                nodeImg(round(nodes(nodeItr).precisePosition(1)-centerSize):round(nodes(nodeItr).precisePosition(1)+centerSize), ...
+                    round(nodes(nodeItr).precisePosition(2)-centerSize):round(nodes(nodeItr).precisePosition(2)+centerSize)) = nodes(nodeItr).labelId;
+            end
+            
             for nodeItr = 1:numel(nodes)
                 edges = nodes(nodeItr).adjInfo;
                 if ~isempty(edges)
@@ -266,27 +283,24 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstanc
                 end
             end
             
-            centerSize = 0;
-            for nodeItr = 1:numel(nodes)
-                edgeImg(round(nodes(nodeItr).precisePosition(1)-centerSize):round(nodes(nodeItr).precisePosition(1)+centerSize), ...
-                    round(nodes(nodeItr).precisePosition(2)-centerSize):round(nodes(nodeItr).precisePosition(2)+centerSize)) = nodes(nodeItr).labelId;
-            end
-            
             % 
             edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
+            nodeImg = label2rgb(nodeImg, 'jet', 'k', 'shuffle');
             edgeRgbImg = max(edgeRgbImg, edgeImg);
 
             % 
             if levelItr>1
                 imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
-                imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
+                imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'projection.png']);
+                imwrite(nodeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'realizations.png']);
                 imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType '.png']);
             else
-                imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
+               imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);
-                imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType  '.png']);
-                imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'clean.png']);
+               imwrite(edgeRgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'edges_' reconstructionType  '.png']);
+                imwrite(reconstructedMask, [outputDir, '/' fileName '_level' num2str(levelItr) 'projection.png']);
+                imwrite(nodeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'realizations.png']);
             end
         end
     end

@@ -22,8 +22,8 @@ function [] = visualizeORNodes( currentLevel, levelId, options)
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
     labelIds = double(cat(1, currentLevel.label));
-    reconstructionDir = [currentFolder '/debug/' options.datasetName '/level' num2str(levelId) '/reconstruction/'];
-    sampleImg = imread([reconstructionDir num2str(1) '_uni.png']);
+    reconstructionDir = [options.debugFolder '/level' num2str(levelId) '/modalProjection/'];
+    sampleImg = imread([reconstructionDir num2str(1) '.png']);
     compMaskSize = size(sampleImg);
     
     % Get the count of the most frequent label.
@@ -52,7 +52,7 @@ function [] = visualizeORNodes( currentLevel, levelId, options)
          rowStart = 2 + (labelItr-1)*(compMaskSize(1)+1);
          for optionItr = 1:numel(optionSet)
               colStart = 2 + (optionItr-1) * (compMaskSize(2)+1);
-              sampleImg = imread([reconstructionDir num2str(optionSet(optionItr)) '_uni.png']);
+              sampleImg = imread([reconstructionDir num2str(optionSet(optionItr)) '.png']);
               overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
                     colStart:(colStart+compMaskSize(2)-1), :) = sampleImg;
          end

@@ -23,7 +23,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
     % Calculate edge radius.
     noveltyThr = 1 - options.noveltyThr;
     fullOverlapThr = 0.99;
-    halfMatrixSize = (options.receptiveFieldSize+1)/2;
+    halfMatrixSize = (options.receptiveFieldSize-1)/2 - 2;
     
     if numel(graphLevel) == 0
         return;

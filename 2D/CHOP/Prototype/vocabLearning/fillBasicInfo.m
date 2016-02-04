@@ -7,7 +7,7 @@
 %>
 %> @param previousLevel 
 %> @param graphLevel 
-%> @param leafNodes 
+%> @param levelItr 
 %> @param numberOfThreads
 %>  
 %> @retval graphLevel 
@@ -16,7 +16,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.02.2014
-function graphLevel = fillBasicInfo(previousLevel, graphLevel, ~, numberOfThreads)
+function graphLevel = fillBasicInfo(previousLevel, graphLevel, levelItr, options)
+    numberOfThreads = options.numberOfThreads;
     numberOfNodes = numel(graphLevel);
     nodeSets = repmat(ceil(numberOfNodes/numberOfThreads), numberOfThreads,1);
     setCountDiff = sum(nodeSets) - numberOfNodes;
@@ -34,8 +35,13 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, ~, numberOfThread
                nodeLeafNodes(childItr) = {previousLevel(nodeChildren(childItr)).leafNodes}; 
             end
             nodeLeafNodes = unique([nodeLeafNodes{:}]);
-            subLevel(newNodeItr).precisePosition = previousLevel(nodeChildren(1)).precisePosition;
-            subLevel(newNodeItr).position = previousLevel(nodeChildren(1)).position;
+            
+            % Calculate both positions. For precise position, we obtain the
+            % mean of the bounding box that is spanned by the leaf nodes.
+            childrenPos = cat(1, previousLevel(nodeChildren).precisePosition);
+            precisePosition = (min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2;
+            subLevel(newNodeItr).precisePosition = precisePosition;
+            subLevel(newNodeItr).position = int32(calculatePooledPositions(precisePosition, levelItr, options));
             subLevel(newNodeItr).leafNodes = nodeLeafNodes;
         end
         nodeSets(setItr) = {subLevel};

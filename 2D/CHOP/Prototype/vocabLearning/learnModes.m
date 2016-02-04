@@ -20,7 +20,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     display('Learning modes...');
     maxSamplesPerMode = 200;
     minSamplesPerMode = 2;   
-    maximumModes = 4;
+    maximumModes = 3;
     dummySigma = 0.1;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
@@ -191,37 +191,37 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         modeProbArr{uniqueEdgeItr} = allProbs;
         
 %         % Get the probability image for visualization.
-%         gaussImg = squeeze(combinedProbs);
-%         gaussImg = gaussImg / max(max(gaussImg));
-%         gaussImg = uint8(round(gaussImg * 255));
-%         gaussImg(gaussImg==0) = 1;
-%         gaussImg = label2rgb(gaussImg, 'jet');
+        gaussImg = squeeze(combinedProbs);
+        gaussImg = gaussImg / max(max(gaussImg));
+        gaussImg = uint8(round(gaussImg * 255));
+        gaussImg(gaussImg==0) = 1;
+        gaussImg = label2rgb(gaussImg, 'jet');
         
           %% Print the modes.
-%          distributionImg = zeros(size(edgeIdMatrix));
-%           samplesToWrite = floor(samples * edgeQuantize) ;
-% 
-%           % If no samples are to be written, move on.
-%           if numel(samplesToWrite) < 1
-%                continue;
-%           end
-%          samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
-%          distributionImg(samplesInd) = classes;
-%
-%           if ~exist([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/'], 'dir')
-%                mkdir([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/']);
-%           end
-%           sampleImg = label2rgb(distributionImg, 'jet', 'k', 'shuffle');
-%           imwrite(sampleImg, ...
-%                [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-%                '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_Samples.png']);
-%           imwrite(gaussImg, ...
-%                [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-%                '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_GaussMap.png']);
-%           areaImg = label2rgb(clusterAreas, 'jet', 'k', 'shuffle');
-%           imwrite(areaImg, ...
-%                [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-%                '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_ClusterAreas.png']);
+         distributionImg = zeros(size(edgeIdMatrix));
+          samplesToWrite = floor(samples * edgeQuantize) ;
+
+          % If no samples are to be written, move on.
+          if numel(samplesToWrite) < 1
+               continue;
+          end
+         samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
+         distributionImg(samplesInd) = classes;
+
+          if ~exist([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/'], 'dir')
+               mkdir([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/']);
+          end
+          sampleImg = label2rgb(distributionImg, 'jet', 'k', 'shuffle');
+          imwrite(sampleImg, ...
+               [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
+               '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_Samples.png']);
+          imwrite(gaussImg, ...
+               [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
+               '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_GaussMap.png']);
+          areaImg = label2rgb(clusterAreas, 'jet', 'k', 'shuffle');
+          imwrite(areaImg, ...
+               [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
+               '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_ClusterAreas.png']);
           
         %% Save stats and move on.
         modes(uniqueEdgeItr) = {statistics};

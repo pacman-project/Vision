@@ -20,7 +20,7 @@
 %> Ver 1.1 on 03.12.2013 Response inhibition added.
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
 %> Ver 1.3 on 17.01.2014 GT use implemented.
-function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseImgs ] = getNodes( img, gtFileName, options )
+function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueResponseImgs, edgeImg ] = getNodes( img, gtFileName, options )
     % Step 0: Obtain background
     if size(img,3)>1
          grayImg = rgb2gray(img(:,:,1:3));
@@ -28,7 +28,11 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
          grayImg = img;
     end
     backgroundMask = grayImg == 0;
-%     edgeMask = edge(grayImg, 'canny');
+    backgroundMask = imdilate(backgroundMask, strel('disk',3));
+    edgeMask = edge(grayImg, 'canny');
+    outEdgeMask = backgroundMask & edgeMask;
+    inEdgeMask = ~backgroundMask & edgeMask;
+    edgeImg = double(outEdgeMask) + double(inEdgeMask) * 0.5;
 %     edgeMask = imdilate(edgeMask,strel('disk', 2));
 %     edgeMask(backgroundMask) = 0;
 %     
@@ -115,9 +119,13 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
         
         % We're using steerable filters here. Mimicking gabor filters.
 %        [res, theta, nms, rotations] = steerableDetector(img, 5, 0.3, filterCount * 2);
-          [res, theta, nms, rotations] = steerableDetector(img, 5, 0.5, filterCount * 2);
+          [~, ~, ~, rotations] = steerableDetector(img, 5, 1, filterCount * 2);
  %       filterOrder = [1,4,3,2,5,8,7,6,9,12,11,10,13,16,15,14];
 %        rotations = rotations(:,:,filterOrder);
+
+        trueResponseImgs = zeros(size(img,1), size(img,2), filterCount);
+        outMaxVal = 1;
+        inMaxVal = 1;
         for filtItr = 1:filterCount
 %              filtId = rem(filterCount+2-filtItr, filterCount);
 %              if filtId == 0
@@ -126,14 +134,58 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
  %           currentFilter = double(options.filters{filtItr});
  %           responseImg = conv2(img, rot90(currentFilter,2), 'same');
             responseImg = max(rotations(:,:,filtItr), rotations(:,:,filtItr+filterCount));
+%            
 %            figure, imshow(responseImg);
+            % Process response image so it only exists under edges.
+            outMaxVal = max(outMaxVal, max(max(responseImg(outEdgeMask))));
+            inMaxVal = max(inMaxVal, max(max(responseImg(inEdgeMask))));
+            trueResponseImgs(:,:,filtItr) = responseImg;
+        end
+        if isempty(inMaxVal)
+             inMaxVal = 1;
+        end
+        if isempty(outMaxVal)
+             outMaxVal = 1;
+        end
+       filterThr = options.gaborFilterThr * outMaxVal;
+       inFilterThr = options.innerGaborFilterThr * outMaxVal;
+       
+       [smoothActivationImg, ~] = max(trueResponseImgs, [], 3);
+       smoothActivationImg = smoothActivationImg / max(max(smoothActivationImg));
+        
+        % Obtain a smooth activation image.
+        for filtItr = 1:filterCount
+            responseImg = squeeze(trueResponseImgs(:,:,filtItr));
             
+            % Apply filter thresholds.
+            if ~isempty(filterThr)
+                responseImg(outEdgeMask) = responseImg(outEdgeMask) / outMaxVal;
+            end
+            if ~isempty(inFilterThr)
+                responseImg(inEdgeMask) = responseImg(inEdgeMask) / inMaxVal;
+            end
+            responseImg(responseImg>1) = 1;
+            trueResponseImgs(:,:,filtItr) = responseImg;
+       end
+        
+       % Eliminate weak responses and perform pooling.
+       for filtItr = 1:filterCount
+            responseImg = squeeze(trueResponseImgs(:,:,filtItr));
+            responseImg(~edgeMask) = 0;
+            
+            % Apply filter thresholds.
+            if ~isempty(filterThr)
+                responseImg(outEdgeMask) = double(responseImg(outEdgeMask) * outMaxVal >= filterThr) .* responseImg(outEdgeMask);
+            end
+            if ~isempty(inFilterThr)
+                responseImg(inEdgeMask) = double(responseImg(inEdgeMask) * inMaxVal >= inFilterThr) .* responseImg(inEdgeMask);
+            end
             % Simulate stride here, and subsample the image.
             [responseImg, idx] = MaxPooling(responseImg, [stride, stride]);
             realCoordIdx(filtItr,:) = idx';
             % Save response for future processing
             responseImgs(:,:,filtItr) = responseImg;
-        end
+       end
         
         % Subsample gt mask.
         gtMask = imresize(gtMask, newImgSize);
@@ -202,56 +254,56 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
     
     %% We apply a minimum response threshold over response image.
     % We treat background-foreground edges differently.
-    if strcmp(options.filterType, 'gabor')
-       filterThr = max(options.absGaborFilterThr, options.gaborFilterThr * max(max(max(responseImgs))));
-       innerFilterThr = options.innerGaborFilterThr * max(max(max(responseImgs)));
-    else
-       filterThr = max(options.autoFilterThr, options.autoFilterThr * max(max(max(responseImgs))));
-    end
-    if strcmp(options.filterType, 'gabor')
-         backgroundMask = imresize(backgroundMask, [size(responseImgs,1), size(responseImgs,2)], 'bilinear');
-         filterMask = ~backgroundMask & imdilate(backgroundMask, strel('disk', 5));
-         innerMask = ~filterMask & ~backgroundMask;
-         maxOutVal = 1;
-         maxInVal = 1;
-         
-         % Find maximum in/out response values.
-         for bandItr = 1:size(responseImgs,3)
-              % Obtain responses.
-              tempImg = squeeze(responseImgs(:,:,bandItr));
-              
-              % Process outer edges.
-              maxOutVal = max(maxOutVal, max(tempImg(filterMask)));
-              
-              % Process inner edges.
-              maxInVal = max(maxInVal, max(tempImg(innerMask)));
-         end
-         
-         for bandItr = 1:size(responseImgs,3)
-              % Obtain responses.
-              tempImg = squeeze(responseImgs(:,:,bandItr));
-              
-              % Process outer edges.
-              vals = tempImg(filterMask);
-              vals(vals<filterThr) = 0;
-              tempImg(filterMask) = vals;
-              tempImg(filterMask) = vals / maxOutVal;
-              
-              % Process inner edges.
-              vals = tempImg(innerMask);
-              vals(vals < innerFilterThr) = 0;
-              tempImg(innerMask) = vals;
-              tempImg(innerMask) = vals / maxInVal;
-              
-              % Set outside points to zero.
-              tempImg(backgroundMask) = 0;
-              
-              % Write everything back.
-              responseImgs(:,:,bandItr) = tempImg;
-         end
-    else
-        responseImgs(responseImgs<filterThr) = 0;
-    end
+%     if strcmp(options.filterType, 'gabor')
+%        filterThr = max(options.absGaborFilterThr, options.gaborFilterThr * max(max(max(responseImgs))));
+%        inFilterThr = options.innerGaborFilterThr * max(max(max(responseImgs)));
+%     else
+%        filterThr = max(options.autoFilterThr, options.autoFilterThr * max(max(max(responseImgs))));
+%     end
+%     if strcmp(options.filterType, 'gabor')
+%          backgroundMask = imresize(backgroundMask, [size(responseImgs,1), size(responseImgs,2)], 'bilinear');
+%          filterMask = ~backgroundMask & imdilate(backgroundMask, strel('disk', 2));
+%          innerMask = ~filterMask & ~backgroundMask;
+%          maxOutVal = 1;
+%          maxInVal = 1;
+%          
+%          % Find maximum in/out response values.
+%          for bandItr = 1:size(responseImgs,3)
+%               % Obtain responses.
+%               tempImg = squeeze(responseImgs(:,:,bandItr));
+%               
+%               % Process outer edges.
+%               maxOutVal = max(maxOutVal, max(tempImg(filterMask)));
+%               
+%               % Process inner edges.
+%               maxInVal = max(maxInVal, max(tempImg(innerMask)));
+%          end
+%          
+%          for bandItr = 1:size(responseImgs,3)
+%               % Obtain responses.
+%               tempImg = squeeze(responseImgs(:,:,bandItr));
+%               
+%               % Process outer edges.
+%               vals = tempImg(filterMask);
+%               vals(vals<filterThr) = 0;
+%               tempImg(filterMask) = vals;
+%               tempImg(filterMask) = vals / maxOutVal;
+%               
+%               % Process inner edges.
+%               vals = tempImg(innerMask);
+%               vals(vals < inFilterThr) = 0;
+%               tempImg(innerMask) = vals;
+%               tempImg(innerMask) = vals / maxInVal;
+%               
+%               % Set outside points to zero.
+%               tempImg(backgroundMask) = 0;
+%               
+%               % Write everything back.
+%               responseImgs(:,:,bandItr) = tempImg;
+%          end
+%     else
+%         responseImgs(responseImgs<filterThr) = 0;
+%     end
     
    %% Inhibit weak responses in vicinity of powerful peaks.
     if strcmp(options.filterType, 'gabor')
@@ -273,7 +325,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
 %          activationImg(activationImg > 0) = 1;
 %          nodeIdImg(~edgeMask) = 0;
 %     end
-    smoothActivationImg = activationImg;
+%    smoothActivationImg = activationImg;
     peaks = find(activationImg);
     
     %% Here, we will run a loop till we clear all weak responses.
@@ -309,10 +361,19 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
     %% Eliminate nodes outside GT mask. If gt is not used, this does not have effect.
     responseImg(~gtMask) = 0;
 
-    %% Out of this response image, we will create the nodes and output them.
     responseImg(ismember(responseImg, deadFeatures)) = 0;
     activationImg(responseImg == 0) = 0;
-    finalNodeIdx = find(responseImg);
+    
+    %% We perform pooling with a stride defined by local inhibition.
+    if inhibitionHalfSize > 0
+         [vals, valsIdx] = MaxPooling(responseImg, [inhibitionHalfSize+1, inhibitionHalfSize+1]);
+         sizeVals =size(vals);
+         finalNodeIdx = sort(valsIdx(vals>0));
+    else
+         finalNodeIdx = find(responseImg);
+    end
+    
+    %% Out of this response image, we will create the nodes and output them.
     if strcmp(options.filterType, 'gabor')
          idx = sub2ind(size(realCoordIdx), responseImg(finalNodeIdx), finalNodeIdx);
          realCoordLin = realCoordIdx(idx);
@@ -324,7 +385,12 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, responseI
     nodes = cell(numel(finalNodeIdx), 3);
     nodeActivations = single(activationImg(finalNodeIdx));
     for nodeItr = 1:numel(finalNodeIdx)
-       [centerX, centerY] = ind2sub(size(responseImg), finalNodeIdx(nodeItr));
+       if inhibitionHalfSize > 0
+           centerIdx = find(valsIdx == finalNodeIdx(nodeItr));
+           [centerX, centerY] = ind2sub(sizeVals, centerIdx);
+       else
+           [centerX, centerY] = ind2sub(size(responseImg), finalNodeIdx(nodeItr));
+       end
        nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY]), round(realCoords(nodeItr,:))};
     end
     nodes = nodes(cellfun(@(x) ~isempty(x), nodes(:,1)),:);

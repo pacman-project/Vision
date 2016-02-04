@@ -61,7 +61,11 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     
     % Discard any edge types already existing in sub definition.
     if ~isempty(sub.edges)
-        uniqueEdgeTypes = setdiff(uniqueEdgeTypes, sub.edges, 'rows');
+        sizeEdges = size(uniqueEdgeTypes,1);
+ %       uniqueEdgeTypes = setdiff(uniqueEdgeTypes, sub.edges, 'rows');
+%         if sizeEdges ~= size(uniqueEdgeTypes,1)
+%              1
+%         end
     end
     
     % Extend the definition in sub with each edge type in uniqueEdgeTypes.

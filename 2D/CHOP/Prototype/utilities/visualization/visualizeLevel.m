@@ -17,7 +17,7 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [allNodeInstances] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, leafNodeCoords, levelId, numberOfFirstLevelNodes, ~, options)
+function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, leafNodeCoords, levelId, numberOfFirstLevelNodes, ~, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
@@ -32,14 +32,17 @@ function [allNodeInstances] = visualizeLevel( currentLevel, vocabulary, graphLev
          vocabLevelIdx(itr) = find(vocabLevelLabels == itr, 1, 'first');
     end
     allNodeInstances = [];
+    multiNodeInstances = {currentLevel.adjInfo};
+    multiNodeInstances = cellfun(@(x) ~isempty(x), multiNodeInstances);
     
     % These parameter relate to drawing the approximate model of each node
     % in the vocabulary.
-    if strcmp(options.filterType, 'gabor')
-       inhibitionRadius = options.gabor.inhibitionRadius; 
-    else
-       inhibitionRadius = options.auto.inhibitionRadius;
-    end
+%     if strcmp(options.filterType, 'gabor')
+%        inhibitionRadius = options.gabor.inhibitionRadius; 
+%     else
+%        inhibitionRadius = options.auto.inhibitionRadius;
+%     end
+    inhibitionRadius = 0;
     
     % For the first level, we only print a single instance.
     if levelId == 1
@@ -62,11 +65,31 @@ function [allNodeInstances] = visualizeLevel( currentLevel, vocabulary, graphLev
     if levelId > 1
         leafNodeSets = {graphLevel.leafNodes}';
         centerPos = int32(round(cat(1, graphLevel.precisePosition)));
-        nodeLabelIds = cat(1, graphLevel.realLabelId);
+        nodeLabelIds = double(cat(1, graphLevel.realLabelId));
+        orNodeLabelIds = double(cat(1, graphLevel.labelId));
         nodeImageIds = cat(1, graphLevel.imageId);
         nodeActivations = cat(1, graphLevel.activation);
         leafNodeLabelIds = leafNodes(:, 1);
         leafNodePos = leafNodeCoords;
+    end
+    
+    % Find representative parts for every or node (the one with most
+    % instances).
+    if levelId > 1
+         representativeNodes = zeros(max(vocabLevelLabels),1);
+         orNodeLabelIds = double(cat(1, graphLevel.labelId));
+         for nodeItr = 1:numel(representativeNodes)
+              representativeNodes(nodeItr) = mode(nodeLabelIds(orNodeLabelIds == nodeItr));
+              if ~multiNodeInstances(representativeNodes(nodeItr))
+                   instances = nodeLabelIds(orNodeLabelIds == nodeItr);
+                   instances = instances(multiNodeInstances(instances));
+                   if ~isempty(instances)
+                        representativeNodes(nodeItr) = mode(instances);
+                   end
+              end
+         end
+    else
+         representativeNodes = (1:numel(currentLevel))';
     end
     
     %% Create output folder structure.
@@ -140,8 +163,14 @@ function [allNodeInstances] = visualizeLevel( currentLevel, vocabulary, graphLev
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
    %             labelId = vocabLevelIdx(vocabNodeSet(nodeItr));
                 labelId = vocabNodeSet(nodeItr);
-                nodeInstances = find(nodeLabelIds==labelId);
-                validIdx = nodeLabelIds==labelId;
+                orNodeId = find(representativeNodes == labelId);
+                if ismember(labelId, representativeNodes)
+                     nodeInstances = find(orNodeLabelIds==orNodeId);
+                     validIdx = orNodeLabelIds==orNodeId;
+                else
+                     nodeInstances = find(nodeLabelIds == labelId);
+                     validIdx = nodeLabelIds == labelId;
+                end
                 instanceActivations = nodeActivations(validIdx);
                 instanceImageIds = nodeImageIds(validIdx);
                 bestNodeInstance = -1;
@@ -159,166 +188,50 @@ function [allNodeInstances] = visualizeLevel( currentLevel, vocabulary, graphLev
                 end
                 nodeInstances = [bestNodeInstance; nodeInstances]; %#ok<AGROW>
                 instanceImgs = cell(numel(nodeInstances),1);
-                allNodeInstances{labelId} = nodeInstances;
+                nodeInstances = [nodeInstances, zeros(numel(nodeInstances),4)]; %#ok<AGROW>
                 
                 %% Now, we print the rest of the instances.
-                for nodeInstanceItr = 1:numel(nodeInstances)
+                for nodeInstanceItr = 1:size(nodeInstances,1)
                      if nodeInstanceItr == 1
-                         %% Here, we get the description of the node, and print that.
                          % It is supposed to provide an approximate view that the algorithm has learned.
-                         projectedNodes = projectNode([labelId, 0, 0, levelId], vocabulary, inhibitionRadius, 'modal');
-                         children = projectedNodes(:,1);
-                         childrenCoords = projectedNodes(:,2:3);
-                         patchLowDims = firstLevelPatchLowDims;
-                         patchHighDims = firstLevelPatchHighDims;
-                         avgNodeMasks = avgFirstNodeMasks;
-                         nodeMasks = firstNodeMasks;
+                         currentMask = imread([options.debugFolder '/level' num2str(levelId) '/modalProjection/' num2str(labelId) '.png']);
+                         imgSize = [size(currentMask,1), size(currentMask,2)];
                      else
-                         nodeInstance = nodeInstances(nodeInstanceItr);
+                         nodeInstance = nodeInstances(nodeInstanceItr,1);
                          instanceLeafNodes = leafNodeSets{nodeInstance};
-                         instancePos = mat2cell(centerPos(nodeInstance,:), ones(1, numel(nodeInstance)), 2);
-                         instanceLeafNodeSets = leafNodeSets(nodeInstance,:);
-                         instanceLeafNodePos = cellfun(@(x, y) leafNodePos(x,:) - ...
-                             repmat(y, numel(x), 1), instanceLeafNodeSets, instancePos, ...
-                             'UniformOutput', false);
-                         children = leafNodeLabelIds(cat(2, instanceLeafNodeSets{:}));
-                         childrenCoords= cat(1, instanceLeafNodePos{:});
-
-                         % Trim children if total number is more than a threshold.
-                         if numel(children) > childrenPerNode
-                            children = children(1:childrenPerNode,:);
-                            childrenCoords = childrenCoords(1:childrenPerNode,:);
-                         end
+                         projectedNodes = zeros(numel(instanceLeafNodes), 4);
+                         projectedNodes(:,1) = double(leafNodeLabelIds(instanceLeafNodes));
+                         projectedNodes(:,2:3) = double(leafNodeCoords(instanceLeafNodes,:));
+                         projectedNodes(:,4) = firstActivations(instanceLeafNodes,:);
+                         
+                         % Update coordinates.
+                         meanCoordOffset = repmat(mean(projectedNodes(:,2:3),1), size(projectedNodes,1), 1) - 1;
+                         coordOffset = repmat(imgSize/2, size(projectedNodes,1), 1) - meanCoordOffset;
+                         projectedNodes(:,2:3) = projectedNodes(:,2:3) + round(coordOffset);
+                         bounds = [1,1,imgSize] - [round(coordOffset(1,1:2)), round(coordOffset(1,1:2))];
+                         nodeInstances(nodeInstanceItr,2:end) = bounds;
+                         
+                         % Obtain a PoE visualization
+                         [currentMask, ~] = obtainPoE(projectedNodes, imgSize, options, true);
+                         currentMask = uint8(currentMask*255);
                      end
                      
-                     %% We use first level's data structures for printing, when printing the instances.
-                     if nodeInstanceItr == 2
-                        patchLowDims = firstLevelPatchLowDims;
-                        patchHighDims = firstLevelPatchHighDims;
-                        avgNodeMasks = avgFirstNodeMasks;
-                        nodeMasks = firstNodeMasks;
-                     end
-                     
-                    %% At this point, we have the relative coordinates of all children. 
-                    % All we will do is to create an empty mask large enough, and
-                    % write the children's masks over it.
-                    % Determine the upper, lower, left and right bounds (extremes)
-                    % of the mask required to hold this composition's mask.
-                    maskMinX = 0;
-                    maskMinY = 0;
-                    maskMaxX = 0;
-                    maskMaxY = 0;
-                    for childItr = 1:numel(children)
-                        minX = childrenCoords(childItr,1) - patchLowDims(children(childItr),1);
-                        maxX = childrenCoords(childItr,1) + patchHighDims(children(childItr),1);
-                        minY = childrenCoords(childItr,2) - patchLowDims(children(childItr),2);
-                        maxY = childrenCoords(childItr,2) + patchHighDims(children(childItr),2);
-                        if maskMinX > minX
-                            maskMinX = minX;
-                        end
-                        if maskMaxX < maxX
-                            maskMaxX = maxX;
-                        end
-                        if maskMinY > minY
-                            maskMinY = minY;
-                        end
-                        if maskMaxY < maxY
-                            maskMaxY = maxY;
-                        end
-                    end
-                    maskMinX = double(floor(maskMinX)-1);
-                    maskMinY = double(floor(maskMinY)-1);
-                    maskMaxX = double(ceil(maskMaxX)+1);
-                    maskMaxY = double(ceil(maskMaxY)+1);
-                    childrenCoords = int32(round(double(childrenCoords) - [ones(numel(children),1) * maskMinX, ones(numel(children),1) * maskMinY]));
-
-                    %% Write the children's masks to the current mask.
-                    currentMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
-                    currentFilledMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1, filtBandCount);
-                    currentLabelMask = zeros((maskMaxX - maskMinX)+1, (maskMaxY - maskMinY)+1);
-                    for childItr = 1:numel(children)
-                        % Write the child's mask to the output.
-                        if nodeInstanceItr == 1
-                            assignedWeight = 1;
-                        else
-                            assignedWeight = firstActivations(instanceLeafNodes(childItr)); %#ok<PFBNS>
-                        end
-                        
-                        currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                          (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:) = ...
-                          max(assignedWeight * nodeMasks{children(childItr)}, ...
-                              (currentMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                                  (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2)),:)));
-
-                        currentFilledMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                              (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))) = 1;
-
-                        % Mark label image for the child.
-                        currentLabelMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                             (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))) = ...
-                                     max(currentLabelMask((childrenCoords(childItr,1)-patchLowDims(children(childItr),1)):(childrenCoords(childItr,1)+patchHighDims(children(childItr),1)), ...
-                             (childrenCoords(childItr,2)-patchLowDims(children(childItr),2)):(childrenCoords(childItr,2)+patchHighDims(children(childItr),2))), ...
-                             double(avgNodeMasks{children(childItr)}>0.2) * childItr);
-                    end
-
-                    %% Add background to currentMask, and normalize it.
-                    % Learn the median color to use as background.
-%                    validValues = currentMask(currentFilledMask>0);
-%                    filledValue = median(validValues);
-                    filledValue = 0;
-
-                    % Assign filling value to each band.
-                    for bandItr = 1:size(currentMask,3)
-                        bandMask = currentMask(:,:,bandItr);
-                        bandMask(~currentLabelMask) = filledValue;
-                        currentMask(:,:,bandItr) = bandMask;
-                    end
-
-                    % Normalize current mask to [0,1].
-%                  currentMask = ( currentMask - min(validValues)) / (max(validValues) - min(validValues));
-
-                    %% If the size of the current mask can be divided by two, pad sides to prevent this.
-                    dimRems = rem(size(currentMask),2);
-                    if dimRems(1) == 0
-                        currentMask = [currentMask; ones(1, size(currentMask,2), size(currentMask,3)) * filledValue];
-                        currentLabelMask = [currentLabelMask; ones(1, size(currentLabelMask,2), size(currentLabelMask,3)) * filledValue];
-                    end
-                    if dimRems(2) == 0
-                        currentMask = [currentMask, ones(size(currentMask, 1), 1, size(currentMask,3)) * filledValue];
-                        currentLabelMask = [currentLabelMask, ones(size(currentLabelMask, 1), 1, size(currentLabelMask,3)) * filledValue];
-                    end
-
-                    % Assign currentMask to the label image.
-                    currentLabelImg = currentMask;
-                    
                     %% Print the files to output folders.
                     if nodeInstanceItr == 1
                         % Create a false color image.
-                        falseColorImg = double(label2rgb(int32(currentLabelMask), 'jet', 'k', 'shuffle'));
-                        if isequal(size(falseColorImg), size(currentMask))
-                             falseColorImg = uint8(round(falseColorImg .* currentMask));
-                        else
-                             for bandItr = 1:size(falseColorImg,3)
-                                  falseColorImg(:,:,bandItr) = currentMask(:,:,1) .* falseColorImg(:,:,bandItr);
-                             end
-                             falseColorImg = uint8(round(falseColorImg));
-                        end
-                        
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '.png']);
-                        imwrite(falseColorImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_falseColor.png']);
-                        imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_' num2str(currentLevel(nodeSet(nodeItr)).mdlScore) '.png']); %#ok<PFBNS>
-                        imwrite(currentLabelImg, [reconstructionDir num2str(nodeSet(nodeItr)) '_comp.png']);
                     else
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_var_' num2str(nodeInstanceItr) '.png']);
                     end
                     
                     % Save all instances. We'll print them to another
                     % image.
-                    currentLabelImg = uint8(round(currentLabelImg * 255));
-                    instanceImgs(nodeInstanceItr) = {currentLabelImg};
+                    instanceImgs(nodeInstanceItr) = {currentMask};
                 end
+                
                 % Combine instance images together, write them to a larger
                 % image and save it.
+                allNodeInstances{labelId} = nodeInstances;
                 nodeImgs(nodeItr) = {instanceImgs};
             end
             warning(w);
@@ -328,12 +241,14 @@ function [allNodeInstances] = visualizeLevel( currentLevel, vocabulary, graphLev
         clear leafNodeSets centerPos nodeLabelIds leafNodeLabelIds leafNodePos prevNodeMasks avgPrevNodeMasks parallelNodeSets;
     end
     
-%     % Update number of nodes, and visualize valid nodes.
-%     numberOfNodes = double(max(vocabLevelLabels));
-%     nodeImgs = nodeImgs(vocabLevelIdx);
-    
     %% Combine all compositions and show them within a single image.
-    % Learn number of rows/columns.
+    if levelId > 1
+         visRepresentativeNodes = representativeNodes(multiNodeInstances(representativeNodes));
+    else
+         visRepresentativeNodes = representativeNodes;
+    end
+    % Learn number of rows/columns, use only representative nodes.
+    numberOfNodes = numel(visRepresentativeNodes);
     colImgCount = ceil(sqrt(numberOfNodes));
     rowImgCount = ceil(numberOfNodes/colImgCount);
     if numberOfNodes < visualizedNodes
@@ -342,105 +257,48 @@ function [allNodeInstances] = visualizeLevel( currentLevel, vocabulary, graphLev
     smallColImgCount = ceil(sqrt(visualizedNodes));
     smallRowImgCount = ceil(visualizedNodes/smallColImgCount);
 
-    % Change visualizations with the PoE predictions.
-    for nodeItr = 1:numberOfNodes
-         imgPath = [options.debugFolder '/level' num2str(levelId) '/modalProjection/' num2str(nodeItr) '.png'];
-         if exist(imgPath, 'file')
-              tempImg = imread([options.debugFolder '/level' num2str(levelId) '/modalProjection/' num2str(nodeItr) '.png']);
-              if size(tempImg,3) > 1
-                   tempImg = rgb2gray(tempImg);
-              end
-              idx = find(tempImg);
-              [x,y] = ind2sub(size(tempImg), idx);
-
-              tempImg = tempImg(min(x):max(x), min(y):max(y),:);
-              nodeImgs{nodeItr}{1} = tempImg;
-         end
-    end
-    
-    %% Show the set of compositions in a single image and save it.
-    % Read all masks into an array, and get the extreme dimensions.allCompMasks = cell(numberOfNodes,1);
-    compMaskSize = [1, 1];
-    for nodeItr = 1:numberOfNodes
-        instanceImgs = nodeImgs{nodeItr};
-        if ~isempty(instanceImgs)
-            dim3 = size(instanceImgs{1},3);
-        end
-        instanceImgSizes = cellfun(@(x) [size(x,1), size(x,2)], instanceImgs, 'UniformOutput', false);
-        if ~isempty(instanceImgSizes)
-            compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
-        end
-    end
-
-    % Make mask sizes uniform and write them all back.
-    if levelId>1
-        for nodeItr = 1:numberOfNodes
-            instanceImgs = nodeImgs{nodeItr};
-            for instItr = 1:numel(instanceImgs)
-                tempMask2 = instanceImgs{instItr};
-                finalTempMask = zeros([compMaskSize, size(tempMask2,3)], 'uint8');
-                margins = (compMaskSize - [size(tempMask2,1), size(tempMask2,2)])/2;
-                finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
-                    (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
-                % A make-up to fill in NaNs (empty points).
-                fillInValues = [];
-       %         fillInValues = double(finalTempMask(finalTempMask>0 & finalTempMask<255));
-                if ~isempty(fillInValues)
-                    filledValue = fillInValues(1);
-                else
-                     filledValue = 0;
-                end
-           %     filledValue = median(double(finalTempMask(finalTempMask>0 & finalTempMask<255)));
-                finalTempMask(finalTempMask == 0) = filledValue;
-                instanceImgs{instItr} = finalTempMask;
-            end
-            nodeImgs{nodeItr} = instanceImgs;
-        end
-    end
-
-    % Using the maximum dimensions, transform each composition image to the
-    % same size. 
-    overallImage = NaN((rowImgCount)*(compMaskSize(1)+1)+1, colImgCount * (compMaskSize(2)+1)+1, dim3);
-    overallInstanceImage = NaN((smallRowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, smallColImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
+    %% Create large images that have multiple components.
+    dim3 = size(nodeImgs{1}{1},3);
+    imgSize = [size(nodeImgs{1}{1},1), size(nodeImgs{1}{1},2)];
+    overallImage = NaN((rowImgCount)*(imgSize(1)+1)+1, colImgCount * (imgSize(2)+1)+1, dim3);
+    overallInstanceImage = NaN((smallRowImgCount * instanceImgDim)*(imgSize(1)+1)+1, smallColImgCount * instanceImgDim * (imgSize(2)+1)+1, dim3);
  %   overallInstanceRealImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
     for nodeItr = 1:numberOfNodes
-        instanceImgs = nodeImgs{nodeItr};
+        instanceImgs = nodeImgs{visRepresentativeNodes(nodeItr)};
         for instItr = 1:numel(instanceImgs)
             compFinalMask = instanceImgs{instItr};
 
             % If this feature is a dead one, reduce illumination by three.
-            if isAutoFilter && ismember(nodeItr, deadFeatures)
+            if isAutoFilter && ismember(visRepresentativeNodes(nodeItr), deadFeatures)
                 compFinalMask = uint8(round(compFinalMask * 0.33));
             end
 
             % Add the composition's mask to the overall mask image.
-            rowStart = 2 + floor((nodeItr-1)/colImgCount)*(compMaskSize(1)+1);
-            colStart = 2 + rem(nodeItr-1, colImgCount) * (compMaskSize(2)+1);
-            rowStart2= 2 + floor((nodeItr-1)/smallColImgCount)*(compMaskSize(1)+1) *instanceImgDim ;
-            colStart2 = 2 + rem(nodeItr-1, smallColImgCount) * (compMaskSize(2)+1) * instanceImgDim;
+            rowStart2= 2 + floor((nodeItr-1)/smallColImgCount)*(imgSize(1)+1) *instanceImgDim ;
+            colStart2 = 2 + rem(nodeItr-1, smallColImgCount) * (imgSize(2)+1) * instanceImgDim;
             if instItr == 1
-                overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
-                    colStart:(colStart+compMaskSize(2)-1), :) = compFinalMask;
+                rowStart = 2 + floor((nodeItr-1)/colImgCount)*(imgSize(1)+1);
+                colStart = 2 + rem(nodeItr-1, colImgCount) * (imgSize(2)+1);
+
+                overallImage(rowStart:(rowStart+imgSize(1)-1), ...
+                    colStart:(colStart+imgSize(2)-1), :) = instanceImgs{1};
             end
             %We're writing sample instances to other images. Find where to
             %write them and put them in their location.
-            rowInstStart = floor((instItr - 1)/instanceImgDim)*(compMaskSize(1)+1);
-            colInstStart = rem(instItr-1, instanceImgDim) * (compMaskSize(2)+1);
+            rowInstStart = floor((instItr - 1)/instanceImgDim)*(imgSize(1)+1);
+            colInstStart = rem(instItr-1, instanceImgDim) * (imgSize(2)+1);
             if nodeItr<=visualizedNodes
-                overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+compMaskSize(1)-1), ...
-                    (colStart2+colInstStart):((colStart2+colInstStart)+compMaskSize(2)-1), :) = compFinalMask;
+                overallInstanceImage((rowStart2 + rowInstStart):((rowStart2 + rowInstStart)+imgSize(1)-1), ...
+                    (colStart2+colInstStart):((colStart2+colInstStart)+imgSize(2)-1), :) = compFinalMask;
             end
-        end
-        if ~isempty(instanceImgs)
-            imwrite(instanceImgs{1}, [reconstructionDir num2str(nodeItr) '_uni.png']);
         end
     end
 
     clear instanceImgs nodeImgs setImgs;
 
     % A final make up in order to separate masks from each other by 1s.
-    whiteRowIdx = 1:(compMaskSize(1)+1) *instanceImgDim:size(overallInstanceImage,1);
-    whiteColIdx = 1:(compMaskSize(2)+1) *instanceImgDim:size(overallInstanceImage,2);
+    whiteRowIdx = 1:(imgSize(1)+1) *instanceImgDim:size(overallInstanceImage,1);
+    whiteColIdx = 1:(imgSize(2)+1) *instanceImgDim:size(overallInstanceImage,2);
     overallImage(isnan(overallImage)) = 255;
     overallImage = uint8(overallImage);
     overallInstanceImage(isnan(overallInstanceImage)) = 0;

@@ -69,11 +69,11 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
     if options.debug
         matlabpool close; 
         display('........ Visualizing the realizations in the first level...');
-        visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstances, leafNodes, leafNodeCoords, 1, options, 'train' );
-        visualizeCroppedImgs( vocabulary{1}, 1, options);
+        visualizeImages( fileList, vocabLevel, graphLevel, [], allNodeInstances, leafNodes, leafNodeCoords, 1, options, 'train' );
+%        visualizeCroppedImgs( vocabulary{1}, 1, options);
         matlabpool('open', options.numberOfThreads);
     end
-    printCloseFilters(eucDistanceMatrix, 1, options);
+    printCloseFilters(eucDistanceMatrix, [], 1, options);
     
     %% Calculate statistics from this graph.
     display('........ Estimating statistics for level 1..');
@@ -140,7 +140,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
         previousLevel = mainGraph{levelItr-1};
-        graphLevel = fillBasicInfo(previousLevel, graphLevel, leafNodes, options.numberOfThreads);
+        graphLevel = fillBasicInfo(previousLevel, graphLevel, levelItr, options);
         
         %% Calculate statistics from this graph.
         display('........ Before we apply inhibition, estimating statistics..');
@@ -162,9 +162,11 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
 %        vocabLevel = learnChildPositions(vocabLevel, allModes{levelItr-1});
+        display('........ Learning sub-part label and position distributions.');
         vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1}, levelItr, options);
         
         %% Calculate activations for every part realization.
+        display('........ Calculating activations..');
         graphLevel = calculateActivations(vocabLevel, vocabulary, graphLevel, mainGraph, level1Coords, options, levelItr);
         
         %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
@@ -175,6 +177,8 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         if options.noveltyThr > 0
             display('........ Applying inhibition..');
             graphLevel=applyTestInhibition(graphLevel, options);
+            display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) '.']);
+            display(['........ We have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
         else
             display('........ No inhibition applied..');
         end
@@ -204,23 +208,21 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         
         %% As an initial stage of inhibition, we downsample the responses, 
         % and apply max pooling. 
+        display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
         graphLevel = applyPooling(graphLevel, options.poolDim);
-        level1Coords(:,2:3) = floor((double(level1Coords(:,2:3)) - 1)/options.poolDim) + 1;
         
         %% Calculate statistics from this graph.
         display('........ Estimating post-inhibition statistics..');
         [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodeCoords, maxCoverageVals, numberOfImages, options, 'postInhibition', levelItr);
         
         %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
-        if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid')
+        if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid') || levelItr == options.maxEdgeChangeLevel
             options.edgeType = 'centroid';
-            options.edgeNoveltyThr = 0.5;
             display('........ Switching to -centroid- type edges!');
             edgeChangeLevel = levelItr;
         end
         
         % display debugging info.
-        display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) ' and edge novelty thr: ' num2str(options.edgeNoveltyThr) '.']);
         display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
         display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
         
@@ -257,20 +259,28 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
            imwrite(eucDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
            imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_orNodes.png']);
         end
+        
+        % Visualize images.
         if ~isempty(vocabLevel)
             display('........ Visualizing previous levels...');
-            [allNodeInstances] =visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+            [allNodeInstances, representativeNodes] =visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
             visualizeORNodes( vocabLevel, levelItr, options);
             if options.debug
                display('........ Visualizing realizations on images...');
                if ~isempty(vocabLevel)
                     matlabpool close;
-                    visualizeImages( fileList, vocabLevel, graphLevel, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, 'train' );
-                    visualizeCroppedImgs( vocabLevel, levelItr, options);
+                    % Visualize realizations on images, and crop relevant
+                    % image parts.
+                    visualizeImages( fileList, vocabLevel, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, 'train' );
+                    visualizeCroppedImgs( vocabLevel, representativeNodes, levelItr, options);
+                    
+                    % Backproject parts to the images.
+                    display('........ Imagining parts and their instances! This can take a while...');
+                    projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
                     matlabpool('open', options.numberOfThreads);
                end
             end
-            printCloseFilters(eucDistanceMatrix, levelItr, options); 
+            printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
         end
         
         % Open/close matlabpool to save memory.

@@ -14,13 +14,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 01.11.2014
-function [] = visualizeCroppedImgs( currentLevel, levelId, options)
+function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
-    visualizedNodes = options.vis.visualizedNodes;
     orgImgWeight = 0.6;
     
     if isempty(currentLevel)
@@ -35,11 +34,6 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
     %% Combine all compositions and show them within a single image.
     % Learn number of rows/columns.
     numberOfNodes = numberOfVocabLevelNodes;
-    if levelId>1
-        numberOfNodes = min(visualizedNodes, numberOfNodes);
-    end
-    colImgCount = ceil(sqrt(numberOfNodes));
-    rowImgCount = ceil(numberOfNodes/colImgCount);
 
     % Read cropped images.
     nodeImgs = cell(numberOfNodes,1);
@@ -96,13 +90,13 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
             compMaskSize = max(compMaskSize, max(cat(1, instanceImgSizes{:})));
         end
     end
-    imgVar = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/' num2str(nodeItr) '_uni.png']);
+    imgVar = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/modalProjection/' num2str(nodeItr) '.png']);
     compMaskSize = max(compMaskSize, [size(imgVar,1), size(imgVar,2)]);
     
     % Put the part to the instance list, too.
     for nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
-        filterImg = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/' num2str(nodeItr) '.png']);
+        filterImg = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/modalProjection/' num2str(nodeItr) '.png']);
         newSize=min([size(filterImg,1), size(filterImg,2)], compMaskSize);
         filterImg = filterImg(1:newSize(1), 1:newSize(2), :);
         if size(filterImg,3) < dim3
@@ -134,12 +128,17 @@ function [] = visualizeCroppedImgs( currentLevel, levelId, options)
         nodeImgs{nodeItr} = instanceImgs;
     end
 
+    % Only visualize representative nodes.
+    numberOfNodes = numel(representativeNodes);
+    
     % Using the maximum dimensions, transform each composition image to the
     % same size. 
+    colImgCount = ceil(sqrt(numberOfNodes));
+    rowImgCount = ceil(numberOfNodes/colImgCount);
     overallInstanceImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
  %   overallInstanceRealImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
     for nodeItr = 1:numberOfNodes
-        instanceImgs = nodeImgs{nodeItr};
+        instanceImgs = nodeImgs{representativeNodes(nodeItr)};
         for instItr = 1:numel(instanceImgs)
             compFinalMask = instanceImgs{instItr};
 

@@ -89,7 +89,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     end
     
     %% Process each set separately (and in parallel)
-    parfor setItr = 1:numberOfSets
+    for setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          imageNodeIdxSets = setNodeIdxSets{setItr};
          imageGraphNodeSets = setGraphNodeSets{setItr};
@@ -140,10 +140,14 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                 %% A further check is done to ensure boundary/surface continuity.
                 if strcmp(edgeType, 'continuity') && currentLevelId > 1
                     centerLeafEdges = cat(1, firstLevelAdjInfo{centerLeafNodes}); %#ok<PFBNS>
-                    centerAdjNodes = sort(centerLeafEdges(:,2));
-                    adjLeafNodes = curLeafNodes(adjacentNodes);
-                    validAdjacentNodes = cellfun(@(x) nnz(ismembc(x, centerAdjNodes)), adjLeafNodes) > 0;
-                    adjacentNodes = adjacentNodes(validAdjacentNodes);
+                    if isempty(centerLeafEdges)
+                         adjacentNodes = [];
+                    else
+                         centerAdjNodes = sort(centerLeafEdges(:,2));
+                         adjLeafNodes = curLeafNodes(adjacentNodes);
+                         validAdjacentNodes = cellfun(@(x) nnz(ismembc(x, centerAdjNodes)), adjLeafNodes) > 0;
+                         adjacentNodes = adjacentNodes(validAdjacentNodes);
+                    end
                 end           
 
                 %% Eliminate adjacent which are far away, if the node has too many neighbors.

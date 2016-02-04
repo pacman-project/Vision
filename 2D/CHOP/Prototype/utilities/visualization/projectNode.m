@@ -19,7 +19,6 @@
 function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius, samplingMethod )
     levelItr = nodes(1,4);
     nodes = single(nodes);
-    inhibitionRadius = inhibitionRadius - 1;
     posDim = 2;
     
     %% First, we recursively backproject the nodes. 
@@ -69,17 +68,28 @@ function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius, samplingM
                  end
                  
                  % Assign positions.
-                 newNodeSet(1,2:3) = nodes(nodeItr,2:3);
                  for childItr = 2:numel(nodeCombination)
-                    newNodeSet(childItr,2:3) = posVect(:,((childItr-2) * posDim + 1):((childItr-1)*posDim)) + nodes(nodeItr,2:3);
+                    newNodeSet(childItr,2:3) = posVect(:,((childItr-2) * posDim + 1):((childItr-1)*posDim));
                  end
+                 
+                 % Shift nodes by an offset (mid of RF).
+                 mins = min(newNodeSet(:, 2:3), [], 1);
+                 maxs = max(newNodeSet(:,2:3), [], 1);
+                 midPoint = (mins+maxs)/2;
+                 newNodeSet(:,2:3) = newNodeSet(:,2:3) - repmat(midPoint, size(newNodeSet,1),1);
             end
+            % Finally, we update the positions by adding previous
+            % offset.
+            newNodeSet(:,2:3) = newNodeSet(:,2:3) + repmat(nodes(nodeItr,2:3), size(newNodeSet,1),1);
             
             % Assign rest of the fields and move on.
             newNodeSet(:, 1) = single(nodeCombination');
             newNodeSet(:, 4) = levelItr-1;
             newNodes{nodeItr} = newNodeSet;
         end
+        
+        % Shift the nodes by an offset.
+        
         nodes = cat(1, newNodes{:});
         levelItr = levelItr - 1;
     end

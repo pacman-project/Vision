@@ -1,4 +1,4 @@
-%> Name: calcualteActivations
+%> Name: calculateActivations
 %>
 %> Description: Calculates activation values for the data and given
 %> realizations. For each realization, the level 1 parts which are not
@@ -15,12 +15,17 @@
 %> Ver 1.0 on 18.01.2016
 function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLevel, mainGraph, level1Coords, options, levelItr )
      % Program variables.
-     receptiveFieldSize = options.receptiveFieldSize;
      epsilon = 0.0001;
      logEpsilon = single(log(epsilon));
-     halfRFSize = floor(receptiveFieldSize/2);
-     poolDim = options.poolDim;
-     stride = options.gabor.stride;
+     poolDim = options.poolDim;  
+     if strcmp(options.filterType, 'gabor')
+          stride = options.gabor.stride;
+          inhibitionRadius = options.gabor.inhibitionRadius;
+     else
+          stride = options.auto.stride;
+          inhibitionRadius = options.auto.inhibitionRadius;
+     end
+
      
      % First, we put level 1 nodes into bins, each of which belongs to an
      % image.
@@ -31,7 +36,6 @@ function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLev
           startItr = find(idx,1, 'first');
           imageOffsets(imageItr) = startItr;
      end
-     imageOffsets(end) = size(level1Coords,1) + 1;
      
      % First, we create some intermediate data structures for speed.
      mainGraph{levelItr} = graphLevel;
@@ -44,26 +48,28 @@ function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLev
         allRealLabelIds{curLevelItr} = single([mainGraph{curLevelItr}.realLabelId]);
      end
      
+    % Obtain leaf nodes that (theoretically) could be covered by every
+    % instance.
+    prevLevel = mainGraph{levelItr-1};
+    prevPositions = cat(1, prevLevel.position);
+    possibleLeafNodes = cell(size(prevPositions,1),1);
+    bounds = calculateRFBounds(prevPositions, levelItr-1, options, false);
+    for nodeItr = 1:numel(prevLevel)
+        possibleLeafNodes{nodeItr} = int32(find(level1Coords(:,1) == prevLevel(nodeItr).imageId & ...
+             level1Coords(:,2) >= bounds(nodeItr,1) & level1Coords(:,2) <= bounds(nodeItr,3) & ...
+             level1Coords(:,3) >= bounds(nodeItr,2) & level1Coords(:,3) <= bounds(nodeItr,4)));
+    end
+     
      % Go through the list of realizations, and find the activation value
      % for each of them. 
-     for nodeItr = 1:numel(graphLevel)
+     parfor nodeItr = 1:numel(graphLevel)
           logLikelihood = 0;
           decisionCtr = 0;
           curLevelItr = levelItr;
           node = graphLevel(nodeItr);
-          nodePosition = double(node.position);
-          imageId = node.imageId;
-          imageNodes = level1Coords(imageOffsets(imageId):(imageOffsets(imageId+1)-1), :);
-          
-          % Get nodes in the receptive field.
-          RFNodes = find(imageNodes(:,2) >= nodePosition(1) - halfRFSize & ...
-               imageNodes(:,2) <= nodePosition(1) + halfRFSize & ...
-               imageNodes(:,3) >= nodePosition(2) - halfRFSize & ...
-               imageNodes(:,3) <= nodePosition(2) + halfRFSize);
-          RFNodes = RFNodes + imageOffsets(imageId) - 1;
           
           % Add penalty for missing data.
-          missingNodeCount = numel(RFNodes) - numel(node.leafNodes);
+          missingNodeCount = numel(possibleLeafNodes{node.children(1)}) - numel(node.leafNodes);
           logLikelihood = logLikelihood + missingNodeCount * logEpsilon;
           decisionCtr = decisionCtr + missingNodeCount;
           
@@ -77,13 +83,14 @@ function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLev
           % integral. 
           nodes = node;
           
-         %% First, we recursively backproject the nodes. 
+         %% First, we recursively calculate probabilities of the previous layer's choices. 
          curVocabLevel = vocabLevel;
          while curLevelItr > 1.001
              newNodes = cell(size(nodes,1),1);
              prevGraphLevel = mainGraph{curLevelItr-1};
-             positions = allPositions{curLevelItr-1};
-%             precisePositions = allPrecisePositions{curLevelItr-1};
+%             positions = allPositions{curLevelItr-1};
+             precisePositions = allPrecisePositions{curLevelItr-1};
+             flexRadius = floor(options.receptiveFieldSize/2)^(curLevelItr-1) * stride * (inhibitionRadius+1);
              realLabelIds = allRealLabelIds{curLevelItr-1};
              for itr = 1:size(nodes,1)
                  vocabNode = curVocabLevel(nodes(itr).realLabelId);
@@ -111,8 +118,14 @@ function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLev
                  posSamples = vocabNode.childrenPosSamples{1};
                  posSamples = posSamples{probIdx};
                  if ~isempty(posDistributions)
-                      sampledPositions = positions(nodes(itr).children, :) - single(repmat(nodes(itr).position, numel(nodes(itr).children), 1));
-%                      sampledPrecisePositions = precisePositions(nodes(itr).children, :) - single(repmat(nodes(itr).precisePosition, numel(nodes(itr).children), 1));
+                      sampledPositions = precisePositions(nodes(itr).children, :) - single(repmat(precisePositions(nodes(itr).children(1), :), numel(nodes(itr).children), 1));
+                      
+                      % From these coarse positions, let's find boundaries
+                      % of the RFs in precise position space. We add 1 to
+                      % sample positions to account for the fact that in
+                      % images, indexing starts from 1, not 0.
+%                      sampledPositions = calculateRFBounds(sampledPositions+1, levelItr-1, options, true) -1;
+ %                     sampledPositions = sampledPositions - repmat(meanPos, 1, 2);
                       sampledPositions = sampledPositions(2:end,:);
                       sampledPositions = sampledPositions';
                       sampledPositions = sampledPositions(:)';
@@ -125,9 +138,8 @@ function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLev
                       % precise position space and select a boundary for
                       % calculating probabilities.
                       % First, we take into account the pooling so far.
-                      sampledPositionsStart = sampledPositions - 1;
-                      sampledPositionsStart = sampledPositionsStart * (poolDim^(curLevelItr-2)) * stride + 1;
-                      sampledPositionsEnd = sampledPositionsStart + (poolDim^(curLevelItr-2)) * stride;
+                      sampledPositionsStart = sampledPositions - flexRadius;
+                      sampledPositionsEnd = sampledPositions + flexRadius;
                       
                       % Sanity check.
 %                       checkIdx = sum(sampledPrecisePositions >= repmat(sampledPositionsStart, size(sampledPrecisePositions,1),1) & ...

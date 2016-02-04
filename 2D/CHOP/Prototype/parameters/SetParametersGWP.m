@@ -28,7 +28,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.gaborFilterThr = 0.1; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.innerGaborFilterThr = 0.01; % Min response threshold for inner contours.
+    options.innerGaborFilterThr = 0.025; % Min response threshold for inner contours.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level  % For depth!
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
@@ -41,18 +41,21 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.gabor.theta = 0;
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
-    options.gabor.gamma = 0.25;
-    options.gabor.inhibitionRadius = 1;
+    options.gabor.gamma = 0.2;
+    options.gabor.inhibitionRadius = 2;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
                                         % than the seed node will
-                                        % be surpressed.
-    options.gabor.stride = 2;           % Stride to use when extracting gabor
+                                        % be surpressed. The image is
+                                        % pooled with a stride of
+                                        % (inhibitionRadius+1) after
+                                        % inhibition.
+    options.gabor.stride = 1;           % Stride to use when extracting gabor
                                        % features.     
     options.autoFilterSize = 10;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
-    options.auto.inhibitionRadius = 1;
+    options.auto.inhibitionRadius = 2;
     options.autoFilterThr = 0;       % Min response threshold for convolved 
                                        % features, assigned as this percentage 
                                        % of the max response in each image.
@@ -71,6 +74,12 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
     options.distType = 'hog'; % Either 'modal', 'hog' or 'hu'.
+    if strcmp(options.filterType, 'gabor')
+         options.stride = options.gabor.stride;
+    else
+         options.stride = options.auto.stride;
+    end
+    
     %% ========== GT Parameters ==========
     options.useGT = true;              % If true, gt info is used. 
     options.gtType = 'contour';        % 'contour' type gt: nodes lying under
@@ -85,18 +94,18 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.7;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.45;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeType = 'contour';     % If 'centroid', downsampling is
+    options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
@@ -111,6 +120,8 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % layers. 
     options.minContinuityCoverage = 0.9; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
+    options.missingNodeThr = 0.9; % Each node should cover this percentage of the nodes in its RF.
+    options.maxEdgeChangeLevel = 3; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will
@@ -123,7 +134,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = 5; % DEFAULT 5
     else
-        options.receptiveFieldSize = 7;
+        options.receptiveFieldSize = 3;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -161,13 +172,15 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                                   % drastically. Set to an
                                                   % unlikely value (100)
                                                   % for no category nodes.
-    options.articulationsPerCategory = 3; % We reduced  is this number multipli
+    options.articulationsPerCategory = 3; % Number of top level nodes 
+               % for each category. Category nodes will be formed by
+               % grouping top level parts.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
     options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 100; % The maximum 
+    options.reconstruction.numberOfORNodes = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
@@ -260,8 +273,6 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                      % are taken into account (DEFAULT).
                                      % Also, redundancy is removed from the
                                      % main graph.
-     options.subdue.minRFCoverage = 0; % Only parts which cover (on average) this 
-                                                                   % percentage of their receptive fields are considered.
      options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 

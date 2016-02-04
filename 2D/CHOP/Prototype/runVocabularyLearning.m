@@ -117,20 +117,37 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         allNodes = cell(size(trainingFileNames,1),1);
         allNodeActivations = cell(size(trainingFileNames,1),1);
         smoothedFolder = options.smoothedFolder;
-        for fileItr = 1:size(trainingFileNames,1)
+        parfor fileItr = 1:size(trainingFileNames,1)
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([processedFolder '/' fileName '.png']);
             
             % Get the Level 1 features.
-            [nodes, smoothedImg, nodeActivations, smoothActivationImg, responseImgs] = getNodes(img, gtFileNames{fileItr}, options);
-
+            [nodes, smoothedImg, nodeActivations, smoothActivationImg, responseImgs, edgeImg] = getNodes(img, gtFileNames{fileItr}, options);
+ 
+            % Generate an imperfect backprojection from obtained peaks.
+%             level1Nodes = cell2mat(nodes);
+%             level1Nodes = [level1Nodes(:,[1,4,5]), double(nodeActivations)];
+%             img1 = obtainPoE(level1Nodes, size(edgeImg), options);
+%             
+%             % Generate a perfect backprojection.
+%             [activationImg, nodeIdImg] = max(responseImgs, [], 3);
+%             activationImg(edgeImg == 0) = 0;
+%             nodeIdImg(edgeImg == 0) = 0;
+%             peaks = find(nodeIdImg);
+%             [x,y] = ind2sub(size(nodeIdImg), peaks);
+%             level1Nodes = [nodeIdImg(peaks), x, y, activationImg(peaks)];
+%             img2 = obtainPoE(level1Nodes, size(nodeIdImg), options);
+            
             % Keep nodes in the array.
             allNodes(fileItr) = {nodes};
             allNodeActivations(fileItr) = {nodeActivations};
 
             % Save smoothed image.
             imwrite(smoothedImg, [smoothedFolder '/' fileName '_peaks.png']);
+            imwrite(edgeImg, [smoothedFolder '/' fileName '_edgeImg.png']);
             imwrite(smoothActivationImg, [smoothedFolder '/' fileName '.png']);
+ %           imwrite(img1, [smoothedFolder '/' fileName '_peakPoE.png']);
+%            imwrite(img2, [smoothedFolder '/' fileName '_perfectPoE.png']);
             parsave([smoothedFolder '/' fileName '_responseImgs.mat'], responseImgs, 'responseImgs');
         end
 

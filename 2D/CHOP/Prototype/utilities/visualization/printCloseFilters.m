@@ -1,20 +1,19 @@
-function [finalImg] = printCloseFilters(distanceMatrix, levelItr, options)
+function [finalImg] = printCloseFilters(distanceMatrix, representativeNodes, levelItr, options)
+    if isempty(representativeNodes)
+         representativeNodes = 1:size(distanceMatrix,1);
+    end
+    
     if levelItr == 1
         filters = options.filters;
     else
         filters = cell(size(distanceMatrix,1),1);
         for filterItr = 1:numel(filters)
             datasetName = options.datasetName;
-            filters{filterItr} = imread([options.currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/reconstruction/' num2str(filterItr) '_uni.png']);
+            filters{filterItr} = imread([options.currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/modalProjection/' num2str(representativeNodes(filterItr)) '.png']);
         end
     end
+    
     for filterItr = 1:numel(filters)
-       filePath = [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '/cropped/' num2str(filterItr) '_1.png'];
-       if exist(filePath, 'file')
-           orgImg = imread(filePath);
-       else
-           orgImg = [];
-       end
        filter1 = double(filters{filterItr});
        filter1 = uint8(255 * (filter1 - min(min(min(filter1)))) / (max(max(max(filter1))) - min(min(min(filter1)))));
 %        if ~isempty(orgImg) && size(filter1,1) == size(orgImg,1) && size(filter1,2) == size(orgImg,2)

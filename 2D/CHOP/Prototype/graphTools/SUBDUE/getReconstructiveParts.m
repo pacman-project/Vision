@@ -29,13 +29,13 @@
 %> Updates
 %> Ver 1.0 on 08.10.2015
 function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(bestSubs, realNodeLabels, ...
-            nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren, allLeafNodes, level1Nodes)
+            nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren, allLeafNodes, possibleLeafNodes)
 
    minNodeProbability = 0.00001;
-   coverageStoppingVal = 0.99;
-   likelihoodStoppingVal = 0.99;
+   coverageStoppingVal = 0.995;
+   likelihoodStoppingVal = 0.995;
    groupingThr = 0.9;
-   minCoverThr = 0.8;
+   minCoverThr = 0;
    partSelectionThr = 3000;
    numberOfBestSubs = numel(bestSubs);
    prevGraphNodeCount = numel(uniqueChildren);
@@ -49,7 +49,6 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    largeRFSize = RFSize * 2 - 1;
    largeRFSizes = [largeRFSize, largeRFSize];
    halfSize = RFSize;
-   halfRFSize = floor(RFSize/2);
    
    % Allocate space for node/edge distributions, both discrete.
    % We start by calculating number of sub, child pairs.
@@ -62,25 +61,11 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    posProbArr = zeros(numberOfSubChildPairs, largeRFSize, largeRFSize);
    subLabelProbs = cell(numberOfBestSubs, 1);
    subPosProbs = cell(numberOfBestSubs, 1);
-   subCoverFlags = cell(numberOfBestSubs,1);
    subCoveredNodes = cell(numberOfBestSubs,1);
    
    % For every center node, we calculate the number of layer nodes inside
    % its RF. This will be useful to decide coverage.
-   coveredLevel1Nodes = cell(maxChildId,1);
-   coveredLevel1NodeCounts = zeros(maxChildId,1);
-   for nodeItr = 1:numel(uniqueChildren)
-        centerPosition = double(nodePositions(nodeItr,:));
-        leafNodes = allLeafNodes{uniqueChildren(nodeItr)};
-        imageId = level1Nodes(leafNodes(1),1);
-        overlappingLevel1Nodes = find(level1Nodes(:,1) == imageId & ...
-                                                     level1Nodes(:,2) >= (centerPosition(1) - halfRFSize) & ...
-                                                     level1Nodes(:,2) <= (centerPosition(1) + halfRFSize) & ...
-                                                     level1Nodes(:,3) >= (centerPosition(2) - halfRFSize) & ...
-                                                     level1Nodes(:,3) <= (centerPosition(2) + halfRFSize));
-        coveredLevel1Nodes(nodeItr) = {overlappingLevel1Nodes};   
-        coveredLevel1NodeCounts(nodeItr) = numel(overlappingLevel1Nodes);
-   end
+   coveredLevel1NodeCounts = cellfun(@(x) numel(x), possibleLeafNodes);
    
    % Go over all possible part-subpart pairs, and calculate probabilities.
    for subItr = 1:numberOfBestSubs
@@ -193,15 +178,19 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    % problem.
    f = @(x) paramfunc(x, subLabelProbs, subPosProbs, subCoveredNodes);
    g = @(x) paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes); %#ok<NASGU>
-   h = @(x) paramfunc3(x, subLabelProbs, subPosProbs, subCoveredNodes);
+   % h = @(x) paramfunc3(x, subLabelProbs, subPosProbs, subCoveredNodes);
      
+     totalInstanceChildrenCount = sum(cellfun(@(x) numel(x), subCoveredNodes));
+   
      %% Finally, we implement an algorithm for part selection. 
      % This step is done to perform an initial pass to reduce the number of
      % parameters (subs to be selected) significiantly. Then, we perform
      % another pass using a data likelihood measure. This step implements a
      % coverage-based part selection mechanism.
     selectedSubIdx = ones(1,numberOfBestSubs) > 0;
-    if (numberOfBestSubs>partSelectionThr && runGA && exist('ga') == 2) || (numberOfBestSubs>numberOfFinalSubs && (~runGA || exist('ga') ~= 2)) %#ok<EXIST>
+    if (numberOfBestSubs>partSelectionThr && runGA && exist('ga') == 2) || ...
+              (numberOfBestSubs>numberOfFinalSubs && (~runGA || exist('ga') ~= 2)) || ...
+              totalInstanceChildrenCount > numel(uniqueChildren) * 1.25 %#ok<EXIST>
         subCounter = 0; 
         addedValueArr = [];
         selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
@@ -312,7 +301,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    % on the shareability of their instances. E.g. If two parts are grouped
    % together, we want to select only one of these parts, not two.
    shareabilityIdx = [];
-   if exist('ga') == 2 && runGA
+   if exist('ga') == 2 && runGA %#ok<EXIST>
         shareabilityIdx = cell(numberOfBestSubs-1,1);
         numberOfChildrenArr = cellfun(@(x) numel(x), subCoveredNodes);
         parfor subItr = 1:(numberOfBestSubs-1)
@@ -451,11 +440,11 @@ function y = paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes)
      y = round(-sum(double(vals)));
 end
 
-% Fitness function 3 for the genetic algorithm.
-function y = paramfunc3(x, ~, ~, subCoveredNodes)   
-     x = x>=0.5;
-     allCoveredNodes = cat(2, subCoveredNodes{x});
-     allCoveredNodes = fastsortedunique(sort(allCoveredNodes));
-     y = -numel(allCoveredNodes);
-%     y = -2*numel(allCoveredNodes) + numberOfNodes;
-end
+% % Fitness function 3 for the genetic algorithm.
+% function y = paramfunc3(x, ~, ~, subCoveredNodes)   
+%      x = x>=0.5;
+%      allCoveredNodes = cat(2, subCoveredNodes{x});
+%      allCoveredNodes = fastsortedunique(sort(allCoveredNodes));
+%      y = -numel(allCoveredNodes);
+% %     y = -2*numel(allCoveredNodes) + numberOfNodes;
+% end
