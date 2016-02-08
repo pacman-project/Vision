@@ -133,11 +133,6 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
            break; 
         end
         
-        %% If category level is reached, we reduce the number of desired nodes substantially.
-        if levelItr == options.categoryLevel
-             options.reconstruction.numberOfReconstructiveSubs = options.articulationsPerCategory * options.numberOfCategories;
-        end
-        
         %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
         previousLevel = mainGraph{levelItr-1};
         graphLevel = fillBasicInfo(previousLevel, graphLevel, levelItr, options);
@@ -158,6 +153,17 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
            orNodeProbs = orNodeProbs(1:(levelItr-1),:);
            modeProbs = modeProbs(1:(levelItr-1),:);
            break; 
+        end
+        
+        %% If category level is reached, we reduce the number of desired nodes substantially.
+        nodeCoverages = zeros(numel(graphLevel),1);
+        stopFlag = false;
+        for nodeItr = 1:numel(graphLevel)
+             nodeCoverages(nodeItr) = numel(graphLevel(nodeItr).leafNodes) / nnz(level1Coords(:,1) == graphLevel(nodeItr).imageId);
+        end
+        if levelItr == options.categoryLevel || mean(nodeCoverages) >= options.categoryLevelCoverage
+             stopFlag = true;
+             options.reconstruction.numberOfORNodes = options.articulationsPerCategory * options.numberOfCategories;
         end
         
         %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
@@ -186,6 +192,10 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         % Open/close matlabpool to save memory.
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
+        
+        if levelItr == 3
+             1
+        end
         
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
         % In addition, we re-assign the node ids in graphLevel.
@@ -231,7 +241,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
         
         % If we've reached max number of layers, don't keep going forward.
-        if levelItr == options.maxLevels
+        if levelItr == options.maxLevels || stopFlag
             vocabulary = vocabulary(1:(levelItr),:);
             allModes = allModes(1:(levelItr), :);
             optimalThresholds = optimalThresholds(1:(levelItr),:);

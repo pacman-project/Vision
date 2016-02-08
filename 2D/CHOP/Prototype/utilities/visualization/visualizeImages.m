@@ -212,16 +212,38 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
                  nodeInstances = allNodeInstances{representativeNode};
                  if ismember(relevantNodeIds(nodeItr), nodeInstances(:,1))
                      imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
-                     imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
-                         nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(representativeNode) '_' num2str(imgId) '.png']);
+                     nodeInfo = nodeInstances(imgId+1,:);
+                     buffer = max([0, 1-nodeInfo(2), 1-nodeInfo(3), nodeInfo(4) - imageSize(1), nodeInfo(5) - imageSize(2)]);
+                     if buffer > 0
+                         tempImg = zeros((nodeInfo(4)-nodeInfo(2))+1, (nodeInfo(5)-nodeInfo(3))+1, size(actualImg,3), class(actualImg));
+                         nodeInfo(:,2:5) = [nodeInfo(2:3) + buffer, nodeInfo(4:5) - buffer];
+                         tempImg((buffer+1):(end-buffer), (buffer+1):(end-buffer), :) = actualImg(nodeInfo(2):nodeInfo(4), ...
+                              nodeInfo(3):nodeInfo(5), :);
+                         imwrite(tempImg, [croppedOrgFolder '/' num2str(representativeNode) '_' num2str(imgId) '.png']);
+                     else
+                          imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
+                              nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(representativeNode) '_' num2str(imgId) '.png']);
+                     end
                     usedChildren(representativeNode) = usedChildren(representativeNode) -1;
                  end
                  
                  nodeInstances = allNodeInstances{nodes(nodeItr).realLabelId};
                  if ismember(relevantNodeIds(nodeItr), nodeInstances(:,1)) && nodes(nodeItr).realLabelId ~= representativeNode
                      imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
-                     imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
-                         nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
+                     
+                     % Crop the image and print it.
+                     nodeInfo = nodeInstances(imgId+1,:);
+                     buffer = max([0, 1-nodeInfo(2), 1-nodeInfo(3), nodeInfo(4) - imageSize(1), nodeInfo(5) - imageSize(2)]);
+                     if buffer > 0
+                         tempImg = zeros((nodeInfo(4)-nodeInfo(2))+1, (nodeInfo(5)-nodeInfo(3))+1, size(actualImg,3), class(actualImg));
+                         nodeInfo(:,2:5) = [nodeInfo(2:3) + buffer, nodeInfo(4:5) - buffer];
+                         tempImg((buffer+1):(end-buffer), (buffer+1):(end-buffer), :) = actualImg(nodeInfo(2):nodeInfo(4), ...
+                              nodeInfo(3):nodeInfo(5), :);
+                         imwrite(tempImg, [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
+                     else
+                          imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
+                              nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
+                     end
                     usedChildren(nodes(nodeItr).realLabelId) = usedChildren(nodes(nodeItr).realLabelId) -1;
                  end
             end

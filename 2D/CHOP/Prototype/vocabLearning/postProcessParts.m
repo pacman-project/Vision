@@ -83,7 +83,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
         experts = projectNode(nodes, vocabulary, 1, 'modal');
-
+     
         % Center the nodes.
         experts = double(experts);
         minX = min(experts(:,2));
@@ -117,7 +117,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
    
    % Get product of expert predictions.
    mkdir([options.debugFolder '/level' num2str(levelItr) '/modalProjection/']);
-   parfor vocabNodeItr = 1:numberOfNodes
+   for vocabNodeItr = 1:numberOfNodes
         [muImg, varImg] = obtainPoE(level1Experts{vocabNodeItr}, imageSize, options, false);
         muImg = muImg/max(max(muImg));
         blurredMuImg = imfilter(muImg, H, 'replicate');

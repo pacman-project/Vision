@@ -243,7 +243,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                     nodeDistanceMatrix, categoryArrIdx, validationIdx, singleNodeThreshold);
                
                % Evaluate them.
-                singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
+                singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, [], evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, false, ...
                     allLeafNodes, minRFCoverage, possibleLeafNodes);
 
@@ -312,13 +312,14 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                 [childSubsFinal, childSubsExtend] = getFinalSubs(childSubs, adaptiveThreshold);
                  
                 %% Step 2.4: Evaluate childSubs, find their instances.
-                [childSubsFinal, validSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdges, allEdgeNodePairs, ...
+                [childSubsFinal, childSubsExtend, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, childSubsExtend, evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, ...
                     false, allLeafNodes, minRFCoverage, possibleLeafNodes);
                 
                 % Assign mdl scores of subs chosen for extension as well. 
                 [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
                 childSubsFinal = childSubsFinal(validSubs);
+                childSubsExtend = childSubsExtend(validExtSubs);
                 
                 %% Eliminate childSubs which will render useless to preserve memory.
                 if ~isempty(childSubsFinal)
@@ -326,9 +327,11 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                      validMdlScoreIdxFinal = finalMdlScores > minMdlScoreFinal;
                      childSubsFinal = childSubsFinal(validMdlScoreIdxFinal);
                 end
-                mdlScores = [childSubsExtend.mdlScore];
-                validMdlScoreIdxExtend = mdlScores > minMdlScoreExtend;
-                childSubsExtend = childSubsExtend(validMdlScoreIdxExtend);
+                if ~isempty(childSubsExtend)
+                     mdlScores = [childSubsExtend.mdlScore];
+                     validMdlScoreIdxExtend = mdlScores > minMdlScoreExtend;
+                     childSubsExtend = childSubsExtend(validMdlScoreIdxExtend);
+                end
                 
                 %% Sort childSubs by the mdl scores.
                 if ~isempty(childSubsFinal)
@@ -338,10 +341,13 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                 else
                      sortedMdlScoresFinal = [];
                 end
-                
-                mdlScores = [childSubsExtend.mdlScore];
-                [sortedMdlScoresExtend, sortIdx] = sort(mdlScores, 'descend');
-                childSubsExtend = childSubsExtend(sortIdx);
+                if ~isempty(childSubsExtend)
+                     mdlScores = [childSubsExtend.mdlScore];
+                     [sortedMdlScoresExtend, sortIdx] = sort(mdlScores, 'descend');
+                     childSubsExtend = childSubsExtend(sortIdx);
+                else
+                     sortedMdlScoresExtend = [];
+                end
                 
                 %% Save childSubs and extended subs.
                 childSubArrFinal(parentItr) = {childSubsFinal};
@@ -474,7 +480,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     
     % Remove duplicate instances from each sub.
     display('[SUBDUE/Parallel] Removing duplicate instances from each sub, and updating their match scores..');
-%    bestSubs = removeDuplicateInstances(bestSubs);
+    bestSubs = removeDuplicateInstances(bestSubs);
     
     %% Allocate space for new graphLevel and vocabLevel.
     numberOfInstances = 0;
@@ -520,7 +526,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            optimalThreshold = selectedThreshold;
            
            % Re-evaluate best subs.
-           bestSubs = evaluateSubs(bestSubs, 'mdl', allEdges, allEdgeNodePairs, ...
+           bestSubs = evaluateSubs(bestSubs, [], 'mdl', allEdges, allEdgeNodePairs, ...
                allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised, false, ...
                allLeafNodes, minRFCoverage, possibleLeafNodes);
            

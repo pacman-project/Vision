@@ -17,7 +17,6 @@ function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLev
      % Program variables.
      epsilon = 0.0001;
      logEpsilon = single(log(epsilon));
-     poolDim = options.poolDim;  
      if strcmp(options.filterType, 'gabor')
           stride = options.gabor.stride;
           inhibitionRadius = options.gabor.inhibitionRadius;
@@ -26,6 +25,8 @@ function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLev
           inhibitionRadius = options.auto.inhibitionRadius;
      end
 
+     % Get level 1 activations.
+     level1Activations = cat(1, mainGraph{1}.activation);
      
      % First, we put level 1 nodes into bins, each of which belongs to an
      % image.
@@ -72,6 +73,10 @@ function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLev
           missingNodeCount = numel(possibleLeafNodes{node.children(1)}) - numel(node.leafNodes);
           logLikelihood = logLikelihood + missingNodeCount * logEpsilon;
           decisionCtr = decisionCtr + missingNodeCount;
+          
+          % Add leaf node activations as probabilities.
+          logLikelihood = logLikelihood + sum(log(level1Activations(node.leafNodes)));
+          decisionCtr = decisionCtr + numel(node.leafNodes);
           
           % Calculate likelihood of the tree.
           % For each vocabulary node, we generate lots and lots of samples.

@@ -42,7 +42,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.2;
-    options.gabor.inhibitionRadius = 2;
+    options.gabor.inhibitionRadius = 3;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
@@ -172,7 +172,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                                   % drastically. Set to an
                                                   % unlikely value (100)
                                                   % for no category nodes.
-    options.articulationsPerCategory = 3; % Number of top level nodes 
+    options.categoryLevelCoverage = 0.9; % If each node is covering this percent 
+                                                                  % of its associated image, we switch to 
+                                                                  % category node grouping.
+    options.articulationsPerCategory = 5; % Number of top level nodes 
                % for each category. Category nodes will be formed by
                % grouping top level parts.
                                  
@@ -180,7 +183,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 300; % The maximum 
+    options.reconstruction.numberOfORNodes = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 

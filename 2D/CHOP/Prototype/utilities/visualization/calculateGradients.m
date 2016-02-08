@@ -1,4 +1,4 @@
-function [ muImg, varImg ] = obtainPoE( level1Nodes, imgSize, options, fastFlag, muImgInitial, varImgInitial )
+function [ muImg, varImg ] = calculateGradients( level1Nodes, imgSize, options, fastFlag, muImgInitial, varImgInitial )
      imgSize = double(imgSize);
      filterSize = size(options.filters{1},1);
      halfFilterSize = round((size(options.filters{1},1) - 1) / 2);

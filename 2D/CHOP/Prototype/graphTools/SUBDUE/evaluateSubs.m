@@ -30,13 +30,14 @@
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs, validSubs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, isMDLNormalized, ...
+function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extendSubs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, isMDLNormalized, ...
      allLeafNodes, minRFCoverage, possibleLeafNodes)
 
     maxLeafCounts = cellfun(@(x) numel(x), possibleLeafNodes);
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
-    parfor subItr = 1:numberOfSubs
+    validExtSubs = ones(numberOfSubs,1) > 0;
+    for subItr = 1:numberOfSubs
         % Find the weight of this node, by taking the max of the category distribution. 
         if isSupervised
             categoryArr = double(subs(subItr).instanceCategories);
@@ -49,6 +50,12 @@ function [subs, validSubs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNod
         [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
            allSigns, mdlNodeWeight, mdlEdgeWeight, ....
             overlap, isMDLExact);
+       
+       if ~isempty(extendSubs)
+            extendSub = extendSubs(subItr);
+       else
+            extendSub = [];
+       end
         
        % If this sub has multiple children, we process the instances to
        % make sure those instances which cover a large portion of their
@@ -58,10 +65,10 @@ function [subs, validSubs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNod
              % Here, we check if we're actually covering enough of every
              % receptive field out there.
              numberOfInstances = size(allChildren,1);
-             coveredLeafNodes = cell(numberOfInstances,1);
-             for childItr = 1:numberOfInstances
-                  coveredLeafNodes{childItr} = int32(unique(cat(2, allLeafNodes{allChildren(childItr,:)})));
-             end
+              coveredLeafNodes = cell(numberOfInstances,1);
+              for childItr = 1:numberOfInstances
+                   coveredLeafNodes{childItr} = int32(fastsortedunique(sort(cat(2, allLeafNodes{allChildren(childItr,:)}))));
+              end
 
              % Find all covered leaf nodes.
 %             allRFs = {allEdges(allChildren(:,1)).adjInfo};
@@ -70,9 +77,17 @@ function [subs, validSubs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNod
 
              % Find the intersection of two sets, to assess coverage.
              coveredLeafNodeCount = cellfun(@(x) numel(x), coveredLeafNodes);
- %            maxCoverLeafNodeCount = cellfun(@(x,y) nnz(ismembc(x,y)), allRFLeafNodes, possibleLeafNodes(allChildren(:,1)));
              maxCoverLeafNodeCount = maxLeafCounts(allChildren(:,1));
-             validInstances = coveredLeafNodeCount ./ maxCoverLeafNodeCount >= minRFCoverage;
+             coverageRatios =  coveredLeafNodeCount ./ maxCoverLeafNodeCount;
+             validInstances = coverageRatios >= minRFCoverage;
+             
+             % If there are full instances that do not extension (cover
+             % enough of RF), we delete them.
+%             validInstancesExt = coverageRatios < 1;
+             
+             if mean(coverageRatios) >= minRFCoverage
+                  validExtSubs(subItr) = 0;
+             end
              
              %% If the coverage is too small, we don't consider this sub.
              if nnz(validInstances) == 0
@@ -89,6 +104,13 @@ function [subs, validSubs] = evaluateSubs(subs, evalMetric, allEdges, allEdgeNod
              sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
              sub.instanceSigns = sub.instanceSigns(validInstances,:);
              sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
+%              
+%              if ~isempty(extendSub) && nnz(validInstancesExt) > 0
+%                   1
+%              else
+%                   2
+%                   
+%              end
         end
         
         % We compress the object graph using the children, and the

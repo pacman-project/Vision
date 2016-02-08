@@ -163,6 +163,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
    %             labelId = vocabLevelIdx(vocabNodeSet(nodeItr));
                 labelId = vocabNodeSet(nodeItr);
+          
                 orNodeId = find(representativeNodes == labelId);
                 if ismember(labelId, representativeNodes)
                      nodeInstances = find(orNodeLabelIds==orNodeId);
@@ -205,9 +206,11 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                          projectedNodes(:,4) = firstActivations(instanceLeafNodes,:);
                          
                          % Update coordinates.
-                         meanCoordOffset = repmat(mean(projectedNodes(:,2:3),1), size(projectedNodes,1), 1) - 1;
-                         coordOffset = repmat(imgSize/2, size(projectedNodes,1), 1) - meanCoordOffset;
-                         projectedNodes(:,2:3) = projectedNodes(:,2:3) + round(coordOffset);
+                         mins = min(projectedNodes(:,2:3), [], 1);
+                         maxs = max(projectedNodes(:,2:3), [], 1);
+                         meanCoordOffset = (mins + maxs) / 2;
+                         coordOffset = repmat(imgSize/2  - meanCoordOffset, size(projectedNodes,1), 1);
+                         projectedNodes(:,2:3) = round(projectedNodes(:,2:3) + coordOffset);
                          bounds = [1,1,imgSize] - [round(coordOffset(1,1:2)), round(coordOffset(1,1:2))];
                          nodeInstances(nodeInstanceItr,2:end) = bounds;
                          

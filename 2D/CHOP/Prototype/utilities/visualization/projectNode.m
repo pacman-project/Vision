@@ -16,15 +16,20 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.08.2015
-function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius, samplingMethod )
+function [ nodes, parseTrees ] = projectNode( nodes, vocabulary, ~, samplingMethod )
     levelItr = nodes(1,4);
     nodes = single(nodes);
     posDim = 2;
+    parseTrees = zeros(size(nodes,1), levelItr);
+    parseTrees(:,1) = (1:size(nodes,1))';
+    topLevel = levelItr;
     
     %% First, we recursively backproject the nodes. 
+    nodeOffset = size(nodes,1);
     while levelItr > 1.001
         vocabLevel = vocabulary{levelItr};
         newNodes = cell(size(nodes,1),1);
+        newParseTrees = cell(size(nodes,1),1);
         for nodeItr = 1:size(nodes,1)
             vocabNode = vocabLevel(nodes(nodeItr,1));
             newNodeSet = zeros(numel(vocabNode.realChildren), 4, 'single');
@@ -86,11 +91,18 @@ function [ nodes ] = projectNode( nodes, vocabulary, inhibitionRadius, samplingM
             newNodeSet(:, 1) = single(nodeCombination');
             newNodeSet(:, 4) = levelItr-1;
             newNodes{nodeItr} = newNodeSet;
+            
+            % Generate parse trees.
+            tempParseTree = repmat(parseTrees(nodeItr,:), size(newNodeSet,1), 1);
+            tempParseTree(:, (topLevel - levelItr) + 2) = ((nodeOffset+1):(nodeOffset+size(newNodeSet,1)))';
+            nodeOffset = nodeOffset + size(newNodeSet,1);
+            newParseTrees{nodeItr} = tempParseTree;
         end
         
         % Shift the nodes by an offset.
         
         nodes = cat(1, newNodes{:});
+        parseTrees = cat(1, newParseTrees{:});
         levelItr = levelItr - 1;
     end
     nodes = int32(round(nodes(:,1:3)));
