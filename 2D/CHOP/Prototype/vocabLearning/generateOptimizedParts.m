@@ -81,13 +81,68 @@ function [] = generateOptimizedParts(vocabLevel, vocabulary, levelItr, options)
    imageSize = round(imageSize * 1.5);
    
    %% First, for efficiency, we obtain pixel-level predictions for every part
-%    for vocabNodeItr = 1:numel(vocabLevel)
-%    vect = [4, 12, 17, 22, 25, 28, 30, 35, 39, 43, 47,56, 55, 64, 69, 71, 86, 87, 94, 95, 99, 112, 118];
-    for vocabNodeItr = 1:numel(vocabLevel)
+   parfor vocabNodeItr = 1:numel(vocabLevel)
         for sampleItr = 1:samplesPerPart
              % Obtain optimized projections.
              nodes = [vocabNodeItr, 0, 0, levelItr];
-             optimizeImagination(nodes, vocabulary, imageSize, prevImageSize, filters, visFilters, sampleItr, batchFlag, options.datasetName, num2str(vocabNodeItr));
+             optimizeImagination(nodes, vocabulary, imageSize, prevImageSize, filters, visFilters, sampleItr, batchFlag, options.datasetName);
         end
-   end
+    end
+   
+    % Finally, create output images.
+    for vocabNodeItr = 1:numel(vocabLevel)
+         for sampleItr = 1:samplesPerPart
+              folderName = [pwd '/optimization/' options.datasetName '/level' num2str(levelItr) '/' num2str(vocabNodeItr) '_sample' num2str(sampleItr)];
+              load([folderName '.mat'], 'imageArr', 'posLikelihoodArr', 'poeLikelihoodArr', 'diffImageArr');
+              posPadding = (max(posLikelihoodArr) - min(posLikelihoodArr))/4;
+              posLimits = [min(posLikelihoodArr) - posPadding, max(posLikelihoodArr) + posPadding];
+              if numel(unique(posLimits)) == 1
+                   posLimits = [posLimits(1)-1, posLimits(1)+1];
+              end
+              poePadding = (max(poeLikelihoodArr) - min(poeLikelihoodArr))/4;
+              poeLimits = [min(poeLikelihoodArr) - poePadding, max(poeLikelihoodArr) + poePadding];
+              if numel(unique(poeLimits)) == 1
+                   poeLimits = [(poeLimits(1)-1), (poeLimits(1) +1)];
+              end
+              fileName = [folderName '.gif'];
+              for stepItr = 1:numel(imageArr)
+                   figure('Visible', 'off'), hold on;
+                   axis square
+                   subplot(2,2,1), imshow(imageArr{stepItr});
+                   title('Imagined Data')
+
+                   subplot(2,2,2)
+                   title('Likelihood differences')
+                   if ~isempty(diffImageArr{stepItr})
+                        imshow(diffImageArr{stepItr});
+                   end
+
+                   subplot(2,2,3), plot(1:stepItr, posLikelihoodArr(1:stepItr));
+                   ylim(posLimits);
+                   if stepItr>1
+                         xlim([1, numel(imageArr)]);
+                   end
+                   title('Change in position likelihood')
+
+                   subplot(2,2,4), plot(1:stepItr, poeLikelihoodArr(1:stepItr));
+                   ylim(poeLimits);
+                   if stepItr>1
+                         xlim([1, numel(imageArr)]);
+                   end
+                   title('Product of experts likelihood')
+
+                   hold off;
+                   saveas(gcf,  [folderName '_temp.png']);
+                   im=imread([folderName '_temp.png']);
+                   [imind,cm] = rgb2ind(im, 256);
+
+                   if stepItr == 1
+                        imwrite(imind, cm, fileName, 'LoopCount', inf, 'DelayTime',2);
+                   else
+                        imwrite(imind, cm, fileName, 'WriteMode', 'append');
+                   end
+                   close(gcf);
+              end
+         end
+    end
 end

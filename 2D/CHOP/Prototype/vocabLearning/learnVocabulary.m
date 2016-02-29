@@ -219,7 +219,7 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         %% As an initial stage of inhibition, we downsample the responses, 
         % and apply max pooling. 
         display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
-        graphLevel = applyPooling(graphLevel, options.poolDim);
+  %      graphLevel = applyPooling(graphLevel, options.poolDim);
         
         %% Calculate statistics from this graph.
         display('........ Estimating post-inhibition statistics..');

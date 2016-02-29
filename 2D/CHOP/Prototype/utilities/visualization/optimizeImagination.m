@@ -27,8 +27,10 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
      end
      
      % If the file name is given, use that one.
-     if nargin < 9
+     sampleString = 'modal';
+     if nargin < 10
           fileName = num2str(nodes(1,1));
+          sampleString = 'sample';
      end
      folderName = [pwd '/optimization/' datasetName '/level' num2str(nodes(1,4)) '/' fileName '_sample' num2str(sampleItr)];
      
@@ -53,7 +55,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
      warning('off','all');
      
      %% First, imagine layer 1 nodes.
-     [experts, parseTrees, nodeIds, nodeCoords] = projectNode(nodes, vocabulary, 1, 'modal');
+     [experts, parseTrees, nodeIds, nodeCoords] = projectNode(nodes, vocabulary, 1, sampleString);
      experts = double(experts);
      
      % To work with more precise coordinates, we use imprecise coordinates
@@ -84,6 +86,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
     poeLikelihoodArr = zeros(maxSteps,1);
     diffImageArr = cell(maxSteps,1);
     diffImageArr{1} = zeros(imageSize);
+    refLikelihoodMat = zeros(imageSize);
     
     % Save 
     batchExperts = experts;
@@ -103,7 +106,14 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
               if ~poeFlag
                    refLikelihoodVal = 0;
               else
-                   [~, ~, refLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters);
+                   [~, ~, newRefLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters);
+                   if isempty(diffImageArr{steps+1}) && nnz(refLikelihoodMat) > 0
+                        % Obtain the difference of the likelihood image.
+                        diffLikelihoodMat = abs(newRefLikelihoodMat - refLikelihoodMat);
+                        imwrite(diffLikelihoodMat / max(max(diffLikelihoodMat)), [folderName '/diff_' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '.png']);
+                        diffImageArr{steps+1} = diffLikelihoodMat;
+                   end
+                   refLikelihoodMat = newRefLikelihoodMat;
                    % Normalize by number of choices.
        %            refLikelihoodVal = refLikelihoodVal / imageChoices;
               end
@@ -135,7 +145,14 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
                    if ~poeFlag
                         refLikelihoodVal = 0;
                    else
-                        [~, ~, refLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters);
+                        [~, ~, newRefLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters);
+                        if isempty(diffImageArr{steps+1}) && nnz(refLikelihoodMat) > 0
+                             % Obtain the difference of the likelihood image.
+                             diffLikelihoodMat = abs(newRefLikelihoodMat - refLikelihoodMat);
+                             imwrite(diffLikelihoodMat / max(max(diffLikelihoodMat)), [folderName '/diff_' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '.png']);
+                             diffImageArr{steps+1} = diffLikelihoodMat;
+                        end
+                        refLikelihoodMat = newRefLikelihoodMat;
                         % Normalize by number of choices.
             %            refLikelihoodVal = refLikelihoodVal / imageChoices;
                    end
@@ -345,30 +362,26 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
                    display(['PoE likelihood changed from ' num2str(round(refLikelihoodVal)) ' to ' num2str(round(maxNewPoELikelihoodVal)) '.']);
                    % Increase steps.
                    steps = steps + 1;              
-                   
-                   % Obtain the difference of the likelihood image.
-                   if ~isempty(maxLikelihoodMat)     
-                        diffLikelihoodMat = abs(maxLikelihoodMat - refLikelihoodMat);
-                        imwrite(diffLikelihoodMat / max(max(diffLikelihoodMat)), [folderName '/diff_' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '.png']);
-                        diffImageArr{steps+2} = diffLikelihoodMat;
-                   end
               end
-
-
          end
     end
     
     % Create a gif image out of diagnostic information.
-    if steps>0
-         if steps<maxSteps
-              posLikelihoodArr = posLikelihoodArr(1:steps+1);
-              poeLikelihoodArr= poeLikelihoodArr(1:steps+1);
-              diffImageArr = diffImageArr(1:steps+1);
-         end
-         diffMax = max(cellfun(@(x) max(max(x)), diffImageArr));
-         if diffMax>0
-              diffImageArr = cellfun(@(x) x/diffMax, diffImageArr, 'UniformOutput', false);
-         end
+    if steps<maxSteps
+         imageArr = imageArr(1:steps+1);
+         posLikelihoodArr = posLikelihoodArr(1:steps+1);
+         poeLikelihoodArr= poeLikelihoodArr(1:steps+1);
+         diffImageArr = diffImageArr(1:steps+1);
+    end
+    nonemptyIdx = cellfun(@(x) ~isempty(x), diffImageArr);
+    diffMax = max(cellfun(@(x) max(max(x)), diffImageArr(nonemptyIdx)));
+    if diffMax>0
+         diffImageArr(nonemptyIdx) = cellfun(@(x) x/diffMax, diffImageArr(nonemptyIdx), 'UniformOutput', false);
+    end
+
+    % Try creating an image and save the image. If image showing
+    % fails, we switch back to normal stuff.
+    try
          posPadding = (max(posLikelihoodArr) - min(posLikelihoodArr))/4;
          posLimits = [min(posLikelihoodArr) - posPadding, max(posLikelihoodArr) + posPadding];
          if numel(unique(posLimits)) == 1
@@ -377,7 +390,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
          poePadding = (max(poeLikelihoodArr) - min(poeLikelihoodArr))/4;
          poeLimits = [min(poeLikelihoodArr) - poePadding, max(poeLikelihoodArr) + poePadding];
          if numel(unique(poeLimits)) == 1
-              poeLimits = [poeLimits(1)-1, poeLimits(1) +1];
+              poeLimits = [(poeLimits(1)-1), (poeLimits(1) +1)];
          end
          fileName = [folderName '.gif'];
          for stepItr = 1:min(maxSteps, (steps+1))
@@ -386,28 +399,31 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
               subplot(2,2,1), imshow(imageArr{stepItr});
               title('Imagined Data')
 
-              subplot(2,2,2), imshow(diffImageArr{stepItr});
+              subplot(2,2,2)
               title('Likelihood differences')
-              
+              if ~isempty(diffImageArr{stepItr})
+                   imshow(diffImageArr{stepItr});
+              end
+
               subplot(2,2,3), plot(1:stepItr, posLikelihoodArr(1:stepItr));
               ylim(posLimits);
               if stepItr>1
                     xlim([1, min(maxSteps, (steps+1))]);
               end
               title('Change in position likelihood')
-              
+
               subplot(2,2,4), plot(1:stepItr, poeLikelihoodArr(1:stepItr));
               ylim(poeLimits);
               if stepItr>1
                     xlim([1, min(maxSteps, (steps+1))]);
               end
               title('Product of experts likelihood')
-              
+
               hold off;
               saveas(gcf,  [folderName '_temp.png']);
               im=imread([folderName '_temp.png']);
               [imind,cm] = rgb2ind(im, 256);
-              
+
               if stepItr == 1
                    imwrite(imind, cm, fileName, 'LoopCount', inf, 'DelayTime',2);
               else
@@ -415,6 +431,10 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
               end
               close(gcf);
          end
+    catch %#ok<CTCH>
+         % Visualization failed possibly due to parallelization. Let's
+         % save the data structures for later use.
+         save([folderName '.mat'], 'imageArr', 'posLikelihoodArr', 'poeLikelihoodArr', 'diffImageArr');
     end
     
     % Turn warnings on.
