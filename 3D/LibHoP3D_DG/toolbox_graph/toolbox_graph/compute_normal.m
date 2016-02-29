@@ -1,4 +1,5 @@
-function [normal,normalf] = compute_normal(vertex,face)
+function [normal,normalf] = compute_normal(vertex, face, fileNameNormF)
+
 
 % compute_normal - compute the normal of a triangulation
 %
@@ -27,6 +28,34 @@ if min(lenNormf)< eps
 end
 normalf = normalf ./ repmat( lenNormf, 3,1 );
 
+%% check normal faces by ray tracing
+
+F1= face(1,:); F2 = face(2,:); F3 = face(3,:);
+V1 = vertex(:,F1); V2 = vertex(:,F2); V3 = vertex(:,F3);
+FposAll = (V1+V2+V3)/3;  % centre of each face
+
+if nargin == 3
+    if exist(fileNameNormF, 'file')
+        disp('Warning: Face normals are downloaded from the file!!!');
+        aa = load(fileNameNormF);
+        normalf = aa.normalf;
+    else
+        normalf = CheckNormalsFace(vertex, face, FposAll, normalf);  % make sure they are all pointing outside the volume
+        save(fileNameNormF, 'normalf');
+    end
+end
+
+% lenVis = 30;
+% idsVis = randperm(nface, lenVis);
+% VisualizeTriangulation(face, vertex);
+% hold on
+% for i = 1:lenVis
+%     quiver3(FposAll(1, idsVis(i)), FposAll(2,idsVis(i)), FposAll(3,idsVis(i)), normalf(1,idsVis(i)), normalf(2,idsVis(i)), normalf(3,idsVis(i)));
+%     hold on
+% end
+
+%% compute normals for each vertex
+
 % unit normal to the vertex
 normal = zeros(3,nvert);
 for i=1:nface
@@ -48,14 +77,21 @@ normal = normal ./ repmat( LenNorm, 3,1 );
 % d = sqrt( sum(normal.^2,1) ); d(d<eps)=1;
 % normal = normal ./ repmat( d, 3,1 );
 
-% enforce that the normal are outward
-v = vertex - repmat(mean(vertex,1), 3,1);
-s = sum( v.*normal, 2 );
-if sum(s>0)<sum(s<0)
-    % flip
-    normal = -normal;
-    normalf = -normalf;
-end
+
+
+
+
+
+
+
+% % enforce that the normal are outward
+% v = vertex - repmat(mean(vertex,1), 3,1);
+% s = sum( v.*normal, 2 );
+% if sum(s>0)<sum(s<0)
+%     % flip
+%     normal = -normal;
+%     normalf = -normalf;
+% end
 
 
 

@@ -35,12 +35,10 @@ end
 
 % Find the magnitude of each quaternion
 qmag=sqrt(sum(qin.^2,2));
-
-% Make qmag the same size a q
-qmag=[qmag qmag qmag qmag];
+qmag = [qmag, qmag, qmag, qmag];
 
 % Divide each element of q by appropriate qmag
-qout=qin./qmag;
+qout = qin./qmag;
 
 % Make sure output is same shape as input
 if( qtype == 1 )

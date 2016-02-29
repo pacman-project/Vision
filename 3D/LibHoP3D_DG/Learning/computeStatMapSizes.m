@@ -1,13 +1,13 @@
 function [sizeXY, sizeZ, sizeAngle, centreXY, centreZ, centreAngle] = computeStatMapSizes(statMapProperties, offsetConventional)
 
     xyzStep = statMapProperties.xyzStep;
-    vectStep = statMapProperties.vectStep;
+    quaternionSteps = statMapProperties.quaternionSteps;
     multMax = max(statMapProperties.multX, statMapProperties.multY);
     offsetMaximalAngle = statMapProperties.offsetMaximalAngle;  
     
-    sizeXY   = ceil(2*offsetConventional*multMax/xyzStep);
+    sizeXY   = ceil(2*offsetConventional/xyzStep); %ceil(2*offsetConventional*multMax/xyzStep);
     sizeZ = ceil(2*offsetConventional/xyzStep);
-    sizeAngle = round(2*offsetMaximalAngle/vectStep);
+    sizeAngle = round(2*offsetMaximalAngle/quaternionSteps);
     
     if mod(sizeXY, 2) == 0
         sizeXY = sizeXY+1;

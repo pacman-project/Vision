@@ -43,9 +43,10 @@ q = zeros( 4, size( R, 3 ) );
 
 for id_dcm = 1 : size( R, 3 )
   dcm = R( :, :, id_dcm );
-  if trace( dcm ) > 0
+  tr = dcm(1,1) + dcm(2,2) + dcm(3,3);
+  if tr > 0
     % Positve Trace Algorithm
-    sr  = sqrt( 1 + trace( dcm ));
+    sr  = sqrt( 1 + tr);
     sr2 = 2*sr;
     q(1,id_dcm) = ( dcm(2,3) - dcm(3,2) ) / sr2;
     q(2,id_dcm) = ( dcm(3,1) - dcm(1,3) ) / sr2;

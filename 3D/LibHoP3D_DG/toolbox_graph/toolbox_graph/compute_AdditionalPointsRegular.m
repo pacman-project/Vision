@@ -1,8 +1,17 @@
 % This function computes some points withing the triangle
 
-function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_AdditionalPointsRegular(V, F, N, gridStep)%, noPointsIDs)
+function [Vadd, Nadd, pointIDx, numPoints, areCentral, areCentralAdd] = compute_AdditionalPointsRegular(V, F, N, gridStep)%, noPointsIDs)
 
-        
+    if size(V, 1) ~= 3
+        V = V';
+    end
+    if size(F, 1) ~= 3
+        F = F';
+    end
+    if size(N, 1) ~= 3
+        N = N';
+    end
+
     lenF = size(F, 2);
     halfStep = gridStep/3;
     vecLen = 2*gridStep;
@@ -10,6 +19,7 @@ function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_
     otherPoints = [3,2,1];
     numPoints = zeros(1, lenF);
     areCentral = {};
+    areCentralAdd = {};
     
 %     if nargin == 4;
 %         noPointsIDs = zeros(1, lenF);
@@ -17,7 +27,7 @@ function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_
 
     areas = compute_Areas(V, F);
     
-    parfor k = 1:lenF
+    for k = 1:lenF
 
         pointsBase =  [V(:, F(1,k))'; V(:, F(2,k))'; V(:, F(3,k))'];
         NormalsBase = [N(:, F(1,k))'; N(:, F(2,k))'; N(:, F(3,k))'];
@@ -98,7 +108,8 @@ function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_
             maxY = max(ys);
             minX = min(xs);
             points = zeros(100, 4);
-            is_central = zeros(100,1);
+            is_central = zeros(1,100);
+            is_centralAdd = zeros(1,100);
 
             % points = [minX, 0, 0, 1;   maxX, 0,0,1;   0, maxY, 0,1];
 
@@ -113,12 +124,17 @@ function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_
                     cur = cur + 1;
                     points(cur, :) = [i,j,0,1];
 
-                    if mod(curI, 9) == 4 && mod(curJ, 9) == 4
+                    if mod(curI, 7) == 4 && mod(curJ, 7) == 4
                         is_central(cur) = 3;
                     elseif mod(curI, 3) == 2 && mod(curJ, 3) == 2
                         is_central(cur) = 2;
                     else
                         is_central(cur) = 1;
+                    end
+                    if mod(curI, 2) == 1 && mod(curJ, 2) == 1
+                        is_centralAdd(cur) = 1;
+                    else
+                        is_centralAdd(cur) = 0;
                     end
                     isSomething = true;
                 end
@@ -138,13 +154,19 @@ function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_
                     cur = cur + 1;
                     points(cur, :) = [i,j,0,1];
                     
-                    if mod(curI, 9) == 4 && mod(curJ, 9) == 4
+                    if mod(curI, 7) == 4 && mod(curJ, 7) == 4
                         is_central(cur) = 3;
                     elseif mod(curI, 3) == 2 && mod(curJ, 3) == 2
                         is_central(cur) = 2;
                     else
                         is_central(cur) = 1;
                     end
+                    if mod(curI, 2) == 1 && mod(curJ, 2) == 1
+                        is_centralAdd(cur) = 1;
+                    else
+                        is_centralAdd(cur) = 0;
+                    end
+                    
                     isSomething = true;
                 end
                 if isSomething
@@ -162,19 +184,25 @@ function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_
             Nadd{k} = Normals;
             numPoints(k) = 1;
             areCentral{k} = 3;
+            areCentralAdd{k} = 1;
             continue;
         end
 
         points = points(1:cur,:);
         is_central = is_central(1:cur);
+        is_centralAdd = is_centralAdd(1:cur);
         
-        if length(is_central(is_central == 2))< 2 % it should be a central point
-            points(cur+1, :) = (P1 + P2 + P3)/3;
-            is_central(cur + 1) = 2;
-        end
         if length(is_central(is_central == 3))< 2
-            points(cur+1, :) = (P1 + P2 + P3)/3;
-            is_central(cur + 1) = 3;
+            cur = cur + 1;
+            points(cur, :) = (P1 + P2 + P3)/3;
+            is_central(cur) = 3;
+            is_centralAdd(cur) = 1;
+        end
+        if length(is_central(is_central >= 2))< 2 % it should be a central point
+            cur = cur + 1;
+            points(cur, :) = (P1 + P2 + P3)/3;
+            is_central(cur) = 2;
+            is_centralAdd(cur) = 1;
         end
         
         pointsGlob = M1*points';
@@ -199,6 +227,7 @@ function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_
         Nadd{k} = Normals;
         numPoints(k) = cur;
         areCentral{k} = is_central;
+        areCentralAdd{k} = is_centralAdd;
               
 %         scatter3(pointsGlob(:,1), pointsGlob(:,2), pointsGlob(:,3), 'red', 'marker', '.');
 %         hold on
@@ -211,21 +240,24 @@ function [Vadd, Nadd, pointIDx, numPoints, areCentral, pointIndexing] = compute_
 %         scatter3(pointsGlob(ids,1), pointsGlob(ids,2), pointsGlob(ids,3), 'green', 'marker', 'x');
 %         hold on
 %         
+%         ids = is_centralAdd == 1;
+%         scatter3(pointsGlob(ids,1), pointsGlob(ids,2), pointsGlob(ids,3), 'blue', 'marker', 'x');
+%         hold on
+%         
 %         axis equal;     
 %         a = 2;
     end
-    numPointsOverall = sum(numPoints);
-    pointIndexing = zeros(2, numPointsOverall);
+%     numPointsOverall = sum(numPoints);
+%     pointScales = zeros(numPointsOverall,1);
     
     cur = 1;
     for i = 1:lenF
-        pointIndexing(1, cur:cur + numPoints(i)-1) = i;
-        pointIndexing(2, cur:cur + numPoints(i)-1) = 1:numPoints(i);
+%         pointIndexing(1, cur:cur + numPoints(i)-1) = i;
+%         pointIndexing(2, cur:cur + numPoints(i)-1) = 1:numPoints(i);
+%         pointScales(cur:cur + numPoints(i)-1) = areCentral{i};
         pointIDx{i} = cur:cur + numPoints(i)-1;
         cur = cur + numPoints(i);
-    end
-    
-    pointIndexing = pointIndexing';  
+    end 
 end
 
 function plotVect(V, vecLen, vectColors, point)

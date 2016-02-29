@@ -2,7 +2,7 @@
 
 % description of the datastructures used here
 
-function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, list_els, lenFiles, nPrevClusters, iterations, lenSelected)
+function [partsOut, coverageOut, lenOut, ORTable] = PartSelectionMeshMDL_VI(list_els, lenFiles, nPrevClusters, iterations, lenSelected, D, layerID)
 
 % list_input, list_els, layerID, nClusters, n2Clusters, ...
 %                                     fileForVisualizationLayer, offsetsConventional, depthStep, fieldSize, cluster1Centres, numSimilar, lenSelected)
@@ -12,23 +12,23 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
     partsOut = zeros(iterations,3);
     lenOut = 0; 
     stat = {};
+    
+    lenSelected = lenSelected * lenFiles;
                                 
     % load files with statistics
-    for i = lenFiles:lenFiles 
+    for i = 1:lenFiles 
         strOut = ['Temp/outList_',num2str(i), '.mat'];
         aa = load(strOut);
         stat{i} = aa.outList;
         
-        str = ['Temp/outputCoordsAll_', num2str(i) ,'.mat'];
+        str = ['Temp/outputCoordsAll_A', num2str(i) ,'.mat'];
         aa = load(str);
-        outputCoords = aa.outputCoordsAll;
-        outputCoords = outputCoords{1}';
-        
-        strOut = 'Temp/Aggregated.mat';
-        aa = load(strOut);
-        X = aa.X,   
+        outputCoords{i} = aa.outputCoordsAll_A;
+%         outputCoords = outputCoords{1}';
     end
+    
     stat = [stat{:}]';
+    outputCoords = [outputCoords{:}]';
     
     ids1 = stat(:, 1) > 0;
     ids3 = stat(:, 3) > 0;
@@ -36,22 +36,22 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
     stat = stat(idsALL, :);
     outputCoords = outputCoords(idsALL, :);
     
-
+    strOut = 'Temp/Aggregated.mat';
+    aa = load(strOut);
+    X = aa.X; 
     lenCombs = size(X, 1);
-%     lenFiles = length(list_input);
     
-%     halfFieldSize = fieldSize/2;
-%     fieldCenter = halfFieldSize;
-% 
-%     downsamplingScheme = 3;
-%     
-%     [X_first, nPrevClusters, emptyIndicator] = convertToSurfaceDescriptor(X, lenCombs, layerID, nClusters, n2Clusters, fileForVisualizationLayer{layerID-1},  ...
-%                        offsetsConventional, depthStep, fieldCenter, cluster1Centres, downsamplingScheme, clusterCurDepths);  % this is a first layer descriptor
-%     
-%     
-%     X_first(emptyIndicator == 1) = fieldSize(3)*3*depthStep;
-
+    quantLI{3} = 0.1;
+    quantLI{4} = 0.05;
+    quantLI{5} = 0.1;
+    quantLI{6} = 0.12;
+    
+    dd = D(:);
+    dd = dd(dd > 0);
+    quantThresh = quantile(dd, quantLI{layerID});
+    
     coverage = zeros(lenCombs, 1);      % just something to initialize
+    ORTable = zeros(lenCombs, 1);       % just something to initialize
     coverage = double(coverage);
     
     % this is done to speed up a function of reconstruction
@@ -76,32 +76,64 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
     
     numPointsI = zeros(1, lenFiles);  % number of points in each file
     structure = {};
-    parfor i = 1:lenFiles
+    for i = 1:lenFiles
         fileName1 = list_els{i};
-        outFile1 = [fileName1(1:end-4), 'NP.mat']; 
+%         if layerID <= 6
+            sc = 1;
+            strScale = ['scale_', num2str(sc)];
+            outFile1 =  [fileName1(1:end-4), strScale, 'NP.mat'];
+%         else
+%             outFile1 =  [fileName1(1:end-4), 'NP.mat'];
+%         end
+        str = ['layer', num2str(layerID-1)];
+        outFile1 = strrep(outFile1, str ,'layer2');
         aa = load(outFile1);  %'numPoints'
         numPoints = aa.numPoints;
         curLength = sum(numPoints);
         numPointsI(i) = curLength;
-        aa = zeros(curLength, 3);
-        aa(:,1) = i;
+        aa = zeros(curLength, 1);
         structure{i} = aa;
     end
     
+    
+    %% read as much as possible of the data from files to the structures
+    for i = 1:lenFiles
+        fileStructure{i} = {};
+        fileNamesStructure{i} = {};
+    end
+    for i = 1:lenFiles
+        fileName2 = list_els{i};
+        if layerID == 3
+            sc = 1;
+            strScale = ['scale_', num2str(sc)];
+            outFile2 = [fileName2(1:end-4), strScale, 'PS.mat'];
+        else
+            outFile2 = [fileName2(1:end-4), 'PS.mat'];
+        end
+        fileNamesStructure{i} = outFile2;
+    end
+    if lenFiles < 12
+        for i = 1:lenFiles
+            dd = load(fileNamesStructure{i});
+            fileStructure{i} = dd.NeiOut;
+        end
+    end
+    
+    %%
     [coverage] = recomputeCoverageMeshes(stat, outputCoords, coverage, X, 1, ...
-                                        list_els, lenFiles, nPrevClusters + 1, lenCombs, is_sparse, triples, lenCombs, numPointsI);
-
+                                        list_els, lenFiles, nPrevClusters + 1, lenCombs, is_sparse, triples, lenCombs, numPointsI, layerID, ORTable);
+    save('Temp/covFirst.mat', 'coverage');                                
     dd = load('Temp/covFirst.mat');
     coverage = dd.coverage;
                                     
     % sort according to coverage
     [coverage, indss] = sort(coverage, 'descend');
-    X = X(indss, :);
-%     X_first = X_first(indss, :);   
+    X = X(indss, :);   
     X = int16(X);
-%     stat = gpuArray(stat);
-    
-    
+    D = D(indss, indss);
+
+    iterations = min(iterations, size(X, 1));
+
     for k = 1:iterations   %kk:iterations+kk   % for each part 
         
         str = ['element - ', num2str(k)];
@@ -137,7 +169,6 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
 %         end
 
 
-        
         % elPositions  - position of this element in the models: [modelID, centreIDx, leftIDx, rightIDx]
 
         % project this part to the images
@@ -145,6 +176,7 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
         firstColumn = elPositions(:,1);
         disp('Projecting the selected part to training data');
         
+
         for jj = 1:lenFiles
             
             % extract all related to the image
@@ -156,21 +188,17 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
                 curStruct = structure{jj};
                 
                 % read the file
-                fileName2 = list_els{jj};
-                outFile2 = [fileName2(1:end-4), 'PS.mat'];
-                dd = load(outFile2);
-                NeiOut1 = dd.NeiOut;
                 
-%                 strE = list_els{ii};
-%                 outFilePS = [strE, '/', fileName(1:end-4), 'PS.mat'];
-%                 st3 = load(outFilePS);
-%                 NeiOut = st3.NeiOut;
-%                 pointIndexing = st3.pointIndexing';
-                
+                if isempty(fileStructure{jj})
+                    outFile2 = fileNamesStructure{jj};
+                    dd = load(outFile2);
+                    NeiOut1 = dd.NeiOut;
+                else
+                    NeiOut1 = fileStructure{jj};
+                end
 
                 % the right model is now open
-                
-                temp = elPositions(:,2:4);
+                temp = elPositions(ind,2:4);
                 aa = NeiOut1(temp(:));
                 idsss = [aa{:}];
                 dd = length(idsss); 
@@ -181,28 +209,9 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
                     curStep = curStep+1;
                     beginIT = it;
                     endIT = min(it+step, dd);
-                    curStruct(idsss(beginIT:endIT), 3) = 1;
-                    disp([num2str(curStep), ' out of ', num2str(numSteps)]);
+                    curStruct(idsss(beginIT:endIT)) = 1;
                 end
           
-%                 for kk = 1:lenE  % fill all positions for this image 
-%                     temp = elPositions(ind(kk),2:4);
-% 
-%                     centralIDxx = temp(1);
-%                     leftIDxx = temp(2);
-%                     rightIDxx = temp(3);
-%                     cc_cent = pointIndexing1(:,centralIDxx);  % fid, pointID
-%                     cc_left = pointIndexing1(:,leftIDxx);
-%                     cc_right = pointIndexing1(:,rightIDxx);
-%                     idsss = [NeiOut1{cc_cent(1)}{cc_cent(2)}, NeiOut1{cc_left(1)}{cc_left(2)}, NeiOut1{cc_right(1)}{cc_right(2)}]';
-%                     curStruct(idsss, 3) = 1;
-% 
-%                     if mod(kk, 10^5) == 0
-%                         strDisp1 = [num2str(kk), ' out of ', num2str(lenE)];
-%                         disp(strDisp1);
-%                     end
-%                     
-%                 end
                 structure{jj} = curStruct;
             end
         end
@@ -210,7 +219,11 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
         coverageOut(k) = coverage(k);
         partsOut(k, :) = X(k,:);
         lenOut = lenOut + 1;
-        
+        % check if there are some parts that are can be combined with that
+        % one by OR nodes
+        idsOR = find(D(k, :) <= quantThresh);
+        idsOR = idsOR(ORTable(idsOR) == 0);
+        ORTable(idsOR) = k;
  
         %------------------------------------------------------------------
         % update coverage of the following parts
@@ -224,16 +237,28 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
 %         end
 
         [coverage] = recomputeCoverageMeshes(stat, outputCoords, coverage, X, k+1, ...
-                                        list_els, lenFiles, nPrevClusters + 1, lenRec, is_sparse, triples, lenCombs, numPointsI);
+                                        list_els, lenFiles, nPrevClusters + 1, lenRec, is_sparse, triples, lenCombs, numPointsI, layerID, ORTable);
                                         
         % sort parts according to their coverage (sort only the rest of the array)
         [coverage(k+1:end), indsC] = sort(coverage(k+1:end), 'descend');
         indsC = indsC+k;
         X(k+1:end,:) = X(indsC, :);
+        ORTable(k+1:end) = ORTable(indsC);
+        dTemp = D(k+1:end,k+1:end);
+        D(k+1:end,k+1:end) = dTemp(indsC-k, indsC-k);
+        
+        
 %         X_first(k+1:end,:) = X_first(indsC, :);
         
-        if coverage(k+1)<= lenSelected  % maximal remaining coverage is less than we expect
-            return;
+        if k ~= size(X, 1)
+            if coverage(k+1)<= lenSelected  % maximal remaining coverage is less than we expect
+                idsOT = ORTable>0;
+                partsOut = X(idsOT, :);
+                coverageOut = coverage(idsOT);
+                lenOut = nnz(idsOT);
+                ORTable = ORTable(idsOT);
+                return;
+            end
         end
             
         save('Temp/partsOut.mat', 'partsOut');
@@ -261,7 +286,7 @@ function [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, l
 %% This is a function to recompute parts coverage
 
 function [coverage] = recomputeCoverageMeshes(statistics, outputCoords, coverage, X, startX, ...
-                                        list_els, lenF, nPrevClusters, numRecompute, is_sparse, triples, lenCombs, numPointsI)
+                                        list_els, lenF, nPrevClusters, numRecompute, is_sparse, triples, lenCombs, numPointsI, layerID, ORTable)
     
     disp('recomputing parts coverage...');
     
@@ -330,14 +355,16 @@ function [coverage] = recomputeCoverageMeshes(statistics, outputCoords, coverage
     
     disp('computing coverage through all images...');
     sumCov = zeros(numRecompute, lenF);
-    
     for ii = 1:lenF    % PARFOR
         
         %% read the model
-        fileName3 = list_els{ii};
-        outFile3 = [fileName3(1:end-4), 'PS.mat'];
-        st3 = load(outFile3);
-        NeiOut = st3.NeiOut;
+        if isempty(fileStructure{ii})
+            outFile3 = fileNamesStructure{ii};
+            ddd = load(outFile3);
+            NeiOut = ddd.NeiOut;
+        else
+            NeiOut = fileStructure{ii};
+        end
         
         curStr = structure{ii};
         localSumCov = zeros(numRecompute, 1);
@@ -350,44 +377,42 @@ function [coverage] = recomputeCoverageMeshes(statistics, outputCoords, coverage
         els = els(inddds, :);
         lenEls = size(els, 1);  % [elID, modelID, CentralIDx, LeftIDx, RightIDx] 
         
+        
         if lenEls > 0   % for some images there are no detected elements   
             prevEl = els(1,1);
+            jPrev = 1;
+            tempStr = zeros(size(curStr));
             
             for j = 1:lenEls
                 
                 curEl = els(j,1);
 
-                if curEl ~= prevEl % evaluate coverage of the prevEl
-                    cover = sum(curStr(:,2) & ~curStr(:,3));
+                if (curEl ~= prevEl) || j == lenEls % evaluate coverage of the prevEl
+                    elsTemp = els(jPrev:j-1,3:5);
+                    ids = [NeiOut{elsTemp(:)}]';
+                    tempStr(ids) = 1;
+                    cover = sum(tempStr & ~curStr);
                     localSumCov(prevEl - startX + 1) = localSumCov(prevEl - startX + 1) + cover;
-                    curStr(:,2) = 0;
+                    tempStr(:) = 0;
                     prevEl = curEl;
+                    jPrev = j;
                 end
-                
-%                 centralIDx = els(j,3);
-%                 leftIDx = els(j,4);
-%                 rightIDx = els(j,5);
-                ids = [NeiOut{els(j,3)}, NeiOut{els(j,4)}, NeiOut{els(j,5)}]';
-                curStr(ids, 2) = 1;
-                
+
                 if mod(j, 10^6) == 0
-                    strDisp = [num2str(j), ' out of ', num2str(lenEls)];
+                    strDisp = ['File ', num2str(ii),': ',num2str(j), ' out of ', num2str(lenEls)];
                     disp(strDisp);
                 end
             end
-            
-            if j == lenEls
-                cover = sum(curStr(:,2) & ~curStr(:,3));
-                localSumCov(curEl - startX + 1) = localSumCov(curEl - startX + 1) + cover;
-            end
+           
                 
         end
+
         
         sumCov(:, ii) = localSumCov;
     end
     % now write information from coverageTemp to coverage
     coverage(startX:startX+numRecompute-1) = sum(sumCov,2);
-
+    coverage(ORTable > 0) = 0;
 end
 
 % nested function impemented on gpu
@@ -403,6 +428,51 @@ end
 
 end
 
+
+
+%         if lenEls > 0   % for some images there are no detected elements   
+%             prevEl = els(1,1);
+%             
+%             for j = 1:lenEls
+%                 
+%                 curEl = els(j,1);
+% 
+%                 if curEl ~= prevEl % evaluate coverage of the prevEl
+%                     cover = sum(curStr(:,2) & ~curStr(:,3));
+%                     localSumCov(prevEl - startX + 1) = localSumCov(prevEl - startX + 1) + cover;
+%                     curStr(:,2) = 0;
+%                     prevEl = curEl;
+%                 end
+%                 
+%                 ids = [NeiOut{els(j,3)}, NeiOut{els(j,4)}, NeiOut{els(j,5)}]';
+%                 curStr(ids, 2) = 1;
+%                 
+%                 if mod(j, 10^6) == 0
+%                     strDisp = [num2str(j), ' out of ', num2str(lenEls)];
+%                     disp(strDisp);
+%                 end
+%             end
+%             
+%             if j == lenEls
+%                 cover = sum(curStr(:,2) & ~curStr(:,3));
+%                 localSumCov(curEl - startX + 1) = localSumCov(curEl - startX + 1) + cover;
+%             end
+%                 
+%         end
+
+
+
+
+%         fileName3 = list_els{ii};
+%         if layerID == 3 
+%             scC = 1;
+%             strScaleC = ['scale_', num2str(scC)];
+%             outFile3 =  [fileName3(1:end-4), strScaleC, 'PS.mat'];
+%         else
+%             outFile3 =  [fileName3(1:end-4), 'PS.mat'];
+%         end
+%         st3 = load(outFile3);
+%         NeiOut = st3.NeiOut;
 
 
 

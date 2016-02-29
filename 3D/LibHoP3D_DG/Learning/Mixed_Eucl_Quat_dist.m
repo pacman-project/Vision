@@ -7,10 +7,10 @@
 
 function distances = Mixed_Eucl_Quat_dist(X, Z, alpha)
 
-    if size(X, 1) ~= 6
+    if size(X, 1) ~= 7
         X = X';
     end
-    if size(Z, 1) ~= 6
+    if size(Z, 1) ~= 7
         Z = Z';
     end
 
@@ -21,7 +21,7 @@ function distances = Mixed_Eucl_Quat_dist(X, Z, alpha)
         alpha = 0.0541;
     end
     
-    distances = pdist2(X(1:3, :)', Z(1:3,:)') + alpha * QuanternionDistanceVectorized(X(4:6,:), Z(4:6,:));
+    distances = pdist2(X(1:3, :)', Z(1:3,:)') + alpha * QuanternionDistanceVectorized1(X(4:7,:), Z(4:7,:));
 end 
     
         
