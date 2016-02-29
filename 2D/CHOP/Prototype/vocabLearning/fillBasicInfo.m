@@ -39,7 +39,7 @@ function graphLevel = fillBasicInfo(previousLevel, graphLevel, levelItr, options
             % Calculate both positions. For precise position, we obtain the
             % mean of the bounding box that is spanned by the leaf nodes.
             childrenPos = cat(1, previousLevel(nodeChildren).precisePosition);
-            precisePosition = (min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2;
+            precisePosition = round((min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2);
             subLevel(newNodeItr).precisePosition = precisePosition;
             subLevel(newNodeItr).position = int32(calculatePooledPositions(precisePosition, levelItr, options));
             subLevel(newNodeItr).leafNodes = nodeLeafNodes;

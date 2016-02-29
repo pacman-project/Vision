@@ -193,8 +193,8 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
         matlabpool close;
         matlabpool('open', options.numberOfThreads);
         
-        if levelItr == 3
-             1
+        if levelItr ==4
+             3
         end
         
         %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
@@ -286,7 +286,9 @@ function [ vocabulary, mainGraph, allModes, optimalThresholds, distanceMatrices,
                     
                     % Backproject parts to the images.
                     display('........ Imagining parts and their instances! This can take a while...');
-                    projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
+                    if options.vis.printTrainRealizations
+                         projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
+                    end
                     matlabpool('open', options.numberOfThreads);
                end
             end

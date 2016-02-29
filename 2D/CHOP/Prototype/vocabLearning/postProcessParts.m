@@ -34,6 +34,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
     vocabulary{levelItr} = vocabLevel;
     filterSize = size(options.filters{1});
     halfSize = ceil(filterSize(1)/2); 
+    minPixelValue = 1/255;
     if strcmp(options.filterType, 'gabor')
         inhibitionHalfSize = options.gabor.inhibitionRadius;
         stride = options.gabor.stride;
@@ -43,6 +44,30 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
     end
     halfSearchSize = 2;
     nodeDistributions = [];
+    filters = options.filters;
+    filters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), filters, 'UniformOutput', false);
+    
+    % As a case study, we replace gabors with 1D gaussian filters
+    % stretched.
+   filterSize = size(filters{1},1);
+    vals = normpdf(1:filterSize, (filterSize+1)/2, 2);
+    vals = vals/max(vals);
+    firstFilter = repmat(vals, filterSize, 1);
+    angle = 180/numel(filters);
+    for filterItr = 0:(numel(filters)-1)
+         curAngle = -angle * filterItr;
+         curFilter = imrotate(firstFilter, curAngle, 'bilinear', 'crop');
+         curFilter(curFilter<minPixelValue) = minPixelValue;
+         filters{filterItr+1} = curFilter;
+    end
+    
+    visFilters = options.filters;
+    visFilters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), visFilters, 'UniformOutput', false);
+    for filterItr = 1:numel(visFilters)
+         curFilter = visFilters{filterItr};
+         curFilter(curFilter<minPixelValue) = minPixelValue;
+         visFilters{filterItr} = curFilter;
+    end
     
     % Assign new labels of the remaining realizations.
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);
@@ -76,6 +101,15 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
    clear vocabNodeLabels vocabEdges vocabNeighborModes vocabNodePositions vocabSortOrder;
 
    %% We  are experimenting with different distance functions.
+   
+   % Find the correct image size.
+   imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) * (inhibitionHalfSize+1) + halfSize;
+   prevImageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-3)) * (inhibitionHalfSize+1);
+   imageSize = [imageSize, imageSize];
+   
+   % For now, we make the image bigger.
+   imageSize = round(imageSize * 1.5);
+   
    %% First, for efficiency, we obtain pixel-level predictions for every part.
    level1Experts = cell(numberOfNodes, 1);
    searchMultiplier = levelItr - 1;
@@ -83,6 +117,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
         experts = projectNode(nodes, vocabulary, 1, 'modal');
+%        [~, experts] = optimizeImagination(nodes, vocabulary, imageSize, prevImageSize, filters, visFilters);
      
         % Center the nodes.
         experts = double(experts);
@@ -94,10 +129,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
         experts(:,2:3) = experts(:,2:3) - repmat(midPoint, size(experts,1), 1);
         level1Experts{vocabNodeItr} = experts;
    end
-
-   % Find the correct image size.
-   imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) * (inhibitionHalfSize+1) + halfSize;
-   imageSize = [imageSize, imageSize];
    
    % Normalize positions by placing all in the center.
    for vocabNodeItr = 1:numberOfNodes
@@ -117,14 +148,15 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
    
    % Get product of expert predictions.
    mkdir([options.debugFolder '/level' num2str(levelItr) '/modalProjection/']);
+   debugFolder = options.debugFolder;
    for vocabNodeItr = 1:numberOfNodes
-        [muImg, varImg] = obtainPoE(level1Experts{vocabNodeItr}, imageSize, options, false);
+        [muImg, varImg, ~, ~] = obtainPoE(level1Experts{vocabNodeItr}, [], [], [], imageSize, visFilters);
         muImg = muImg/max(max(muImg));
         blurredMuImg = imfilter(muImg, H, 'replicate');
         muImgs(vocabNodeItr,:,:) = blurredMuImg/max(max(blurredMuImg));
         varImgs(vocabNodeItr,:,:) = varImg;
-        imwrite(muImg / max(max(muImg)), [options.debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '.png']);
-        imwrite(blurredMuImg/max(max(blurredMuImg)), [options.debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '_blurred.png']);
+        imwrite(muImg / max(max(muImg)), [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '.png']);
+        imwrite(blurredMuImg/max(max(blurredMuImg)), [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '_blurred.png']);
    end
    
    if strcmp(distType, 'modal')
@@ -173,13 +205,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
     % All good, group the nodes here.
     newDistanceMatrixVect = squareform(newDistanceMatrix);
     Z = linkage(newDistanceMatrixVect, 'weighted');
-    
-    maxSingletonRatio = 0.5;
-    singletons = sum(Z(:,1:2) <= size(newDistanceMatrix,1),2);
-    combinedSingletons = cumsum(singletons);
-%    maxIdx = find(combinedSingletons > maxSingletonRatio * size(newDistanceMatrix,1), 1, 'first');
-%    orgMaxVal = Z(find(combinedSingletons > maxSingletonRatio * size(newDistanceMatrix,1), 1, 'first'), 3);
-    
     
     %% Find an optimal number of clusters based on Davies-Bouldin index.
     if size(newDistanceMatrix,1) < 3
@@ -317,7 +342,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
          
          % Find an ideal cutoff ratio.
          bufSize = 10;
-         val = find(cutoffRatios(bufSize:end-bufSize) <= 0.5, 1, 'first') + bufSize;
+         val = find(cutoffRatios(bufSize:end-bufSize) <= 0.5, 1, 'first');
          clusterCount = sampleCounts(val);
          if isempty(val)
               [~, idx] = max(dunnVals);

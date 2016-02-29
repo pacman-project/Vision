@@ -32,8 +32,8 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
             nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren, allLeafNodes, possibleLeafNodes)
 
    minNodeProbability = 0.00001;
-   coverageStoppingVal = 0.995;
-   likelihoodStoppingVal = 0.995;
+   coverageStoppingVal = 0.9995;
+   likelihoodStoppingVal = 0.999;
    groupingThr = 0.9;
    minCoverThr = 0;
    partSelectionThr = 3000;

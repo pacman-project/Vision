@@ -33,15 +33,17 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 17;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
-    options.gabor.sigma = 1;            % Gabor filter parameters
+%    options.gabor.sigma = 2.5;            % Gabor filter parameters
+    options.gabor.sigma = 1.21;    
     options.gabor.theta = 0;
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.2;
+ %    options.gabor.gamma = 0.5;
     options.gabor.inhibitionRadius = 3;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
@@ -100,7 +102,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.45;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -118,7 +120,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.5; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0.9; % Each node should cover this percentage of the nodes in its RF.
     options.maxEdgeChangeLevel = 3; % If this is the layer we're working on, we switch to centroid edges.
@@ -268,7 +270,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 10; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 3000;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.beam = 4000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

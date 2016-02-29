@@ -19,10 +19,10 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
     labelIds = [graphLevel.labelId];
     prevRealLabelIds = [previousLevel.realLabelId]';
     prevPosition = double(cat(1, previousLevel.precisePosition));
-    noiseSigma = 0.001;
+    noiseSigma = 0.0001;
     dummySigma = 0.001;
     posDim = size(prevPosition,2);
-    sampleCountPerCluster = 50;
+    sampleCountPerCluster = 100;
     maxPointsToCluster = 500;
     smallSampleCount = 10;
     maxClusters = 5;
@@ -117,6 +117,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
                        maxX = max(scores(:,1)) + 1;
                        minY = min(scores(:,2)) - 1;
                        maxY = max(scores(:,2)) + 1;
+                       
                        %% Get principle components and visualize samples in 2d space.
                        figure('Visible', 'off'), hold on;
                        axis square
@@ -137,7 +138,8 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
                   % distribution with the given number of clusters. This is
                   % a very ugly piece of code that decides numerous
                   % parameters for efficiency.
-                  regularizeTerm = 1e-10;
+                  regularizeTerm = 1e-5;
+                  bigRegularizeTerm = 0.1;
                   if size(relevantSamples,1) < minPoints || size(relevantSamples,1) <= size(relevantSamples,2)
                        % We simply don't have enough data here. We switch
                        % to simpler fitting techniques.
@@ -146,7 +148,11 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
                             covMat = dummySigma;
                             mu = relevantSamples;
                        else
-                            covMat = cov(relevantSamples) + regularizeTerm;
+                            if size(relevantSamples,1) <= size(relevantSamples,2)
+                                  covMat = cov(relevantSamples) + bigRegularizeTerm;
+                            else
+                                  covMat = cov(relevantSamples) + regularizeTerm;
+                            end
                             mu = mean(relevantSamples,1);
                        end
                        
@@ -233,6 +239,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
         vocabLevel(vocabItr).childrenPosDistributions{1} = childrenPosDistributions;
         vocabLevel(vocabItr).childrenPosSamples{1} = childrenPosSamples;
         vocabLevel(vocabItr).realChildren = children;
+        
         % Re-open warnings.
         warning(w);
     end

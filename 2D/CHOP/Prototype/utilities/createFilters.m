@@ -27,33 +27,34 @@ function [ filters, filterImages ] = createFilters( options )
             options.gabor.psi, options.gabor.gamma);
         dimSize = size(refGaborFilt);
 
-        %% Pad or crop the sides of the gabor filter to set it to a fixed size of gaborFilterSize x gaborFilterSize
-        newFilt = zeros(options.gaborFilterSize);
-        if dimSize(1) >= options.gaborFilterSize
-           lowerPad = ceil((dimSize(1)-options.gaborFilterSize)/2);
-           upperPad = (dimSize(1) - lowerPad) - options.gaborFilterSize;
-           refGaborFilt = refGaborFilt((lowerPad+1):(end-upperPad), :);
-        end
-        if dimSize(2) >= options.gaborFilterSize
-           leftPad = ceil((dimSize(2)-options.gaborFilterSize)/2);
-           rightPad = (dimSize(2) - leftPad) - options.gaborFilterSize;
-           refGaborFilt = refGaborFilt(:, (leftPad+1):(end-rightPad));
-        end
-        dimSize = size(refGaborFilt);
-        lowerPad = ceil((options.gaborFilterSize - dimSize(1))/2);
-        upperPad = (options.gaborFilterSize - lowerPad) - dimSize(1);
-        leftPad = ceil((options.gaborFilterSize - dimSize(2))/2);
-        rightPad = (options.gaborFilterSize - leftPad) - dimSize(2);
-        newFilt((lowerPad+1):(end-upperPad), ((leftPad+1):(end-rightPad))) = refGaborFilt;
-        refGaborFilt = newFilt;
-
         %% Get other filters by rotating the reference filter.
         filters = cell(options.numberOfGaborFilters,1);
         for filtItr = 0:(options.numberOfGaborFilters-1)
           % If the filter does not exist, create it.
           if ~exist([options.currentFolder '/filters/filt' num2str(filtItr+1) '.mat'], 'file') 
                theta = (-180/options.numberOfGaborFilters) * filtItr;
-               gaborFilt = imrotate(refGaborFilt, theta, 'bilinear', 'crop');
+               gaborFilt = imrotate(refGaborFilt, theta, 'bilinear');
+               
+               % CROP THE FILTER HERE.
+               dimSize = size(gaborFilt);
+               newFilt = zeros(options.gaborFilterSize);
+               if dimSize(1) >= options.gaborFilterSize
+                     lowerPad = ceil((dimSize(1)-options.gaborFilterSize)/2);
+                     upperPad = (dimSize(1) - lowerPad) - options.gaborFilterSize;
+                     gaborFilt = gaborFilt((lowerPad+1):(end-upperPad), :);
+               end
+               if dimSize(2) >= options.gaborFilterSize
+                     leftPad = ceil((dimSize(2)-options.gaborFilterSize)/2);
+                     rightPad = (dimSize(2) - leftPad) - options.gaborFilterSize;
+                     gaborFilt = gaborFilt(:, (leftPad+1):(end-rightPad));
+               end
+               dimSize = size(gaborFilt);
+               lowerPad = ceil((options.gaborFilterSize - dimSize(1))/2);
+               upperPad = (options.gaborFilterSize - lowerPad) - dimSize(1);
+               leftPad = ceil((options.gaborFilterSize - dimSize(2))/2);
+               rightPad = (options.gaborFilterSize - leftPad) - dimSize(2);
+               newFilt((lowerPad+1):(end-upperPad), ((leftPad+1):(end-rightPad))) = gaborFilt;
+               gaborFilt = newFilt;
 
                % Normalize the filter so there are no discrepancies between
                % them.

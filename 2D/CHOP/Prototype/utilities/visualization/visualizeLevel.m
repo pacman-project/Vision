@@ -27,6 +27,16 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     instancePerNode = options.vis.instancePerNode;
     visualizedNodes = options.vis.visualizedNodes;
     vocabLevelLabels = [currentLevel.label];
+    
+    % Process filters for visualization, remove zero values.
+    filters = options.filters;
+    filters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), filters, 'UniformOutput', false);
+    for filterItr = 1:numel(filters)
+         curFilter = filters{filterItr};
+         curFilter(curFilter<0.001) = 0.001;
+         filters{filterItr} = curFilter;
+    end
+    
     vocabLevelIdx = zeros(max(vocabLevelLabels),1);
     for itr = 1:max(vocabLevelLabels)
          vocabLevelIdx(itr) = find(vocabLevelLabels == itr, 1, 'first');
@@ -34,15 +44,6 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     allNodeInstances = [];
     multiNodeInstances = {currentLevel.adjInfo};
     multiNodeInstances = cellfun(@(x) ~isempty(x), multiNodeInstances);
-    
-    % These parameter relate to drawing the approximate model of each node
-    % in the vocabulary.
-%     if strcmp(options.filterType, 'gabor')
-%        inhibitionRadius = options.gabor.inhibitionRadius; 
-%     else
-%        inhibitionRadius = options.auto.inhibitionRadius;
-%     end
-    inhibitionRadius = 0;
     
     % For the first level, we only print a single instance.
     if levelId == 1
@@ -215,7 +216,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                          nodeInstances(nodeInstanceItr,2:end) = bounds;
                          
                          % Obtain a PoE visualization
-                         [currentMask, ~] = obtainPoE(projectedNodes, imgSize, options, true);
+                         [currentMask, ~, ~, ~] = obtainPoE(projectedNodes, [], [], [], imgSize, filters);
                          currentMask = uint8(currentMask*255);
                      end
                      

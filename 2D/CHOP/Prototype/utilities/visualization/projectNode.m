@@ -16,12 +16,15 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.08.2015
-function [ nodes, parseTrees ] = projectNode( nodes, vocabulary, ~, samplingMethod )
+function [ nodes, parseTrees, nodeIds, nodeCoords ] = projectNode( nodes, vocabulary, ~, samplingMethod )
     levelItr = nodes(1,4);
     nodes = single(nodes);
     posDim = 2;
     parseTrees = zeros(size(nodes,1), levelItr);
     parseTrees(:,1) = (1:size(nodes,1))';
+    nodeIds = zeros(size(nodes,1), levelItr);
+    nodeIds(:,1) = nodes(:,1);
+    nodeCoords = nodes(:,2:3);
     topLevel = levelItr;
     
     %% First, we recursively backproject the nodes. 
@@ -30,6 +33,7 @@ function [ nodes, parseTrees ] = projectNode( nodes, vocabulary, ~, samplingMeth
         vocabLevel = vocabulary{levelItr};
         newNodes = cell(size(nodes,1),1);
         newParseTrees = cell(size(nodes,1),1);
+        newNodeIds = cell(size(nodes,1),1);
         for nodeItr = 1:size(nodes,1)
             vocabNode = vocabLevel(nodes(nodeItr,1));
             newNodeSet = zeros(numel(vocabNode.realChildren), 4, 'single');
@@ -80,8 +84,8 @@ function [ nodes, parseTrees ] = projectNode( nodes, vocabulary, ~, samplingMeth
                  % Shift nodes by an offset (mid of RF).
                  mins = min(newNodeSet(:, 2:3), [], 1);
                  maxs = max(newNodeSet(:,2:3), [], 1);
-                 midPoint = (mins+maxs)/2;
-                 newNodeSet(:,2:3) = newNodeSet(:,2:3) - repmat(midPoint, size(newNodeSet,1),1);
+                 midPoint = round((mins+maxs)/2);
+                 newNodeSet(:,2:3) = round(newNodeSet(:,2:3) - repmat(midPoint, size(newNodeSet,1),1));
             end
             % Finally, we update the positions by adding previous
             % offset.
@@ -94,21 +98,28 @@ function [ nodes, parseTrees ] = projectNode( nodes, vocabulary, ~, samplingMeth
             
             % Generate parse trees.
             tempParseTree = repmat(parseTrees(nodeItr,:), size(newNodeSet,1), 1);
+            tempNodeIds = repmat(nodeIds(nodeItr,:), size(newNodeSet,1), 1);
             tempParseTree(:, (topLevel - levelItr) + 2) = ((nodeOffset+1):(nodeOffset+size(newNodeSet,1)))';
+            tempNodeIds(:, (topLevel - levelItr) + 2) = newNodeSet(:,1);
+            nodeCoords = [nodeCoords; newNodeSet(:,2:3)]; %#ok<AGROW>
             nodeOffset = nodeOffset + size(newNodeSet,1);
             newParseTrees{nodeItr} = tempParseTree;
+            newNodeIds{nodeItr} = tempNodeIds;
         end
         
         % Shift the nodes by an offset.
         
         nodes = cat(1, newNodes{:});
         parseTrees = cat(1, newParseTrees{:});
+        nodeIds = cat(1, newNodeIds{:});
         levelItr = levelItr - 1;
     end
     nodes = int32(round(nodes(:,1:3)));
     
     %% Then, we perform a simple inhibition process to remove overlapping level 1 instances.
     validNodes = ones(size(nodes,1),1) > 0;
+    [~, firstSeenIdx] = unique(parseTrees, 'first');
+    nodeIds = nodeIds(firstSeenIdx)';
     nodes = nodes(validNodes, :);
 end
 
