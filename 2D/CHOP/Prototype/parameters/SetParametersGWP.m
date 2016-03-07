@@ -28,7 +28,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.gaborFilterThr = 0.1; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
-    options.innerGaborFilterThr = 0.025; % Min response threshold for inner contours.
+    options.innerGaborFilterThr = 0.05; % Min response threshold for inner contours.
     options.absGaborFilterThr = 0; % Absolute response threshold for low-level  % For depth!
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 

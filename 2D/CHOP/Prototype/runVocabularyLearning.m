@@ -121,12 +121,13 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
             img = imread([processedFolder '/' fileName '.png']);
             
+%            edgeImg = edge(img, 'canny', [0.05 0.1], 1);
             % Get the Level 1 features.
             [nodes, smoothedImg, nodeActivations, smoothActivationImg, responseImgs, edgeImg] = getNodes(img, gtFileNames{fileItr}, options);
  
             % Generate an imperfect backprojection from obtained peaks.
 %             level1Nodes = cell2mat(nodes);
-%             level1Nodes = [level1Nodes(:,[1,4,5]), double(nodeActivations)];
+ %            level1Nodes = [level1Nodes(:,[1,4,5]), double(nodeActivations)];
 %             img1 = obtainPoE(level1Nodes, size(edgeImg), options);
 %             
 %             % Generate a perfect backprojection.
@@ -145,10 +146,10 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             % Save smoothed image.
             imwrite(smoothedImg, [smoothedFolder '/' fileName '_peaks.png']);
             imwrite(edgeImg, [smoothedFolder '/' fileName '_edgeImg.png']);
-            imwrite(smoothActivationImg, [smoothedFolder '/' fileName '.png']);
- %           imwrite(img1, [smoothedFolder '/' fileName '_peakPoE.png']);
-%            imwrite(img2, [smoothedFolder '/' fileName '_perfectPoE.png']);
-            parsave([smoothedFolder '/' fileName '_responseImgs.mat'], responseImgs, 'responseImgs');
+             imwrite(smoothActivationImg, [smoothedFolder '/' fileName '.png']);
+%  %           imwrite(img1, [smoothedFolder '/' fileName '_peakPoE.png']);
+% %            imwrite(img2, [smoothedFolder '/' fileName '_perfectPoE.png']);
+             parsave([smoothedFolder '/' fileName '_responseImgs.mat'], responseImgs, 'responseImgs');
         end
 
         % Calculate image size.

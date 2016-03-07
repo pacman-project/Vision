@@ -29,7 +29,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
     end
     backgroundMask = grayImg == 0;
     backgroundMask = imdilate(backgroundMask, strel('disk',3));
-    edgeMask = edge(grayImg, 'canny');
+    edgeMask = edge(img, 'canny', [0.05 0.1], 1);
     outEdgeMask = backgroundMask & edgeMask;
     inEdgeMask = ~backgroundMask & edgeMask;
     edgeImg = double(outEdgeMask) + double(inEdgeMask) * 0.5;

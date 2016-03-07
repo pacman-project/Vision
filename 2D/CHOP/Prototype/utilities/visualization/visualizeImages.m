@@ -58,7 +58,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
     end
     
     %% Create folders to put the cropped original images for each realization in.
-    usedChildren = ones(numel(vocabLevel), 1) * instancePerNode;
     croppedOrgFolder = [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '/cropped'];
     if ~exist(croppedOrgFolder, 'dir')
        mkdir(croppedOrgFolder); 
@@ -74,7 +73,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
     end
     
     %% Go over the list of images and run reconstruction.
-    for fileItr = 1:numel(fileList)
+    parfor fileItr = 1:numel(fileList)
         nodeOffset = numel(find(imageIds<fileItr));
         relevantNodeIds = imageNodeIds{fileItr};
         
@@ -224,7 +223,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
                           imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
                               nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(representativeNode) '_' num2str(imgId) '.png']);
                      end
-                    usedChildren(representativeNode) = usedChildren(representativeNode) -1;
                  end
                  
                  nodeInstances = allNodeInstances{nodes(nodeItr).realLabelId};
@@ -244,7 +242,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
                           imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
                               nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
                      end
-                    usedChildren(nodes(nodeItr).realLabelId) = usedChildren(nodes(nodeItr).realLabelId) -1;
                  end
             end
             
