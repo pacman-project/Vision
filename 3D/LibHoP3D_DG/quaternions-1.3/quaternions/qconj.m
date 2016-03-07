@@ -1,4 +1,4 @@
-function qout=qconj(qin)
+function qout=qconj(qin, qtype)
 % QCONJ(Q) calculates the conjugate of the quaternion Q.
 %     Works on "vectors" of quaterions as well.  Will return the same shape
 %     vector as input.  If input is a vector of four quaternions, QCONJ will
@@ -14,18 +14,16 @@ function qout=qconj(qin)
 % Copyright (c) 2001-2009, Jay A. St. Pierre.  All rights reserved.
 
 
-if nargin~=1
-  error('qconj() requires one input argument');
-else
-  qtype = isq(qin);
-  if ( qtype==0 )
+if nargin==1
+    qtype = isq(qin);
+    if ( qtype==0 )
     error(...
       'Invalid input: must be a quaternion or a vector of quaternions')
-  elseif ( qtype==3 )
+    elseif ( qtype==3 )
     warning(...
       'qconj:indeterminateShape', ...
       'Component quaternion shape indeterminate, assuming row vectors')
-  end
+    end
 end
 
 % Make sure component quaternions are row vectors

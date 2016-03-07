@@ -30,8 +30,8 @@ if is_GPU_USED
     reset(g);
 end
 
-% define folders configuration
-commonRoot = 'D:/';
+% % define folders configuration
+commonRoot = 'E:/3D/';
 root = [commonRoot, 'LibHoP3D_DG/'];
 addPaths(root);
 

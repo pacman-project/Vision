@@ -16,6 +16,10 @@ function [] = addPaths(root)
     addpath([root,'toolbox_graph\toolbox_graph\toolbox']);
     addpath([root,'quaternions-1.3\quaternions'])
     addpath([root,'quaternions-1.3\quaternions\test'])
-
+    addpath([root,'toolbox_signal']);
+    addpath([root,'toolbox_general']);
+    addpath([root,'toolbox_wavelet_meshes']);
+    addpath([root,'toolbox_fast_marching']);
+    addpath([root,'CircStat2012a']);
 end
 

@@ -104,7 +104,12 @@ zeroThresh = 10^-10;
 %     cosS = sum(T11.*Tij,1);
     cosS = sum(diag(sparse(T1)) *Tij, 1); 
        
+%     kij = 2 * (Norm' * V) ./ ViNormSquared;
+%     
+    
     kij = 2 * (1 - Norm' * N) ./ ViNormSquared;
+    
+    
 %     Tijm = Tij .* repmat(w, [3,1]) .* repmat(kij, [3,1]); 
 %     Tijm = Tij * diag(sparse(w)) * diag(sparse(kij));
 %     M = Tijm * Tij';
@@ -139,8 +144,21 @@ zeroThresh = 10^-10;
 
     
  %%   
+    if ~isnan(sum(M(:)))
+        if rank(M) == 1
+            V = zeros(3);
+            V(:, 1) = Norm;
+            D = [0,0,0;0,0,0;0,0,0];
+        else
+            [V,D] = eig(M);
+        end
 
-    [V,D] = eig(M);
+    else
+        V = zeros(3);
+        V(:, 1) = Norm;
+        D = [0,0,0;0,0,0;0,0,0];
+        disp('ERR3 in computeDarFrame');
+    end
     values = abs(diag(D));
     ids =  find(values>zeroThresh);
     
@@ -192,12 +210,18 @@ zeroThresh = 10^-10;
 %     if this is a planar patch
     if abs(values(1)) < curvThresh  && abs(values(2)) < curvThresh  && abs(values(3)) < curvThresh
         V(:,1) = Norm;
-        Xtemp = [1,0,0]';
+        if abs(dot(Norm, [1;0;0])) < 0.3
+            Xtemp = [1;0;0];
+        elseif abs(dot(Norm, [0;1;0])) < 0.3
+            Xtemp = [0;1;0];
+        else
+            Xtemp = [0;0;1];
+        end
         V(:,3) = cross(V(:,1), Xtemp);
         V(:,2) = cross(V(:,3), V(:,1));
     else
         
-% %         if the direction of normal is reverced
+% %     if the direction of normal is reverced
         if abs(sum(V(:,1)+ Norm)) < 10^-5
             V(:,1) = -V(:,1);
         end
@@ -211,9 +235,15 @@ zeroThresh = 10^-10;
         end
 
 % %         if this is the umbilic point
-        if abs(abs(values(2)) - abs(values(3))) < curvThresh*0.7 
+        if abs(abs(values(2)) - abs(values(3))) < curvThresh/2
 %             make principal directions aligned with the main axis
-            Xtemp = [1,0,0]';
+            if abs(dot(V(:,1), [1;0;0])) < 0.3
+                Xtemp = [1;0;0];
+            elseif abs(dot(V(:,1), [0;1;0])) < 0.3
+                Xtemp = [0;1;0];
+            else
+                Xtemp = [0;0;1];
+            end
             V(:,3) = cross(V(:,1), Xtemp);
             V(:,2) = cross(V(:,3), V(:,1));
         end
@@ -222,6 +252,13 @@ zeroThresh = 10^-10;
     V(:, 1) = V(:,1)/norm(V(:,1));
     V(:, 2) = V(:,2)/norm(V(:,2));
     V(:, 3) = V(:,3)/norm(V(:,3));
+    
+    % verify right handiness
+    
+    temp = -dot(cross(V(:, 2), V(:, 3)), V(:, 1));
+    if temp > 1.01 || temp < 0.99
+        V(:, 2) = - V(:, 2);
+    end
     
 
 end

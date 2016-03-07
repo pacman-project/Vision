@@ -10,9 +10,12 @@ function [X, frequencies, triples] = Aggregate_statVI(lenFiles, nPrevClusters, s
     disp('build triples...');
     curTS = 200;
     
-    for k = lenFiles:lenFiles %20:20:lenFiles
+    for k = 1:lenFiles %20:20:lenFiles
         
         strIn = ['Temp/outList_',num2str(k), '.mat'];
+        if ~exist(strIn, 'file')
+            continue;
+        end
         aa = load(strIn);
         outList = aa.outList;
         

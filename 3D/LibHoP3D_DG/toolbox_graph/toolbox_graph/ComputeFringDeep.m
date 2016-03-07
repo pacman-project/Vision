@@ -1,4 +1,8 @@
-function [fringAll] = ComputeFringDeep(F, iter, lenF) % fringPrev, fring, lenF
+function fringAll = ComputeFringDeep(F, iter, lenF, is_GPU) % fringPrev, fring, lenF
+
+    if nargin == 3
+        is_GPU = true;
+    end
 
     % compute distance from each face centre to each face centre
 %     F1= F(1,:); F2 = F(2,:); F3 = F(3,:);
@@ -7,10 +11,11 @@ function [fringAll] = ComputeFringDeep(F, iter, lenF) % fringPrev, fring, lenF
 %     Fdist = pdist2(Fpos', Fpos');
 
     gpuThresh  = 10^3;
-    if lenF < gpuThresh % compute on CPU
+    if lenF < gpuThresh || ~is_GPU % compute on CPU
+        
+        disp('Warning: fring is being computed on CPU');
         fring = compute_face_ring(F);
         adj1 =  sparse(flist2Adjacency(fring));
-        adj1 = gpuArray(adj1);
         subtracter = eye(size(adj1));
         fringAll{1} = fring;
         adjCur = adj1;
@@ -18,6 +23,7 @@ function [fringAll] = ComputeFringDeep(F, iter, lenF) % fringPrev, fring, lenF
             adjCur = adjCur * adj1 + adj1;
             adjCur(adjCur >1) = 1;
             adjCur = adjCur - subtracter;
+            disp(j);
         end
         fringAll{iter} = adjmatrix2list(adjCur);
         
@@ -40,11 +46,9 @@ function [fringAll] = ComputeFringDeep(F, iter, lenF) % fringPrev, fring, lenF
         c = c(ids);
         r = r'; c = c';
         r = gather(r); c = gather(c);
-    
+        fringAll{iter} = adjmatrix2listVladislav(r,c);
 %         idsD = sub2ind(size(Fdist), r, c);
 %         distF = Fdist(idsD);
-        
-        fringAll{iter} = adjmatrix2listVladislav(r,c);
 
     end
 end

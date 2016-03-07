@@ -19,7 +19,7 @@ function [V, F, likelihoodsOut] = prepareForVisualization(radii, Vout, Nout, lik
     likelihoodsOutTemp = zeros(2, lenParts);
     
      
-    parfor i = 1:length(radii)
+    for i = 1:length(radii)
 
         if radii(i) == 0
             continue;
@@ -29,16 +29,18 @@ function [V, F, likelihoodsOut] = prepareForVisualization(radii, Vout, Nout, lik
         Norm = Nout(:, i);
         Norm = Norm/norm(Norm);
 
-        if dot(Norm, [1;0;0]) > 10^-4
+        if abs(dot(Norm, [1;0;0])) < 0.3
             xtemp = [1;0;0];
-        else
+        elseif abs(dot(Norm, [0;1;0])) < 0.3
             xtemp = [0;1;0];
+        else
+            xtemp = [0;0;1];
         end
 
         Ytemp = cross(Norm, xtemp);
         Xtemp = cross(Norm, Ytemp);
-        Ytemp = (radii(i)/2)*(Ytemp/norm(Ytemp));
-        Xtemp = (radii(i)/2)*(Xtemp/norm(Xtemp));
+        Ytemp = radii(i)*(Ytemp/norm(Ytemp));
+        Xtemp = radii(i)*(Xtemp/norm(Xtemp));
         
         %% not parallelizable
         

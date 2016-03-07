@@ -1,5 +1,12 @@
 function [is_ok] = VisualizeTriangulation(F, V, likelihood, cmap, FaceAlpha, FaceColor, EdgeColor)
 
+    if size(F, 2) ~= 3
+        F = F';
+    end
+    if size(V, 2) ~= 3
+        V = V';
+    end
+
     if nargin < 7
         EdgeColor = 'none';
     end
@@ -7,13 +14,13 @@ function [is_ok] = VisualizeTriangulation(F, V, likelihood, cmap, FaceAlpha, Fac
         FaceColor = 'flat';
     end
     if nargin < 5
-        FaceAlpha = 0.5;
+        FaceAlpha = 0.1;
     end
     if nargin < 4
         load('colormapGray.mat');
     end
     if nargin < 3
-        likelihood = ones(size(F, 2), 1);
+        likelihood = ones(size(F, 1), 1);
     end
     
     ids = round(likelihood*64);

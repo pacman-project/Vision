@@ -19,8 +19,7 @@
 
 function [nNClusters] = learnHierarchy()
 
-% define folders configuration
-commonRoot = 'D:/';
+commonRoot = 'E:/3D/';
 root = [commonRoot, 'LibHoP3D_DG/'];
 addPaths(root);
 
@@ -39,14 +38,12 @@ nClusters = 1;
 n2Clusters = 1;
 
 is_GPU_USED = true;
-if is_GPU_USED
-    g = gpuDevice(1);
-    reset(g);
-end
+% if is_GPU_USED
+%     g = gpuDevice(1);
+%     reset(g);
+% end
 
 is_multyScale = true;
-
-% [~, ~, ~, ~, offsetsConventional] = loadLearningInferenceStructElement(dataSetNumber);
 
 if inputDataType == 1
     [iterations, lenSelected, fieldSize, maxRelDepth, quant, partsCoverArea, numSimilar, threshPair, sieve_thresh] = loadPartSelectionParameters(dataSetNumber);
@@ -57,7 +54,7 @@ end
 [statMapPropertiesAll, pairClusteringOptionsAll] = loadStatMapProperties(dataSetNumber);  
 [inputPath] = getPathToData(dataSetNumber, commonRoot);
 [scales, lineAdders]  = getScales(dataSetNumber, is_multyScale); 
-computeAllscales(scales, inputPath{1,1}, lineAdders, dataSetNumber, inputDataType); % convert all input images to different scales
+%computeAllscales(scales, inputPath{1,1}, lineAdders, dataSetNumber, inputDataType); % convert all input images to different scales
 [receptiveField, offsetsConventional] = getReceptiveFieldSize(dataSetNumber);
 
 
@@ -79,12 +76,6 @@ for i = 3:8
 end
 
 
-%%
-displ{3} = 6;
-displ{5} = 18;
-displ{7} = 52;
-isFIG = false;
-
 % if ~exist(vocabulary1Layer, 'file');
 %     [cluster1Centres, cluster1Bounds, thresh] = defineFirstLayerQuantiles(nClusters, dataSetNumber);
 %     save(vocabulary1Layer, 'cluster1Centres', 'cluster1Bounds', 'thresh');
@@ -103,23 +94,23 @@ end
 
 
 %% Define what we have to learn
-%                                    {1,2,3,4,5,6,7,8}
-is_layer =                           {1,0,1,0,0,1,1,1};
-is_statisticalMap =                  {0,0,0,0,0,0,0,0};
-is_statistics_collection =           {0,0,0,0,0,1,0,0};
+%                                    {1,2,3,4,5,6,7,8,9, 10}
+is_layer =                           {0,0,0,0,0,1,1,1,1,1};
+is_statisticalMap =                  {0,0,0,0,0,0,0,0,0,0};
+is_statistics_collection =           {0,0,0,0,0,1,1,1,1,1};
 
 %                                    {1,2,3,4,5,6,7,8}
-is_statistics_sieve_aggregate_Weak = {0,0,0,0,1,1,1,1};
+is_statistics_sieve_aggregate_Weak = {0,0,0,0,0,1,1,1};
 is_localization =                    {0,0,0,0,0,0,0,0};
 is_Entropy =                         {0,0,0,0,0,0,0,0};
 is_partSelectionSpecialNeeded =      {0,0,0,0,0,0,0,0};
 
 %                                    {1,2,3,4,5,6,7,8}
-is_statistics_sieve_aggregate_Strong={0,0,0,0,1,0,0,0};
+is_statistics_sieve_aggregate_Strong={0,0,0,0,0,0,0,0};
 is_partSelectionNeeded =             {0,0,0,0,0,0,0,0};
 combinePartSelection =               {0,0,0,0,1,1,0,0};
 visualizeLayer =                     {0,0,0,0,1,1,1,1};
-is_inferenceNeeded =                 {1,1,0,0,0,1,1,1};
+is_inferenceNeeded =                 {0,0,0,0,0,0,0,0};
 isDownsampling  =                    {0,0,0,0,0,0,0,0};
 
 %% downsampling of input images
@@ -149,9 +140,12 @@ end
 
 nNClusters{1} = nClusters;
 nNClusters{2} = n2Clusters;
-nNClusters{3} = 5;
-nNClusters{4} = 7;
-nNClusters{5} = 10; 
+nNClusters{3} = 6;
+nNClusters{4} = 10 + 1; %% !!!! planar patch
+nNClusters{5} = 32; 
+% nNClusters{6} = 14 + 1; %% !!!! planar patch
+% nNClusters{7} = 13;
+% nNClusters{8} = 
 
 for i = 3:8
     tripleOutDepth{i}   = [];
@@ -188,17 +182,17 @@ subsetPercent = 1.0;
 
 %% learn the FIRST LEVEL PARTs (non-planar)
 % 
-% if is_layer{1}
-%     layerID = 1;
-%     methodID_FL = 1;
-%     for i = 1:length(scales)
-%         % get path to the input data at this scale
-%         str = inputPath{layerID, 1};
-%         input_path = getPathScale(str, lineAdders{i});
-%         [list_input, ~, ~, lenFiles] = extractFileListGeneral(input_path, is_subset, subsetPercent, dataSetNumber);
-%         learnNonPlanarParts(list_input, lenFiles, dataSetNumber, patchRad, methodID_FL);
-%     end
-% end
+if is_layer{1}
+    layerID = 1;
+    methodID_FL = 1;
+    for i = 1:length(scales)
+        % get path to the input data at this scale
+        str = inputPath{layerID, 1};
+        input_path = getPathScale(str, lineAdders{i});
+        [list_input, ~, ~, lenFiles] = extractFileListGeneral(input_path, is_subset, subsetPercent, dataSetNumber);
+        learnNonPlanarParts(list_input, lenFiles, dataSetNumber, patchRad, methodID_FL);
+    end
+end
 
 %%
 
@@ -217,27 +211,6 @@ for layerID = 2:8
         continue;  % only inference is needed for this layer
     end
               
-%     if (layerID == 5 && isDownsampling{5}) || (layerID == 7 && isDownsampling{7}) % downsamplind required
-%         
-%         % take ALL depth images
-%         is_subsetTemp = false;
-%         subsetPercentTemp = 1;    
-%         [list_inputAll, list_maskAll, ~, lenF] = extractFileListGeneral(inputPath{layerID-1, 1}, is_subsetTemp, subsetPercentTemp, dataSetNumber);
-%         % make an elament list of ALL element images
-%         [list_els] = makeElList(list_inputAll, inputPath{layerID-1, 1}, elPath{layerID-1, 2});
-%         
-%          % make depth images of the same resolution as downsampled marks images
-%          downsampleImages(list_inputAll, inputPath{layerID-1, 1}, list_els, list_maskAll, dataSetNumber, inputPath{layerID-1, 2});  % downsamples depth images according to el images
-%     end
-%     
-%     if ~strcmp(inputPath{layerID, 1}, inputPath{1,1})
-%          % after this we have to take a new (downsampled) depth list  
-%         [list_input, list_mask, ~, lenF] = extractFileListGeneral(inputPath{layerID, 1}, is_subset, subsetPercent, dataSetNumber);
-%     end
-    
-%     % recompute list_els of elements from the previous layer
-%     [list_els] = makeElList(list_input, inputPath{layerID, 1}, elPath{layerID-1, 2});
-      
     str = ['Learning of the layer ', num2str(layerID), '...'];
     disp(str);     
     
@@ -279,49 +252,107 @@ for layerID = 2:8
                 elPath = getElPath(str2, layerID-1);
                 
                 list_els = makeElList(list_input, input_path, elPath);
-%                 [outputStatistics, outputCoords, outputFrames] = CollectStats_NextLayersMesh_PC(list_els, list_input, lenF, nPrevClusters, layerID, ...
-%                                                                     dataSetNumber, offsetsConventional{layerID}, statMapPropertiesAll{layerID}, is);
+%                 CollectStats_NextLayersMesh_PC(list_els, list_input, lenF, nPrevClusters, layerID, ...
+%                                                                     dataSetNumber, receptiveField{layerID}, offsetsConventional{layerID}, statMapPropertiesAll{layerID});
             end
 
-            lenF = 1;
-%             [statMapLeft, statMapRight] = buildStatMap_NextLayers(lenF, nPrevClusters, offsetsConventional{layerID}, statMapPropertiesAll{layerID}, layerID, is_GPU_USED);                                                   
-%             save('Temp/statMap.mat', 'statMapLeft', 'statMapRight', '-v7.3');
+        sieveThresh1{3} = 50; sieveThresh1{4} = 200; sieveThresh1{5} = 20; sieveThresh1{6} = 30; 
+        sieveThresh1{7} = 3000;  sieveThresh1{8} = 500; sieveThresh1{9} = 300; sieveThresh1{10}= 300;
 
-            % clustering of the staistical maps
-%              [pairsLeft, pairsRight] = statMapClustering(nPrevClusters, statMapPropertiesAll{layerID}, pairClusteringOptionsAll{layerID}, offsetsConventional{layerID}, layerID);
-             dd = load('Temp/pairsLR.mat'); 
-             pairsLeft = dd.pairsLeft;
-             pairsRight = dd.pairsRight;
-             
-%             % assign each point in the file with statistics by the ID
-%              assignIdsToStatisticsFile(pairsLeft, pairsRight, pairClusteringOptionsAll{layerID}, nPrevClusters, lenF, statMapPropertiesAll{layerID}, is_GPU_USED);
+    numParts = zeros(1,15);
+    for nn = 1:15 
+        a{1} = [33, 34, 35, 36, 37];      % box
+        a{2} = [1,32,38,40,43,51,57,72];  % bottles
+        a{3} = [8 16,30,31];              % bowls
+        a{4} = [41, 42];                  % cup
+        a{5} = [45, 46, 47, 48, 49, 50, 52];  % cutting board
+        a{6} = [39];                      % can
+        a{7} = [13, 14 15 44];            % tray
+        a{8} = [2 3 4 73 74 75 76];       % plate 
+        a{9} = [6,7,9];  % tea cup
+        a{10} = [5];  % salt
+        a{11} = [10, 11 12, 65];  % teapot
+        a{12} = [17:29 60];  % vase
+        a{13} = [53:56 58 59]; % frying pan
+        a{14} = [61:64, 66]; % Jug
+        a{15} = [67:71]; % mug
 
-            % aggregate statistics of the layers
-            nPrevClusters = size(pairsLeft, 1) + size(pairsRight, 1);
-            sieve_thresh = 10^3;
-%             [X, frequencies, triples] = Aggregate_statVI(lenF, nPrevClusters, sieve_thresh, pairsLeft, pairsRight);
+        aa = [a{1:nn}];
+        lenF = length(aa);
+
+        if nn == 1
+            prev = 1;
+        else 
+            prev = length([a{1:nn-1}]) + 1;
+        end
+
+
+        [statMapLeft, statMapRight] = buildStatMap_NextLayers(aa, prev, lenF, nPrevClusters, offsetsConventional{layerID}, statMapPropertiesAll{layerID}, layerID,...
+                                                                lenF * sieveThresh1{layerID}, is_GPU_USED);                                                   
+         save('Temp/statMap.mat', 'statMapLeft', 'statMapRight', '-v7.3');
+
+%               clustering of the staistical maps
+        [pairsLeft, pairsRight] = statMapClustering(nPrevClusters, statMapPropertiesAll{layerID}, pairClusteringOptionsAll{layerID}, offsetsConventional{layerID}, layerID, lenF);
+        save('Temp/pairsLR.mat', 'pairsLeft', 'pairsRight');
+
+        numParts(nn) = size(pairsLeft, 1) + size(pairsRight, 1);
+
+    end
+
+    dd = load('Temp/pairsLR.mat'); 
+    pairsLeft = dd.pairsLeft;
+    pairsRight = dd.pairsRight;
             
-            % perform part selection at this layer
-            iterations = 30;
-            lenSelected = 40;
-%             [partsOut, coverageOut, lenOut] = PartSelectionMeshMDL_VI(list_input, list_els, lenF, nPrevClusters, iterations, lenSelected);
+%              % assign each point in the file with statistics by the ID
+
+%             tic
+%      assignIdsToStatisticsFile(pairsLeft, pairsRight, pairClusteringOptionsAll{layerID}, nPrevClusters, lenF, statMapPropertiesAll{layerID}, layerID, is_GPU_USED);
+% %             toc
+%             
+%              % aggregate statistics of the layers
+%             nPrevClusters = size(pairsLeft, 1) + size(pairsRight, 1);
+%             [X, frequencies, triples] = Aggregate_statVI(lenF, nPrevClusters, sieveThresh1{layerID}, pairsLeft, pairsRight);
+%              
+%             % perform part selection at this layer
+%             iterations = 40;
+%             lenSelected{3} = 100; lenSelected{4} = 100; lenSelected{5} = 250; lenSelected{6} = 230; lenSelected{7} = 250; lenSelected{8} = 250;
+%             lenSelected{9} = 150; lenSelected{10} = 150;
+%             
+%              
+%             ids = frequencies >= log(lenF) * lenSelected{layerID};
+%             frequencies = frequencies(ids);
+%             X = X(ids, :);
+% %             D = computePartPairWiseDistances(X, layerID, pairsLeft, pairsRight, receptiveField{2}, true);
+% 
+%             aa = load('Temp/pairwiseDist.mat');
+%             D = aa.D;
+% 
+%             [partsOut, lenOut, ORTable] = PartSelectionMeshFreq_VI(X, frequencies, D, layerID);
+% % % %              [partsOut, coverageOut, lenOut, ORTable] = PartSelectionMeshMDL_VI(list_els, lenF, nPrevClusters, iterations, lenSelected{layerID}, D, layerID);
 %             
 %             partsOut = partsOut(1:lenOut, :);
-%             coverageOut = coverageOut(1:lenOut);
+% % % % % % %             coverageOut = coverageOut(1:lenOut);
 %             pairsAll = [pairsLeft; pairsRight];
 %             nNClusters{layerID} = lenOut;
-%             save('Temp/partSelection6.mat', 'partsOut', 'pairsAll', 'nNClusters', 'coverageOut');
-            
-             VisualizeLayerVI(layerID);
+%             if layerID == 4 || layerID == 6  % include a planar part of the next scale
+%                 nNClusters{layerID} = nNClusters{layerID} + 1;
+%             end    
+%             strOut = ['Temp/','layer', num2str(layerID), '/partSelection', num2str(layerID), '.mat'];
+%             save(strOut, 'partsOut', 'pairsAll', 'nNClusters');
+%             strLayer = ['Temp/OR_node_layer_', num2str(layerID), '.mat' ];
+%             save(strLayer, 'ORTable');
+%             
+%             ReadVocabulary(layerID);
+%             if layerID == 4 || layerID == 6
+%                 VisualizeLayerVI(layerID, 2); % starting from element 2
+%             else
+                VisualizeLayerVI(layerID);
+%             end
+% % %             inference of the next layer based on statistics
+            MakeInfrerenceVICorrect(list_els, list_input, lenF, nPrevClusters, layerID, ...
+                                                dataSetNumber, receptiveField{layerID}, offsetsConventional{layerID}, statMapPropertiesAll{layerID});
 
-%             inference of the next layer based on statistics
-             layerInferenceNext_VI(list_input, list_els, lenF, layerID, is_GPU_USED);
-
-            
-            if layerID > 4 
-                MakeOrNode(layerID);
-            end
-
+% % % % %                layerInferenceNext_VI(list_input, list_els, lenF, layerID, is_GPU_USED);
              a = 2;
         end
                 
@@ -560,3 +591,12 @@ for layerID = 2:8
 end
 
 end
+
+
+
+
+% % %             if layerID >= 3 %|| layerID == 6
+% % %                 ORTable = MakeOrNode(layerID, receptiveField{2});
+% % %                 strLayer = ['Temp/OR_node_layer_', num2str(layerID), '.mat' ];
+% % %                 save(strLayer, 'ORTable');
+% % %             end

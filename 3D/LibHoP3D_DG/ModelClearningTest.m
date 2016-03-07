@@ -4,30 +4,32 @@
 
 %'C:\Users\vvk201\Desktop\Pacman Vision Objects\Warehouse_Clean_Vladislav\Warehouse'; 
 %'F:\Warehouse\Warehouse\Bottle\models';
-folderName = 'D:\Input Data\Meshes\Aim@Shape_selected';
+folderName = 'D:\Warehouse_Clean_Renamed_Vladislav_Rusen_Final';
 
 list_in = ReadImageNames(folderName);
 lenF = length(list_in);
 list_input = list_in; % list_input = {}; 
+scaledList = [79 86 161 164 205 218 224 235 302 317 319 359 371 381 382 399];
+inplaceList = [391];
 k = 0;
 
-for i = 1:lenF
-    str = list_in{i};
-%     idsSP = strfind(str, ' ');
-%     if ~isempty(idsSP)
-%         str1 = str;
-%         str1(idsSP) = '_';
-%         disp(str1);
-%         a = 2;
-%         movefile(str, str1);
-%     end
-
-    
-    if strfind(str, 'models') & strfind(str, '.obj')
-        list_input{k+1} = str;
-        k = k+1;
-    end     
-end
+% for i = 1:lenF
+%     str = list_in{i};
+% %     idsSP = strfind(str, ' ');
+% %     if ~isempty(idsSP)
+% %         str1 = str;
+% %         str1(idsSP) = '_';
+% %         disp(str1);
+% %         a = 2;
+% %         movefile(str, str1);
+% %     end
+% 
+%     
+%     if strfind(str, 'models') & strfind(str, '.obj')
+%         list_input{k+1} = str;
+%         k = k+1;
+%     end     
+% end
 
 % %% this section is for remaning of the rendered folders
 % 
@@ -64,8 +66,11 @@ end
 
 
 % 
-for i = 1:lenF
-    
+for j = inplaceList
+    fileName = ['D_' num2str(j) '.obj'];
+    flags = strfind(list_input, fileName);
+    flags = cellfun(@(x) ~isempty(x), flags);
+    i = find(flags);
 %     [V1,N1,F1,DF,PI] = simpleObjReader(list_input{i});
     disp(i);
     list_input{i} 
@@ -80,7 +85,7 @@ for i = 1:lenF
 %     V_centre = (max(V,[],2) + min(V,[], 2))/2; %sum(V, 2)./size(V, 2);
 %     V = V - repmat(V_centre, [1, size(V, 2)]);
 %     
-     dirs = [1,2,3];
+    dirs = [1,2,3];
 
     %% make the largest dimension equal to 1
 %        V = (PCA_model(V', dirs))';
@@ -93,11 +98,11 @@ for i = 1:lenF
 %     center = [max(V(1, :)) + min(V(1, :)); max(V(2, :)) + min(V(2, :)); max(V(3, :)) + min(V(3, :))]/2;
 %     V = V - repmat(center, [1, size(V, 2)]);
 %     
-    scale = max(V(dirs(3),:) - min(V(dirs(3),:)));
-    V = V/scale * 1; 
-    V = V(dirs,:);
+%     scale = max(V(dirs(3),:) - min(V(dirs(3),:)));
+%      V = V/scale * 70; 
+%     V = V(dirs,:);
 
-%     V=  V*0.6;
+%     V=  V * 70;
 
     figure;
     plot_mesh(V, F);
@@ -106,17 +111,23 @@ for i = 1:lenF
     axis equal;
     
 %      pause(1.0);
-% %     VisualizeTriangulation(F, V);
+     VisualizeTriangulation(F, V);
+% 
+%      disp(i);
+%      V=  V * 70;
+    
+% % 
+     str = list_input{i};
+     [filePath, fileName, ext] = fileparts(str); %write_obj(list_input{i}, V, F);
+     newStr = [filePath '\' num2str(500+i) ext];
 
+% %     str = strrep(str, 'dae.obj', 'obj');
+    write_obj(newStr, V, F);
+    
     if mod(i, 10) == 0
         allPlots = findall(0, 'Type', 'figure');
         delete(allPlots);
     end
-    
-% % 
-%     str = list_input{i};
-%     str = strrep(str, 'dae.obj', 'obj');
-%     write_obj(str, V, F);
 
 end
 

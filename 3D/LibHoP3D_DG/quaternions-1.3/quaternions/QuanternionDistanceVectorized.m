@@ -1,6 +1,8 @@
 % computes distance of two quaternions 
 % according to ALG 5 of Kuffner's paper
 
+% X and Z are lists of vectors
+
 function distQ = QuanternionDistanceVectorized(X, Z)
     
     if size(X, 1) ~= 3
@@ -26,6 +28,7 @@ function distQ = QuanternionDistanceVectorized(X, Z)
 
     Q1 = zeros(n, nCl); Q2 = zeros(n, nCl); Q3 = zeros(n, nCl); 
     Q4 = X'*Z + 1;
+    Q4(abs(Q4) < 10^(-7)) = 0;
  
     for i = 1:nCl     % cross product
         Q1(:,i) = (X2*Z(3,i) - X3*Z(2,i))';
@@ -40,6 +43,8 @@ function distQ = QuanternionDistanceVectorized(X, Z)
     Q4 = Q4./QNorm;
     
     %% compute distance between quaternions    
-    distQ = sqrt(1 - abs(Q4));
+    distQ = sqrt(abs(1 - abs(Q4)));
+    distQ(isnan(distQ)) = 1;
+
 end
 
