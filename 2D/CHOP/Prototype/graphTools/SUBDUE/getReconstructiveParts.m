@@ -68,7 +68,7 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    coveredLevel1NodeCounts = cellfun(@(x) numel(x), possibleLeafNodes);
    
    % Go over all possible part-subpart pairs, and calculate probabilities.
-   for subItr = 1:numberOfBestSubs
+   parfor subItr = 1:numberOfBestSubs
        instanceChildren = bestSubs(subItr).instanceChildren;
        numberOfInstances = size(instanceChildren,1);
        numberOfChildren = size(instanceChildren,2);
@@ -149,7 +149,11 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
            posProbs = posProbs / sum(posProbs);
            
            % Assign position probabilities to samples, and save the info.
-           posLogProbs(instanceChildren(:,childItr)) = max(posLogProbs(instanceChildren(:,childItr)), log(posProbs(inverseArr(relativePositionIdx))) - minLogProb);
+           comparedProbs = log(posProbs(inverseArr(relativePositionIdx))) - minLogProb;
+           if size(comparedProbs,1) > size(comparedProbs,2)
+                comparedProbs = comparedProbs';
+           end
+           posLogProbs(instanceChildren(:,childItr)) = max(posLogProbs(instanceChildren(:,childItr)), comparedProbs);
        end
         % Save child probabilities.
         allNodes = unique(instanceChildren);
@@ -439,12 +443,3 @@ function y = paramfunc2(x, subLabelProbs, subPosProbs, subCoveredNodes)
      vals = vals(IA);
      y = round(-sum(double(vals)));
 end
-
-% % Fitness function 3 for the genetic algorithm.
-% function y = paramfunc3(x, ~, ~, subCoveredNodes)   
-%      x = x>=0.5;
-%      allCoveredNodes = cat(2, subCoveredNodes{x});
-%      allCoveredNodes = fastsortedunique(sort(allCoveredNodes));
-%      y = -numel(allCoveredNodes);
-% %     y = -2*numel(allCoveredNodes) + numberOfNodes;
-% end
