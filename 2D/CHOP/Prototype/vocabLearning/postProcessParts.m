@@ -113,7 +113,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
    %% First, for efficiency, we obtain pixel-level predictions for every part.
    level1Experts = cell(numberOfNodes, 1);
    searchMultiplier = levelItr - 1;
-   for vocabNodeItr = 1:numberOfNodes
+   parfor vocabNodeItr = 1:numberOfNodes
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
         experts = projectNode(nodes, vocabulary, 1, 'modal');
@@ -149,7 +149,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
    % Get product of expert predictions.
    mkdir([options.debugFolder '/level' num2str(levelItr) '/modalProjection/']);
    debugFolder = options.debugFolder;
-   for vocabNodeItr = 1:numberOfNodes
+   parfor vocabNodeItr = 1:numberOfNodes
         [muImg, varImg, ~, ~] = obtainPoE(level1Experts{vocabNodeItr}, [], [], [], imageSize, visFilters);
         muImg = muImg/max(max(muImg));
         blurredMuImg = imfilter(muImg, H, 'replicate');
