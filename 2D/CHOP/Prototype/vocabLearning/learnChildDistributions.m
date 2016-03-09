@@ -41,10 +41,14 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
     vocabInstances = cell(numberOfNodes,1);
     for vocabItr = 1:numberOfNodes
          vocabInstances{vocabItr} = graphLevel(labelIds == vocabItr);
-    end
+    end                       
     
     % Second, we go through each node, and collect statistics.
     parfor vocabItr = 1:numberOfNodes
+       minX = -1;
+       maxX = -1;
+       minY = -1;
+       maxY = -1;
         w = warning('off', 'all');
         children = vocabLevel(vocabItr).children;
         

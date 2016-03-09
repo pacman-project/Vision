@@ -18,6 +18,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
+    options.matlabRestartImageCount = 200;
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 

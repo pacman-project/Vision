@@ -23,20 +23,18 @@
 %> Updates
 %> Ver 1.0 on 01.09.2014
 %> Comments updated on 23.06.2015
-function [ distMat, abstractDistMat, nodeProbArr ] = createDistanceMatrix( filters, filterImages, filterType, ~ )
+function [ distMat, abstractDistMat ] = createDistanceMatrix( filters, filterType)
     distMat = zeros(numel(filters), 'single');
     minFilterValue = 0.05; % If pixel a < max(max(max(filter1))) * minFilterValue,
                            % a is assigned 0 in distance calculations.
     gaborOrThr = 0;
     autoOrThr = 0.25;
-    sigma = 0.005;
     cogFilters = cell(numel(filters),1);
     numberOfFilters = numel(filters);
     filterSize = [size(filters{1},1), size(filters{1},2)];
     binaryMask = true(filterSize);
     cog = zeros(1,2);
     trueCenter = 1 + (filterSize-1)/2;
-    nodeProbArr = cell(numberOfFilters,1);
     
     % Find center of gravity for each filter, and center it around its
     % cog to estimate correct distance between pairs of filters.
@@ -88,65 +86,6 @@ function [ distMat, abstractDistMat, nodeProbArr ] = createDistanceMatrix( filte
         firstRow = firstRow/max(firstRow);
         for filtItr = 1:numberOfFilters
              newDistMat(filtItr,:) = circshift(firstRow', (filtItr-1))'; 
-        end
-    end
-    %% Finally, we assign node substitution probabilities.
-    if strcmp(filterType, 'gabor') 
-         % Learn circular probabilities to assign for gabor choices.
-         dataPoints = 1:(numberOfFilters+1);
-         meanPoint = ceil((numberOfFilters+1)/2) / (numberOfFilters+2);
-         startPoints = ((dataPoints - 1/2) / (numberOfFilters+2))';
-         endPoints = ((dataPoints + 1/2) / (numberOfFilters+2))';
-         startProbs = mvncdf(startPoints, meanPoint, sigma);
-         endProbs = mvncdf(endPoints, meanPoint, sigma);
-         pointProbs = endProbs - startProbs;
-         
-         % Finally, form a node probability array.
-         for filtItr = 1:numberOfFilters
-              entries = find(newDistMat(filtItr,:) <= gaborOrThr);
-              realEntries = entries';
-              entries = entries + round(numberOfFilters/2) - (filtItr - 1);
-              entries = rem(entries + numberOfFilters, numberOfFilters);
-              entries(entries==0) = numberOfFilters;
-              probs = pointProbs(entries);
-              
-              % Normalize probabilities and save them.
-              probs = probs/sum(probs);
-              nodeProbArr{filtItr} = [realEntries, probs];
-         end
-    else
-%          % First, we find rank-distance among the filters. 
-%          ranks = 1:numberOfFilters;
-%          tempDistMat = zeros(size(newDistMat), 'single');
-%         for filtItr = 1:numberOfFilters
-%              distances = newDistMat(filtItr,:);
-%              [~, sortIdx] = sort(distances, 'ascend');
-%              tempRanks = zeros(numberOfFilters,1);
-%              tempRanks(sortIdx) = ranks;
-%              tempDistMat(filtItr,:) = tempDistMat(filtItr,:) + tempRanks';
-% %             tempDistMat(:,filtItr) = tempDistMat(:,filtItr) + tempRanks;
-%         end
-%         tempDistMat = tempDistMat / max(max(tempDistMat));
-%         newDistMat = tempDistMat;
-         
-        for filtItr = 1:numberOfFilters
-              % Rank closest filters, and assign probabilities based on
-              % these ranks.
-              closeFilters = find(newDistMat(filtItr,:) <= autoOrThr);
-              distances = newDistMat(filtItr, closeFilters);
-              [~, idx]=sort(distances,'ascend');
-              sigma = 1/(numel(idx)*5);
-              dataPoints = ((0:(numel(idx)-1))/numel(idx))';
-              meanPoint = 0;
-              startPoints = dataPoints - 1 / (2 * numel(idx));
-              endPoints = startPoints + 1/numel(idx);
-              startProbs = mvncdf(startPoints, meanPoint, sigma);
-              endProbs = mvncdf(endPoints, meanPoint, sigma);
-              pointProbs = endProbs - startProbs;
-              
-              % Normalize probabilities and save them.
-              pointProbs = pointProbs/sum(pointProbs);
-              nodeProbArr{filtItr} = [closeFilters(idx)', sort(pointProbs, 'descend')];
         end
     end
     

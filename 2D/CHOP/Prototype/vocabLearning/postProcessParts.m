@@ -28,7 +28,7 @@
 %> Ver 1.0 on 06.05.2014
 %> Update on 23.02.2015 Added comments, performance boost.
 %> Update on 25.02.2015 Added support for single node subs.
-function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postProcessParts(vocabLevel, graphLevel, vocabulary, levelItr, options)
+function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, levelItr, options)
     edgeCoords = options.edgeCoords;
     distType = options.distType;
     vocabulary{levelItr} = vocabLevel;
@@ -43,7 +43,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix, nodeDistributions] = postPr
         stride = options.auto.stride;
     end
     halfSearchSize = 2;
-    nodeDistributions = [];
     filters = options.filters;
     filters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), filters, 'UniformOutput', false);
     
