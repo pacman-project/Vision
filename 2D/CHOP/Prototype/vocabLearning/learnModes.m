@@ -65,6 +65,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
     modeProbArr = cell(numberOfUniqueEdges, 1);
     parfor uniqueEdgeItr = 1:numberOfUniqueEdges
+        probs = [];endProbs=[];topProbs=[];rightProbs=[]; %#ok<NASGU>
         w = warning('off', 'all');
         samples = single(uniqueEdgeSamples{uniqueEdgeItr});
         sampleCoords = single(uniqueEdgeCoords{uniqueEdgeItr});

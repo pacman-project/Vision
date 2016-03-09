@@ -74,6 +74,7 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
     
     %% Go over the list of images and run reconstruction.
     parfor fileItr = 1:numel(fileList)
+        imageSize = [];
         nodeOffset = numel(find(imageIds<fileItr));
         relevantNodeIds = imageNodeIds{fileItr};
         
