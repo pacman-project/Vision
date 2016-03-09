@@ -26,11 +26,24 @@
 function [] = learnVocabularyLevel()
     % Reduce memory consumption by writing all stuff to files,
     % clearing all, and then returning back to computation.
-    disp('Loading workspace from the previous layer.');
-    load
-    dbstop(bInfo);
+   disp('Loading workspace from the previous layer.');
+   load
+   dbstop(bInfo);
    levelItr = levelItr + 1; %#ok<*NASGU>
-
+   
+   % If this is a fresh Matlab, modify paths.
+   % ========== PATH FOLDER ADDITION ==========
+   if options.restartFlag
+       w = warning('off', 'all');
+       addpath(genpath([options.currentFolder '/utilities']));
+       addpath(genpath([options.currentFolder '/demo']));
+       addpath(genpath([options.currentFolder '/graphTools']));
+       addpath(genpath([options.currentFolder '/vocabLearning']));
+       addpath(genpath([options.currentFolder '/inference']));
+       addpath(genpath([options.currentFolder '/categorization']));
+       warning(w);
+   end
+   
    % Obtain the pre-set threshold for this level, if there is one.
    if levelItr > (numel(options.subdue.presetThresholds) + 1)
        presetThreshold = options.subdue.threshold;
