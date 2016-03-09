@@ -291,8 +291,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         tr_s_time=tic;  
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'categoryNames', 'categoryArrIdx', 'validationIdx', 'poseArr');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'trainingFileNames', 'categoryNames');
-        learnVocabulary(vocabLevel, graphLevel, leafNodes, leafNodeCoords, ...
-                                        options, trainingFileNames, modes, modeProbArr);
+        learnVocabulary(vocabLevel, graphLevel, leafNodes, leafNodeCoords, options, trainingFileNames, modes, modeProbArr);
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
     end
     

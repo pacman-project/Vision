@@ -23,25 +23,38 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [] = learnVocabularyLevel()
-    % Reduce memory consumption by writing all stuff to files,
-    % clearing all, and then returning back to computation.
+function [] = learnVocabularyLevel()     
+   % Reduce memory consumption by writing all stuff to files,
+   % clearing all, and then returning back to computation.
    disp('Loading workspace from the previous layer.');
+   addpath(genpath([pwd '/utilities']));
    load
-   dbstop(bInfo);
    levelItr = levelItr + 1; %#ok<*NASGU>
+   
+  % Open/close matlabpool to save memory. 
+   if options.parallelProcessing
+       s = matlabpool('size');
+       if s>0
+          matlabpool close; 
+       end
+       matlabpool('open', options.numberOfThreads);
+   end
    
    % If this is a fresh Matlab, modify paths.
    % ========== PATH FOLDER ADDITION ==========
    if options.restartFlag
        w = warning('off', 'all');
-       addpath(genpath([options.currentFolder '/utilities']));
        addpath(genpath([options.currentFolder '/demo']));
        addpath(genpath([options.currentFolder '/graphTools']));
        addpath(genpath([options.currentFolder '/vocabLearning']));
        addpath(genpath([options.currentFolder '/inference']));
        addpath(genpath([options.currentFolder '/categorization']));
        warning(w);
+   end
+   
+   % Try to restore break points.
+   try %#ok<TRYNC>
+   dbstop(bInfo);
    end
    
    % Obtain the pre-set threshold for this level, if there is one.
@@ -250,7 +263,7 @@ function [] = learnVocabularyLevel()
    save;
        % clearing all, and then returning back to computation.
     if options.restartFlag
-         !matlab -r learnVocabularyLevel
+         system('./matlab.sh');
          exit
     else
          learnVocabularyLevel();
