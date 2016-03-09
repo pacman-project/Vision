@@ -96,7 +96,7 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
     
     %% If we have passed the limit for number of images, we go into a different mode 
     % where we perform matlab restarts for memory optimization.
-    if numel(fileList) > options.matlabRestartImageCount
+    if numel(fileList) >= options.matlabRestartImageCount
          options.restartFlag = true;
     else
          options.restartFlag = false;
