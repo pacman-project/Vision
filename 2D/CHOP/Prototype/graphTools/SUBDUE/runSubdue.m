@@ -87,7 +87,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     else
         singleNodeThreshold = orgThreshold +singlePrecision; % Hard threshold for cost of matching two subs.
     end
-    parentsPerSet = 50;
+    parentsPerSet = 200;
     
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
@@ -294,7 +294,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
             
             %% All good, continue with the main algorithm.
             processedSet = parentSubSets{setItr};
-            parfor parentItr = processedSet
+            for parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
                 childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, ...

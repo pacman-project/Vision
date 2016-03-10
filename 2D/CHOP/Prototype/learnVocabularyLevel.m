@@ -23,12 +23,12 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [] = learnVocabularyLevel()     
+function [] = learnVocabularyLevel(datasetName)     
    % Reduce memory consumption by writing all stuff to files,
    % clearing all, and then returning back to computation.
    disp('Loading workspace from the previous layer.');
    addpath(genpath([pwd '/utilities']));
-   load
+   load([pwd '/output/' datasetName '/' datasetName '_Workspace.mat']);
    levelItr = levelItr + 1; %#ok<*NASGU>
    
   % Open/close matlabpool to save memory. 
@@ -260,12 +260,14 @@ function [] = learnVocabularyLevel()
    
    % Finally, we save the workspace and call the next iteration.
    disp(['Saving layer ' num2str(levelItr) ' workspace.']);
-   save;
-       % clearing all, and then returning back to computation.
-    if options.restartFlag
-         system('./matlab.sh');
+   save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat']);
+   
+   % clearing all, and then returning back to computation.
+    scriptName = [options.currentFolder '/output/' options.datasetName '/' options.datasetName '.sh'];
+   if options.restartFlag
+         system(scriptName);
          exit
-    else
-         learnVocabularyLevel();
-    end
+   else
+         learnVocabularyLevel(datasetName);
+   end
 end

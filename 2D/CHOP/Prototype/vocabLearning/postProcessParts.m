@@ -107,7 +107,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    imageSize = [imageSize, imageSize];
    
    % For now, we make the image bigger.
-   imageSize = round(imageSize * 1.5);
+%   imageSize = round(imageSize * 1.5);
    
    %% First, for efficiency, we obtain pixel-level predictions for every part.
    level1Experts = cell(numberOfNodes, 1);

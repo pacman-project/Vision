@@ -84,7 +84,6 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
              % If there are full instances that do not extension (cover
              % enough of RF), we delete them.
 %             validInstancesExt = coverageRatios < 1;
-             
              if mean(coverageRatios) >= minRFCoverage
                   validExtSubs(subItr) = 0;
              end
