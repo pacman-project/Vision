@@ -153,9 +153,11 @@ function [] = learnVocabularyLevel(datasetName)
    mainGraph{levelItr} = graphLevel;
 
    %% As an initial stage of inhibition, we downsample the responses, 
-   % and apply max pooling. 
+   % and apply max pooling. Please note that turning this off also means no
+   % reduction in resolution for higher layers, therefore non-growing
+   % receptive fields.
    display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
-%      graphLevel = applyPooling(graphLevel, options.poolDim);
+   graphLevel = applyPooling(graphLevel, options.poolDim, options.poolFlag);
    java.lang.System.gc();
 
    %% Calculate statistics from this graph.
@@ -262,7 +264,7 @@ function [] = learnVocabularyLevel(datasetName)
    save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat']);
    
    % clearing all, and then returning back to computation.
-    scriptName = [options.currentFolder '/output/' options.datasetName '/' options.datasetName '.sh'];
+    scriptName = [options.currentFolder '/' options.datasetName '.sh'];
    if options.restartFlag
          system(scriptName);
          exit

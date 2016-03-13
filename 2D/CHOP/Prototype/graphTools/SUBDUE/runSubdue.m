@@ -138,7 +138,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     validationIdx = validationIdx(cat(1, graphLevel.imageId));
     
     % Learn possible leaf nodes within every RF, and save them for future
-    % use.
+    % use. For this one, we consider only the nodes within the receptive
+    % field.
     possibleLeafNodes = cell(numel(allLeafNodes),1);
 %     bounds = calculateRFBounds(nodePositions, levelItr, options, false);
 %     for nodeItr = 1:size(allSigns,1);
@@ -147,11 +148,18 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
 %              level1Nodes(:,3) >= bounds(nodeItr,2) & level1Nodes(:,3) <= bounds(nodeItr,4)));
 %     end
      for nodeItr = 1:size(allSigns,1)
+ %         tempLeafNodes = possibleLeafNodes{nodeItr};
+%           if isempty(allEdges(nodeItr).adjInfo)
+%                validIdx  = ismembc(tempLeafNodes, graphLevel(nodeItr).leafNodes)';
+%           else
+%                validIdx = ismembc(tempLeafNodes, sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))');
+%           end
           if isempty(allEdges(nodeItr).adjInfo)
-               possibleLeafNodes{nodeItr} = (graphLevel(nodeItr).leafNodes)';
+               possibleLeafNodes{nodeItr}  = (graphLevel(nodeItr).leafNodes)';
           else
-               possibleLeafNodes{nodeItr} = unique(cat(2, graphLevel(unique(allEdges(nodeItr).adjInfo(:,1:2))).leafNodes))';
+               possibleLeafNodes{nodeItr} = fastsortedunique(sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))');
           end
+ %         possibleLeafNodes{nodeItr} = tempLeafNodes(validIdx);
      end
     
 %     % Check script.
@@ -294,7 +302,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
             
             %% All good, continue with the main algorithm.
             processedSet = parentSubSets{setItr};
-            for parentItr = processedSet
+            parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
                 childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, ...

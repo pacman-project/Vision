@@ -110,7 +110,7 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
     disp('Saving layer 1 workspace.');
     levelItr = 1;
     save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat']);
-    scriptName = [options.currentFolder '/output/' options.datasetName '/' options.datasetName '.sh'];
+    scriptName = [options.currentFolder '/' options.datasetName '.sh'];
     
     % Let's generate the restart script.
     fid = fopen(scriptName, 'w');
