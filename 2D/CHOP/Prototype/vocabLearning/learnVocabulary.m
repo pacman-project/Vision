@@ -109,12 +109,12 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
     % Save workspace into a file.
     disp('Saving layer 1 workspace.');
     levelItr = 1;
-    save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat']);
+    save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat'], '-v7.3');
     scriptName = [options.currentFolder '/output/' options.datasetName '/' options.datasetName '.sh'];
     
     % Let's generate the restart script.
     fid = fopen(scriptName, 'w');
-    fileString = fprintf(fid, ['#!/bin/sh\nscreen -d -m matlab -r "learnVocabularyLevel(''%s'')"'], options.datasetName);
+    fileString = fprintf(fid, '#!/bin/sh\nscreen -d -m matlab -r "learnVocabularyLevel(''%s'')"', options.datasetName);
     system(['chmod 755 ' scriptName]);
     fclose(fid);
     

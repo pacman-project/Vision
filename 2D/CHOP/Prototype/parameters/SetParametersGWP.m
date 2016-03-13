@@ -108,7 +108,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeType = 'continuity';     % If 'centroid', downsampling is
+    options.edgeType = 'centroid';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
@@ -183,7 +183,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                % grouping top level parts.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 1000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 2000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
     options.reconstruction.numberOfORNodes = 200; % The maximum 

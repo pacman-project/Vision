@@ -259,7 +259,7 @@ function [] = learnVocabularyLevel(datasetName)
    
    % Finally, we save the workspace and call the next iteration.
    disp(['Saving layer ' num2str(levelItr) ' workspace.']);
-   save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat']);
+   save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat'], '-v7.3');
    
    % clearing all, and then returning back to computation.
     scriptName = [options.currentFolder '/output/' options.datasetName '/' options.datasetName '.sh'];

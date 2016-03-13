@@ -4,8 +4,8 @@ function [ output_args ] = createPacmanDataset( classCount, imageCount, training
      naturalPose = [3 3];
      numberOfModels = 20;
      distance = '600';
-     classList = { 'Bottle', 'Bowl', 'Box', 'Can', 'Cup', 'FryingPan', 'Mug', 'TeaCup', 'Plate', 'Jug', 'TeaPot', 'ChoppingBoard', 'Shaker', 'Tray', 'Fork', 'Knife', 'Scissors', 'Spatula', 'Spoon', 'Vase'};
-     modelsToAvoidTraining = [203, 213, 215, 217, 218, 219, 220];
+     classList = { 'Bottle', 'Bowl', 'Box', 'Cup', 'FryingPan', 'Mug', 'TeaCup', 'Plate', 'Jug', 'TeaPot', 'Can', 'ChoppingBoard', 'Shaker', 'Tray', 'Fork', 'Knife', 'Scissors', 'Spatula', 'Spoon', 'Vase'};
+     modelsToAvoidTraining = [];
      load([pwd '/400Pacmans/categoryNames.mat']);
      
      % Shuffle class list if needed.
