@@ -183,6 +183,16 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                          selectedNodeCount = selectedNodeCount + 1;
                      end
                      adjacentNodes = adjacentNodes(~unpickedAdjacentNodes);
+                else
+                      %% Eliminate far away nodes if this one has too many neighbors
+                      % Calculate scores (distances).
+                      scores = -distances(adjacentNodes);
+
+                      % Eliminate nodes having lower scores.
+                     if numel(adjacentNodes)>averageNodeDegree
+                           [idx] = getLargestNElements(scores, averageNodeDegree);
+                           adjacentNodes = adjacentNodes(idx);
+                    end
                 end
 
                 %% Assign final adjacent nodes.

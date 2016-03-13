@@ -144,7 +144,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxImageDim = 2000; %Max dimension of the 
                                        % images the algorithm will work
