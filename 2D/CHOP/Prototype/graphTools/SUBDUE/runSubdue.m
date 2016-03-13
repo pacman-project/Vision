@@ -166,7 +166,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
 %                nodeItr
 %           end
 %      end
-                  
+    
     % Graph size formulation.
     if strcmp(evalMetric, 'likelihood')
          graphSize = numberOfAllEdges + numel(graphLevel);
@@ -406,6 +406,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                 end
             end
         end
+        
         if ~isempty(childSubArrExtend)
             %% A substructure has many different parse trees at this point.
             % We remove duplicate subs from childSubArr.

@@ -354,8 +354,10 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
          clusters = cluster(Z, 'maxclust', clusterCount);
 
          % Visualize dendogram.
-          figure, dendrogram(Z, min(clusterCount, 50));
-          saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_dendogram.png']);
+          try %#ok<TRYNC>
+               figure, dendrogram(Z, min(clusterCount, 50));
+               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_dendogram.png']);
+          end
           close all;
     end
     

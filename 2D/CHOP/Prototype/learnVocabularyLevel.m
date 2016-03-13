@@ -23,7 +23,7 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [] = learnVocabularyLevel(datasetName)     
+function [] = learnVocabularyLevel(datasetName)
    % Reduce memory consumption by writing all stuff to files,
    % clearing all, and then returning back to computation.
    disp('Loading workspace from the previous layer.');
@@ -110,7 +110,6 @@ function [] = learnVocabularyLevel(datasetName)
    end
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
-%        vocabLevel = learnChildPositions(vocabLevel, allModes{levelItr-1});
    display('........ Learning sub-part label and position distributions.');
    vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1}, levelItr, options);
    java.lang.System.gc();

@@ -105,6 +105,7 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     edgeChangeLevel = -1;
     bInfo = dbstatus;
+    
     % Save workspace into a file.
     disp('Saving layer 1 workspace.');
     levelItr = 1;
