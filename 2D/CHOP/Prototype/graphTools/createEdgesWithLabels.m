@@ -40,8 +40,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     %% Program options into variables.
     edgeNoveltyThr = 1-options.edgeNoveltyThr;
     maxNodeDegree = options.maxNodeDegree;
-    % Eliminate low-scored adjacency links to keep the graph degree at a constant level.
-    averageNodeDegree = maxNodeDegree;
     
     %% Put each image's node set into a different bin.
     numberOfImages = double(max(imageIds));
@@ -89,7 +87,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     end
     
     %% Process each set separately (and in parallel)
-    for setItr = 1:numberOfSets
+    parfor setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          imageNodeIdxSets = setNodeIdxSets{setItr};
          imageGraphNodeSets = setGraphNodeSets{setItr};
@@ -118,11 +116,12 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
              %% Find all edges within this image.
              for nodeItr = 1:numberOfNodes
                 centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
-                distances = sqrt(sum((curNodeCoords - centerArr).^2, 2));
+                distances = zeros(numberOfNodes,1);
                 adjacentNodes = curNodeCoords(:,1) > (centerArr(:,1) - halfMatrixSize) & ...
                      curNodeCoords(:,1) < (centerArr(:,1) + halfMatrixSize) & ...
                      curNodeCoords(:,2) > (centerArr(:,2) - halfMatrixSize) & ...
                      curNodeCoords(:,2) < (centerArr(:,2) + halfMatrixSize);
+                distances(adjacentNodes) = sum((curNodeCoords(adjacentNodes,:) - centerArr(adjacentNodes,:)).^2, 2);
 
                 %% Check for edge novelty.
                 adjacentNodeIdx = find(adjacentNodes);
@@ -150,14 +149,50 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                     end
                 end           
 
-                %% Eliminate adjacent which are far away, if the node has too many neighbors.
-                % Calculate scores (distances).
-                scores = distances(adjacentNodes);
+                %% Now, we'll find a canonical edge representation for this node. 
+                % We'll pick adjacent nodes one by one, based on their
+                % contribution (addition of novel nodes), and their
+                % distance. Ideally, we want to pick closer nodes with high
+                % contributions.
+                if currentLevelId > 1
+                     curNodeList = centerLeafNodes;
+                     unpickedAdjacentNodes = ones(numel(adjacentNodes),1) > 0;
+                     selectedNodeCount = 0;
+                     
+                     while selectedNodeCount < maxNodeDegree
+                         % If all nodes are picked, break.
+                         if nnz(unpickedAdjacentNodes) == 0
+                              break;
+                         end
 
-                % Eliminate nodes having lower scores.
-                if numel(adjacentNodes)>averageNodeDegree
-                     [idx] = getLargestNElements(scores, averageNodeDegree);
-                     adjacentNodes = adjacentNodes(idx);
+                         % Get the adjacent nodes to work with.
+                         tempAdjacentNodes = adjacentNodes(unpickedAdjacentNodes);
+
+                         % Count the number of novel nodes for every adjacent
+                         % node (which wasn't picked).
+                         novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(tempAdjacentNodes))';
+                         if nnz(novelNodeCounts) == 0
+                              break;
+                         end
+
+                         % Now, we pick next best adjacent node. 
+                         sortArr = [-novelNodeCounts, distances(tempAdjacentNodes)];
+                         [~, idx] = sortrows(sortArr);
+                         unpickedAdjacentNodes(idx(1)) = 0;
+                         curNodeList = fastsortedunique(sort(cat(2, curNodeList, curLeafNodes{tempAdjacentNodes(idx(1))})));
+                         selectedNodeCount = selectedNodeCount + 1;
+                     end
+                     adjacentNodes = adjacentNodes(~unpickedAdjacentNodes);
+                else
+                      %% Eliminate far away nodes if this one has too many neighbors
+                      % Calculate scores (distances).
+                      scores = -distances(adjacentNodes);
+
+                      % Eliminate nodes having lower scores.
+                     if numel(adjacentNodes)>averageNodeDegree
+                           [idx] = getLargestNElements(scores, averageNodeDegree);
+                           adjacentNodes = adjacentNodes(idx);
+                    end
                 end
 
                 %% Assign final adjacent nodes.

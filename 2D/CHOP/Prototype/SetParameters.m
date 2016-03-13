@@ -34,6 +34,10 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                       % If 2, size of the receptive field
                                       % is halved, as in the previous
                                       % version of the algorithm.
+    options.poolFlag = false; % If true, we apply max pooling to reduce number of 
+                                            %  realizations. Otherwise,
+                                            %  positions are updated, but
+                                            %  no elimination is performed.
     
     %% ========== VALIDATION PARAMETERS ==========
     options.validationFlag = false; % If true, a subset of the training

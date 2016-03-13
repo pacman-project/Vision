@@ -5,6 +5,7 @@
 %>
 %> @param graphLevel The current graph level.
 %> @param poolDim Pooling dimension.
+%> @param poolFlag Flag for pooling-based elimination.
 %>
 %> @retval updatedGraphLevel Remaining graph level nodes.
 %> 
@@ -12,7 +13,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 16.09.2015
-function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim )
+function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim, poolFlag )
      labelIds = cat(1, graphLevel.labelId);
      imageIds = cat(1, graphLevel.imageId);
      coords = cat(1, graphLevel.position);
@@ -43,7 +44,11 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim )
      
      %% Downsample the coordinates (pooling), and then perform max operation.
      combinedArr(:,3:4) = floor((combinedArr(:,3:4) - 1)/poolDim) + 1;
-     [~, IA, ~] = unique(combinedArr, 'rows', 'stable');
+     if poolFlag
+         [~, IA, ~] = unique(combinedArr, 'rows', 'stable');
+     else
+          IA = (1:size(combinedArr,1))';
+     end
      
      % Save real indices and activations.
      idx = idx(IA);

@@ -103,13 +103,6 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
              sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
              sub.instanceSigns = sub.instanceSigns(validInstances,:);
              sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
-%              
-%              if ~isempty(extendSub) && nnz(validInstancesExt) > 0
-%                   1
-%              else
-%                   2
-%                   
-%              end
         end
         
         % We compress the object graph using the children, and the
