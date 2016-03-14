@@ -211,7 +211,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     else
          clusterStep = 1;
  %        sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1), maxIdx]);
-         sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
+         sampleCounts = min([round(options.reconstruction.numberOfORNodes/10), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
          DBVals = zeros(numel(sampleCounts),1);
          dunnVals = zeros(numel(sampleCounts),1);
          valIndices =  zeros(numel(sampleCounts),1);
@@ -237,9 +237,12 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               
               % Within-cluster sum of squares.
               tempMatrix = zeros(size(centers,2), size(centers,2));
+%              SSWTemp = 0;
               for centerItr = 1:clusterCount
                    idx = clusters == centerItr;
                    vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
+%                   SSWCluster = sum(sum(vectDiff.^2));
+%                   SSWTemp = SSWTemp + SSWCluster;
                    vals = vectDiff' * vectDiff;
                    tempMatrix = vals + tempMatrix;
               end
@@ -254,10 +257,10 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               SSB = trace(SSB);
               
               % Total sum of squares.
-%               vectDiff = descriptors - repmat(C, size(descriptors,1), 1);
-%               SST = vectDiff' * vectDiff;
-%               SST = trace(SST);
-              SST = SSW + SSB;
+               vectDiff = descriptors - repmat(C, size(descriptors,1), 1);
+               SST = vectDiff' * vectDiff;
+               SST = trace(SST);
+ %             SST = SSW + SSB;
               
               % Intra-cluster distance.
               tempMatrix = zeros(clusterCount,1);
@@ -344,8 +347,10 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
          val = find(cutoffRatios(bufSize:end-bufSize) <= 0.5, 1, 'first');
          clusterCount = sampleCounts(val);
          if isempty(val)
-              [~, idx] = max(dunnVals);
-              clusterCount = idx(1);
+              [~, idx] = min(cutoffRatios(bufSize:end-bufSize));
+              clusterCount = sampleCounts(idx(1) + bufSize);
+%              [~, idx] = max(dunnVals);
+%              clusterCount = sampleCounts(idx(1));
          end
          
          % Find optimal number of clusters.
