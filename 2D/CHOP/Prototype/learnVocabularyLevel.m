@@ -207,13 +207,14 @@ function [] = learnVocabularyLevel(datasetName)
 
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
+   display('Writing output to files.');
    [exportArr, activationArr, precisePositions] = exportRealizations(mainGraph); %#ok<ASGLU>
-   save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', 'precisePositions', '-append'); 
+   save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', 'precisePositions', '-append', '-v7.3'); 
    clear exportArr  activationArr precisePositions;
 
    % Print everything to files.
-   save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', 'edgeChangeLevel', '-append');
-   save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph'); 
+   save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', 'edgeChangeLevel', '-append', '-v7.3');
+   save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
    
       %% If we've reached max number of layers, don't keep going forward.
    if levelItr == options.maxLevels || stopFlag
@@ -240,7 +241,7 @@ function [] = learnVocabularyLevel(datasetName)
           % Backproject parts to the images.
           display('........ Imagining parts and their instances! This can take a while...');
           if options.vis.printTrainRealizations
-%                         projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
+               projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
           end
           matlabpool('open', options.numberOfThreads);
      end
