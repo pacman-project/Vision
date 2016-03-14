@@ -189,8 +189,8 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                       scores = -distances(adjacentNodes);
 
                       % Eliminate nodes having lower scores.
-                     if numel(adjacentNodes)>averageNodeDegree
-                           [idx] = getLargestNElements(scores, averageNodeDegree);
+                     if numel(adjacentNodes)>maxNodeDegree
+                           [idx] = getLargestNElements(scores, maxNodeDegree);
                            adjacentNodes = adjacentNodes(idx);
                     end
                 end
