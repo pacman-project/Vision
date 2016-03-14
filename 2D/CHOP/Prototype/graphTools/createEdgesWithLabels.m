@@ -93,10 +93,10 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
          imageGraphNodeSets = setGraphNodeSets{setItr};
          imageNodeIdArr = setNodeIdArr{setItr} ;
          imageNodeCoordArr = setNodeCoordArr{setItr};
+         disp(['Processing set ' num2str(setItr) ', which has ' num2str(numel(imageIdx)) ' images.']);
          
          % For every image in this set, find edges and save them.
          for imageItr = 1:numel(imageIdx)
-             disp(['From set ' num2str(setItr) ', processing image ' num2str(imageIdx(imageItr)) '.']);
              imageNodeOffset = imageNodeOffsets(imageIdx(imageItr));
              imageNodeIdx = imageNodeIdxSets{imageItr};
              numberOfNodes = numel(imageNodeIdx);
