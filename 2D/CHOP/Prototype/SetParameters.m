@@ -18,7 +18,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
     if ~isTraining
         options.debug = 1;
     else
-        options.debug = 1;           % If debug = 1, additional output will be 
+        options.debug = 0;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end
     options.fastStatLearning = true;

@@ -31,6 +31,8 @@
 function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, levelItr, options)
     edgeCoords = options.edgeCoords;
     distType = options.distType;
+    stopFlag = options.stopFlag;
+    
     vocabulary{levelItr} = vocabLevel;
     filterSize = size(options.filters{1});
     halfSize = ceil(filterSize(1)/2); 
@@ -146,6 +148,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    H = fspecial('gaussian', 5, 1);
    
    % Get product of expert predictions.
+   display('........ Visualizing parts using Product of Experts..');
    mkdir([options.debugFolder '/level' num2str(levelItr) '/modalProjection/']);
    debugFolder = options.debugFolder;
    parfor vocabNodeItr = 1:numberOfNodes
@@ -158,6 +161,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
         imwrite(blurredMuImg/max(max(blurredMuImg)), [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '_blurred.png']);
    end
    
+   display('........ Calculating part distances and performing clustering, based on a dynamic cut-off index..');
    if strcmp(distType, 'modal')
         % Finally, calculate distances.
         if numel(vocabLevel) > 1
@@ -203,159 +207,166 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     % First, we check for the necessity.
     % All good, group the nodes here.
     newDistanceMatrixVect = squareform(newDistanceMatrix);
-    Z = linkage(newDistanceMatrixVect, 'weighted');
+    Z = linkage(newDistanceMatrixVect, 'ward');
     
     %% Find an optimal number of clusters based on Davies-Bouldin index.
     if size(newDistanceMatrix,1) < 3
          clusters = (1:size(newDistanceMatrix,1))';
     else
-         clusterStep = 1;
- %        sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1), maxIdx]);
-         sampleCounts = min([round(options.reconstruction.numberOfORNodes/10), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
-         DBVals = zeros(numel(sampleCounts),1);
-         dunnVals = zeros(numel(sampleCounts),1);
-         valIndices =  zeros(numel(sampleCounts),1);
-         cutoffRatios =  zeros(numel(sampleCounts),1);
-         stepItr = 1;
-         C = mean(descriptors,1);
-         
-         for clusterCount  = sampleCounts
- %             maxVal = max(orgMaxVal, Z(end-(clusterCount-2)))-0.00001;
-%              clusters = cluster(Z, 'Cutoff', maxVal, 'Criterion', 'distance');
-              clusters = cluster(Z, clusterCount);
-              
-              %% Dunn's index.
-              dunnVals(stepItr) = dunns(max(clusters), double(newDistanceMatrix), clusters);
-              
-              %% Davies-Boulin index.
-              % Calculate the index.
-              % First, we calculate the cluster centers.
-              centers = zeros(clusterCount, size(descriptors,2));
-              for centerItr = 1:clusterCount
-                   centers(centerItr,:) = mean(descriptors(clusters == centerItr,:),1);
-              end
-              
-              % Within-cluster sum of squares.
-              tempMatrix = zeros(size(centers,2), size(centers,2));
-%              SSWTemp = 0;
-              for centerItr = 1:clusterCount
-                   idx = clusters == centerItr;
-                   vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
-%                   SSWCluster = sum(sum(vectDiff.^2));
-%                   SSWTemp = SSWTemp + SSWCluster;
-                   vals = vectDiff' * vectDiff;
-                   tempMatrix = vals + tempMatrix;
-              end
-              SSW = trace(tempMatrix);
-              
-              % Between-cluster sum of squares.
-              tempMatrix = zeros(clusterCount,size(centers,2));
-              for centerItr = 1:clusterCount
-                   tempMatrix(centerItr,:) = nnz(clusters == centerItr) * (centers(centerItr,:) - C);
-              end
-              SSB = tempMatrix' * tempMatrix;
-              SSB = trace(SSB);
-              
-              % Total sum of squares.
-               vectDiff = descriptors - repmat(C, size(descriptors,1), 1);
-               SST = vectDiff' * vectDiff;
-               SST = trace(SST);
- %             SST = SSW + SSB;
-              
-              % Intra-cluster distance.
-              tempMatrix = zeros(clusterCount,1);
-              for centerItr = 1:clusterCount
-                   idx = clusters == centerItr;
-                   vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
-                   sums = sum(sum(vectDiff.^2));
-                   tempMatrix(centerItr) = sqrt(sums);
-              end
-              CIntra = sum(tempMatrix);
-              
-              % Inter-cluster distance.
-              tempMatrix = zeros(clusterCount, clusterCount);
-              for centerItr1 = 1:clusterCount
-                   for centerItr2 = 1:clusterCount
-                        tempMatrix(centerItr1, centerItr2) = sqrt(sum((centers(centerItr1, :) - centers(centerItr2,:)).^2));
-                   end
-              end
-              CInter = sum(sum(tempMatrix)) / (clusterCount^2);
-%              CInter2 = sum(sum(pdist(centers))) / (clusterCount^2);
+         % If stop flag is not up, we find an optimal number of clusters.
+         if ~stopFlag
+              clusterStep = 1;
+      %        sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1), maxIdx]);
+              sampleCounts = min([round(options.reconstruction.numberOfORNodes/10), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
+              DBVals = zeros(numel(sampleCounts),1);
+              dunnVals = zeros(numel(sampleCounts),1);
+              valIndices =  zeros(numel(sampleCounts),1);
+              cutoffRatios =  zeros(numel(sampleCounts),1);
+              stepItr = 1;
+              C = mean(descriptors,1);
 
-              % Final index
-              valIndices(stepItr) = abs(((SSW/SSB)*SST) - (CIntra/CInter) - (size(descriptors,1) - clusterCount));
-              if stepItr > 1
-                   if valIndices(stepItr)>valIndices(stepItr-1)
-                        cutoffRatios(stepItr) = valIndices(stepItr-1) / valIndices(stepItr);
-                   else
-                        cutoffRatios(stepItr) = valIndices(stepItr) / valIndices(stepItr-1);
+              for clusterCount  = sampleCounts
+      %             maxVal = max(orgMaxVal, Z(end-(clusterCount-2)))-0.00001;
+     %              clusters = cluster(Z, 'Cutoff', maxVal, 'Criterion', 'distance');
+                   clusters = cluster(Z, clusterCount);
+
+                   %% Dunn's index.
+                   dunnVals(stepItr) = dunns(max(clusters), double(newDistanceMatrix), clusters);
+
+                   %% Davies-Boulin index.
+                   % Calculate the index.
+                   % First, we calculate the cluster centers.
+                   centers = zeros(clusterCount, size(descriptors,2));
+                   for centerItr = 1:clusterCount
+                        centers(centerItr,:) = mean(descriptors(clusters == centerItr,:),1);
                    end
-              end
-              
-              % Second, We obtain the average distance of cluster samples
-              % within every cluster to the center.
-              sigmas = zeros(clusterCount, 1);
-              for centerItr = 1:clusterCount
-                   idx = clusters == centerItr;
-                   vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
-                   sigmas(centerItr) = mean(sqrt(sum(vectDiff.^2,2)));
-              end
-              
-              % Finally, calculate DB index.
-              DB = 0;
-              for centerItr = 1:clusterCount
-                   tempArr = zeros(clusterCount,1);
-                   for centerItr2 = 1:clusterCount
-                        if centerItr == centerItr2
-                             continue;
+
+                   % Within-cluster sum of squares.
+                   tempMatrix = zeros(size(centers,2), size(centers,2));
+     %              SSWTemp = 0;
+                   for centerItr = 1:clusterCount
+                        idx = clusters == centerItr;
+                        vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
+     %                   SSWCluster = sum(sum(vectDiff.^2));
+     %                   SSWTemp = SSWTemp + SSWCluster;
+                        vals = vectDiff' * vectDiff;
+                        tempMatrix = vals + tempMatrix;
+                   end
+                   SSW = trace(tempMatrix);
+
+                   % Between-cluster sum of squares.
+                   tempMatrix = zeros(clusterCount,size(centers,2));
+                   for centerItr = 1:clusterCount
+                        tempMatrix(centerItr,:) = nnz(clusters == centerItr) * (centers(centerItr,:) - C);
+                   end
+                   SSB = tempMatrix' * tempMatrix;
+                   SSB = trace(SSB);
+
+                   % Total sum of squares.
+                    vectDiff = descriptors - repmat(C, size(descriptors,1), 1);
+                    SST = vectDiff' * vectDiff;
+                    SST = trace(SST);
+      %             SST = SSW + SSB;
+
+                   % Intra-cluster distance.
+                   tempMatrix = zeros(clusterCount,1);
+                   for centerItr = 1:clusterCount
+                        idx = clusters == centerItr;
+                        vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
+                        sums = sum(sum(vectDiff.^2));
+                        tempMatrix(centerItr) = sqrt(sums);
+                   end
+                   CIntra = sum(tempMatrix);
+
+                   % Inter-cluster distance.
+                   tempMatrix = zeros(clusterCount, clusterCount);
+                   for centerItr1 = 1:clusterCount
+                        for centerItr2 = 1:clusterCount
+                             tempMatrix(centerItr1, centerItr2) = sqrt(sum((centers(centerItr1, :) - centers(centerItr2,:)).^2));
                         end
-                        tempArr(centerItr2) = (sigmas(centerItr) + sigmas(centerItr2)) / sqrt(sum((centers(centerItr,:) - centers(centerItr2,:)).^2));
                    end
-                   DB = DB + max(tempArr);
+                   CInter = sum(sum(tempMatrix)) / (clusterCount^2);
+     %              CInter2 = sum(sum(pdist(centers))) / (clusterCount^2);
+
+                   % Final index
+                   valIndices(stepItr) = abs(((SSW/SSB)*SST) - (CIntra/CInter) - (size(descriptors,1) - clusterCount));
+                   if stepItr > 1
+                        if valIndices(stepItr)>valIndices(stepItr-1)
+                             cutoffRatios(stepItr) = valIndices(stepItr-1) / valIndices(stepItr);
+                        else
+                             cutoffRatios(stepItr) = valIndices(stepItr) / valIndices(stepItr-1);
+                        end
+                   end
+
+                   % Second, We obtain the average distance of cluster samples
+                   % within every cluster to the center.
+                   sigmas = zeros(clusterCount, 1);
+                   for centerItr = 1:clusterCount
+                        idx = clusters == centerItr;
+                        vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
+                        sigmas(centerItr) = mean(sqrt(sum(vectDiff.^2,2)));
+                   end
+
+                   % Finally, calculate DB index.
+                   DB = 0;
+                   for centerItr = 1:clusterCount
+                        tempArr = zeros(clusterCount,1);
+                        for centerItr2 = 1:clusterCount
+                             if centerItr == centerItr2
+                                  continue;
+                             end
+                             tempArr(centerItr2) = (sigmas(centerItr) + sigmas(centerItr2)) / sqrt(sum((centers(centerItr,:) - centers(centerItr2,:)).^2));
+                        end
+                        DB = DB + max(tempArr);
+                   end
+                   DB = DB / clusterCount;
+                   DBVals(stepItr) = DB;
+                   stepItr = stepItr + 1;
               end
-              DB = DB / clusterCount;
-              DBVals(stepItr) = DB;
-              stepItr = stepItr + 1;
-         end
-         
-         % Show DB index.
-         figure, plot(sampleCounts, cutoffRatios);
-         saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_ValidityIdx.png']);
-         close all;
-         figure, plot(sampleCounts, DBVals);
-         saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DBIdx_NoNorm.png']);
-         close all;
-         figure, plot(sampleCounts, dunnVals);
-         saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DunnIndex.png']);
-         stepSize = 5;
-         if size(newDistanceMatrix,1) > 1
-              ZVals = Z(2:end,3) - Z(1:(end-1),3);
-              figure, plot(1:size(Z,1), Z(:,3));
-              saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_combinationCosts.png']);         
+
+              % Show DB index.
+              figure, plot(sampleCounts, cutoffRatios);
+              saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_ValidityIdx.png']);
               close all;
-              figure, plot(1:numel(ZVals), ZVals);
-              saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_addedCosts.png']);
+              figure, plot(sampleCounts, DBVals);
+              saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DBIdx_NoNorm.png']);
               close all;
-              idx = stepSize:stepSize:size(Z,1);
-              figure, plot(idx, Z(idx));
-              saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_combinationCosts_Steps.png']);
-              close all;
-         end
-         
-         % Find an ideal cutoff ratio.
-         bufSize = 10;
-         val = find(cutoffRatios(bufSize:end-bufSize) <= 0.5, 1, 'first');
-         clusterCount = sampleCounts(val);
-         if isempty(val)
-              [~, idx] = min(cutoffRatios(bufSize:end-bufSize));
-              clusterCount = sampleCounts(idx(1) + bufSize);
-%              [~, idx] = max(dunnVals);
-%              clusterCount = sampleCounts(idx(1));
+              figure, plot(sampleCounts, dunnVals);
+              saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DunnIndex.png']);
+              stepSize = 5;
+              if size(newDistanceMatrix,1) > 1
+                   ZVals = Z(2:end,3) - Z(1:(end-1),3);
+                   figure, plot(1:size(Z,1), Z(:,3));
+                   saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_combinationCosts.png']);         
+                   close all;
+                   figure, plot(1:numel(ZVals), ZVals);
+                   saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_addedCosts.png']);
+                   close all;
+                   idx = stepSize:stepSize:size(Z,1);
+                   figure, plot(idx, Z(idx));
+                   saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_combinationCosts_Steps.png']);
+                   close all;
+              end
+
+              % Find an ideal cutoff ratio.
+              bufSize = 10;
+              val = find(cutoffRatios(bufSize:end-bufSize) <= 0.5, 1, 'first');
+              clusterCount = sampleCounts(val);
+              if isempty(val)
+                   [~, idx] = min(cutoffRatios(bufSize:end-bufSize));
+                   clusterCount = sampleCounts(idx(1) + bufSize);
+     %              [~, idx] = max(dunnVals);
+     %              clusterCount = sampleCounts(idx(1));
+              end
+         else
+              clusterCount = options.reconstruction.numberOfORNodes;
          end
          
          % Find optimal number of clusters.
 %          [~, maxIdx] = max(dunnVals);
 %          clusterCount = sampleCounts(maxIdx);
+
+         display(['........ Obtained ' num2str(clusterCount) ' clusters! Finishing clustering.']);
          clusters = cluster(Z, 'maxclust', clusterCount);
 
          % Visualize dendogram.
@@ -365,7 +376,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
           end
           close all;
     end
-    
     
     % Combine parts falling in the same clusters by setting their distances to zero.
     [~, IA, IC] = unique(clusters, 'stable');

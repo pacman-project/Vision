@@ -106,6 +106,7 @@ function [] = learnVocabularyLevel(datasetName)
    end
    if levelItr == options.categoryLevel || mean(nodeCoverages) >= options.categoryLevelCoverage
         stopFlag = true;
+        options.stopFlag = true;
         options.reconstruction.numberOfORNodes = options.articulationsPerCategory * options.numberOfCategories;
    end
 
@@ -140,7 +141,12 @@ function [] = learnVocabularyLevel(datasetName)
    %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
    % In addition, we re-assign the node ids in graphLevel.
   display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
-  [vocabLevel, graphLevel, eucDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, levelItr, options);
+  [vocabLevel, graphLevel, eucDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, levelItr, options);       
+  
+  % Visualize learned OR Nodes.
+  visualizeORNodes( vocabLevel, levelItr, options);
+  
+  % Update distance matrices.
   newDistanceMatrix = inf(size(eucDistanceMatrix,1), size(eucDistanceMatrix,1), 'single');
   newDistanceMatrix(1:(size(eucDistanceMatrix,1)+1):size(eucDistanceMatrix,1)*size(eucDistanceMatrix,1)) = 0;
   distanceMatrices{levelItr} = newDistanceMatrix;
@@ -199,16 +205,6 @@ function [] = learnVocabularyLevel(datasetName)
       imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_orNodes.png']);
    end
 
-   %% If we've reached max number of layers, don't keep going forward.
-   if levelItr == options.maxLevels || stopFlag
-       vocabulary = vocabulary(1:(levelItr),:);
-       allModes = allModes(1:(levelItr), :);
-       mainGraph = mainGraph(1:(levelItr),:);
-       distanceMatrices = distanceMatrices(1:(levelItr),:);
-       modeProbs = modeProbs(1:(levelItr),:);
-       return;
-   end
-
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
    [exportArr, activationArr, precisePositions] = exportRealizations(mainGraph); %#ok<ASGLU>
@@ -218,32 +214,39 @@ function [] = learnVocabularyLevel(datasetName)
    % Print everything to files.
    save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', 'edgeChangeLevel', '-append');
    save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph'); 
+   
+      %% If we've reached max number of layers, don't keep going forward.
+   if levelItr == options.maxLevels || stopFlag
+       vocabulary = vocabulary(1:(levelItr),:);
+       allModes = allModes(1:(levelItr), :);
+       mainGraph = mainGraph(1:(levelItr),:);
+       distanceMatrices = distanceMatrices(1:(levelItr),:);
+       modeProbs = modeProbs(1:(levelItr),:);
+       return;
+   end
 
    %% Visualize images and vocabulary.
-   if ~isempty(vocabLevel)
-       display('........ Visualizing previous levels...');
-       [allNodeInstances, representativeNodes] =visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
-       visualizeORNodes( vocabLevel, levelItr, options);
-       if options.debug
-          display('........ Visualizing realizations on images...');
-          if ~isempty(vocabLevel)
-               matlabpool close;
-               % Visualize realizations on images, and crop relevant
-               % image parts.
-               visualizeImages( fileList, vocabLevel, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, 'train' );
-               visualizeCroppedImgs( vocabLevel, representativeNodes, levelItr, options);
+   if ~isempty(vocabLevel) && options.debug
+     display('........ Visualizing previous levels...');
+     [allNodeInstances, representativeNodes] =visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+     display('........ Visualizing realizations on images...');
+     if ~isempty(vocabLevel)
+          matlabpool close;
+          % Visualize realizations on images, and crop relevant
+          % image parts.
+          visualizeImages( fileList, vocabLevel, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, 'train' );
+          visualizeCroppedImgs( vocabLevel, representativeNodes, levelItr, options);
 
-               % Backproject parts to the images.
-               display('........ Imagining parts and their instances! This can take a while...');
-               if options.vis.printTrainRealizations
+          % Backproject parts to the images.
+          display('........ Imagining parts and their instances! This can take a while...');
+          if options.vis.printTrainRealizations
 %                         projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
-               end
-               matlabpool('open', options.numberOfThreads);
           end
-       end
-       printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
+          matlabpool('open', options.numberOfThreads);
+     end
+     printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
+     java.lang.System.gc();
    end
-   java.lang.System.gc();
 
    % Open/close matlabpool to save memory.
    matlabpool close;

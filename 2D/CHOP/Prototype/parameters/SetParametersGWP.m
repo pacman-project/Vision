@@ -182,12 +182,14 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.articulationsPerCategory = 5; % Number of top level nodes 
                % for each category. Category nodes will be formed by
                % grouping top level parts.
+               
+               % Hint: A good number is the number of poses per object.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
     options.reconstruction.numberOfReconstructiveSubs = 2000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 200; % The maximum 
+    options.reconstruction.numberOfORNodes = 250; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 
