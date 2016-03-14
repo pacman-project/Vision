@@ -87,7 +87,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     end
     
     %% Process each set separately (and in parallel)
-    parfor setItr = 1:numberOfSets
+    for setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          imageNodeIdxSets = setNodeIdxSets{setItr};
          imageGraphNodeSets = setGraphNodeSets{setItr};
@@ -96,7 +96,8 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
          
          % For every image in this set, find edges and save them.
          for imageItr = 1:numel(imageIdx)
-             imageNodeOffset = imageNodeOffsets(imageIdx(imageItr)); %#ok<PFBNS>
+             disp(['From set ' num2str(setItr) ', processing image ' num2str(imageIdx(imageItr)) '.']);
+             imageNodeOffset = imageNodeOffsets(imageIdx(imageItr));
              imageNodeIdx = imageNodeIdxSets{imageItr};
              numberOfNodes = numel(imageNodeIdx);
 
