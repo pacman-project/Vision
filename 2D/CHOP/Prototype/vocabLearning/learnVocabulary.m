@@ -114,7 +114,13 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
  
     % Let's generate the restart script.
     fid = fopen(scriptName, 'w');
-    fileString = fprintf(fid, '#!/bin/sh\nscreen -d -m matlab -r "learnVocabularyLevel(''%s'')"', options.datasetName);
+    if ismac
+         versionName = version('-release');
+         matlabString = ['export PATH=/Applications/MATLAB_R' versionName '.app/bin:$PATH'];
+    else
+         matlabString = [];
+    end
+    fileString = fprintf(fid, '#!/bin/bash\n%s\nscreen -d -m matlab -r "learnVocabularyLevel(''%s'')"', matlabString, options.datasetName);
     system(['chmod 755 ' scriptName]);
     fclose(fid);
     
