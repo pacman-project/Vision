@@ -64,6 +64,7 @@ function [] = visualizeORNodes( currentLevel, levelId, options)
 
     % Then, write the compositions the final image.
     imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_ORNodeSets.png']);
+    clearvars
 end
 
 

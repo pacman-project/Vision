@@ -661,8 +661,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
         graphLevel = [];
     end
     
-   clear allEdges allEdgeNodePairs allSigns bestSubs remainingInstanceLabels instanceChildrenDescriptors;
    nextVocabLevel = vocabLevel;
    nextGraphLevel = graphLevel;
-   clear vocabLevel graphLevel;
+   clearvars -except nextVocabLevel nextGraphLevel optimalThreshold isSupervisedSelectionRunning previousAccuracy
 end

@@ -324,4 +324,6 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
             end
         end
     end
+    
+    clearvars
 end

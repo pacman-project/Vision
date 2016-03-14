@@ -264,8 +264,10 @@ function [] = learnVocabularyLevel(datasetName)
    save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat'], '-v7.3');
    
    % clearing all, and then returning back to computation.
-    scriptName = [options.currentFolder '/' options.datasetName '.sh'];
-   if options.restartFlag
+   scriptName = [options.currentFolder '/' options.datasetName '.sh'];
+   restartFlag = options.restartFlag;
+   clearvars -except restartFlag scriptName datasetName
+   if restartFlag
          system(scriptName);
          exit
    else

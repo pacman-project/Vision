@@ -234,4 +234,5 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
 
     % Sort array.
     modes = sortrows(modes);
+    clearvars -except modes modeProbArr
 end

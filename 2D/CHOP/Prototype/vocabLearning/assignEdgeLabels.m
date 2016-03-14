@@ -61,4 +61,5 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           graphLevel(graphLevelItr).adjInfo = edges;
           graphLevel(graphLevelItr).edgeProbabilities = probArr;
      end
+     clearvars -except graphLevel
 end

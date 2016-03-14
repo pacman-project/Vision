@@ -383,6 +383,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
          [vocabLevel.label] = deal(labelArr{:});
          newDistanceMatrix = condensedDistanceMatrix;
     end
+    
+    clearvars -except vocabLevel graphLevel newDistanceMatrix
 end
 
 %> Name: InexactMatch

@@ -71,5 +71,6 @@ function [avgShareability, avgCoverage, maxCoverageVals] = saveStats(vocabLevel,
     %% Save info.
     statFile = [options.currentFolder '/output/' options.datasetName '/' state '_' num2str(levelItr) '.mat'];
     save(statFile, 'compositionImageCountArr', 'avgShareability', 'imageCoverageArr', 'avgCoverage');
+    clearvars -except avgShareability avgCoverage maxCoverageVals
 end
 

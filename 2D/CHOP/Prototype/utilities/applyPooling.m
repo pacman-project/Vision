@@ -68,5 +68,6 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim, poolFlag )
     arrayToSort = [[updatedGraphLevel.imageId]', [updatedGraphLevel.labelId]', cat(1, updatedGraphLevel.position)];
     [~, sortedIdx] = sortrows(arrayToSort);
     updatedGraphLevel = updatedGraphLevel(sortedIdx);
+    clearvars -except updatedGraphLevel
 end
 

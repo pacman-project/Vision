@@ -244,6 +244,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
         % Re-open warnings.
         warning(w);
     end
+    clearvars -except vocabLevel
 end
 
 function parsave(fname, data, dataName) %#ok<INUSL>

@@ -47,4 +47,5 @@ function [finalImg] = printCloseFilters(distanceMatrix, representativeNodes, lev
         end
     end
     imwrite(finalImg, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_neighbors.png']);
+    clearvars -except finalImg
 end

@@ -259,7 +259,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     end
     currentLevel = cat(1, setGraphNodeSets{:});
     currentLevel = [currentLevel{:}];
-    clear setGraphNodeSets setNodeIdxSets setNodeIdArr setNodeCoordArr;
     mainGraph(currentLevelId) = {currentLevel};
-    clear currentLevel;
+    clearvars -except mainGraph
 end

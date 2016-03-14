@@ -122,5 +122,5 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
     arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]'];
     [~, sortedIdx] = sortrows(arrayToSort);
     graphLevel = graphLevel(sortedIdx);
-    clear imageGraphLevels imageAllNodeCoords preservedNodes;
+    clearvars -except graphLevel
 end

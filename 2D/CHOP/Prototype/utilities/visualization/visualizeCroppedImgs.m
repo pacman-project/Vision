@@ -166,4 +166,5 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
 
     % Then, write the compositions the final image.
     imwrite(overallInstanceImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb_cropped.png']);
+    clearvars
 end

@@ -313,6 +313,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     % Then, write the compositions the final image.
     imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
     imwrite(overallInstanceImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb_variations.png']);
+    clearvars -except allNodeInstances representativeNodes
 end
 
 
