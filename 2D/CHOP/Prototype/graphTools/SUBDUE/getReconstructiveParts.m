@@ -237,11 +237,16 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
                 children = subCoveredNodes{subItr};
                 
                 % Calculate value of a sub.
-                prevVal = sum(tempLabelProbs(children)) + sum(tempPosProbs(children));
+                % For likelihood, uncomment this line:
+%                prevVal = sum(tempLabelProbs(children)) + sum(tempPosProbs(children));
+                % For coverage, uncomment this line:
+                prevVal = nnz(tempMarkedNodes);
                 tempMarkedNodes(children) = 1;
+                diffVal = nnz(tempMarkedNodes) - prevVal;
                 tempLabelProbs(children) = subLabelProbs{subItr};
                 tempPosProbs(children) = subPosProbs{subItr};
-                diffVal =  (sum(tempLabelProbs(children)) + sum(tempPosProbs(children))) - prevVal;
+                % For likelihood, uncomment this line:
+%                diffVal =  (sum(tempLabelProbs(children)) + sum(tempPosProbs(children))) - prevVal;
 
                 % Save diffVal.
                 if diffVal < valueArr(subItr)
@@ -280,10 +285,11 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
             if coverage >= coverageStoppingVal 
                 break;
             end
-%            
-           if cumVal > stoppingFVal
-               break;
-           end
+           
+           % For likelihood, uncomment this line:
+%            if cumVal > stoppingFVal
+%                break;
+%            end
 
            % Print output.
            if rem(subCounter, 10) == 1 && subCounter > 1
@@ -292,7 +298,6 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
            end
         end
     end
-%     fval = curFVal;
     validSubs = find(selectedSubIdx >= 0.5);
     subCoveredNodes = subCoveredNodes(validSubs);
     subLabelProbs = subLabelProbs(validSubs);

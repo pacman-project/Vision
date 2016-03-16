@@ -28,7 +28,6 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
         stride = options.auto.stride;
     end
     
-    
     minPixelValue = 1/255;
     % Create filters.
     filters = options.filters;

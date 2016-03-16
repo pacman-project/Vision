@@ -28,8 +28,8 @@
 %> Ver 1.0 on 06.05.2014
 %> Update on 23.02.2015 Added comments, performance boost.
 %> Update on 25.02.2015 Added support for single node subs.
-function [] = generateOptimizedParts(vocabLevel, vocabulary, levelItr, options)
-    vocabulary{levelItr} = vocabLevel;
+function [] = generateOptimizedParts(vocabulary, levelItr, options)
+    vocabLevel = vocabulary{levelItr};
     filterSize = size(options.filters{1});
     halfSize = ceil(filterSize(1)/2); 
     samplesPerPart = 1;
@@ -78,10 +78,10 @@ function [] = generateOptimizedParts(vocabLevel, vocabulary, levelItr, options)
    imageSize = [imageSize, imageSize];
    
    % For now, we make the image bigger.
-   imageSize = round(imageSize * 1.5);
+   imageSize = round(imageSize * 1.2);
    
    %% First, for efficiency, we obtain pixel-level predictions for every part
-   parfor vocabNodeItr = 1:numel(vocabLevel)
+   for vocabNodeItr = 1:numel(vocabLevel)
         for sampleItr = 1:samplesPerPart
              % Obtain optimized projections.
              nodes = [vocabNodeItr, 0, 0, levelItr];
