@@ -106,6 +106,10 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
     edgeChangeLevel = -1;
     bInfo = dbstatus;
     
+    % Set the initial stop flag to 0. Algorithm will automatically stop
+    % when most objects are covered.
+    options.stopFlag = false;
+    
     % Save workspace into a file.
     disp('Saving layer 1 workspace.');
     levelItr = 1;
@@ -124,9 +128,6 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
     system(['chmod 755 ' scriptName]);
     fclose(fid);
     
-    % Set the initial stop flag to 0. Algorithm will automatically stop
-    % when most objects are covered.
-    options.stopFlag = false;
     
     % Reduce memory consumption by writing all stuff to files,
     % clearing all, and then returning back to computation.
