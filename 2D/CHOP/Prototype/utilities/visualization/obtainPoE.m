@@ -19,15 +19,14 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.02.2016
-function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imgSize, filters, addedExperts)
+function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imgSize, filters, likelihoodLookupTable, expertTypes)
      % Program arguments.
-     % If added expert flags haven't been given, we consider all experts as
-     % new.
-     if nargin == 6
-          addedExperts = ones(size(experts,1),1) > 0;
+     % If added expert flags haven't been given, we consider all experts as new.
+     if nargin == 7
+          expertTypes = ones(size(experts,1),1);
           prevExpertsGiven = false;
      else
-          if nnz(~addedExperts) > 0
+          if nnz(expertTypes == 0) > 0
                prevExpertsGiven = true;
           else
                prevExpertsGiven = false;
@@ -36,9 +35,11 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
      
      % Save which experts are to be processed.
      if prevExpertsGiven
-          newExperts = experts(addedExperts,:);
+          newExperts = experts(expertTypes == 1,:);
+          removedExperts = experts(expertTypes == -1,:);
      else
           newExperts = experts;
+          removedExperts = [];
      end
      
      % Calculate program arguments and allocate space for images.
@@ -48,34 +49,32 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
           varMat = zeros(imgSize);
           likelihoodMat = zeros(imgSize);
      end
-     filterSize = size(filters{1},1);
-%     maxSigma = 5;
+     filterSize = size(filters,1);
+     filterMatrixSize = size(filters);
      minSigma = 0.15;
-%     meanSigma = 0.2;
      
      % If fast flag is active, we don't take non-overlapping filters into
      % account.
-     maxInfluenceRadius = floor(filterSize/2);
+     maxInfluenceRadius = ceil(filterSize/2);
      maxDist = maxInfluenceRadius^2;
      
-     % Find sigma values for every distance.
-     vals = sqrt(0:maxDist);
-     vals = vals / floor(filterSize/2);
- %    allSigmaVals = sigmf(vals,[40 0.9]) * maxSigma;
- %    allSigmaVals(allSigmaVals < minSigma) = minSigma;
-     allSigmaVals = repmat(minSigma, size(vals,1), size(vals,2));
-     
-     % Calculate discrete pixel values.
-     pixelCenterValues = (0:255)/255;
-
      %% Now, we obtain product of non-influencing experts from a range of 1 to max.
      % Eliminate unnecessary nodes.
-     newExperts = newExperts(newExperts(:,2) > 1 & newExperts(:,2) < imgSize(1) + 1 & ...
-           newExperts(:,3) > 1 & newExperts(:,3) < imgSize(2) + 1, :);
-
+     numberOfNewExperts = nnz(expertTypes == 1);
+     numberOfOldExperts = nnz(expertTypes == 0);
+     numberOfRemovedExperts = nnz(expertTypes == -1);
+     numberOfFinalExperts = numberOfOldExperts + numberOfNewExperts - numberOfRemovedExperts;
+     finalExpertIdx = expertTypes > -1;
+     aggSigma = minSigma / sqrt(numberOfFinalExperts);
+     
+     % Find modified experts to focus on them. 
+     changedExperts = [newExperts; removedExperts];
+     changedExperts = changedExperts(changedExperts(:,2) > 1 & changedExperts(:,2) < imgSize(1) + 1 & ...
+           changedExperts(:,3) > 1 & changedExperts(:,3) < imgSize(2) + 1, :);
+     
      % Create overlap array.
      maxOverlapMatrix = zeros(imgSize) > 0;
-     idx = sub2ind(imgSize, round(newExperts(:,2)), round(newExperts(:,3)));
+     idx = sub2ind(imgSize, round(changedExperts(:,2)), round(changedExperts(:,3)));
      maxOverlapMatrix(idx) = 1;
      cx=maxInfluenceRadius+1;cy=cx;ix=2*maxInfluenceRadius+1;iy=ix;r=maxInfluenceRadius;
      [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
@@ -84,32 +83,30 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
      
      % We create a max overlap matrix based on the types of the filters.
      % Calculate remaining program variables.
-     posArr = double(experts(:,2:3));
-     gaborIdArr = double(experts(:,1));
-     numberOfExperts = size(experts,1);
-     if size(experts,2) > 3
-          activationArr = experts(:,4);
-     else
-          activationArr = ones(numberOfExperts,1);
-     end
+     posArr = double(experts(finalExpertIdx, 2:3));
+     gaborIdArr = double(experts(finalExpertIdx, 1));
      
+     % Create program variables, and find changed pixels.
      firstHalf = ceil(filterSize/2) - 1;
      secHalf = filterSize - (firstHalf+1);
      changedIdx = find(maxOverlapMatrix);
      [posX, posY] = ind2sub(imgSize, changedIdx);
      numberOfPixels = numel(changedIdx);
-     assignedSigmaVals = repmat(allSigmaVals(end), numberOfExperts, 1);
      
      %% Create dummy likelihood values for non-contributing experts.
-%     dummyProb = 1/256;
      dummyProb = normcdf([-1/510, 1/510], 0, minSigma);
      dummyProb = dummyProb(2) - dummyProb(1);
      dummyLog = log(dummyProb);
-     dummyLikelihoodVals = (1:numberOfExperts) * dummyLog;
+     dummyLikelihoodVals = (1:numberOfFinalExperts) * dummyLog;
      
      % Create dummy likelihood and variance values and add them to the
      % computation.
-     likelihoodMat(:) = likelihoodMat(:) + dummyLog * nnz(addedExperts);
+     if numberOfNewExperts ~= numberOfRemovedExperts
+          likelihoodMat = (likelihoodMat * numberOfOldExperts + ...
+               dummyLog * (numberOfNewExperts - numberOfRemovedExperts)) / numberOfFinalExperts;
+     else
+          likelihoodMat(:) = dummyLog;
+     end
      
      % Calculate pixel-level likelihoods.
      for pixelItr = 1:numberOfPixels
@@ -121,114 +118,47 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
           logProb = 0;
           location = [itr1, itr2];
           
-          % Get relative positions of experts and calculate distances to each expert.
-          distances = repmat(location, numberOfExperts, 1) - posArr;
-          actualDistances = sum(distances.^2,2);
-          actualDistances(actualDistances>=maxDist) = maxDist;
-          distances = round(distances);
-          
           % Finally, we get the filters that overlap with this point.
-          overlappingIds = distances(:,1) >(-firstHalf-1) & distances(:,1) < (secHalf+1) & distances(:,2) >(-firstHalf-1) & distances(:,2) < (secHalf+1);
-          
-          % Remove far-away experts.
-          validIdx = actualDistances < maxDist;
-          
-          % Obtain variances.
-          idx = round(actualDistances) + 1;
-          sigmaVals = assignedSigmaVals;
-          sigmaVals(validIdx) = allSigmaVals(idx(validIdx));
+          relativeLocations = -posArr;
+          relativeLocations(:,1) = relativeLocations(:,1) + location(1);
+          relativeLocations(:,2) = relativeLocations(:,2) + location(2);
+          overlappingIdx = sum(relativeLocations.^2,2) < maxDist;
+          overlappingLocations = relativeLocations(overlappingIdx,:);
+          overlappingLocations(:,1) = firstHalf + 1 + overlappingLocations(:,1); 
+          overlappingLocations(:,2) = secHalf + 1 + overlappingLocations(:,2); 
           
           % Keep track of overlapping gabors filters, and use them in
           % calculations.
-          overlappingIdx = find(validIdx);
+          overlappingIdx = find(overlappingIdx);
+          overlappingIdx = overlappingIdx(expertTypes(overlappingIdx) > -1);
+          overlappingIdxCount = numel(overlappingIdx);
 
           % No experts? Move on. We're confident.
-          if isempty(overlappingIdx)
-               predictionArr = [];
-          else 
-               predictionArr = zeros(numel(overlappingIdx), 2);
-
-               %% Calculate product of experts.
-               for expItr = 1:numel(overlappingIdx)
-                    expId = overlappingIdx(expItr);
-                    % Get the mu of the new distribution.
-                    if overlappingIds(expId) == 1
-                         filterId = gaborIdArr(expId);
-                         filterVals = filters{filterId};
-                         validPos = distances(expId,:) + [firstHalf, secHalf] + 1;
-                         predictionArr(expItr,1) = filterVals(validPos(1), validPos(2)) * activationArr(expId);
-                    else
-                         predictionArr(expItr,1) = minPixelValue;
-                    end
+           predictionIdx = overlappingLocations(:,1) + (overlappingLocations(:,2)-1)*filterMatrixSize(1) + (gaborIdArr(overlappingIdx)-1)*filterMatrixSize(1)*filterMatrixSize(2);
+           predictionArr = filters(predictionIdx);
+          
+          %% Calculate product of experts! We're using equal sigmas, which greatly reduces computation.
+          aggMu = round(sum(predictionArr)/overlappingIdxCount);
+          
+          % Update Mu and Sigma of the final predictions.
+          modalImg(itr1, itr2) = aggMu;
+          varMat(itr1, itr2) = aggSigma;
                     
-                    % Calculate sigma values based on the 2D
-                    % gaussians.
-                    predictionArr(expItr,2) = sigmaVals(expId);
-               end
-          end
-          
-          %% Calculate product of experts.
-          % If all experts have the same mu, we can speed up
-          % calculation by only calculating sigmas of the multiplied
-          % distributions (normalized pdfs).
-          if ~isempty(predictionArr)
-               uniqueMu = fastsortedunique(sort(predictionArr(:,1)));
-               if numel(uniqueMu) == 1
-                   aggMu = uniqueMu;                    
-                   aggSigma = predictionArr(1,2);
-                    for expItr = 2:size(predictionArr,1)
-                         newSigma = predictionArr(expItr,2);
-                         % Only calculate sigma values.
-                         aggSigma = sqrt(((aggSigma^2)*(newSigma^2))/(aggSigma^2+newSigma^2));
-                    end
-              else
-                    aggMu = predictionArr(1,1);
-                    aggSigma = predictionArr(1,2);
-                    for expItr = 2:size(predictionArr,1)
-                         newMu = predictionArr(expItr,1);
-                         newSigma = predictionArr(expItr,2);
-                         % Take product of gaussians.
-                         aggMu = (aggMu * (newSigma^2) + newMu * (aggSigma^2)) / (aggSigma^2 + newSigma^2);
-                         aggSigma = sqrt(((aggSigma^2)*(newSigma^2))/(aggSigma^2+newSigma^2));
-                    end
-               end
-               
-               % Now, let's convert aggMu to pixel values.
-               diffVals = abs(pixelCenterValues - aggMu);
-               [~, minIdx] = min(diffVals);
-               aggMu = pixelCenterValues(minIdx);
-               
-               % Update Mu and Sigma of the final predictions.
-               modalImg(itr1, itr2) = aggMu;
-               varMat(itr1, itr2) = aggSigma;
-          end
-          
           %% If there are values in the prediction array, we move forward.
-          if ~isempty(predictionArr)
-               % The product calculation gives us normalized values. Now,
-               % let's switch back to unnormalized values.
-               vals = repmat([aggMu - 1/510, aggMu + 1/510], size(predictionArr,1), 1);
-
-               %% Calculate log probability of individual distributions at modal point.
-               tempVals = normcdf(vals, repmat(predictionArr(:,1),1,2), repmat(predictionArr(:,2),1,2));
-               normVals = normcdf(repmat([-1/510, 1+1/510], size(vals,1), 1), repmat(predictionArr(:,1),1,2), repmat(predictionArr(:,2),1,2));
-               normVals = normVals(:,2) - normVals(:,1);
-               probs = tempVals(:,2) - tempVals(:,1);
-               probs = probs ./ normVals;
-               logProb = logProb + sum(log(probs));
-          end
+          % The product calculation gives us normalized values. Now,
+          % let's switch back to unnormalized values.
+          logProb = logProb + sum(likelihoodLookupTable(predictionArr(:,1) + 1, (aggMu+1)));
           
           % Finally, add non-overlapping predictions.
-          noncontributingExpertCount = numberOfExperts - numel(overlappingIdx);
+          noncontributingExpertCount = numberOfFinalExperts - overlappingIdxCount;
           if noncontributingExpertCount > 0
                logProb = logProb + dummyLikelihoodVals(noncontributingExpertCount);
           end
 
           %% Save the information.
-          likelihoodMat(itr1, itr2) = logProb;
+          likelihoodMat(itr1, itr2) = logProb / numberOfFinalExperts;
      end
      
+     % Return the likelihood value.
      likelihoodVal = sum(sum(likelihoodMat));
 end
-
-

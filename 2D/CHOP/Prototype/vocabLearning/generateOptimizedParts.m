@@ -44,12 +44,11 @@ function [] = generateOptimizedParts(vocabulary, levelItr, options)
         stride = options.auto.stride;
     end
     minPixelValue = 1/255;
-    filters = options.filters;
-    filters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), filters, 'UniformOutput', false);
     
     % As a case study, we replace gabors with 1D gaussian filters
     % stretched.
-    filterSize = size(filters{1},1);
+    filters = options.filters;
+    filterSize = size(filters{1},1) + 16;
     vals = normpdf(1:filterSize, (filterSize+1)/2, 5);
     vals = vals/max(vals);
     firstFilter = repmat(vals, filterSize, 1);

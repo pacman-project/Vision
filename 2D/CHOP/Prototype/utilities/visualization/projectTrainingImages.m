@@ -18,7 +18,8 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
     realLabelIds = double(cat(1, graphLevel.realLabelId));
     precisePositions = double(cat(1, graphLevel.precisePosition));
 %    minIndividualPrint = 4;
-    batchFlag = true;
+    batchFlag = false;
+    dummySigma = 0.15;
     
     if strcmp(options.filterType, 'gabor')
         inhibitionHalfSize = options.gabor.inhibitionRadius;
@@ -35,14 +36,15 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
     for filterItr = 1:numel(filters)
          curFilter = filters{filterItr};
          curFilter(curFilter<minPixelValue) = minPixelValue;
+         curFilter = round(curFilter * 255)/255;
          filters{filterItr} = curFilter;
     end
     visFilters = filters;
     
     % As a case study, we replace gabors with 1D gaussian filters
     % stretched.
-    filterSize = size(filters{1},1) + 16;
-    vals = normpdf(1:filterSize, (filterSize+1)/2, 5);
+    filterSize = size(filters{1},1) + 8;
+    vals = normpdf(1:filterSize, (filterSize+1)/2, 3);
     vals = vals/max(vals);
     firstFilter = repmat(vals, filterSize, 1);
     angle = 180/numel(filters);
@@ -50,10 +52,31 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
          curAngle = -angle * filterItr;
          curFilter = imrotate(firstFilter, curAngle, 'bilinear', 'crop');
          curFilter(curFilter<minPixelValue) = minPixelValue;
+         curFilter = round(curFilter * 255)/255;
          filters{filterItr+1} = curFilter;
     end
     
-    parfor imgItr = 1:max(imageIds)
+    %% Here, we create a likelihood lookup table for predictions.
+    likelihoodLookupTable = zeros(256);
+    startVals = (-1/510:1/255:(1+1/510))';
+    for itr = 0:255
+         probs = normcdf(startVals, ones(257, 1) * (itr/255) , repmat(dummySigma,257,1));
+ %        normProb = probs(end) - probs(1);
+         normProb = 1;
+         likelihoodLookupTable(itr+1,:) = (probs(2:end) - probs(1:(end-1))) / normProb;
+    end
+    likelihoodLookupTable = log(likelihoodLookupTable);
+    
+    %% Now, we convert the filters to uint8.
+    for filterItr = 1:numel(filters)
+         filters{filterItr} = uint8(round(filters{filterItr} * 255));
+         visFilters{filterItr} = uint8(round(visFilters{filterItr} * 255));
+    end
+    filters = cat(3, filters{:});
+    visFilters = cat(3, visFilters{:});
+    
+    %% Go through every image and find optimal version.
+    for imgItr = 1:max(imageIds)
        % Obtain image-specific realizations.
        idx = imageIds == imgItr;
        
@@ -74,7 +97,7 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
        % Now, we get the top realizations and backproject to the original
        % image.
        prevRFSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-3)) * (inhibitionHalfSize+1);
-       [muImg, ~] = optimizeImagination(curExportArr, vocabulary, options.imageSize, prevRFSize, filters, visFilters, 1, batchFlag, options.datasetName, fileName);
+       [muImg, ~] = optimizeImagination(curExportArr, vocabulary, options.imageSize, prevRFSize, filters, visFilters, 1, batchFlag, options.datasetName, likelihoodLookupTable, fileName);
 %       level1Nodes = projectNode(curExportArr, vocabulary, 0, 'modal');
 
        % For visualization, overlay the original image with reconstructed nodes.

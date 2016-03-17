@@ -16,7 +16,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.02.2016
-function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, prevImageSize, filters, visFilters, sampleItr, batchFlag, datasetName, fileName)
+function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, prevImageSize, filters, visFilters, sampleItr, batchFlag, datasetName, likelihoodLookupTable, fileName)
      stepSize = 1;
      minPixelValue = 1/255;
      stopVal = 5;
@@ -28,7 +28,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
      
      % If the file name is given, use that one.
      sampleString = 'modal';
-     if nargin < 10
+     if nargin < 11
           fileName = num2str(nodes(1,1));
           sampleString = 'sample';
      end
@@ -38,19 +38,11 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
      if ~exist(folderName, 'dir')
           mkdir(folderName);
      end
-     
      movesPerChild = 2;
      poeFlag = true;
      positionFlag = false;
      imageChoices = prevImageSize * prevImageSize;
-     for filtItr = 1:numel(visFilters)
-          tempFilt = visFilters{filtItr};
-          tempFilt = tempFilt/max(max(tempFilt));
-          tempFilt(tempFilt<minPixelValue) = minPixelValue;
-          visFilters{filtItr} = tempFilt;
-     end
-%     filters = visFilters;
-
+     
      % Shut down warnings.
      warning('off','all');
      
@@ -99,37 +91,9 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
          [modifiedExperts, ~] = unique(parseTrees(:,curItr), 'first');
          modifiedExperts = modifiedExperts';
          
-         %% Batch gradient descent requires likelihood calculations here.
-         % Get reference likelihood value.       
-         if batchFlag
-              [refModalImg, ~, ~, ~] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, visFilters);
-              if ~poeFlag
-                   refLikelihoodVal = 0;
-              else
-                   [~, ~, newRefLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters);
-                   if isempty(diffImageArr{steps+1}) && nnz(refLikelihoodMat) > 0
-                        % Obtain the difference of the likelihood image.
-                        diffLikelihoodMat = abs(newRefLikelihoodMat - refLikelihoodMat);
-                        imwrite(diffLikelihoodMat / max(max(diffLikelihoodMat)), [folderName '/diff_' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '.png']);
-                        diffImageArr{steps+1} = diffLikelihoodMat;
-                   end
-                   refLikelihoodMat = newRefLikelihoodMat;
-                   % Normalize by number of choices.
-       %            refLikelihoodVal = refLikelihoodVal / imageChoices;
-              end
-              refModalMask = refModalImg > minPixelValue;
-
-              % Print images.
-              imgName = [folderName '/' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '.png'];
-              maskName = [folderName '/mask_' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '_Mask.png'];
-              imwrite(refModalImg / max(max(refModalImg)), imgName);
-              imwrite(refModalMask, maskName);
-
-              % Save image.
-              imageArr{steps+1} = refModalImg / max(max(refModalImg));
-              poeLikelihoodArr(steps+1) = refLikelihoodVal;
-         end
-         
+         %% We obtain the reference modal image and likelihood mat, in order to be able to select parts based on their local likelihood values.
+ %        [refModalImg, ~, ~, ~] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, visFilters, likelihoodLookupTable);
+%         [~, ~, newRefLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters, likelihoodLookupTable);
          
          %% Here, we create random perturbations in the joint distribution
          % space for each expert. Then, we'll evaluate the coupled gradient 
@@ -141,11 +105,11 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
          for expertItr = 1:numel(modifiedExperts)
               % Get reference likelihood value.       
               if ~batchFlag
-                   [refModalImg, ~, ~, ~] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, visFilters);
+                   [refModalImg, ~, ~, ~] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, visFilters, likelihoodLookupTable);
                    if ~poeFlag
                         refLikelihoodVal = 0;
                    else
-                        [~, ~, newRefLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters);
+                        [~, ~, newRefLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters, likelihoodLookupTable);
                         if isempty(diffImageArr{steps+1}) && nnz(refLikelihoodMat) > 0
                              % Obtain the difference of the likelihood image.
                              diffLikelihoodMat = abs(newRefLikelihoodMat - refLikelihoodMat);
@@ -224,7 +188,6 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
               parentExpertCenter = nodeCoords(modifiedExperts(expertItr), :);
               maxMove = 0;
               maxNewPoELikelihoodVal = 0;
-              maxLikelihoodMat = [];
               maxNewPosLikelihoodVal = 0;
               
               % Before we start moving, we calculate an initial product of
@@ -232,7 +195,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
               if poeFlag              
                    oldExperts = experts(~(parseTrees(:, curItr) == modifiedExperts(expertItr)),:);
                    if ~isempty(oldExperts)
-                        [preModalImg, preVarMat, preLikelihoodMat, ~] = obtainPoE(oldExperts, modalImg, varMat, likelihoodMat, imageSize, filters);
+                        [preModalImg, preVarMat, preLikelihoodMat, ~] = obtainPoE(oldExperts, modalImg, varMat, likelihoodMat, imageSize, filters, likelihoodLookupTable);
                    else
                         preModalImg = [];
                         preVarMat = [];
@@ -240,7 +203,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
                    end
               end
               
-              addedExperts = parseTrees(:, curItr) == modifiedExperts(expertItr);
+              addedExperts = double(parseTrees(:, curItr) == modifiedExperts(expertItr));
               
               % Calculate moves, and their gradients.
               for moveItr = 1:numberOfMoves
@@ -283,7 +246,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
                    expertJointLikelihoodVal = refLikelihoodVal + expertPosLikelihoodVal;
                    if poeFlag
                         if ~isinf(newPosLikelihoodVal)
-                             [~, ~, newLikelihoodMat, ~] = obtainPoE(tempExperts, preModalImg, preVarMat, preLikelihoodMat, imageSize, filters, addedExperts);
+                             [~, ~, newLikelihoodMat, ~] = obtainPoE(tempExperts, preModalImg, preVarMat, preLikelihoodMat, imageSize, filters, likelihoodLookupTable, addedExperts);
                              newPoELikelihoodVal = sum(sum(newLikelihoodMat));
                              newVal = newPosLikelihoodVal + newPoELikelihoodVal;
                         else
@@ -358,7 +321,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
               if batchFlag
                    experts = batchExperts;
                    nodeCoords = batchNodeCoords;
-                   [~, ~, maxLikelihoodMat, maxNewPoELikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters);
+                   [~, ~, maxLikelihoodMat, maxNewPoELikelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imageSize, filters, likelihoodLookupTable);
                    display(['PoE likelihood changed from ' num2str(round(refLikelihoodVal)) ' to ' num2str(round(maxNewPoELikelihoodVal)) '.']);
                    % Increase steps.
                    steps = steps + 1;              
