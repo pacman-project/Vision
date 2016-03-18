@@ -104,7 +104,7 @@ function [] = learnVocabularyLevel(datasetName)
    for nodeItr = 1:numel(graphLevel)
         nodeCoverages(nodeItr) = numel(graphLevel(nodeItr).leafNodes) / nnz(level1Coords(:,1) == graphLevel(nodeItr).imageId);
    end
-   if levelItr == options.categoryLevel || mean(nodeCoverages) >= options.categoryLevelCoverage
+   if levelItr == options.categoryLevel || mean(nodeCoverages / avgCoverage) >= options.categoryLevelCoverage
         stopFlag = true;
         options.stopFlag = true;
         options.reconstruction.numberOfORNodes = options.articulationsPerCategory * options.numberOfCategories;
@@ -192,7 +192,7 @@ function [] = learnVocabularyLevel(datasetName)
    java.lang.System.gc();
 
    %% Here, we bring back statistical learning with mean/variance.
-   [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, debug);
+   [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, options.debug);
    graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
    mainGraph{levelItr} = graphLevel;
    allModes{levelItr} = modes;
