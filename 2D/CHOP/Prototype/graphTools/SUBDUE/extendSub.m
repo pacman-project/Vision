@@ -22,7 +22,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     allUsedEdgeIdx = sub.instanceEdges;
     if ~isempty(allUsedEdgeIdx)
         allUsedEdgeIdx = mat2cell(allUsedEdgeIdx, ones(size(allUsedEdgeIdx,1),1), size(allUsedEdgeIdx,2));
-        allUnusedEdgeIdx = cellfun(@(x,y) setdiff(1:size(x,1),y), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
+        allUnusedEdgeIdx = cellfun(@(x,y) fast_setdiff(1:size(x,1),y), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
         allUnusedEdges = cellfun(@(x,y) x(y,:), subAllEdges, allUnusedEdgeIdx, 'UniformOutput', false);
         allUnusedEdgeIdx = [allUnusedEdgeIdx{:}]';
     else
@@ -58,15 +58,6 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(enumeratedEdges, 'rows');
-    
-    % Discard any edge types already existing in sub definition.
-    if ~isempty(sub.edges)
-        sizeEdges = size(uniqueEdgeTypes,1);
- %       uniqueEdgeTypes = setdiff(uniqueEdgeTypes, sub.edges, 'rows');
-%         if sizeEdges ~= size(uniqueEdgeTypes,1)
-%              1
-%         end
-    end
     
     % Extend the definition in sub with each edge type in uniqueEdgeTypes.
     % In addition, we pick suitable instances, add this edge, and mark used
@@ -182,4 +173,11 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     end
     
     extendedSubs = extendedSubs(validSubs);
+end
+
+function Z = fast_setdiff(X,Y)
+       check = false(1, max(max(X), max(Y)));
+       check(X) = true;
+       check(Y) = false;
+       Z = X(check(X));  
 end

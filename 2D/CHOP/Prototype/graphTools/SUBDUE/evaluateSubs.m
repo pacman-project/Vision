@@ -31,9 +31,7 @@
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extendSubs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, isMDLNormalized, ...
-     allLeafNodes, minRFCoverage, possibleLeafNodes)
-
-    maxLeafCounts = cellfun(@(x) numel(x), possibleLeafNodes);
+     allLeafNodes, minRFCoverage, maxLeafCounts, avgDegree)
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
     validExtSubs = ones(numberOfSubs,1) > 0;
@@ -49,14 +47,8 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
         % Calculate Substructure score.
         [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
            allSigns, mdlNodeWeight, mdlEdgeWeight, ....
-            overlap, isMDLExact);
+            overlap, isMDLExact, avgDegree);
        
-       if ~isempty(extendSubs)
-            extendSub = extendSubs(subItr);
-       else
-            extendSub = [];
-       end
-        
        % If this sub has multiple children, we process the instances to
        % make sure those instances which cover a large portion of their
        % receptive field survives.

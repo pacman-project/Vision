@@ -47,7 +47,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
     nodePositions, edgeCoords, ...
     singlePrecision, numberOfFinalSubs, fixedThreshold, ...
     validationFolds, validationIdx, categoryArrIdx, imageIdx, ...
-    allSigns, allLeafNodes, possibleLeafNodes, supervisionFlag)
+    allSigns, allLeafNodes, possibleLeafNodeCounts, supervisionFlag)
 
     % Keep a list of positive children, if required.
     posNodes = find(allSigns);
@@ -129,7 +129,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
         else
            [validSubs, ~, ~] = getReconstructiveParts(bestSubs, realNodeLabels, ...
                 nodePositions, edgeCoords, ...
-                optimalCount, remainingChildren, allLeafNodes, possibleLeafNodes);
+                optimalCount, remainingChildren, allLeafNodes, possibleLeafNodeCounts);
         end
         aggregatedSubs{valItr} = validSubIdx(validSubs);
     end

@@ -57,6 +57,12 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     nextVocabLevel = [];
     nextGraphLevel = [];
     
+    if levelItr > 1
+        maxPossibleSize = options.maxNodeDegree + 1;
+    else
+         maxPossibleSize = inf;
+    end
+    
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
     mdlNodeWeight = options.subdue.mdlNodeWeight;
@@ -116,6 +122,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     allEdgeNodePairs = cat(1,allEdges.adjInfo);
     allEdgeNodePairs = allEdgeNodePairs(:,1:2);
     clear assignedEdges;
+    avgDegree = size(allEdgeNodePairs,1)/numel(graphLevel);
     
     % Get leaf nodes for each child.
     allLeafNodes = {graphLevel.leafNodes};
@@ -140,7 +147,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     % Learn possible leaf nodes within every RF, and save them for future
     % use. For this one, we consider only the nodes within the receptive
     % field.
-    possibleLeafNodes = cell(numel(allLeafNodes),1);
+    possibleLeafNodeCounts = zeros(numel(allLeafNodes),1);
 %     bounds = calculateRFBounds(nodePositions, levelItr, options, false);
 %     for nodeItr = 1:size(allSigns,1);
 %         possibleLeafNodes{nodeItr} = int32(find(level1Nodes(:,1) == imageIdx(nodeItr) & ...
@@ -155,9 +162,9 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
 %                validIdx = ismembc(tempLeafNodes, sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))');
 %           end
           if isempty(allEdges(nodeItr).adjInfo)
-               possibleLeafNodes{nodeItr}  = (graphLevel(nodeItr).leafNodes)';
+               possibleLeafNodeCounts(nodeItr)  = numel((graphLevel(nodeItr).leafNodes)');
           else
-               possibleLeafNodes{nodeItr} = fastsortedunique(sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))');
+               possibleLeafNodeCounts(nodeItr) = numel(fastsortedunique(sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))'));
           end
  %         possibleLeafNodes{nodeItr} = tempLeafNodes(validIdx);
      end
@@ -253,7 +260,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                % Evaluate them.
                 singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, [], evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, false, ...
-                    allLeafNodes, minRFCoverage, possibleLeafNodes);
+                    allLeafNodes, minRFCoverage, possibleLeafNodeCounts, avgDegree);
 
                 %% Remove those with no instances. 
                 centerIdxArr = {singleNodeSubsFinal.instanceCenterIdx};
@@ -317,12 +324,14 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
 
                  % Get the list of final subs and indices of subs chosen
                  % for extension. 
-                [childSubsFinal, childSubsExtend] = getFinalSubs(childSubs, adaptiveThreshold);
+ %               [childSubsFinal, childSubsExtend] = getFinalSubs(childSubs, adaptiveThreshold);
+                childSubsFinal = childSubs;
+                childSubsExtend = childSubs;
                  
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 [childSubsFinal, childSubsExtend, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, childSubsExtend, evalMetric, allEdges, allEdgeNodePairs, ...
                     allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, ...
-                    false, allLeafNodes, minRFCoverage, possibleLeafNodes);
+                    false, allLeafNodes, minRFCoverage, possibleLeafNodeCounts, avgDegree);
                 
                 % Assign mdl scores of subs chosen for extension as well. 
                 [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
@@ -439,7 +448,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                  %% We employ a greedy approach, and keep info of instances with maximum number of leaf nodes.
                  coveredLeafNodes = cell(numel(instanceCenterIdx),1);
                  for childItr = 1:numel(instanceCenterIdx)
-                      coveredLeafNodes{childItr} = int32(unique(cat(2, allLeafNodes{instanceChildren(childItr,:)})));
+                      coveredLeafNodes{childItr} = int32(fastsortedunique(sort(cat(2, allLeafNodes{instanceChildren(childItr,:)}))));
                  end
                  coveredLeafNodeCount = cellfun(@(x) numel(x), coveredLeafNodes);
                  
@@ -464,8 +473,8 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
             
         clear childSubArrExtend childSubArrFinal;
         
-        %% Step 2.6: Swap expandedSubs with parentSubs.
-        if haltedParent == -1
+        %% Step 2.6: Swap expandedSubs with parentSubs, if we're still allowed to proceed.
+        if haltedParent == -1 && currentSize < maxPossibleSize
             display('[SUBDUE] Swapping children with parents and going on..');
             parentSubs = extendedSubs;
             currentSize = currentSize + 1;
@@ -500,7 +509,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     %% Calculate maximum coverage possible based on the data at hand.
     allRemainingChildren = {bestSubs.instanceChildren};
     allRemainingChildren = cellfun(@(x) x(:), allRemainingChildren, 'UniformOutput', false);
-    allRemainingChildren = unique(cat(1, allRemainingChildren{:}));
+    allRemainingChildren = fastsortedunique(sort(cat(1, allRemainingChildren{:})));
     maxCoverage = numel(allRemainingChildren) / numel(graphLevel);
     display(['[SUBDUE] Maximal coverage possible: %' num2str(maxCoverage * 100) '.']);
     clear vocabLevel graphLevel
@@ -512,7 +521,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            [selectedSubs, selectedThreshold, optimalAccuracy] = selectParts(bestSubs, realNodeLabels,...
                nodePositions, edgeCoords, singlePrecision, ...
                numberOfReconstructiveSubs, orgThreshold, ...
-               validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, allLeafNodes, possibleLeafNodes, ...
+               validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, allLeafNodes, possibleLeafNodeCounts, ...
                isSupervisedSelectionRunning);
            
            % If supervision flag is set, and the performance has dropped
@@ -526,7 +535,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                [selectedSubs, selectedThreshold, previousAccuracy] = selectParts(bestSubs, realNodeLabels, ...
                    nodePositions, edgeCoords, singlePrecision, ...
                    numberOfReconstructiveSubs, orgThreshold, ...
-                   validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, allLeafNodes, possibleLeafNodes, ...
+                   validationFolds, validationIdx, categoryArrIdx, imageIdx, allSigns, allLeafNodes, possibleLeafNodeCounts, ...
                    isSupervisedSelectionRunning);
            else
                previousAccuracy = optimalAccuracy;
@@ -537,7 +546,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            % Re-evaluate best subs.
            bestSubs = evaluateSubs(bestSubs, [], 'mdl', allEdges, allEdgeNodePairs, ...
                allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, 1, isSupervised, false, ...
-               allLeafNodes, minRFCoverage, possibleLeafNodes);
+               allLeafNodes, minRFCoverage, possibleLeafNodeCounts, avgDegree);
            
            % Sort bestSubs by their mdl scores.
            mdlScores = [bestSubs.mdlScore];

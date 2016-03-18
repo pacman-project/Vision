@@ -29,7 +29,7 @@
 %> Updates
 %> Ver 1.0 on 08.10.2015
 function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(bestSubs, realNodeLabels, ...
-            nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren, allLeafNodes, possibleLeafNodes)
+            nodePositions, edgeCoords, numberOfFinalSubs, uniqueChildren, allLeafNodes, coveredLevel1NodeCounts)
 
    minNodeProbability = 0.00001;
    coverageStoppingVal = 0.99;
@@ -62,10 +62,6 @@ function [validSubs, overallCoverage, dataLikelihood] = getReconstructiveParts(b
    subLabelProbs = cell(numberOfBestSubs, 1);
    subPosProbs = cell(numberOfBestSubs, 1);
    subCoveredNodes = cell(numberOfBestSubs,1);
-   
-   % For every center node, we calculate the number of layer nodes inside
-   % its RF. This will be useful to decide coverage.
-   coveredLevel1NodeCounts = cellfun(@(x) numel(x), possibleLeafNodes);
    
    % Go over all possible part-subpart pairs, and calculate probabilities.
    parfor subItr = 1:numberOfBestSubs

@@ -36,7 +36,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     vocabulary{levelItr} = vocabLevel;
     filterSize = size(options.filters{1});
     halfSize = ceil(filterSize(1)/2); 
-    minPixelValue = 1/255;
     if strcmp(options.filterType, 'gabor')
         inhibitionHalfSize = options.gabor.inhibitionRadius;
         stride = options.gabor.stride;
@@ -88,7 +87,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    %% We  are experimenting with different distance functions.
    % Find the correct image size.
    imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) * (inhibitionHalfSize+1) + halfSize;
-   prevImageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-3)) * (inhibitionHalfSize+1);
    imageSize = [imageSize, imageSize];
    
    % For now, we make the image bigger.
@@ -96,7 +94,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    
    %% First, for efficiency, we obtain pixel-level predictions for every part.
    level1Experts = cell(numberOfNodes, 1);
-   searchMultiplier = levelItr - 1;
    parfor vocabNodeItr = 1:numberOfNodes
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
@@ -164,7 +161,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
         % function.
         sampleDescriptor = HOG(squeeze(muImgs(1,:,:)))';
         descriptors = zeros(numel(vocabLevel), size(sampleDescriptor,2));
-        for vocabNodeItr = 1:numel(vocabLevel)
+        parfor vocabNodeItr = 1:numel(vocabLevel)
              descriptors(vocabNodeItr,:) = HOG(squeeze(muImgs(vocabNodeItr,:,:)))';
         end
         newDistanceMatrixVect = pdist(descriptors);
@@ -199,8 +196,9 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
          % If stop flag is not up, we find an optimal number of clusters.
          if ~stopFlag
               clusterStep = 1;
+              maxNumberOfORNodes = options.reconstruction.maxNumberOfORNodes;
       %        sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1), maxIdx]);
-              sampleCounts = min([round(options.reconstruction.numberOfORNodes/10), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
+              sampleCounts = min([round(maxNumberOfORNodes/10), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
               dunnVals = zeros(numel(sampleCounts),1);
               valIndices =  zeros(numel(sampleCounts),1);
               cutoffRatios =  zeros(numel(sampleCounts),1);
@@ -328,8 +326,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               val = find(cutoffRatios(bufSize:end-bufSize) <= 0.5, 1, 'first');
               clusterCount = sampleCounts(val);
               if isempty(val)
-                   [~, idx] = min(cutoffRatios(bufSize:end-bufSize));
-                   clusterCount = sampleCounts(idx(1) + bufSize);
+                   clusterCount = options.reconstruction.numberOfORNodes;
      %              [~, idx] = max(dunnVals);
      %              clusterCount = sampleCounts(idx(1));
               end

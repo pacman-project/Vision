@@ -27,7 +27,7 @@
 %> Updates
 %> Ver 1.0 on 18.09.2014
 function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
-                allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact)
+                allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact, avgDegree)
     isMultiNodeSub = ~isempty(sub.edges);
     % Read signs and edges of the instances.
     instanceSigns = allSigns(sub.instanceCenterIdx);
@@ -133,12 +133,10 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             else
               % Get average degree of children.
                 if overlap
-                    uniqueNodes = unique(instanceChildren);
+                    uniqueNodes = fastsortedunique(sort(instanceChildren));
                 else
                     uniqueNodes = sort(instanceChildren(:), 'ascend');
                 end
-                uniqueEdgeList = {allEdges(uniqueNodes).adjInfo};
-                avgDegree = mean(cellfun(@(x) size(x,1), uniqueEdgeList));
 
                 %% DL calculation for compressed object graph takes place.
                 % We only take the modified parts of the new graph into account. It

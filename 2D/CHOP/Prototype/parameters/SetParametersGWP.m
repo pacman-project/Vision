@@ -186,13 +186,15 @@ function [ options ] = SetParametersGWP( datasetName, options )
                % Hint: A good number is the number of poses per object.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 2000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 4000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 250; % The maximum 
+    options.reconstruction.numberOfORNodes = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-
+    options.reconstruction.maxNumberOfORNodes = 400; % Ideal number of OR 
+    % nodes is searched in the range of 2-maxNumberOfOrNodes.
+                                           
     %% ========== GRAPH MATCHING PARAMETERS ==========
     options.nodeSimilarityAllowed = false; % If true, node similarities are 
                                            % considered in graph matching.
@@ -210,7 +212,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                            % of 1 (max value). 
 
     %% ========== KNOWLEDGE DISCOVERY PARAMETERS ==========
-    options.subdue.evalMetric = 'mdl';     % Evaluation metric for part 
+    options.subdue.evalMetric = 'size';     % Evaluation metric for part 
                                            % selection in SUBDUE.
                                            % 'mdl', 'size' or 'freq'. 
                                            % 'mdl': minimum description length,
@@ -231,7 +233,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 1200;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 3600;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -274,7 +276,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = 10; % Maximum number of nodes in a composition.
     options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 4000;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.beam = 10000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

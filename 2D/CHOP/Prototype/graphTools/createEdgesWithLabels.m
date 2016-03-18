@@ -37,7 +37,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     edgeType = options.edgeType;
     imagesPerSet = 100;
     
-    
     possibleLeafNodeCounts = zeros(numel(currentLevel),1);
      for nodeItr = 1:numel(currentLevel)
           if isempty(currentLevel(nodeItr).adjInfo)
