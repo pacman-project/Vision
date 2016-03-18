@@ -203,7 +203,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
                   
                   % Save distributions.
                   childrenPosDistributions(combItr) = {obj};
-                  childrenPosSamples(combItr) = {y};
+%                  childrenPosSamples(combItr) = {y};
                   
                   if debugFlag
                        % Visualize clusters.
@@ -238,7 +238,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
         
         vocabLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
         vocabLevel(vocabItr).childrenPosDistributions{1} = childrenPosDistributions;
-        vocabLevel(vocabItr).childrenPosSamples{1} = childrenPosSamples;
+%        vocabLevel(vocabItr).childrenPosSamples{1} = childrenPosSamples;
         vocabLevel(vocabItr).realChildren = children;
         
         % Re-open warnings.

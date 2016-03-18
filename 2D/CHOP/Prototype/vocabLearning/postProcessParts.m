@@ -134,11 +134,12 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    debugFolder = options.debugFolder;
    parfor vocabNodeItr = 1:numberOfNodes
         [muImg, ~, ~] = obtainPoE(level1Experts{vocabNodeItr}, [], [], imageSize, visFilters, []);
-        muImg = muImg/max(max(muImg));
-        blurredMuImg = imfilter(muImg, H, 'replicate');
-        muImgs(vocabNodeItr,:,:) = blurredMuImg/max(max(blurredMuImg));
-        imwrite(muImg / max(max(muImg)), [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '.png']);
-        imwrite(blurredMuImg/max(max(blurredMuImg)), [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '_blurred.png']);
+        muImg = uint8(round(255*(double(muImg) / double(max(max(muImg))))));
+        blurredMuImg = uint8(imfilter(muImg, H, 'replicate'));
+        muImgs(vocabNodeItr,:,:) = blurredMuImg;
+        blurredMuImg = uint8(round(255*(double(blurredMuImg) / double(max(max(blurredMuImg))))));
+        imwrite(muImg, [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '.png']);
+        imwrite(blurredMuImg, [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '_blurred.png']);
    end
    
    display('........ Calculating part distances and performing clustering, based on a dynamic cut-off index..');
@@ -200,7 +201,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               clusterStep = 1;
       %        sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1), maxIdx]);
               sampleCounts = min([round(options.reconstruction.numberOfORNodes/10), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
-              DBVals = zeros(numel(sampleCounts),1);
               dunnVals = zeros(numel(sampleCounts),1);
               valIndices =  zeros(numel(sampleCounts),1);
               cutoffRatios =  zeros(numel(sampleCounts),1);
@@ -261,14 +261,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    CIntra = sum(tempMatrix);
 
                    % Inter-cluster distance.
-                   tempMatrix = zeros(clusterCount, clusterCount);
-                   for centerItr1 = 1:clusterCount
-                        for centerItr2 = 1:clusterCount
-                             tempMatrix(centerItr1, centerItr2) = sqrt(sum((centers(centerItr1, :) - centers(centerItr2,:)).^2));
-                        end
-                   end
-                   CInter = sum(sum(tempMatrix)) / (clusterCount^2);
-     %              CInter2 = sum(sum(pdist(centers))) / (clusterCount^2);
+                   CInter = (sum(sum(pdist(centers)))*2) / (clusterCount^2);
 
                    % Final index
                    valIndices(stepItr) = abs(((SSW/SSB)*SST) - (CIntra/CInter) - (size(descriptors,1) - clusterCount));
@@ -289,20 +282,20 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                         sigmas(centerItr) = mean(sqrt(sum(vectDiff.^2,2)));
                    end
 
-                   % Finally, calculate DB index.
-                   DB = 0;
-                   for centerItr = 1:clusterCount
-                        tempArr = zeros(clusterCount,1);
-                        for centerItr2 = 1:clusterCount
-                             if centerItr == centerItr2
-                                  continue;
-                             end
-                             tempArr(centerItr2) = (sigmas(centerItr) + sigmas(centerItr2)) / sqrt(sum((centers(centerItr,:) - centers(centerItr2,:)).^2));
-                        end
-                        DB = DB + max(tempArr);
-                   end
-                   DB = DB / clusterCount;
-                   DBVals(stepItr) = DB;
+%                    % Finally, calculate DB index.
+%                    DB = 0;
+%                    for centerItr = 1:clusterCount
+%                         tempArr = zeros(clusterCount,1);
+%                         for centerItr2 = 1:clusterCount
+%                              if centerItr == centerItr2
+%                                   continue;
+%                              end
+%                              tempArr(centerItr2) = (sigmas(centerItr) + sigmas(centerItr2)) / sqrt(sum((centers(centerItr,:) - centers(centerItr2,:)).^2));
+%                         end
+%                         DB = DB + max(tempArr);
+%                    end
+%                    DB = DB / clusterCount;
+%                    DBVals(stepItr) = DB;
                    stepItr = stepItr + 1;
               end
 
@@ -310,9 +303,9 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               figure, plot(sampleCounts, cutoffRatios);
               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_ValidityIdx.png']);
               close all;
-              figure, plot(sampleCounts, DBVals);
-              saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DBIdx_NoNorm.png']);
-              close all;
+%               figure, plot(sampleCounts, DBVals);
+%               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DBIdx_NoNorm.png']);
+%               close all;
               figure, plot(sampleCounts, dunnVals);
               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DunnIndex.png']);
               stepSize = 5;

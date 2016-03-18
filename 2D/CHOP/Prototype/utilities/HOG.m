@@ -8,6 +8,7 @@ function H=HOG(Im)
 nwin_x=6;%set here the number of HOG windows per bound box
 nwin_y=6;
 B=8;%set here the number of histogram bins
+stepOffset = floor(B/2)+1;
 [L,C]=size(Im); % L num of lines ; C num of columns
 H=zeros(nwin_x*nwin_y*B,1); % column vector with zeros
 m=sqrt(L/2);
@@ -33,18 +34,14 @@ for n=0:nwin_y-1
         magnit2=magnit(n*step_y+1:(n+2)*step_y,m*step_x+1:(m+2)*step_x);
         v_angles=angles2(:);    
         v_magnit=magnit2(:);
-        K=max(size(v_angles));
         %assembling the histogram with 9 bins (range of 20 degrees per bin)
-        bin=0;
         H2=zeros(B,1);
-        for ang_lim=-pi+2*pi/B:2*pi/B:pi
-            bin=bin+1;
-            for k=1:K
-                if v_angles(k)<ang_lim
-                    v_angles(k)=100;
-                    H2(bin)=H2(bin)+v_magnit(k);
-                end
-            end
+        
+        % Optimized HOG!
+        stepSize = 2*pi/B;
+        v_angles2 = floor(v_angles / stepSize) + stepOffset;
+        for angItr = 1:B
+             H2(angItr) = sum(v_magnit(v_angles2 == angItr));
         end
                 
         H2=H2/(norm(H2)+0.01);        

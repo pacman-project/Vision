@@ -16,7 +16,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 21.01.2014
-function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder)
+function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder, debug)
     display('Learning modes...');
     maxSamplesPerMode = 200;
     minSamplesPerMode = 2;   
@@ -191,39 +191,40 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         end
         modeProbArr{uniqueEdgeItr} = allProbs;
         
-%         % Get the probability image for visualization.
-        gaussImg = squeeze(combinedProbs);
-        gaussImg = gaussImg / max(max(gaussImg));
-        gaussImg = uint8(round(gaussImg * 255));
-        gaussImg(gaussImg==0) = 1;
-        gaussImg = label2rgb(gaussImg, 'jet');
+        % Get the probability image for visualization.
+        if debug       
+             gaussImg = squeeze(combinedProbs);
+             gaussImg = gaussImg / max(max(gaussImg));
+             gaussImg = uint8(round(gaussImg * 255));
+             gaussImg(gaussImg==0) = 1;
+             gaussImg = label2rgb(gaussImg, 'jet');
         
-          %% Print the modes.
-         distributionImg = zeros(size(edgeIdMatrix));
-          samplesToWrite = floor(samples * edgeQuantize) ;
+               %% Print the modes.
+               distributionImg = zeros(size(edgeIdMatrix));
+               samplesToWrite = floor(samples * edgeQuantize) ;
 
-          % If no samples are to be written, move on.
-          if numel(samplesToWrite) < 1
-               continue;
-          end
-         samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
-         distributionImg(samplesInd) = classes;
+               % If no samples are to be written, move on.
+               if numel(samplesToWrite) < 1
+                    continue;
+               end
+              samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
+              distributionImg(samplesInd) = classes;
 
-          if ~exist([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/'], 'dir')
-               mkdir([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/']);
-          end
-          sampleImg = label2rgb(distributionImg, 'jet', 'k', 'shuffle');
-          imwrite(sampleImg, ...
-               [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-               '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_Samples.png']);
-          imwrite(gaussImg, ...
-               [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-               '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_GaussMap.png']);
-          areaImg = label2rgb(clusterAreas, 'jet', 'k', 'shuffle');
-          imwrite(areaImg, ...
-               [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-               '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_ClusterAreas.png']);
-          
+               if ~exist([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/'], 'dir')
+                    mkdir([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/']);
+               end
+               sampleImg = label2rgb(distributionImg, 'jet', 'k', 'shuffle');
+               imwrite(sampleImg, ...
+                    [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
+                    '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_Samples.png']);
+               imwrite(gaussImg, ...
+                    [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
+                    '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_GaussMap.png']);
+               areaImg = label2rgb(clusterAreas, 'jet', 'k', 'shuffle');
+               imwrite(areaImg, ...
+                    [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
+                    '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_ClusterAreas.png']);
+        end
         %% Save stats and move on.
         modes(uniqueEdgeItr) = {statistics};
         warning(w);

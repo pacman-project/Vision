@@ -283,7 +283,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         graphLevel = mainGraph{1};
         
         %% Here, we bring back statistical learning with mean/variance.
-        [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder);
+        [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder, options.debug);
         graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
         mainGraph{1} = graphLevel; %#ok<NASGU>
         
@@ -291,7 +291,11 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         tr_s_time=tic;  
         save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'categoryNames', 'categoryArrIdx', 'validationIdx', 'poseArr');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'trainingFileNames', 'categoryNames');
+        
+        %% Learn vocabulary!
         learnVocabulary(vocabLevel, graphLevel, leafNodes, leafNodeCoords, options, trainingFileNames, modes, modeProbArr);
+        
+        % Stop counting time.
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>
     end
     

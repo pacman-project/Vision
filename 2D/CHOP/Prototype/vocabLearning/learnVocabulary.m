@@ -128,7 +128,6 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
     system(['chmod 755 ' scriptName]);
     fclose(fid);
     
-    
     % Reduce memory consumption by writing all stuff to files,
     % clearing all, and then returning back to computation.
     if options.restartFlag

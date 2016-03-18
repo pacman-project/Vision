@@ -37,6 +37,16 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     edgeType = options.edgeType;
     imagesPerSet = 100;
     
+    
+    possibleLeafNodeCounts = zeros(numel(currentLevel),1);
+     for nodeItr = 1:numel(currentLevel)
+          if isempty(currentLevel(nodeItr).adjInfo)
+               possibleLeafNodeCounts(nodeItr)  = numel(currentLevel(nodeItr).leafNodes);
+          else
+               possibleLeafNodeCounts(nodeItr) = numel(fastsortedunique(sort(cat(2, currentLevel(currentLevel(nodeItr).adjInfo(:,1:2)).leafNodes))'));
+          end
+     end
+    
     %% Program options into variables.
     edgeNoveltyThr = 1-options.edgeNoveltyThr;
     maxNodeDegree = options.maxNodeDegree;
@@ -48,6 +58,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     imageGraphNodeSets = cell(numberOfImages, 1);
     imageNodeIdArr = cell(numberOfImages,1);
     imageNodeCoordArr = cell(numberOfImages,1);
+    imagePossibleLeafNodeCounts = cell(numberOfImages,1);
     nodeOffset = 0;
     for imageItr = 1:max(imageIds)
        imageNodeIdx = find(imageIds == imageItr)';
@@ -56,6 +67,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
        imageNodeIdArr(imageItr) = {nodeIds(imageNodeIdx)};
        imageNodeCoordArr(imageItr) = {nodeCoords(imageNodeIdx,:)};
        imageNodeOffsets(imageItr) = nodeOffset;
+       imagePossibleLeafNodeCounts(imageItr) = {possibleLeafNodeCounts(imageNodeIdx)};
        nodeOffset = nodeOffset + nnz(imageNodeIdx);
     end
     
@@ -78,12 +90,14 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     setGraphNodeSets = cell(numberOfSets,1);
     setNodeIdArr = cell(numberOfSets,1);
     setNodeCoordArr = cell(numberOfSets,1);
+    setPossibleLeafNodeCounts = cell(numberOfSets,1);
     for setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          setNodeIdxSets{setItr} = imageNodeIdxSets(imageIdx);
          setGraphNodeSets{setItr} = imageGraphNodeSets(imageIdx);
          setNodeIdArr{setItr} = imageNodeIdArr(imageIdx);
          setNodeCoordArr{setItr} = imageNodeCoordArr(imageIdx);
+         setPossibleLeafNodeCounts{setItr} = imagePossibleLeafNodeCounts(imageIdx);
     end
     
     %% Process each set separately (and in parallel)
@@ -93,6 +107,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
          imageGraphNodeSets = setGraphNodeSets{setItr};
          imageNodeIdArr = setNodeIdArr{setItr} ;
          imageNodeCoordArr = setNodeCoordArr{setItr};
+         imagePossibleLeafNodeCounts = setPossibleLeafNodeCounts{setItr};
          disp(['Processing set ' num2str(setItr) ', which has ' num2str(numel(imageIdx)) ' images.']);
          
          % For every image in this set, find edges and save them.
@@ -111,6 +126,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
              curNodeCoords = imageNodeCoordArr{imageItr};
              curGraphNodes = imageGraphNodeSets{imageItr};
              curLeafNodes = {curGraphNodes.leafNodes};
+             curPossibleLeafNodeCounts = imagePossibleLeafNodeCounts{imageItr};
              maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeNoveltyThr;
              curAdjacentNodes = cell(numberOfNodes,1);
 
@@ -157,43 +173,44 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                 % contributions.
                 if currentLevelId > 1
                      curNodeList = centerLeafNodes;
-                     unpickedAdjacentNodes = ones(numel(adjacentNodes),1) > 0;
                      selectedNodeCount = 0;
-                     
-                     while selectedNodeCount < maxNodeDegree
-                         % If all nodes are picked, break.
-                         if nnz(unpickedAdjacentNodes) == 0
-                              break;
+                     if numel(adjacentNodes) > maxNodeDegree
+                          unpickedAdjacentNodes = ones(numel(adjacentNodes),1) > 0;
+                          while selectedNodeCount < maxNodeDegree && numel(curNodeList) < curPossibleLeafNodeCounts(nodeItr)
+                              % If all nodes are picked, break.
+                              if nnz(unpickedAdjacentNodes) == 0
+                                   break;
+                              end
+
+                              % Get the adjacent nodes to work with.
+                              tempAdjacentNodes = adjacentNodes(unpickedAdjacentNodes);
+
+                              % Count the number of novel nodes for every adjacent
+                              % node (which wasn't picked).
+                              novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(tempAdjacentNodes))';
+                              if nnz(novelNodeCounts) == 0
+                                   break;
+                              end
+
+                              % Now, we pick next best adjacent node. 
+                              sortArr = [-novelNodeCounts, distances(tempAdjacentNodes)];
+                              [~, idx] = sortrows(sortArr);
+                              unpickedAdjacentNodes(idx(1)) = 0;
+                              curNodeList = fastsortedunique(sort(cat(2, curNodeList, curLeafNodes{tempAdjacentNodes(idx(1))})));
+                              selectedNodeCount = selectedNodeCount + 1;
+                          end
+                          adjacentNodes = adjacentNodes(~unpickedAdjacentNodes);
+                     else
+                           %% Eliminate far away nodes if this one has too many neighbors
+                           % Calculate scores (distances).
+                           scores = -distances(adjacentNodes);
+
+                           % Eliminate nodes having lower scores.
+                          if numel(adjacentNodes)>maxNodeDegree
+                                [idx] = getLargestNElements(scores, maxNodeDegree);
+                                adjacentNodes = adjacentNodes(idx);
                          end
-
-                         % Get the adjacent nodes to work with.
-                         tempAdjacentNodes = adjacentNodes(unpickedAdjacentNodes);
-
-                         % Count the number of novel nodes for every adjacent
-                         % node (which wasn't picked).
-                         novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(tempAdjacentNodes))';
-                         if nnz(novelNodeCounts) == 0
-                              break;
-                         end
-
-                         % Now, we pick next best adjacent node. 
-                         sortArr = [-novelNodeCounts, distances(tempAdjacentNodes)];
-                         [~, idx] = sortrows(sortArr);
-                         unpickedAdjacentNodes(idx(1)) = 0;
-                         curNodeList = fastsortedunique(sort(cat(2, curNodeList, curLeafNodes{tempAdjacentNodes(idx(1))})));
-                         selectedNodeCount = selectedNodeCount + 1;
                      end
-                     adjacentNodes = adjacentNodes(~unpickedAdjacentNodes);
-                else
-                      %% Eliminate far away nodes if this one has too many neighbors
-                      % Calculate scores (distances).
-                      scores = -distances(adjacentNodes);
-
-                      % Eliminate nodes having lower scores.
-                     if numel(adjacentNodes)>maxNodeDegree
-                           [idx] = getLargestNElements(scores, maxNodeDegree);
-                           adjacentNodes = adjacentNodes(idx);
-                    end
                 end
 
                 %% Assign final adjacent nodes.

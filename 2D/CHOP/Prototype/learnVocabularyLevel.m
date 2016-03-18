@@ -192,7 +192,7 @@ function [] = learnVocabularyLevel(datasetName)
    java.lang.System.gc();
 
    %% Here, we bring back statistical learning with mean/variance.
-   [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder);
+   [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, debug);
    graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
    mainGraph{levelItr} = graphLevel;
    allModes{levelItr} = modes;

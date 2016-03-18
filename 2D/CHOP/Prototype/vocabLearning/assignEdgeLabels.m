@@ -32,7 +32,7 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
      end
      
      % Get node ids of edges.
-     parfor graphLevelItr = 1:numel(graphLevel)
+     for graphLevelItr = 1:numel(graphLevel)
           edges = graphLevel(graphLevelItr).adjInfo;
 
           % Edges empty, do nothing.
@@ -40,7 +40,7 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
                continue;
           end
           
-          edgeNodeLabels = nodeIds(edges(:, 1:2)); %#ok<PFBNS>
+          edgeNodeLabels = nodeIds(edges(:, 1:2));
           if size(edgeNodeLabels,2) ~= 2
                edgeNodeLabels = edgeNodeLabels';
           end
@@ -49,10 +49,10 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           probArr = zeros(size(edges,1),1, 'single');
           graphLevel(graphLevelItr).realEdgeLabels = edges(:, 3);
           for edgeItr = 1:size(edges,1)
-               relevantIdx = modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2); %#ok<PFBNS>
+               relevantIdx = modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2);
                relevantModes = modes(relevantIdx,:);
-               relevantCoords = edgeCoords(edges(edgeItr,3),:); %#ok<PFBNS>
-               clusterProbs = modeProbArr(relevantIdx,relevantCoords(1),relevantCoords(2)); %#ok<PFBNS>
+               relevantCoords = edgeCoords(edges(edgeItr,3),:);
+               clusterProbs = modeProbArr(relevantIdx,relevantCoords(1),relevantCoords(2));
                [probability, clusterId] = max(clusterProbs);
                probArr(edgeItr) = probability;
                newLabel = int32(relevantModes(clusterId,3));
