@@ -32,10 +32,11 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     filters = options.filters;
     filters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), filters, 'UniformOutput', false);
     for filterItr = 1:numel(filters)
-         curFilter = filters{filterItr};
-         curFilter(curFilter<0.001) = 0.001;
-         filters{filterItr} = curFilter;
+         filters{filterItr} = uint8(round(filters{filterItr} * 255));
     end
+    filters = cat(3, filters{:});
+    filters(filters<1) = 1;
+    
     
     vocabLevelIdx = zeros(max(vocabLevelLabels),1);
     for itr = 1:max(vocabLevelLabels)
@@ -216,7 +217,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                          nodeInstances(nodeInstanceItr,2:end) = bounds;
                          
                          % Obtain a PoE visualization
-                         [currentMask, ~, ~, ~] = obtainPoE(projectedNodes, [], [], [], imgSize, filters);
+                         [currentMask, ~, ~] = obtainPoE(projectedNodes, [], [], imgSize, filters, []);
                          currentMask = uint8(currentMask*255);
                      end
                      

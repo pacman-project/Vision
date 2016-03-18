@@ -19,10 +19,10 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.02.2016
-function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg, varMat, likelihoodMat, imgSize, filters, likelihoodLookupTable, expertTypes)
+function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg, likelihoodMat, imgSize, filters, likelihoodLookupTable, expertTypes)
      % Program arguments.
      % If added expert flags haven't been given, we consider all experts as new.
-     if nargin == 7
+     if nargin == 6
           expertTypes = ones(size(experts,1),1);
           prevExpertsGiven = false;
      else
@@ -32,6 +32,7 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
                prevExpertsGiven = false;
           end
      end
+     likelihoodFlag = ~isempty(likelihoodLookupTable);
      
      % Save which experts are to be processed.
      if prevExpertsGiven
@@ -43,10 +44,8 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
      end
      
      % Calculate program arguments and allocate space for images.
-     minPixelValue = 1/255;
      if isempty(modalImg)
-          modalImg =  ones(imgSize) * minPixelValue;
-          varMat = zeros(imgSize);
+          modalImg =  ones(imgSize, 'uint8');
           likelihoodMat = zeros(imgSize);
      end
      filterSize = size(filters,1);
@@ -61,11 +60,10 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
      %% Now, we obtain product of non-influencing experts from a range of 1 to max.
      % Eliminate unnecessary nodes.
      numberOfNewExperts = nnz(expertTypes == 1);
-     numberOfOldExperts = nnz(expertTypes == 0);
+     numberOfOldExperts = nnz(expertTypes < 1);
      numberOfRemovedExperts = nnz(expertTypes == -1);
-     numberOfFinalExperts = numberOfOldExperts + numberOfNewExperts - numberOfRemovedExperts;
+     numberOfFinalExperts = numberOfOldExperts - numberOfRemovedExperts + numberOfNewExperts;
      finalExpertIdx = expertTypes > -1;
-     aggSigma = minSigma / sqrt(numberOfFinalExperts);
      
      % Find modified experts to focus on them. 
      changedExperts = [newExperts; removedExperts];
@@ -101,7 +99,7 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
      
      % Create dummy likelihood and variance values and add them to the
      % computation.
-     if numberOfNewExperts ~= numberOfRemovedExperts
+     if likelihoodFlag && numberOfNewExperts ~= numberOfRemovedExperts
           likelihoodMat = (likelihoodMat * numberOfOldExperts + ...
                dummyLog * (numberOfNewExperts - numberOfRemovedExperts)) / numberOfFinalExperts;
      else
@@ -123,40 +121,47 @@ function [modalImg, varMat, likelihoodMat, likelihoodVal] = obtainPoE(experts, m
           relativeLocations(:,1) = relativeLocations(:,1) + location(1);
           relativeLocations(:,2) = relativeLocations(:,2) + location(2);
           overlappingIdx = sum(relativeLocations.^2,2) < maxDist;
-          overlappingLocations = relativeLocations(overlappingIdx,:);
-          overlappingLocations(:,1) = firstHalf + 1 + overlappingLocations(:,1); 
-          overlappingLocations(:,2) = secHalf + 1 + overlappingLocations(:,2); 
           
           % Keep track of overlapping gabors filters, and use them in
           % calculations.
           overlappingIdx = find(overlappingIdx);
-          overlappingIdx = overlappingIdx(expertTypes(overlappingIdx) > -1);
           overlappingIdxCount = numel(overlappingIdx);
-
-          % No experts? Move on. We're confident.
-           predictionIdx = overlappingLocations(:,1) + (overlappingLocations(:,2)-1)*filterMatrixSize(1) + (gaborIdArr(overlappingIdx)-1)*filterMatrixSize(1)*filterMatrixSize(2);
-           predictionArr = filters(predictionIdx);
           
-          %% Calculate product of experts! We're using equal sigmas, which greatly reduces computation.
-          aggMu = round(sum(predictionArr)/overlappingIdxCount);
+          if overlappingIdxCount > 0
+               % Obtain relative locations.
+               overlappingLocations = relativeLocations(overlappingIdx,:);
+               overlappingLocations(:,1) = firstHalf + 1 + overlappingLocations(:,1); 
+               overlappingLocations(:,2) = secHalf + 1 + overlappingLocations(:,2); 
+
+               % No experts? Move on. We're confident.
+                predictionIdx = overlappingLocations(:,1) + (overlappingLocations(:,2)-1)*filterMatrixSize(1) + (gaborIdArr(overlappingIdx)-1)*filterMatrixSize(1)*filterMatrixSize(2);
+                predictionArr = filters(predictionIdx);
+
+               %% Calculate product of experts! We're using equal sigmas, which greatly reduces computation.
+               aggMu = round(sum(predictionArr)/overlappingIdxCount);
+
+               % Calculate data likelihood.
+               if likelihoodFlag
+                    logProb = logProb + sum(likelihoodLookupTable(predictionArr(:,1) + 1, (aggMu+1)));
+               end
+          else
+               aggMu = 1;
+          end
           
           % Update Mu and Sigma of the final predictions.
           modalImg(itr1, itr2) = aggMu;
-          varMat(itr1, itr2) = aggSigma;
-                    
-          %% If there are values in the prediction array, we move forward.
-          % The product calculation gives us normalized values. Now,
-          % let's switch back to unnormalized values.
-          logProb = logProb + sum(likelihoodLookupTable(predictionArr(:,1) + 1, (aggMu+1)));
-          
-          % Finally, add non-overlapping predictions.
-          noncontributingExpertCount = numberOfFinalExperts - overlappingIdxCount;
-          if noncontributingExpertCount > 0
-               logProb = logProb + dummyLikelihoodVals(noncontributingExpertCount);
-          end
+         
+          % Calculate likelihoods if needed.
+          if likelihoodFlag
+               % Finally, add non-overlapping predictions.
+               noncontributingExpertCount = numberOfFinalExperts - overlappingIdxCount;
+               if noncontributingExpertCount > 0
+                    logProb = logProb + dummyLikelihoodVals(noncontributingExpertCount);
+               end
 
-          %% Save the information.
-          likelihoodMat(itr1, itr2) = logProb / numberOfFinalExperts;
+               %% Save the information.
+               likelihoodMat(itr1, itr2) = logProb / numberOfFinalExperts;
+          end
      end
      
      % Return the likelihood value.

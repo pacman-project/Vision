@@ -44,31 +44,15 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
         inhibitionHalfSize = options.auto.inhibitionRadius;
         stride = options.auto.stride;
     end
-    halfSearchSize = 2;
-    filters = options.filters;
-    filters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), filters, 'UniformOutput', false);
     
-    % As a case study, we replace gabors with 1D gaussian filters
-    % stretched.
-   filterSize = size(filters{1},1);
-    vals = normpdf(1:filterSize, (filterSize+1)/2, 2);
-    vals = vals/max(vals);
-    firstFilter = repmat(vals, filterSize, 1);
-    angle = 180/numel(filters);
-    for filterItr = 0:(numel(filters)-1)
-         curAngle = -angle * filterItr;
-         curFilter = imrotate(firstFilter, curAngle, 'bilinear', 'crop');
-         curFilter(curFilter<minPixelValue) = minPixelValue;
-         filters{filterItr+1} = curFilter;
-    end
-    
+    %% As a case study, we replace gabors with 1D gaussian filters    
     visFilters = options.filters;
     visFilters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), visFilters, 'UniformOutput', false);
     for filterItr = 1:numel(visFilters)
-         curFilter = visFilters{filterItr};
-         curFilter(curFilter<minPixelValue) = minPixelValue;
-         visFilters{filterItr} = curFilter;
+         visFilters{filterItr} = uint8(round(visFilters{filterItr} * 255));
     end
+    visFilters = cat(3, visFilters{:});
+    visFilters(visFilters<1) = 1;
     
     % Assign new labels of the remaining realizations.
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);
@@ -102,7 +86,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    clear vocabNodeLabels vocabEdges vocabNeighborModes vocabNodePositions vocabSortOrder;
 
    %% We  are experimenting with different distance functions.
-   
    % Find the correct image size.
    imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) * (inhibitionHalfSize+1) + halfSize;
    prevImageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-3)) * (inhibitionHalfSize+1);
@@ -118,8 +101,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
         experts = projectNode(nodes, vocabulary, 1, 'modal');
-%        [~, experts] = optimizeImagination(nodes, vocabulary, imageSize, prevImageSize, filters, visFilters);
-     
+
         % Center the nodes.
         experts = double(experts);
         minX = min(experts(:,2));
@@ -141,7 +123,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    % Comparison of modal reconstructions involves creating a pixel
    % prediction for every pixel, and then looking for matches.
    muImgs = zeros(numberOfNodes, imageSize(1), imageSize(2));
-   varImgs = zeros(numberOfNodes, imageSize(1), imageSize(2));
    newDistanceMatrix = zeros(numel(vocabLevel), 'single');
 
    % Create a blurring filter.
@@ -152,11 +133,10 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    mkdir([options.debugFolder '/level' num2str(levelItr) '/modalProjection/']);
    debugFolder = options.debugFolder;
    parfor vocabNodeItr = 1:numberOfNodes
-        [muImg, varImg, ~, ~] = obtainPoE(level1Experts{vocabNodeItr}, [], [], [], imageSize, visFilters);
+        [muImg, ~, ~] = obtainPoE(level1Experts{vocabNodeItr}, [], [], imageSize, visFilters, []);
         muImg = muImg/max(max(muImg));
         blurredMuImg = imfilter(muImg, H, 'replicate');
         muImgs(vocabNodeItr,:,:) = blurredMuImg/max(max(blurredMuImg));
-        varImgs(vocabNodeItr,:,:) = varImg;
         imwrite(muImg / max(max(muImg)), [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '.png']);
         imwrite(blurredMuImg/max(max(blurredMuImg)), [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '_blurred.png']);
    end
@@ -164,18 +144,20 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    display('........ Calculating part distances and performing clustering, based on a dynamic cut-off index..');
    if strcmp(distType, 'modal')
         % Finally, calculate distances.
-        if numel(vocabLevel) > 1
-             % Find the distance of two parts using a number of different
-             % techniques.
-             for vocabNodeItr = 1:(numel(vocabLevel)-1)
-                  for vocabNodeItr2 = (vocabNodeItr+1):numel(vocabLevel)
-                       distance = findDistance(squeeze(muImgs(vocabNodeItr,:,:)), squeeze(muImgs(vocabNodeItr2,:,:)), ...
-                            squeeze(varImgs(vocabNodeItr,:,:)), squeeze(varImgs(vocabNodeItr2,:,:)), distType, halfSearchSize, searchMultiplier);
-                       newDistanceMatrix(vocabNodeItr, vocabNodeItr2) = distance;
-                       newDistanceMatrix(vocabNodeItr2, vocabNodeItr) = distance;
-                  end
-             end
-        end
+        % TODO: Currently doesn't work! We have removed variance output, we
+        % need to remove that from findDistance as well.
+%         if numel(vocabLevel) > 1
+%              % Find the distance of two parts using a number of different
+%              % techniques.
+%              for vocabNodeItr = 1:(numel(vocabLevel)-1)
+%                   for vocabNodeItr2 = (vocabNodeItr+1):numel(vocabLevel)
+%                        distance = findDistance(squeeze(muImgs(vocabNodeItr,:,:)), squeeze(muImgs(vocabNodeItr2,:,:)), ...
+%                             squeeze(varImgs(vocabNodeItr,:,:)), squeeze(varImgs(vocabNodeItr2,:,:)), distType, halfSearchSize, searchMultiplier);
+%                        newDistanceMatrix(vocabNodeItr, vocabNodeItr2) = distance;
+%                        newDistanceMatrix(vocabNodeItr2, vocabNodeItr) = distance;
+%                   end
+%              end
+%         end
    elseif strcmp(distType, 'hog')
         % Histogram of oriented gradients + euclidean distance as distance
         % function.
@@ -400,146 +382,4 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     end
     
     clearvars -except vocabLevel graphLevel newDistanceMatrix
-end
-
-%> Name: InexactMatch
-%>
-%> Description: Given two coarse part descriptions, this function tries to
-%> match them with the lowest cost possible. Please note that this is
-%> essentially graph matching problem, which is NP-Complete. Using very high
-%> dimension will result in a drastic performance degradation.
-%> Cost of replacing a node: 1
-%> Cost of re-positioning a node: distance/maxDistancePossible
-%>
-%> @param description Description of the first composition. It is of the
-%> form: nodeId1 posX posY;
-%>       nodeId2 posX posY; ...
-%> @param description2 Description of the second composition.
-%> @param maxDistance Maximum distance in the node positioning space.
-%> @param distanceMatrix NxN matrix with each entry containing the distance
-%> between two nodes, indexing that specific entry.
-%>
-%> @retval lowestCost Minimum matching score.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 06.05.2014
-function [lowestCost] = InexactMatch(description, description2, maxDistance, distanceMatrix)
-    % Get both descriptions to the same size.
-    firstDesSize = size(description,1);
-    secDesSize = size(description2,1);
-    if firstDesSize > secDesSize
-        description2 = [description2; inf(firstDesSize-secDesSize,3)];
-    elseif firstDesSize<secDesSize
-        description = [description; inf(secDesSize-firstDesSize,3)];
-    end
-    numberOfChildren = max(firstDesSize, secDesSize);
-    
-    % Get row permutations of the first description.
-    rows = sortrows(perms(1:numberOfChildren));
-    
-    % Compare each permutation of rows of description to description2. The
-    % one which gets the minimum cost is our match.
-    lowestCost = realmax('single');
-    numberOfRows = size(rows,1);
-    for permItr = 1:numberOfRows
-        currentCost = 0;
-        comparedDescription = description(rows(permItr,:),:);
-
-        % Get valid rows to compare.
-        validEdges = ~isinf(comparedDescription(:,1)) & ...
-            ~isinf(description2(:,1));
-        
-        % Estimate node-node distances.
-        for nodeItr = 1:numberOfChildren
-            if validEdges(nodeItr)
-                currentCost = currentCost + single(full(distanceMatrix(comparedDescription(nodeItr,1), ...
-                                            description2(nodeItr,1))));
-            else
-                 currentCost = currentCost + 1;
-            end
-        end
-
-        % Estimate edge-edge distances.
-        currentCost = currentCost + sum(sqrt(sum((comparedDescription(validEdges,2:3) - ...
-                     description2(validEdges,2:3)).^2,2)))/maxDistance;
-        currentCost = currentCost + numberOfChildren - nnz(validEdges);
-        
-        % Assign lowest cost if current cost is smaller.
-        if currentCost<lowestCost
-            lowestCost = currentCost;
-        end
-    end
-end
-
-%> Name: InexactMatch
-%>
-%> Description: Given two coarse part descriptions, this function tries to
-%> match them with the lowest cost possible. Please note that this is
-%> essentially graph matching problem, which is NP-Complete. Using very high
-%> dimension will result in a drastic performance degradation.
-%> Cost of replacing a node: 1
-%> Cost of re-positioning a node: distance/maxDistancePossible
-%>
-%> @param description Description of the first composition. It is of the
-%> form: nodeId1 posX posY;
-%>       nodeId2 posX posY; ...
-%> @param description2 Description of the second composition.
-%> @param maxDistance Maximum distance in the node positioning space.
-%> @param distanceMatrix NxN matrix with each entry containing the distance
-%> between two nodes, indexing that specific entry.
-%>
-%> @retval lowestCost Minimum matching score.
-%> 
-%> Author: Rusen
-%>
-%> Updates
-%> Ver 1.0 on 06.05.2014
-function [lowestCost] = CalculateLogLikelihood(description, description2, maxDistance, distanceMatrix)
-    % Get both descriptions to the same size.
-    firstDesSize = size(description,1);
-    secDesSize = size(description2,1);
-    if firstDesSize > secDesSize
-        description2 = [description2; inf(firstDesSize-secDesSize,3)];
-    elseif firstDesSize<secDesSize
-        description = [description; inf(secDesSize-firstDesSize,3)];
-    end
-    numberOfChildren = max(firstDesSize, secDesSize);
-    
-    % Get row permutations of the first description.
-    rows = sortrows(perms(1:numberOfChildren));
-    
-    % Compare each permutation of rows of description to description2. The
-    % one which gets the minimum cost is our match.
-    lowestCost = realmax('single');
-    numberOfRows = size(rows,1);
-    for permItr = 1:numberOfRows
-        currentCost = 0;
-        comparedDescription = description(rows(permItr,:),:);
-
-        % Get valid rows to compare.
-        validEdges = ~isinf(comparedDescription(:,1)) & ...
-            ~isinf(description2(:,1));
-        
-        % Estimate node-node distances.
-        for nodeItr = 1:numberOfChildren
-            if validEdges(nodeItr)
-                currentCost = currentCost + single(full(distanceMatrix(comparedDescription(nodeItr,1), ...
-                                            description2(nodeItr,1))));
-            else
-                 currentCost = currentCost + 1;
-            end
-        end
-
-        % Estimate edge-edge distances.
-        currentCost = currentCost + sum(sqrt(sum((comparedDescription(validEdges,2:3) - ...
-                     description2(validEdges,2:3)).^2,2)))/maxDistance;
-        currentCost = currentCost + numberOfChildren - nnz(validEdges);
-        
-        % Assign lowest cost if current cost is smaller.
-        if currentCost<lowestCost
-            lowestCost = currentCost;
-        end
-    end
 end

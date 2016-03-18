@@ -18,7 +18,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.01.2016
-function [ minDistance ] = findDistance( muArr1, muArr2, varArr1, varArr2, distType, searchHalfSize, searchMultiplier )
+function [ minDistance ] = findDistance( muArr1, muArr2, distType, searchHalfSize, searchMultiplier )
      % Program variables.
      imgSize = size(muArr1);
      lowVals = floor((imgSize - 2*searchHalfSize * searchMultiplier)/2);
