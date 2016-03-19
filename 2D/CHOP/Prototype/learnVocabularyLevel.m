@@ -246,6 +246,7 @@ function [] = learnVocabularyLevel(datasetName)
           matlabpool('open', options.numberOfThreads);
      end
      printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
+     clear allNodeInstances representativeNodes;
      java.lang.System.gc();
    end
 
