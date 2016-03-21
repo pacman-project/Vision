@@ -48,7 +48,7 @@ function [ ] = createFolders( options )
          mkdir(options.CNNFolder);
     end
     if exist([options.currentFolder '/Workspace.mat'], 'file')
-         rm([options.currentFolder '/Workspace.mat']);
+         delete([options.currentFolder '/Workspace.mat']);
     end
 end
 
