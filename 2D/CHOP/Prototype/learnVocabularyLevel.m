@@ -23,13 +23,13 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [] = learnVocabularyLevel(datasetName)
    % Reduce memory consumption by writing all stuff to files,
    % clearing all, and then returning back to computation.
-   disp('Loading workspace from the previous layer.');
    addpath(genpath([pwd '/utilities']));
-   load([pwd '/output/' datasetName '/' datasetName '_Workspace.mat']);
-   levelItr = levelItr + 1; %#ok<*NASGU>
+   if exist([pwd '/Workspace.mat'], 'file')
+        disp('Loading workspace from the previous layer.');
+        load([pwd '/Workspace.mat']);
+   end
    
   % Open/close matlabpool to save memory. 
    if options.parallelProcessing
@@ -39,6 +39,8 @@ function [] = learnVocabularyLevel(datasetName)
        end
        matlabpool('open', options.numberOfThreads);
    end
+   % Increase level itr.
+   levelItr = levelItr + 1; %#ok<*NASGU>
    
    % If this is a fresh Matlab, modify paths.
    % ========== PATH FOLDER ADDITION ==========
@@ -85,6 +87,7 @@ function [] = learnVocabularyLevel(datasetName)
       allModes = allModes(1:(levelItr-1), :);
       distanceMatrices = distanceMatrices(1:(levelItr-1),:);
       modeProbs = modeProbs(1:(levelItr-1),:);
+      save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
       return; 
    end
 
@@ -223,6 +226,7 @@ function [] = learnVocabularyLevel(datasetName)
        mainGraph = mainGraph(1:(levelItr),:);
        distanceMatrices = distanceMatrices(1:(levelItr),:);
        modeProbs = modeProbs(1:(levelItr),:);
+       save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
        return;
    end
 
@@ -264,18 +268,16 @@ function [] = learnVocabularyLevel(datasetName)
        modeProbs = modeProbs(1:(levelItr),:);
    end
    
-   % Finally, we save the workspace and call the next iteration.
-   disp(['Saving layer ' num2str(levelItr) ' workspace.']);
-   save([options.currentFolder '/output/' options.datasetName '/' options.datasetName '_Workspace.mat'], '-v7.3');
-   
    % clearing all, and then returning back to computation.
    scriptName = [options.currentFolder '/' options.datasetName '.sh'];
    restartFlag = options.restartFlag;
-   clearvars -except restartFlag scriptName datasetName
    if restartFlag
+        % Finally, we save the workspace and call the next iteration.
+         disp(['Saving layer ' num2str(levelItr) ' workspace.']);
+         save([pwd '/Workspace.mat'], '-v7.3');
+         clearvars -except restartFlag scriptName datasetName
          system(scriptName);
          exit
    else
-         learnVocabularyLevel(datasetName);
+         learnVocabularyLevel();
    end
-end

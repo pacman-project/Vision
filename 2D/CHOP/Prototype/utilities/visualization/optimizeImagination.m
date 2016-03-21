@@ -18,8 +18,7 @@
 %> Ver 1.0 on 07.02.2016
 function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, prevImageSize, filters, visFilters, sampleItr, batchFlag, datasetName, likelihoodLookupTable, fileName)
      stepSize = 1;
-     minPixelValue = 1/255;
-     stopVal = 5;
+     stopVal = 1;
      if ~batchFlag
           maxSteps = 5 * size(nodes,1);
      else
@@ -34,11 +33,19 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
      end
      folderName = [pwd '/optimization/' datasetName '/level' num2str(nodes(1,4)) '/' fileName '_sample' num2str(sampleItr)];
      
+     % Create a circular structure to move around the image.
+     filterSize = size(filters,1);
+     maxInfluenceRadius = ceil(filterSize/2);
+     cx=maxInfluenceRadius+1;cy=cx;ix=2*maxInfluenceRadius+1;iy=ix;r=maxInfluenceRadius;
+     [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
+     c_mask=((x.^2+y.^2)<r^2);
+     
      % Create ourput folder.
      if ~exist(folderName, 'dir')
           mkdir(folderName);
      end
      movesPerChild = 2;
+     maxMoves = 20;
      poeFlag = true;
      positionFlag = false;
      imageChoices = prevImageSize * prevImageSize;
@@ -92,55 +99,45 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
          modifiedExperts = modifiedExperts';
          
          %% We obtain the reference modal image and likelihood mat, in order to be able to select parts based on their local likelihood values.
- %        [refModalImg, ~, ~] = obtainPoE(experts, modalImg, likelihoodMat, imageSize, visFilters, likelihoodLookupTable);
-%         [~, newRefLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, likelihoodMat, imageSize, filters, likelihoodLookupTable);
+         [refModalImg, ~, ~] = obtainPoE(experts, modalImg, likelihoodMat, imageSize, visFilters, []);
+         [~, refLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, likelihoodMat, imageSize, filters, likelihoodLookupTable);
          
-         %% Here, we create random perturbations in the joint distribution
-         % space for each expert. Then, we'll evaluate the coupled gradient 
-         % ( position gradients + Product of Experts gradients). Then,
-         % we'll make the best move based on this joint gradient.
-         % Just in case, we sample two times the normal amount not to have
-         % repetitions.  
-         moveFlag = false;
+         % Check which experts are to be moved. We'll move the expert which
+         % has lowest average likelihood.
+         avgLikelihoods = zeros(numel(modifiedExperts),1);
+         expertIdx = cell(numel(modifiedExperts),1);
+         tempMatrix = zeros(imageSize) > 0;
+         ind = sub2ind(imageSize, experts(:,2), experts(:,3));
          for expertItr = 1:numel(modifiedExperts)
-              % Get reference likelihood value.       
-              if ~batchFlag
-                   [refModalImg, ~, ~] = obtainPoE(experts, modalImg, likelihoodMat, imageSize, visFilters, likelihoodLookupTable);
-                   if ~poeFlag
-                        refLikelihoodVal = 0;
-                   else
-                        [~, newRefLikelihoodMat, refLikelihoodVal] = obtainPoE(experts, modalImg, likelihoodMat, imageSize, filters, likelihoodLookupTable);
-                        if isempty(diffImageArr{steps+1}) && nnz(refLikelihoodMat) > 0
-                             % Obtain the difference of the likelihood image.
-                             diffLikelihoodMat = abs(newRefLikelihoodMat - refLikelihoodMat);
-                             imwrite(diffLikelihoodMat / max(max(diffLikelihoodMat)), [folderName '/diff_' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '.png']);
-                             diffImageArr{steps+1} = diffLikelihoodMat;
-                        end
-                        refLikelihoodMat = newRefLikelihoodMat;
-                        % Normalize by number of choices.
-            %            refLikelihoodVal = refLikelihoodVal / imageChoices;
-                   end
-                   refModalMask = refModalImg > minPixelValue;
-
-                   % Print images.
-                   imgName = [folderName '/' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '.png'];
-                   maskName = [folderName '/mask_' num2str(nodes(1,1)) '_sample' num2str(sampleItr) '_step' num2str(steps) '_level' num2str(curLevelItr) '_Mask.png'];
-                   imwrite(refModalImg / max(max(refModalImg)), imgName);
-                   imwrite(refModalMask, maskName);
-
-                   % Save image.
-                   imageArr{steps+1} = refModalImg / max(max(refModalImg));
-                   poeLikelihoodArr(steps+1) = refLikelihoodVal;
+              lowLevelExperts = ind(parseTrees(:,curItr) == modifiedExperts(expertItr));
+              tempMatrix(lowLevelExperts) = 1;
+              tempOverlapMatrix = imdilate(tempMatrix, c_mask);
+              expertIdx(expertItr) = {find(tempMatrix)};
+              avgLikelihoods(expertItr) = mean(refLikelihoodMat(tempOverlapMatrix));
+         end
+         moveFlagArr = ones(numel(modifiedExperts),1) > 0;
+         
+         while steps<maxSteps
+              % Based on the list of matrices at hand, let's iterate over the
+              % list and start fixing things by moving them around.
+              [sortedExpertLikelihoods, sortedExpertIdx] = sort(avgLikelihoods);
+              
+              % If no experts could be moved, move on.
+              if nnz(moveFlagArr) == 0
+                   break;
               end
               
-              % Mark expert as immobile. Then, we'll see if we can move it
-              % to obtain a lower likelihood.
-              expertMoveFlag = false;
-              expertLabelId = nodeIds(modifiedExperts(expertItr));
+              % Select the expert with minimum average likelihood.
+              curExpertItr = find(moveFlagArr, 1, 'first');
+              tempIdx = sortedExpertIdx(find(moveFlagArr, 1, 'first'));
+              
+              % Move the expert!
+              expertToMove = modifiedExperts(tempIdx);
+              expertLabelId = nodeIds(expertToMove);
               expertNode = currentLevel(expertLabelId);
               
                % First of all, we select the relevant combination of nodes.
-               expertChildren = unique(parseTrees(parseTrees(:, curItr) == modifiedExperts(expertItr), curItr+1), 'first');
+               expertChildren = unique(parseTrees(parseTrees(:, curItr) == expertToMove, curItr+1), 'first');
                childrenLabelCombination = nodeIds(expertChildren);
                relevantCombination = find(ismember(childrenLabelCombination, expertNode.childrenLabelDistributions(:,1:(end-1)), 'rows'));
                
@@ -149,11 +146,11 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
 
                % Then, we obtain the position pdfs.
                childrenPosDistributions = expertNode.childrenPosDistributions{1}{relevantCombination}; %#ok<FNDSB>
-              
+               
               % Next thing we do, we sample from the available moves
               % (joint).
-              stochasticMoves = round(movesPerChild^numel(expertChildren));
-              moves = ceil(rand(stochasticMoves*5, numel(expertNode.children)) * 5);
+              stochasticMoves = round(min(movesPerChild^numel(expertChildren), maxMoves));
+              moves = ceil(rand(stochasticMoves, numel(expertNode.children)) * 5);
               moves(moves<1) = 1;
               moves = unique(moves, 'stable', 'rows');
               if numel(modifiedExperts) == 1 && curItr == 1
@@ -165,7 +162,7 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
                    moves = moves(1:stochasticMoves,:);
               end
               numberOfMoves = size(moves,1);
-              
+               
               %% Calculate existing prediction's position likelihood.
               childExpertCenter = expertChildren(1);
               if numel(expertChildren) > 1
@@ -182,29 +179,29 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
               end
               
               %% Update expert positions based on the perturbations.
-              maxExperts = experts;
-              maxNodeCoords = nodeCoords;
               gradients = zeros(numberOfMoves,1);
-              parentExpertCenter = nodeCoords(modifiedExperts(expertItr), :);
-              maxMove = 0;
-              maxNewPoELikelihoodVal = 0;
-              maxNewPosLikelihoodVal = 0;
+              parentExpertCenter = nodeCoords(expertToMove, :);
               
               % Before we start moving, we calculate an initial product of
               % experts by not taking the expert in question into account.
               if poeFlag              
-                   oldExperts = experts(~(parseTrees(:, curItr) == modifiedExperts(expertItr)),:);
+                   oldExperts = experts(~(parseTrees(:, curItr) == expertToMove),:);
                    if ~isempty(oldExperts)
-                        [preModalImg, preLikelihoodMat, ~] = obtainPoE(oldExperts, modalImg, varMat, likelihoodMat, imageSize, filters, likelihoodLookupTable);
+                        [preModalImg, preLikelihoodMat, ~] = obtainPoE(oldExperts, modalImg, likelihoodMat, imageSize, filters, likelihoodLookupTable);
                    else
                         preModalImg = [];
                         preLikelihoodMat = [];
                    end
               end
+              addedExperts = double(parseTrees(:, curItr) == expertToMove);
               
-              addedExperts = double(parseTrees(:, curItr) == modifiedExperts(expertItr));
+              % Allocate space for max experts.
+              maxExperts = cell(numberOfMoves,1);
+              maxNewPoELikelihoodVal = zeros(numberOfMoves,1);
+              maxNewPosLikelihoodVal = zeros(numberOfMoves,1);
+              maxNodeCoords = cell(numberOfMoves,1);
               
-              % Calculate moves, and their gradients.
+              % Calculate moves, and their gradients.              
               for moveItr = 1:numberOfMoves
                    %% Perturb the experts based on assigned moves.
                    tempExperts = experts;
@@ -259,72 +256,51 @@ function [ modalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSi
                    
                    %% Finally, calculate the difference between the likelihoods and update gradients.
                    newDiffVal = newVal - expertJointLikelihoodVal;
-                   if newDiffVal > stopVal && newDiffVal > max(gradients)
-                        maxExperts = tempExperts;
-                        maxNewPoELikelihoodVal = newPoELikelihoodVal;
-                        maxNewPosLikelihoodVal = newPosLikelihoodVal;
-                        maxLikelihoodMat = newLikelihoodMat;
-                        maxNodeCoords = tempNodeCoords;
-                        expertMoveFlag = true;
-                        maxMove = moveItr;
+
+                   % Save the info.
+                   if newDiffVal > stopVal
+                        maxExperts(moveItr) = {tempExperts};
+                        maxNewPoELikelihoodVal(moveItr) = newPoELikelihoodVal;
+                        maxNewPosLikelihoodVal(moveItr) = newPosLikelihoodVal;
+                        maxNodeCoords(moveItr) = {tempNodeCoords};
                    end
                    
                    % Calculate gradients.
                     gradients(moveItr) = newDiffVal;
               end
               
-              % If we haven't moved anything, nothing to do here.
-              if ~expertMoveFlag
+              if nnz(gradients) == 0
+                   moveFlagArr(curExpertItr) = 0;
                    continue;
-              else
-                   moveFlag = true;
-                   % If we're not performing batch gradient descent, let's
-                   % break and update our reference likelihood values. 
-                   changedExperts = unique(parseTrees(parseTrees(:,curItr) == modifiedExperts(expertItr),(curItr+1):end));
-                   display(['Expert ' num2str(modifiedExperts(expertItr)) ' has been modified.']);
-                   display(['Position likelihood changed from ' num2str(round(expertPosLikelihoodVal)) ' to ' num2str(round(maxNewPosLikelihoodVal)) '.']);
-                   if maxNewPosLikelihoodVal > expertPosLikelihoodVal && maxNewPoELikelihoodVal > refLikelihoodVal
-                        display('Both likelihoods improved!');
-                   elseif maxNewPosLikelihoodVal > expertPosLikelihoodVal
-                        display('Position distributions pulled the strings.');
-                   elseif maxNewPoELikelihoodVal > refLikelihoodVal
-                        display('Product of experts predictions dominated.');
-                   end
-                   if ~batchFlag
-                        % This expert has been modified. Let's update the
-                        % existing data structures to reflect this change.
-                        display(['PoE likelihood changed from ' num2str(round(refLikelihoodVal)) ' to ' num2str(round(maxNewPoELikelihoodVal)) '.']);
-                        posLikelihoodArr(steps+1) = newPosLikelihoodVal - expertPosLikelihoodVal;
-                        refLikelihoodVal = maxNewPoELikelihoodVal - gradients(maxMove);
-                        experts(parseTrees(:,curItr) == modifiedExperts(expertItr),:) = maxExperts(parseTrees(:,curItr) == modifiedExperts(expertItr),:);
-                        nodeCoords(changedExperts,:) = maxNodeCoords(changedExperts,:);
-                        steps = steps+1;
-                   else
-                        display(['--For this expert, PoE likelihood changed from ' num2str(round(refLikelihoodVal)) ' to ' num2str(round(maxNewPoELikelihoodVal)) '.']);
-                        batchExperts(parseTrees(:,curItr) == modifiedExperts(expertItr),:) = maxExperts(parseTrees(:,curItr) == modifiedExperts(expertItr),:);
-                        batchNodeCoords(changedExperts,:) = maxNodeCoords(changedExperts,:);
-                   end
               end
-         end
-         
-         % If none of the experts was able to move, we move on to the next
-         % level's realizations.
-         if ~moveFlag
-              curItr = curItr + 1;
-              curLevelItr = (size(parseTrees,2) - curItr) + 1;
-              currentLevel = vocabulary{curLevelItr};
-         else
-              % If batch flag is active, we should calculate a final
-              % likelihood. Otherwise, we can use existing values that come
-              % from the halted loop. 
-              if batchFlag
-                   experts = batchExperts;
-                   nodeCoords = batchNodeCoords;
-                   [~, maxLikelihoodMat, maxNewPoELikelihoodVal] = obtainPoE(experts, modalImg, likelihoodMat, imageSize, filters, likelihoodLookupTable);
-                   display(['PoE likelihood changed from ' num2str(round(refLikelihoodVal)) ' to ' num2str(round(maxNewPoELikelihoodVal)) '.']);
-                   % Increase steps.
-                   steps = steps + 1;              
+              
+              % We have moved the expert, now let's update the data
+              % structures.
+              [~, maxMove] = max(gradients);
+              
+              % If we're not performing batch gradient descent, let's
+              % break and update our reference likelihood values. 
+              changedExperts = unique(parseTrees(parseTrees(:,curItr) == expertToMove,(curItr+1):end));
+              display(['Expert ' num2str(expertToMove) ' has been modified.']);
+              display(['Position likelihood changed from ' num2str(round(expertPosLikelihoodVal)) ' to ' num2str(round(maxNewPosLikelihoodVal(maxMove))) '.']);
+              if maxNewPosLikelihoodVal(maxMove) > expertPosLikelihoodVal && maxNewPoELikelihoodVal(maxMove) > refLikelihoodVal
+                   display('Both likelihoods improved!');
+              elseif maxNewPosLikelihoodVal(maxMove) > expertPosLikelihoodVal
+                   display('Position distributions pulled the strings.');
+              elseif maxNewPoELikelihoodVal(maxMove) > refLikelihoodVal
+                   display('Product of experts predictions dominated.');
               end
+              
+              % This expert has been modified. Let's update the
+              % existing data structures to reflect this change.
+              display(['PoE likelihood changed from ' num2str(round(refLikelihoodVal)) ' to ' num2str(round(maxNewPoELikelihoodVal(maxMove))) '.']);
+              posLikelihoodArr(steps+1) = maxNewPosLikelihoodVal(maxMove) - expertPosLikelihoodVal;
+              refLikelihoodVal = maxNewPoELikelihoodVal(maxMove) - gradients(maxMove);
+              newMaxExperts = maxExperts{moveItr};
+              newMaxNodeCoords = maxNodeCoords{moveItr};
+              experts(parseTrees(:,curItr) == expertToMove,:) = newMaxExperts(parseTrees(:,curItr) == expertToMove,:);
+              nodeCoords(changedExperts,:) = newMaxNodeCoords(changedExperts,:);
+              steps = steps+1;
          end
     end
     
