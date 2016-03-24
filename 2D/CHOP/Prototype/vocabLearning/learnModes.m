@@ -47,8 +47,9 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     uniqueEdgeSamples = cell(numberOfUniqueEdges,1);
     uniqueEdgeCoords = cell(numberOfUniqueEdges,1);
     parfor uniqueEdgeItr = 1:numberOfUniqueEdges
-        samplesForEdge = allEdges(IA==uniqueEdgeItr,3:4); %#ok<PFBNS>
-        sampleIds = edges(IA==uniqueEdgeItr,1:2); %#ok<PFBNS>
+        tempIdx = IA==uniqueEdgeItr;
+        samplesForEdge = allEdges(tempIdx,3:4); %#ok<PFBNS>
+        sampleIds = edges(tempIdx,1:2); %#ok<PFBNS>
         sampleEdgeCoords = nodeCoords(sampleIds(:,2),:) - nodeCoords(sampleIds(:,1),:); %#ok<PFBNS>
         
         %% If there are too many samples, get random samples.
