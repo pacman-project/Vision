@@ -97,7 +97,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    parfor vocabNodeItr = 1:numberOfNodes
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
-        experts = projectNode(nodes, vocabulary, 1, 'modal');
+        experts = projectNode(nodes, vocabulary, 'modal');
 
         % Center the nodes.
         experts = double(experts);
@@ -198,10 +198,11 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               clusterStep = 1;
               maxNumberOfORNodes = options.reconstruction.maxNumberOfORNodes;
       %        sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1), maxIdx]);
-              sampleCounts = min([round(maxNumberOfORNodes/10), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
+              sampleCounts = min([round(maxNumberOfORNodes/20), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
               dunnVals = zeros(numel(sampleCounts),1);
               valIndices =  zeros(numel(sampleCounts),1);
               cutoffRatios =  zeros(numel(sampleCounts),1);
+              cutoffRatios(1) = 1;
               stepItr = 1;
               C = mean(descriptors,1);
 
@@ -322,13 +323,19 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               end
 
               % Find an ideal cutoff ratio.
-              bufSize = 10;
-              val = find(cutoffRatios(bufSize:end-bufSize) <= 0.5, 1, 'first');
-              clusterCount = sampleCounts(val);
+              sampleVals = [0.5 0.6 0.7 0.8];
+              for sampleVal = sampleVals
+                   val = find(cutoffRatios <= sampleVal, 1, 'first');
+                   if ~isempty(val)
+                        clusterCount = sampleCounts(val);
+                        break;
+                   else
+                        continue;
+                   end
+              end
+              % Haven't found a cutoff yet? Set to the fixed value.
               if isempty(val)
                    clusterCount = options.reconstruction.numberOfORNodes;
-     %              [~, idx] = max(dunnVals);
-     %              clusterCount = sampleCounts(idx(1));
               end
          else
               clusterCount = options.reconstruction.numberOfORNodes;

@@ -28,12 +28,7 @@ classdef VocabNode
         childrenPosDistributions = cell(1,1); % Cell array of multi-modal gaussian distributions 
                                                                  % modelling joint space of children positions. 
                                                                  % One for every discrete combination.
-        childrenPosSamples = cell(1,1); %Each cell containing a NxD array containing 
-                                                      % randomly generated samples 
-                                                      % from each position
-                                                      % distribution. Used
-                                                      % to calculate
-                                                      % probabilities.
+        modalExperts@int32; % Imagined modal reconstruction in terms of layer 1 nodes.
         categoryArr@single % 1 x numberOfCategories array. Sums up to 1. 
                     % Determines how much this node has been found in each
                     % category.

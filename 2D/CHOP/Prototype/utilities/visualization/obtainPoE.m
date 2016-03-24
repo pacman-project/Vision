@@ -46,7 +46,9 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
      % Calculate program arguments and allocate space for images.
      if isempty(modalImg)
           modalImg =  ones(imgSize, 'uint8');
-          likelihoodMat = zeros(imgSize);
+          if likelihoodFlag
+               likelihoodMat = zeros(imgSize);
+          end
      end
      filterSize = size(filters,1);
      filterMatrixSize = size(filters);
@@ -102,7 +104,7 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
      if likelihoodFlag && numberOfNewExperts ~= numberOfRemovedExperts
           likelihoodMat = (likelihoodMat * numberOfOldExperts + ...
                dummyLog * (numberOfNewExperts - numberOfRemovedExperts)) / numberOfFinalExperts;
-     else
+     elseif likelihoodFlag
           likelihoodMat(:) = dummyLog;
      end
      
@@ -165,5 +167,9 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
      end
      
      % Return the likelihood value.
-     likelihoodVal = sum(sum(likelihoodMat));
+     if likelihoodFlag
+          likelihoodVal = sum(sum(likelihoodMat));
+     else
+          likelihoodVal = 0;
+     end
 end

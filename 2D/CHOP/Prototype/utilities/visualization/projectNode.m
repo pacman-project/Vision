@@ -16,7 +16,19 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.08.2015
-function [ nodes, parseTrees, nodeIds, nodeCoords ] = projectNode( nodes, vocabulary, ~, samplingMethod )
+function [ nodes, parseTrees, nodeIds, nodeCoords, orNodeChoices, orNodeChoiceCounts ] = projectNode( nodes, vocabulary, samplingMethod, orNodeChanges )
+
+    % If no desired OR nodes exist, we assign empty to the desired list.
+    if nargin == 3
+         orNodeChanges = [];
+    end
+
+    if ~isempty(orNodeChanges)
+         orNodeChangeFlag = true;
+    else
+         orNodeChangeFlag = false;
+    end
+    
     levelItr = nodes(1,4);
     nodes = single(nodes);
     posDim = 2;
@@ -25,22 +37,57 @@ function [ nodes, parseTrees, nodeIds, nodeCoords ] = projectNode( nodes, vocabu
     nodeIds = zeros(size(nodes,1), levelItr);
     nodeIds(:,1) = nodes(:,1);
     nodeCoords = nodes(:,2:3);
+    orNodeChoices = [];
+    orNodeChoiceCounts = [];
     topLevel = levelItr;
     
     %% First, we recursively backproject the nodes. 
     nodeOffset = size(nodes,1);
+    startNodeOffset = 0;
     while levelItr > 1.001
         vocabLevel = vocabulary{levelItr};
         newNodes = cell(size(nodes,1),1);
         newParseTrees = cell(size(nodes,1),1);
         newNodeIds = cell(size(nodes,1),1);
+        newOrNodeChoices = zeros(size(nodes,1),1);
+        newOrNodeChoiceCounts = zeros(size(nodes,1),1);
         for nodeItr = 1:size(nodes,1)
             vocabNode = vocabLevel(nodes(nodeItr,1));
             newNodeSet = zeros(numel(vocabNode.realChildren), 4, 'single');
             
             % Sample from the discrete and continuous distributions.
             childrenLabelDistributions = vocabNode.childrenLabelDistributions;
-            if strcmp(samplingMethod, 'modal')
+            choiceCounts = size(childrenLabelDistributions,1);
+            if orNodeChangeFlag
+                 idx = find(nodeItr + startNodeOffset == orNodeChanges(:,1));
+            else
+                 idx = [];
+            end
+            if ~isempty(idx)
+%                  % If we need to change to another or node, we select one
+%                  % of the remaining options (sampled).
+%                  validRows = ones(numberOfLabelChoices,1) > 1;
+%                  validRows(currentOrNodeChoices(nodeItr + startNodeOffset)) = 0;
+%                  remChildrenLabelDistributions = childrenLabelDistributions(validRows,:);
+%                  
+%                  % Normalize probs.
+%                  remChildrenLabelDistributions(:,end) = remChildrenLabelDistributions(:,end) / sum(remChildrenLabelDistributions(:,end));
+%                  
+%                  % Sample from the remaining rows.
+%                  probabilities = remChildrenLabelDistributions(:,end);
+%                  probabilities = [0; probabilities]; %#ok<AGROW>
+%                  cumProbabilities = cumsum(probabilities);
+%                  cumProbabilities(end) = cumProbabilities(end) + 0.0001;
+%                  cumProbabilities(1) = cumProbabilities(1) - 0.0001;
+%                  randNumber = single(rand());
+%                  assignedRow = find(randNumber >= cumProbabilities(1:(end-1))  & randNumber < cumProbabilities(2:end));
+%                  
+%                  % Update the row number.
+%                  if assignedRow >= currentOrNodeChoices(nodeItr + startNodeOffset)
+%                       assignedRow = assignedRow + 1;
+%                  end
+                 assignedRow = orNodeChanges(idx,2);
+            elseif strcmp(samplingMethod, 'modal')
                  [~, assignedRow] = max(childrenLabelDistributions(:, end));
             else
                  % Sample from the discrete distribution. We obtain a
@@ -57,6 +104,10 @@ function [ nodes, parseTrees, nodeIds, nodeCoords ] = projectNode( nodes, vocabu
                  assignedRow = find(randNumber >= cumProbabilities(1:(end-1))  & randNumber < cumProbabilities(2:end));
             end
             nodeCombination = childrenLabelDistributions(assignedRow, 1:(end-1)); 
+            
+            % Save this choice.
+            newOrNodeChoices(nodeItr) = assignedRow;
+            newOrNodeChoiceCounts(nodeItr) = choiceCounts;
             
             % Given the node combinations, we obtain relevant position
             % distributions and sample from that. Mode of a Gaussian
@@ -108,15 +159,17 @@ function [ nodes, parseTrees, nodeIds, nodeCoords ] = projectNode( nodes, vocabu
         end
         
         % Shift the nodes by an offset.
-        
+        startNodeOffset = size(nodes,1) + startNodeOffset;
         nodes = cat(1, newNodes{:});
         parseTrees = cat(1, newParseTrees{:});
         nodeIds = cat(1, newNodeIds{:});
+        orNodeChoices = cat(1, orNodeChoices, newOrNodeChoices);
+        orNodeChoiceCounts = cat(1, orNodeChoiceCounts, newOrNodeChoiceCounts);
         levelItr = levelItr - 1;
     end
-    nodes = int32(round(nodes(:,1:3)));
     
-    %% Then, we perform a simple inhibition process to remove overlapping level 1 instances.
+    nodes = int32(round(nodes(:,1:3)));
+    %% Finally, we perform a simple inhibition process to remove overlapping level 1 instances.
     validNodes = ones(size(nodes,1),1) > 0;
     [~, firstSeenIdx] = unique(parseTrees, 'first');
     nodeIds = nodeIds(firstSeenIdx)';

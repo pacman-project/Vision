@@ -124,7 +124,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % layers. 
     options.minContinuityCoverage = 0.5; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0.9; % Each node should cover this percentage of the nodes in its RF.
+    options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
     options.maxEdgeChangeLevel = 3; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
@@ -144,8 +144,11 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 7;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
+    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
+                                                            % is performed. If an edge is not contributing to 
+                                                            % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
                                        % images the algorithm will work
                                        % with. If one size of a image in

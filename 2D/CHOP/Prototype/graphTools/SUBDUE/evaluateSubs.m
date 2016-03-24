@@ -35,7 +35,7 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
     validExtSubs = ones(numberOfSubs,1) > 0;
-    for subItr = 1:numberOfSubs
+    parfor subItr = 1:numberOfSubs
         % Find the weight of this node, by taking the max of the category distribution. 
         if isSupervised
             categoryArr = double(subs(subItr).instanceCategories);
@@ -52,7 +52,7 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
        % If this sub has multiple children, we process the instances to
        % make sure those instances which cover a large portion of their
        % receptive field survives.
-        if size(subs(subItr).instanceChildren,2) > 1
+        if size(subs(subItr).instanceChildren,2) > 1 && minRFCoverage > 0
              allChildren = subs(subItr).instanceChildren;
              % Here, we check if we're actually covering enough of every
              % receptive field out there.
@@ -72,19 +72,19 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
              maxCoverLeafNodeCount = maxLeafCounts(allChildren(:,1));
              coverageRatios =  coveredLeafNodeCount ./ maxCoverLeafNodeCount;
              validInstances = coverageRatios >= minRFCoverage;
-             
+
              % If there are full instances that do not extension (cover
              % enough of RF), we delete them.
 %             validInstancesExt = coverageRatios < 1;
              if mean(coverageRatios) >= minRFCoverage
                   validExtSubs(subItr) = 0;
              end
-             
-             %% If the coverage is too small, we don't consider this sub.
+
+        %% If the coverage is too small, we don't consider this sub.
              if nnz(validInstances) == 0
                   validSubs(subItr) = 0;
              end
-             
+
              %% Update instances to keep only valid ones (which cover most of RF).
              sub.instanceCategories = sub.instanceCategories(validInstances,:);
              sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
@@ -96,7 +96,6 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
              sub.instanceSigns = sub.instanceSigns(validInstances,:);
              sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
         end
-        
         % We compress the object graph using the children, and the
         % edges they are involved. 
         subScore = subScore * weight;

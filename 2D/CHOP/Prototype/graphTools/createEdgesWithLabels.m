@@ -35,16 +35,18 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
     matrixSize = [options.receptiveFieldSize, options.receptiveFieldSize];
     edgeType = options.edgeType;
-    imagesPerSet = 100;
+    minimalEdgeCount = options.minimalEdgeCount;
+    imagesPerSet = 10;
     
-    possibleLeafNodeCounts = zeros(numel(currentLevel),1);
-     for nodeItr = 1:numel(currentLevel)
-          if isempty(currentLevel(nodeItr).adjInfo)
-               possibleLeafNodeCounts(nodeItr)  = numel(currentLevel(nodeItr).leafNodes);
-          else
-               possibleLeafNodeCounts(nodeItr) = numel(fastsortedunique(sort(cat(2, currentLevel(currentLevel(nodeItr).adjInfo(:,1:2)).leafNodes))'));
-          end
-     end
+    possibleLeafNodeCounts = inf(numel(currentLevel),1);
+%     possibleLeafNodeCounts = zeros(numel(currentLevel),1);
+%      for nodeItr = 1:numel(currentLevel)
+%           if isempty(currentLevel(nodeItr).adjInfo)
+%                possibleLeafNodeCounts(nodeItr)  = numel(currentLevel(nodeItr).leafNodes);
+%           else
+%                possibleLeafNodeCounts(nodeItr) = numel(fastsortedunique(sort(cat(2, currentLevel(currentLevel(nodeItr).adjInfo(:,1:2)).leafNodes))'));
+%           end
+%      end
     
     %% Program options into variables.
     edgeNoveltyThr = 1-options.edgeNoveltyThr;
@@ -100,14 +102,14 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     end
     
     %% Process each set separately (and in parallel)
-    for setItr = 1:numberOfSets
+    parfor setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          imageNodeIdxSets = setNodeIdxSets{setItr};
          imageGraphNodeSets = setGraphNodeSets{setItr};
          imageNodeIdArr = setNodeIdArr{setItr} ;
          imageNodeCoordArr = setNodeCoordArr{setItr};
          imagePossibleLeafNodeCounts = setPossibleLeafNodeCounts{setItr};
-         disp(['Processing set ' num2str(setItr) ', which has ' num2str(numel(imageIdx)) ' images.']);
+ %        disp(['Processing set ' num2str(setItr) ', which has ' num2str(numel(imageIdx)) ' images.']);
          
          % For every image in this set, find edges and save them.
          for imageItr = 1:numel(imageIdx)
@@ -173,7 +175,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                 if currentLevelId > 1
                      curNodeList = centerLeafNodes;
                      selectedNodeCount = 0;
-                     if numel(adjacentNodes) > maxNodeDegree
+                     if numel(adjacentNodes) > maxNodeDegree || minimalEdgeCount
                           unpickedAdjacentNodes = ones(numel(adjacentNodes),1) > 0;
                           while selectedNodeCount < maxNodeDegree && numel(curNodeList) < curPossibleLeafNodeCounts(nodeItr)
                               % If all nodes are picked, break.
