@@ -198,18 +198,19 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               clusterStep = 1;
               maxNumberOfORNodes = options.reconstruction.maxNumberOfORNodes;
       %        sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1), maxIdx]);
-              sampleCounts = min([round(maxNumberOfORNodes/10), ((size(newDistanceMatrix,1))-1)]):clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrix,1))-1)]);
+              sampleCounts = min([round(maxNumberOfORNodes/10), round(size(newDistanceMatrix,1)/2)]):...
+                   clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrix,1))-round((size(newDistanceMatrix,1))/5))]);
               dunnVals = zeros(numel(sampleCounts),1);
               valIndices =  zeros(numel(sampleCounts),1);
               cutoffRatios =  zeros(numel(sampleCounts),1);
               cutoffRatios(1) = 1;
-              stepItr = 1;
               C = mean(descriptors,1);
 
-              for clusterCount  = sampleCounts
+              parfor stepItr = 1:numel(sampleCounts)
+                   curClusterCount = sampleCounts(stepItr);
       %             maxVal = max(orgMaxVal, Z(end-(clusterCount-2)))-0.00001;
      %              clusters = cluster(Z, 'Cutoff', maxVal, 'Criterion', 'distance');
-                   clusters = cluster(Z, clusterCount);
+                   clusters = cluster(Z, curClusterCount);
 
                    %% Dunn's index.
                    dunnVals(stepItr) = dunns(max(clusters), double(newDistanceMatrix), clusters);
@@ -217,15 +218,15 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    %% Davies-Boulin index.
                    % Calculate the index.
                    % First, we calculate the cluster centers.
-                   centers = zeros(clusterCount, size(descriptors,2));
-                   for centerItr = 1:clusterCount
+                   centers = zeros(curClusterCount, size(descriptors,2));
+                   for centerItr = 1:curClusterCount
                         centers(centerItr,:) = mean(descriptors(clusters == centerItr,:),1);
                    end
 
                    % Within-cluster sum of squares.
                    tempMatrix = zeros(size(centers,2), size(centers,2));
      %              SSWTemp = 0;
-                   for centerItr = 1:clusterCount
+                   for centerItr = 1:curClusterCount
                         idx = clusters == centerItr;
                         vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
      %                   SSWCluster = sum(sum(vectDiff.^2));
@@ -236,8 +237,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    SSW = trace(tempMatrix);
 
                    % Between-cluster sum of squares.
-                   tempMatrix = zeros(clusterCount,size(centers,2));
-                   for centerItr = 1:clusterCount
+                   tempMatrix = zeros(curClusterCount,size(centers,2));
+                   for centerItr = 1:curClusterCount
                         tempMatrix(centerItr,:) = nnz(clusters == centerItr) * (centers(centerItr,:) - C);
                    end
                    SSB = tempMatrix' * tempMatrix;
@@ -250,8 +251,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
       %             SST = SSW + SSB;
 
                    % Intra-cluster distance.
-                   tempMatrix = zeros(clusterCount,1);
-                   for centerItr = 1:clusterCount
+                   tempMatrix = zeros(curClusterCount,1);
+                   for centerItr = 1:curClusterCount
                         idx = clusters == centerItr;
                         vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
                         sums = sum(sum(vectDiff.^2));
@@ -260,42 +261,28 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    CIntra = sum(tempMatrix);
 
                    % Inter-cluster distance.
-                   CInter = (sum(sum(pdist(centers)))*2) / (clusterCount^2);
+                   CInter = (sum(sum(pdist(centers)))*2) / (curClusterCount^2);
 
                    % Final index
-                   valIndices(stepItr) = abs(((SSW/SSB)*SST) - (CIntra/CInter) - (size(descriptors,1) - clusterCount));
-                   if stepItr > 1
-                        if valIndices(stepItr)>valIndices(stepItr-1)
-                             cutoffRatios(stepItr) = valIndices(stepItr-1) / valIndices(stepItr);
-                        else
-                             cutoffRatios(stepItr) = valIndices(stepItr) / valIndices(stepItr-1);
-                        end
-                   end
+                   valIndices(stepItr) = abs(((SSW/SSB)*SST) - (CIntra/CInter) - (size(descriptors,1) - curClusterCount));
 
                    % Second, We obtain the average distance of cluster samples
                    % within every cluster to the center.
-                   sigmas = zeros(clusterCount, 1);
-                   for centerItr = 1:clusterCount
+                   sigmas = zeros(curClusterCount, 1);
+                   for centerItr = 1:curClusterCount
                         idx = clusters == centerItr;
                         vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
                         sigmas(centerItr) = mean(sqrt(sum(vectDiff.^2,2)));
                    end
-
-%                    % Finally, calculate DB index.
-%                    DB = 0;
-%                    for centerItr = 1:clusterCount
-%                         tempArr = zeros(clusterCount,1);
-%                         for centerItr2 = 1:clusterCount
-%                              if centerItr == centerItr2
-%                                   continue;
-%                              end
-%                              tempArr(centerItr2) = (sigmas(centerItr) + sigmas(centerItr2)) / sqrt(sum((centers(centerItr,:) - centers(centerItr2,:)).^2));
-%                         end
-%                         DB = DB + max(tempArr);
-%                    end
-%                    DB = DB / clusterCount;
-%                    DBVals(stepItr) = DB;
-                   stepItr = stepItr + 1;
+              end
+              
+              % Calculate cut off ratios.
+              for stepItr = 2:numel(sampleCounts)
+                   if valIndices(stepItr)>valIndices(stepItr-1)
+                        cutoffRatios(stepItr) = valIndices(stepItr-1) / valIndices(stepItr);
+                   else
+                        cutoffRatios(stepItr) = valIndices(stepItr) / valIndices(stepItr-1);
+                   end
               end
 
               % Show DB index.
@@ -335,7 +322,11 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               end
               % Haven't found a cutoff yet? Set to the fixed value.
               if isempty(val)
-                   clusterCount = options.reconstruction.numberOfORNodes;
+                   if size(newDistanceMatrix,1) < options.reconstruction.numberOfORNodes
+                        clusterCount = round(size(newDistanceMatrix,1) / 2);
+                   else
+                        clusterCount = options.reconstruction.numberOfORNodes;
+                   end
               end
          else
               clusterCount = options.reconstruction.numberOfORNodes;
