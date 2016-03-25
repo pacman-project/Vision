@@ -179,7 +179,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                                   % drastically. Set to an
                                                   % unlikely value (100)
                                                   % for no category nodes.
-    options.categoryLevelCoverage = 0.9; % If each node is covering this percent 
+    options.categoryLevelCoverage = 0.8; % If each node is covering this percent 
                                                                   % of its associated image, we switch to 
                                                                   % category node grouping.
     options.articulationsPerCategory = 10; % Number of top level nodes 
