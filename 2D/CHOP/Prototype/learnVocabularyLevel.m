@@ -103,14 +103,20 @@
 
    %% If category level is reached, we reduce the number of desired nodes substantially.
    nodeCoverages = zeros(numel(graphLevel),1);
+   imageIds = [graphLevel.imageId];
+   remainingImages = unique([graphLevel.imageId]);
+   imageCoverages = zeros(numel(remainingImages), 1);
    stopFlag = false;
    for nodeItr = 1:numel(graphLevel)
-        nodeCoverages(nodeItr) = numel(graphLevel(nodeItr).leafNodes) / nnz(level1Coords(:,1) == graphLevel(nodeItr).imageId);
+        nodeCoverages(nodeItr) = (numel(graphLevel(nodeItr).leafNodes) / nnz(level1Coords(:,1) == graphLevel(nodeItr).imageId)) / avgCoverage;
+        imageCoverages(graphLevel(nodeItr).imageId) = max(imageCoverages(graphLevel(nodeItr).imageId), nodeCoverages(nodeItr));
    end
-   if levelItr == options.categoryLevel || mean(nodeCoverages / avgCoverage) >= options.categoryLevelCoverage
+   if levelItr == options.categoryLevel || mean(imageCoverages(remainingImages)) >= options.categoryLevelCoverage
         stopFlag = true;
         options.stopFlag = true;
         options.reconstruction.numberOfORNodes = options.articulationsPerCategory * options.numberOfCategories;
+   else
+        validVocabNodes = find(ones(numel(vocabLevel),1) > 0);
    end
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
@@ -123,6 +129,11 @@
    graphLevel = calculateActivations(vocabLevel, vocabulary, graphLevel, mainGraph, level1Coords, options, levelItr);
    java.lang.System.gc();
 
+   %% Remove low-coverage nodes when we're at category layer.
+   if stopFlag
+        graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)));
+   end
+   
    %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
    % The rules here are explained in the paper. Basically, each node
    % should introduce a novelty (cover a new area of the image). If it
