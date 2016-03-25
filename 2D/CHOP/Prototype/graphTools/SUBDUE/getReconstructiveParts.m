@@ -28,33 +28,27 @@
 %>
 %> Updates
 %> Ver 1.0 on 08.10.2015
-function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqueChildren)
+function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqueChildren, allLeafNodes)
 
    coverageStoppingVal = 0.99;
    numberOfBestSubs = numel(bestSubs);
-   prevGraphNodeCount = numel(uniqueChildren);
-   maxChildId = max(uniqueChildren);
+   remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
+   firstGraphNodeCount = numel(remainingFirstLevelNodes);
+   maxChildId = max(remainingFirstLevelNodes);
    
    % Allocate space for log likelihood results.
    subCoveredNodes = cell(numberOfBestSubs,1);
    
    % Go over all possible part-subpart pairs, and calculate probabilities.
-   for subItr = 1:numberOfBestSubs
+   parfor subItr = 1:numberOfBestSubs
        instanceChildren = bestSubs(subItr).instanceChildren;
        
         % Save child probabilities.
-        allNodes = unique(instanceChildren);
+        allNodes = fastsortedunique(sort(instanceChildren));
         allNodes = (allNodes(:))';
-        subCoveredNodes{subItr} = allNodes;
+        coveredNodes = fastsortedunique(sort(cat(2, allLeafNodes{allNodes})));
+        subCoveredNodes{subItr} = coveredNodes;
    end
-   
-   % Measure maximum possible coverage.
-   maxCoverageArr = zeros(1, maxChildId) > 0;
-   for subItr = 1:numberOfBestSubs
-        relevantChildren = subCoveredNodes{subItr};
-        maxCoverageArr(relevantChildren) = 1;
-   end
-   possibleCoveredCount = nnz(maxCoverageArr);
    
      %% Finally, we implement an algorithm for part selection. 
      % This step is done to perform an initial pass to reduce the number of
@@ -70,8 +64,6 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
      % Mark invalid nodes.
      invalidArr = cellfun(@(x) numel(x), subCoveredNodes);
      valueArr(invalidArr == 0) = 0;
-
-
      subLimit = numberOfFinalSubs;
      cumVal = 0;
      while subCounter < subLimit
@@ -79,18 +71,22 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
        maxLoc = 0;
        maxSubIdx = [];
        maxLocMarkedNodes = [];
+       prevVal = nnz(markedNodes);
 
       for subItr = 1:numberOfBestSubs
-           if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal > valueArr(subItr)
+           if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal >= valueArr(subItr)
                 continue;
            end
            tempMarkedNodes = markedNodes;
            tempSubIdx = selectedSubIdx;
            tempSubIdx(subItr) = 1;
            children = subCoveredNodes{subItr};
+           
+           % Remove already defined children!
+           children = children(~markedNodes(children));
+           subCoveredNodes{subItr} = children;
 
            % Calculate value of a sub.
-           prevVal = nnz(tempMarkedNodes);
            tempMarkedNodes(children) = 1;
            diffVal = nnz(tempMarkedNodes) - prevVal;
 
@@ -121,7 +117,7 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
 
      %            % Calculate coverage, and check if we've covered enough data.
      %             % Then, break if necessary.
-       coverage = nnz(markedNodes) / possibleCoveredCount;
+       coverage = nnz(markedNodes) / firstGraphNodeCount;
        if coverage >= coverageStoppingVal 
            break;
        end
@@ -145,7 +141,7 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
    % Calculate statistics.
    allCoveredNodes = cat(2, subCoveredNodes{:});
    allCoveredNodes = unique(allCoveredNodes);
-   overallCoverage = numel(allCoveredNodes) / prevGraphNodeCount;
+   overallCoverage = numel(allCoveredNodes) / firstGraphNodeCount;
    
    % Printing.
    display(['[SUBDUE] We have selected  ' num2str(numel(validSubs)) ...

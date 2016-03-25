@@ -35,7 +35,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 17;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -104,7 +104,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.4;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -144,9 +144,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 7;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
+    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
@@ -182,20 +182,20 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.categoryLevelCoverage = 0.9; % If each node is covering this percent 
                                                                   % of its associated image, we switch to 
                                                                   % category node grouping.
-    options.articulationsPerCategory = 5; % Number of top level nodes 
+    options.articulationsPerCategory = 10; % Number of top level nodes 
                % for each category. Category nodes will be formed by
                % grouping top level parts.
                
                % Hint: A good number is the number of poses per object.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 4000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
     options.reconstruction.numberOfORNodes = 200; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.maxNumberOfORNodes = 400; % Ideal number of OR 
+    options.reconstruction.maxNumberOfORNodes = 600; % Ideal number of OR 
     % nodes is searched in the range of 2-maxNumberOfOrNodes.
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========

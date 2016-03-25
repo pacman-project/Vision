@@ -127,7 +127,7 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
             [validSubs, ~, ~] = getMRMRParts(bestSubs, optimalCount, ...
                 categoryArrIdx, imageIdx, validationIdx, valItr, optimalThreshold, singlePrecision);
         else
-           [validSubs, ~] = getReconstructiveParts(bestSubs, optimalCount, remainingChildren);
+           [validSubs, ~] = getReconstructiveParts(bestSubs, optimalCount, remainingChildren, allLeafNodes);
         end
         aggregatedSubs{valItr} = validSubIdx(validSubs);
     end
