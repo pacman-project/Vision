@@ -83,8 +83,8 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
      
      % We create a max overlap matrix based on the types of the filters.
      % Calculate remaining program variables.
-     posArr = double(experts(finalExpertIdx, 2:3));
-     gaborIdArr = double(experts(finalExpertIdx, 1));
+     posArr = single(experts(finalExpertIdx, 2:3));
+     gaborIdArr = single(experts(finalExpertIdx, 1));
      
      % Create program variables, and find changed pixels.
      firstHalf = ceil(filterSize/2) - 1;

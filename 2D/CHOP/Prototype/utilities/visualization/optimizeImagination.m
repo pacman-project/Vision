@@ -102,7 +102,6 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     curLevelItr = nodes(1, 4);
     
     % TODO REMOVE.
-    minOptimizationLayer = curLevelItr;
     imageArr = cell(maxSteps,1);
     posLikelihoodArr = zeros(maxSteps,1);
     poeLikelihoodArr = zeros(maxSteps,1);
@@ -111,6 +110,8 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     while steps < maxSteps && curLevelItr >= minOptimizationLayer
          % Get appropriate vocabulary level.
          currentLevel = vocabulary{curLevelItr};
+         
+         % Update data structures.
          numberOfHighExperts = numel(subChildren);
          
          % Select experts to move.
@@ -146,6 +147,11 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
          while steps<maxSteps
               % If no experts could be moved, move on.
               if nnz(moveFlagArr) == 0
+                  
+                  
+                  
+                  
+                  
                    break;
               end
               
@@ -171,11 +177,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                % Then, we obtain the position pdfs.
                childrenPosDistributions = expertNode.childrenPosDistributions{1};
                if numel(childrenPosDistributions) > 1
-                   try
-                    childrenPosDistributions = childrenPosDistributions{expertOrNodeChoice}; %#ok<FNDSB>
-                   catch
-                      1 
-                   end
+                    childrenPosDistributions = childrenPosDistributions{expertOrNodeChoice};
                else
                     childrenPosDistributions = childrenPosDistributions{1}; %#ok<FNDSB>
                end
@@ -323,8 +325,6 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               % We have moved the expert, now let's update the data
               % structures.
               [~, maxMove] = max(gradients);
-              
-              moves(maxMove, :)
               
               % If we're not performing batch gradient descent, let's
               % break and update our reference likelihood values. 
