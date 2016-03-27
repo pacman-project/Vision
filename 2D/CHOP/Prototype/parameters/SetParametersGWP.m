@@ -104,7 +104,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.4;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.3;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -122,9 +122,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.5; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.3; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0.75; % Each node should cover this percentage of the nodes in its RF.
+    options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
     options.maxEdgeChangeLevel = 3; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
@@ -144,9 +144,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 3;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
+    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
@@ -158,8 +158,8 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 10;    % The maximum level count for training.
-    options.maxInferenceLevels = 10; % The maximum level count for testing.
+    options.maxLevels = 20;    % The maximum level count for training.
+    options.maxInferenceLevels = 20; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -185,7 +185,6 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.articulationsPerCategory = 10; % Number of top level nodes 
                % for each category. Category nodes will be formed by
                % grouping top level parts.
-               
                % Hint: A good number is the number of poses per object.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
@@ -277,7 +276,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = 10; % Maximum number of nodes in a composition.
+    options.subdue.maxSize = min(10, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
     options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 10000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
