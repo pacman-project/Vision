@@ -78,7 +78,11 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
             % TODO: We are planning to replace this with a smarter
             % search mechanism.
             posDistributions = vocabNode.childrenPosDistributions{1};
-            posDistributions = posDistributions{1};
+            if numel(posDistributions) > 1
+                posDistributions = posDistributions{assignedRow};
+            else
+                posDistributions = posDistributions{1};
+            end
             if ~isempty(posDistributions)
                  mixturePs = (posDistributions.PComponents)'; 
                  % Sample from the distribution.
