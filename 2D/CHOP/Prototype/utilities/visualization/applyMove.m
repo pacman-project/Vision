@@ -11,26 +11,20 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.08.2015
-function [ tempExperts, tempParseTrees, tempNodeIds, tempNodeCoords, tempOrNodeChoices, tempOrNodeChoiceCounts ] = ...
-     applyMove(expertToMove, parentExpertCenter, expertChildren, experts, parseTrees, nodeIds, nodeCoords, ...
-          move, nodeAngles, tempOrNodeChoices, tempOrNodeChoiceCounts, nodes, vocabulary, samplingMethod, numberOfAngles, curItr)
+function [ newExperts, newSubChildrenExperts, expertChildren, newAngle ]  = ...
+                        applyMove(nodeCoords, newExperts, expertChildren, newSubChildrenExperts, move, nodeAngle, numberOfRealFilters, numberOfFilters)
      
      % Set step size.
      stepSize = 1;
+     newAngle = nodeAngle;
 
      % Apply all moves.
      switch move(1)
           case 1
-               % Assign initial stuff.
-               tempExperts = experts;
-               tempParseTrees = parseTrees;
-               tempNodeIds = nodeIds;
-               tempNodeCoords = nodeCoords;
-               
                %% Position move. We'll move sub-parts around.
                % First, we obtain children positions.
-              expertChildrenCoords = nodeCoords(expertChildren, :);
-              for expertChildItr = 1:numel(expertChildren)
+              expertChildrenCoords = double(expertChildren(:,2:3));
+              for expertChildItr = 1:size(expertChildren,1)
                    offsets = getMove(move(expertChildItr + 1), stepSize);
                    expertChildrenCoords(expertChildItr, :) = expertChildrenCoords(expertChildItr, :) + offsets;
               end
@@ -38,26 +32,54 @@ function [ tempExperts, tempParseTrees, tempNodeIds, tempNodeCoords, tempOrNodeC
               % Find central point, and move children to so that their
               % center stays the same.
               centerPoint = round((max(expertChildrenCoords, [], 1) + min(expertChildrenCoords, [], 1))/2);
-              expertChildrenCoords = expertChildrenCoords + repmat((parentExpertCenter - centerPoint), size(expertChildrenCoords,1),1);
-              nodePosDiffs = expertChildrenCoords - nodeCoords(expertChildren, :);
-
-              % Finally, update children (and their entire parse
-              % trees) to reflect new positions.
-              for expertChildItr = 1:numel(expertChildren)
-                   idx = parseTrees(:,curItr+1) == expertChildren(expertChildItr);
-                   tempExperts(idx, 2:3) = ...
-                        tempExperts(idx, 2:3) + repmat(nodePosDiffs(expertChildItr,:), nnz(idx), 1);
-                   movedExperts = unique(parseTrees(idx, curItr+1:end));
-                   tempNodeCoords(movedExperts, :) = tempNodeCoords(movedExperts, :) + ...
-                        repmat(nodePosDiffs(expertChildItr,:), numel(movedExperts), 1);
+              expertChildrenCoords = expertChildrenCoords + repmat((nodeCoords - centerPoint), size(expertChildrenCoords,1),1);
+              nodePosDiffs = expertChildrenCoords - double(expertChildren(:,2:3));
+              
+              % Update the children.
+              expertChildren(:,2:3) = int32(expertChildrenCoords);
+              for nodeItr = 1:size(expertChildren,1)
+                   tempVar = double(newSubChildrenExperts{nodeItr});
+                   tempVar(:,2:3) = tempVar(:,2:3) + repmat(nodePosDiffs(nodeItr,:), size(tempVar,1), 1);
+                   newSubChildrenExperts{nodeItr} = int32(tempVar);
+              end
+              newExperts = cat(1, newSubChildrenExperts{:});
+              
+              % Rotation ids
+              if numberOfRealFilters < numberOfFilters
+                    filterIds = round(((180/numberOfRealFilters) * (0:(numberOfRealFilters-1))) / (180/numberOfFilters))' + 1;
+                    newExperts(:,1) = filterIds(newExperts(:,1));
               end
           case 2
-               %% OR node change move.
-               orNodeChanges = [expertToMove, move(2)];
-               [ tempExperts, tempParseTrees, tempNodeIds, tempNodeCoords, tempOrNodeChoices, tempOrNodeChoiceCounts ] = projectNode( nodes, vocabulary, samplingMethod, orNodeChanges );
+               %% Or node change. We don't need to do anything here.
+               
           case 3
                %% Rotation move.
-               
+               if move(2) == 1
+                    newAngle = mod(nodeAngle - 1, 2 * numberOfFilters);
+               else
+                    newAngle = mod(nodeAngle + 1, 2 * numberOfFilters);
+               end
+     end
+     
+     % Rendering part! We have performed the required operations, now let's
+     % obtain the experts and rotate everything around the center point.
+     if newAngle > 0
+          % Create data structures.
+          newExperts = double(newExperts);
+          expertAngles = mod(newAngle + (newExperts(:,1) - 1), numberOfFilters) + 1;
+          numberOfExperts = size(newExperts,1);
+          expertCoords = newExperts(:,2:3);
+          
+          % Rotation matrices
+          center = repmat(nodeCoords, numberOfExperts, 1);
+          theta = -(2 * pi * newAngle / (numberOfFilters));
+          
+          % Perform rotation.
+          R = [cos(theta) -sin(theta); sin(theta) cos(theta)]; 
+          expertCoords = (R * ((expertCoords - center))' + center')';
+          
+          % Get new experts.
+          newExperts = round([expertAngles, expertCoords]);
      end
 end
 
@@ -73,16 +95,6 @@ function offsets = getMove(move, stepSize)
                offsets = [0, -stepSize];
           case 4
                offsets = [0, stepSize];
-%          case 5
-%                offsets = [stepSize, stepSize];
-%          case 6 
-%                offsets = [stepSize, -stepSize];
-%          case 7
-%                offsets = [-stepSize, stepSize];
-%          case 8
-%                offsets = [-stepSize, -stepSize];
-%          case 9
-%                offsets = [0,0];
          case 5
                offsets = [0,0];
      end

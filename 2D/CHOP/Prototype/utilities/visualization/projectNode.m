@@ -16,41 +16,32 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.08.2015
-function [ nodes, parseTrees, nodeIds, nodeCoords, orNodeChoices, orNodeChoiceCounts ] = projectNode( nodes, vocabulary, samplingMethod, orNodeChanges )
+function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode( nodes, vocabulary, samplingMethod, orNodeChoice )
 
-    % If no desired OR nodes exist, we assign empty to the desired list.
     if nargin == 3
-         orNodeChanges = [];
+         orNodeChoice = [];
     end
 
-    if ~isempty(orNodeChanges)
-         orNodeChangeFlag = true;
-    else
-         orNodeChangeFlag = false;
-    end
-    
     levelItr = nodes(1,4);
     nodes = single(nodes);
     posDim = 2;
-    parseTrees = zeros(size(nodes,1), levelItr);
-    parseTrees(:,1) = (1:size(nodes,1))';
-    nodeIds = zeros(size(nodes,1), levelItr);
-    nodeIds(:,1) = nodes(:,1);
-    nodeCoords = nodes(:,2:3);
-    orNodeChoices = [];
-    orNodeChoiceCounts = [];
+    subChildren = cell(size(nodes,1), 1);
+    subChildrenExperts = cell(size(nodes,1), 1);
+    orNodeChoices = zeros(size(nodes,1), 1);
+    orNodeChoiceCounts = zeros(size(nodes,1), 1);
     topLevel = levelItr;
     
     %% First, we recursively backproject the nodes. 
-    nodeOffset = size(nodes,1);
     startNodeOffset = 0;
     while levelItr > 1.001
         vocabLevel = vocabulary{levelItr};
+        prevLevel = vocabulary{levelItr-1};
         newNodes = cell(size(nodes,1),1);
-        newParseTrees = cell(size(nodes,1),1);
-        newNodeIds = cell(size(nodes,1),1);
-        newOrNodeChoices = zeros(size(nodes,1),1);
-        newOrNodeChoiceCounts = zeros(size(nodes,1),1);
+        
+        % If previous layer already has modal experts defined, we don't
+        % need to proceed.
+        stopFlag = ~isempty(prevLevel(1).modalExperts) && strcmp(samplingMethod, 'modal') && levelItr == topLevel;
+        
         for nodeItr = 1:size(nodes,1)
             vocabNode = vocabLevel(nodes(nodeItr,1));
             newNodeSet = zeros(numel(vocabNode.realChildren), 4, 'single');
@@ -58,35 +49,10 @@ function [ nodes, parseTrees, nodeIds, nodeCoords, orNodeChoices, orNodeChoiceCo
             % Sample from the discrete and continuous distributions.
             childrenLabelDistributions = vocabNode.childrenLabelDistributions;
             choiceCounts = size(childrenLabelDistributions,1);
-            if orNodeChangeFlag
-                 idx = find(nodeItr + startNodeOffset == orNodeChanges(:,1));
-            else
-                 idx = [];
-            end
-            if ~isempty(idx)
-%                  % If we need to change to another or node, we select one
-%                  % of the remaining options (sampled).
-%                  validRows = ones(numberOfLabelChoices,1) > 1;
-%                  validRows(currentOrNodeChoices(nodeItr + startNodeOffset)) = 0;
-%                  remChildrenLabelDistributions = childrenLabelDistributions(validRows,:);
-%                  
-%                  % Normalize probs.
-%                  remChildrenLabelDistributions(:,end) = remChildrenLabelDistributions(:,end) / sum(remChildrenLabelDistributions(:,end));
-%                  
-%                  % Sample from the remaining rows.
-%                  probabilities = remChildrenLabelDistributions(:,end);
-%                  probabilities = [0; probabilities]; %#ok<AGROW>
-%                  cumProbabilities = cumsum(probabilities);
-%                  cumProbabilities(end) = cumProbabilities(end) + 0.0001;
-%                  cumProbabilities(1) = cumProbabilities(1) - 0.0001;
-%                  randNumber = single(rand());
-%                  assignedRow = find(randNumber >= cumProbabilities(1:(end-1))  & randNumber < cumProbabilities(2:end));
-%                  
-%                  % Update the row number.
-%                  if assignedRow >= currentOrNodeChoices(nodeItr + startNodeOffset)
-%                       assignedRow = assignedRow + 1;
-%                  end
-                 assignedRow = orNodeChanges(idx,2);
+
+            % Reconstruct the nodes.
+            if ~isempty(orNodeChoice)
+                 assignedRow = orNodeChoice;
             elseif strcmp(samplingMethod, 'modal')
                  [~, assignedRow] = max(childrenLabelDistributions(:, end));
             else
@@ -105,10 +71,6 @@ function [ nodes, parseTrees, nodeIds, nodeCoords, orNodeChoices, orNodeChoiceCo
             end
             nodeCombination = childrenLabelDistributions(assignedRow, 1:(end-1)); 
             
-            % Save this choice.
-            newOrNodeChoices(nodeItr) = assignedRow;
-            newOrNodeChoiceCounts(nodeItr) = choiceCounts;
-            
             % Given the node combinations, we obtain relevant position
             % distributions and sample from that. Mode of a Gaussian
             % mixture is obtained by simply getting the distribution with
@@ -116,7 +78,7 @@ function [ nodes, parseTrees, nodeIds, nodeCoords, orNodeChoices, orNodeChoiceCo
             % TODO: We are planning to replace this with a smarter
             % search mechanism.
             posDistributions = vocabNode.childrenPosDistributions{1};
-            posDistributions = posDistributions{assignedRow};
+            posDistributions = posDistributions{1};
             if ~isempty(posDistributions)
                  mixturePs = (posDistributions.PComponents)'; 
                  % Sample from the distribution.
@@ -138,41 +100,55 @@ function [ nodes, parseTrees, nodeIds, nodeCoords, orNodeChoices, orNodeChoiceCo
                  midPoint = round((mins+maxs)/2);
                  newNodeSet(:,2:3) = round(newNodeSet(:,2:3) - repmat(midPoint, size(newNodeSet,1),1));
             end
+            
             % Finally, we update the positions by adding previous
             % offset.
             newNodeSet(:,2:3) = newNodeSet(:,2:3) + repmat(nodes(nodeItr,2:3), size(newNodeSet,1),1);
-            
-            % Assign rest of the fields and move on.
             newNodeSet(:, 1) = single(nodeCombination');
             newNodeSet(:, 4) = levelItr-1;
+            
+            % Assign rest of the fields and move on.
             newNodes{nodeItr} = newNodeSet;
             
-            % Generate parse trees.
-            tempParseTree = repmat(parseTrees(nodeItr,:), size(newNodeSet,1), 1);
-            tempNodeIds = repmat(nodeIds(nodeItr,:), size(newNodeSet,1), 1);
-            tempParseTree(:, (topLevel - levelItr) + 2) = ((nodeOffset+1):(nodeOffset+size(newNodeSet,1)))';
-            tempNodeIds(:, (topLevel - levelItr) + 2) = newNodeSet(:,1);
-            nodeCoords = [nodeCoords; newNodeSet(:,2:3)]; %#ok<AGROW>
-            nodeOffset = nodeOffset + size(newNodeSet,1);
-            newParseTrees{nodeItr} = tempParseTree;
-            newNodeIds{nodeItr} = tempNodeIds;
+             % If there are existing predictions in previous layer, let's
+             % combine them.
+             if levelItr > 1 && stopFlag
+                    % Combine experts with the imaginations from the previous
+                    % layer.
+                    newNodeSet = int32(round(newNodeSet(:,1:3)));
+                    allExperts = cell(size(newNodeSet,1),1);
+                    for expertItr = 1:size(newNodeSet,1)
+                         newChildren = prevLevel(newNodeSet(expertItr,1)).modalExperts;
+                         newChildren(:,2:3) = repmat(newNodeSet(expertItr,2:3), size(newChildren,1),1) + newChildren(:,2:3);
+                         allExperts{expertItr} = newChildren;
+                    end
+ %                   allExperts = cat(1, allExperts{:});
+                    if levelItr == topLevel
+                         subChildrenExperts{nodeItr} = allExperts;
+                    end
+             end
+            
+            % Save this choice.
+             if topLevel == levelItr
+                  subChildren(nodeItr) = {newNodeSet};
+                  orNodeChoices(nodeItr) = assignedRow;
+                  orNodeChoiceCounts(nodeItr) = choiceCounts;
+             end
+        end
+        
+        % If stop flag is on, we don't need to proceed further.
+        if stopFlag
+             nodes = cat(1, subChildrenExperts{:});
+             nodes = cat(1, nodes{:});
+             break;
         end
         
         % Shift the nodes by an offset.
         startNodeOffset = size(nodes,1) + startNodeOffset;
         nodes = cat(1, newNodes{:});
-        parseTrees = cat(1, newParseTrees{:});
-        nodeIds = cat(1, newNodeIds{:});
-        orNodeChoices = cat(1, orNodeChoices, newOrNodeChoices);
-        orNodeChoiceCounts = cat(1, orNodeChoiceCounts, newOrNodeChoiceCounts);
         levelItr = levelItr - 1;
     end
     
     nodes = int32(round(nodes(:,1:3)));
-    %% Finally, we perform a simple inhibition process to remove overlapping level 1 instances.
-    validNodes = ones(size(nodes,1),1) > 0;
-    [~, firstSeenIdx] = unique(parseTrees, 'first');
-    nodeIds = nodeIds(firstSeenIdx)';
-    nodes = nodes(validNodes, :);
 end
 

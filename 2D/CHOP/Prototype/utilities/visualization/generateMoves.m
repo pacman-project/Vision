@@ -20,7 +20,6 @@
 %> Ver 1.0 on 24.03.2016
 function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount)
      generatedMoveCount = stochasticMoves * 2;
-     availableTypes = find(moveFlags);
      moves = zeros(generatedMoveCount, numberOfChildren + 1);
      
      % If there's only 1 type of OR node choice, we set the relevant flag
@@ -28,15 +27,17 @@ function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, exp
      if expertOrNodeChoice == expertOrNodeChoiceCount
           moveFlags(2) = 0;
      end
+     availableTypes = find(moveFlags);
      
     % If there's only one type of move allowed, we don't need to perform
     % initial selection.
     if nnz(moveFlags) == 1
          moves(:,1) = availableTypes;
     else
-         moves(:,1) = ceil(rand(generatedMoveCount, numberOfChildren) * nnz(moveFlags));
+         moves(:,1) = ceil(rand(generatedMoveCount, 1) * nnz(moveFlags));
     end
     moves(moves(:,1)<1,1) = 1;
+    moves(:,1) = availableTypes(moves(:,1));
 
     % 1) Now, let's also generate position moves for each entry, where needed.
     numberOfPosMoves = nnz(moves(:,1) == 1);
@@ -64,7 +65,7 @@ function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, exp
     end
     
    % Remove invalid position moves.
-    moves = moves(~(moves(:,1) == 1 & range(moves(:,2:end),2) == 0 & moves(:,2) == 5), :);
+    moves = moves(~(moves(:,1) == 1 & range(moves(:,2:end),2) == 0), :);
         
     % The moves are now generated. Here, we remove duplicate rows.
     moves = unique(moves, 'stable', 'rows');
