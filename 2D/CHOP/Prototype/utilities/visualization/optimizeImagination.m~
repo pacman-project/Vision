@@ -170,9 +170,10 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
 
                % Then, we obtain the position pdfs.
                childrenPosDistributions = expertNode.childrenPosDistributions{1};
-               if numel(childrenPosDistributions) > 1
-                    childrenPosDistributions = childrenPosDistributions{expertOrNodeChoice}; %#ok<FNDSB>
+               if numel(childrenPosDistributions) > 0
+                    childrenPosDistributions = childrenPosDistributions{1}; %#ok<FNDSB>
                else
+                    
                     childrenPosDistributions = childrenPosDistributions{1}; %#ok<FNDSB>
                end
                
