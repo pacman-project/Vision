@@ -82,7 +82,7 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
     likelihoodLookupTable = log(likelihoodLookupTable);
 
     %% Go through every image and find optimal version.
-    for imgItr = max(imageIds)
+    for imgItr = 1:max(imageIds)
        % Obtain image-specific realizations.
        idx = imageIds == imgItr;
        
