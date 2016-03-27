@@ -18,11 +18,11 @@ function [ options ] = SetParameters( datasetName, isTraining )
     if ~isTraining
         options.debug = 1;
     else
-        options.debug = 1;           % If debug = 1, additional output will be 
+        options.debug = 0;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end
-    options.fastStatLearning = false;
-    options.vis.printTrainRealizations = true;
+    options.fastStatLearning = true;
+    options.vis.printTrainRealizations = false;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
@@ -34,7 +34,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                       % If 2, size of the receptive field
                                       % is halved, as in the previous
                                       % version of the algorithm.
-    options.poolFlag = false; % If true, we apply max pooling to reduce number of 
+    options.poolFlag = true; % If true, we apply max pooling to reduce number of 
                                             %  realizations. Otherwise,
                                             %  positions are updated, but
                                             %  no elimination is performed.

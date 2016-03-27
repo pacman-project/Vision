@@ -82,7 +82,7 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
     likelihoodLookupTable = log(likelihoodLookupTable);
 
     %% Go through every image and find optimal version.
-    parfor imgItr = 1:max(imageIds)
+    for imgItr = 1:max(imageIds)
        % Obtain image-specific realizations.
        idx = imageIds == imgItr;
        
@@ -103,12 +103,12 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
        % Now, we get the top realizations and backproject to the original
        % image.
        prevRFSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-3)) * (inhibitionHalfSize+1);
-       [muImg, ~] = optimizeImagination(curExportArr, vocabulary, options.imageSize, prevRFSize, optFilters, visFilters, 1, batchFlag, options.datasetName, likelihoodLookupTable, fileName);
+       [~, ~] = optimizeImagination(curExportArr, vocabulary, options.imageSize, prevRFSize, optFilters, visFilters, 1, batchFlag, options.datasetName, likelihoodLookupTable, fileName);
 
-       % For visualization, overlay the original image with reconstructed nodes.
-       imwrite(muImg, [imgFolder '/' fileName '_level' num2str(levelItr) 'optimizedImagination.png']);
-       imwrite(orgImg, [imgFolder '/' fileName '_original.png']);
-       
+%        % For visualization, overlay the original image with reconstructed nodes.
+%        imwrite(muImg, [imgFolder '/' fileName '_level' num2str(levelItr) 'optimizedImagination.png']);
+%        imwrite(orgImg, [imgFolder '/' fileName '_original.png']);
+%        
     end
 end
     

@@ -11,12 +11,13 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.08.2015
-function [ newExperts, newSubChildrenExperts, expertChildren, newAngle ]  = ...
-                        applyMove(nodeCoords, newExperts, expertChildren, newSubChildrenExperts, move, nodeAngle, numberOfRealFilters, numberOfFilters)
+function [ newExperts, newSubChildrenExperts, expertChildren, newOrNodeChoice, newAngle ]  = ...
+                        applyMove(nodeCoords, newExperts, expertChildren, newSubChildrenExperts, move, expertOrNodeChoice, nodeAngle, numberOfRealFilters, numberOfFilters)
      
      % Set step size.
      stepSize = 1;
      newAngle = nodeAngle;
+     newOrNodeChoice = expertOrNodeChoice;
 
      % Apply all moves.
      switch move(1)
@@ -51,7 +52,7 @@ function [ newExperts, newSubChildrenExperts, expertChildren, newAngle ]  = ...
               end
           case 2
                %% Or node change. We don't need to do anything here.
-               
+               newOrNodeChoice = move(2);
           case 3
                %% Rotation move.
                if move(2) == 1

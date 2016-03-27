@@ -104,7 +104,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.3;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.4;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -122,10 +122,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.3; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
-    options.maxEdgeChangeLevel = 3; % If this is the layer we're working on, we switch to centroid edges.
+    options.missingNodeThr = 0.6; % Each node should cover this percentage of the nodes in its RF.
+    options.maxEdgeChangeLevel = 100; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will
@@ -144,7 +144,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 3;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.minimalEdgeCount = true; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
