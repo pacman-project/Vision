@@ -17,13 +17,13 @@
 %> Updates
 %> Ver 1.0 on 07.02.2016
 function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, prevImageSize, filters, visFilters, sampleItr, ~, datasetName, likelihoodLookupTable, fileName)
-     stopVal = 0.01;
+     stopVal = 0.001;
 %     maxSteps = 10 * size(nodes,1);
      maxSteps = 500;
      minOptimizationLayer = 3;
-     minLikelihoodChange = 0.01;
+     minLikelihoodChange = 0.0001;
      % If an expert (on average) has better likelihood than this, it means it's more or less agreed.
-     likelihoodThr = likelihoodLookupTable(1,1) * 1.005; % Change in likelihood that's enough to reconsider that sub.
+     likelihoodThr = likelihoodLookupTable(1,1) * 1.0001; % Change in likelihood that's enough to reconsider that sub.
      poeCounter = 0;
      
      % If the file name is given, use that one.
@@ -394,6 +394,17 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     % fails, we switch back to normal stuff.
     display('Writing output!');
     try
+         % Create a video of images.
+         outputVideo = VideoWriter([folderName '_optimization.avi']);
+         outputVideo.FrameRate = 5;
+         open(outputVideo)
+         
+         for itr = 1:numel(imageArr)
+             img = imageArr{itr};
+             writeVideo(outputVideo,img)
+         end
+         close(outputVideo);
+         
          posPadding = (max(posLikelihoodArr) - min(posLikelihoodArr))/4;
          posLimits = [min(posLikelihoodArr) - posPadding, max(posLikelihoodArr) + posPadding];
          if numel(unique(posLimits)) == 1
