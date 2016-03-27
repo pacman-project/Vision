@@ -139,7 +139,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
                   % distribution with the given number of clusters. This is
                   % a very ugly piece of code that decides numerous
                   % parameters for efficiency.
-                  regularizeTerm = 1e-5;
+                  regularizeTerm = 1e-3;
                   bigRegularizeTerm = 0.1;
                   if size(relevantSamples,1) < minPoints || size(relevantSamples,1) <= size(relevantSamples,2)
                        % We simply don't have enough data here. We switch
@@ -149,11 +149,7 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
                             covMat = dummySigma;
                             mu = relevantSamples;
                        else
-                            if size(relevantSamples,1) <= size(relevantSamples,2)
-                                  covMat = cov(relevantSamples) + bigRegularizeTerm;
-                            else
-                                  covMat = cov(relevantSamples) + regularizeTerm;
-                            end
+                            covMat = cov(relevantSamples) + bigRegularizeTerm;
                             mu = mean(relevantSamples,1);
                        end
                        
