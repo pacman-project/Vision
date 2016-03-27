@@ -43,12 +43,10 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim, poolFlag )
      combinedArr = combinedArr(idx,:);
      
      %% Downsample the coordinates (pooling), and then perform max operation.
-     combinedArr(:,3:4) = floor((combinedArr(:,3:4) - 1)/poolDim) + 1;
      if poolFlag
-         [~, IA, ~] = unique(combinedArr, 'rows', 'stable');
-     else
-          IA = (1:size(combinedArr,1))';
+          combinedArr(:,3:4) = floor((combinedArr(:,3:4) - 1)/poolDim) + 1;
      end
+    [~, IA, ~] = unique(combinedArr, 'rows', 'stable');
      
      % Save real indices and activations.
      idx = idx(IA);

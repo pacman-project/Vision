@@ -30,7 +30,7 @@
 %> Ver 1.0 on 08.10.2015
 function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqueChildren, allLeafNodes)
 
-   coverageStoppingVal = 0.99;
+   coverageStoppingVal = 0.995;
    numberOfBestSubs = numel(bestSubs);
    remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
    firstGraphNodeCount = numel(remainingFirstLevelNodes);

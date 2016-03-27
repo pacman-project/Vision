@@ -218,6 +218,9 @@
       imwrite(eucDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
       imwrite(newDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_orNodes.png']);
    end
+   
+   %% At this step, we perform imagination of the parts at this layer (for later use).
+   vocabulary = projectVocabulary( vocabulary);
 
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
@@ -256,7 +259,7 @@
           % Backproject parts to the images.
           display('........ Imagining parts and their instances! This can take a while...');
           if options.vis.printTrainRealizations
-               projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
+%               projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
           end
           matlabpool('open', options.numberOfThreads);
      end

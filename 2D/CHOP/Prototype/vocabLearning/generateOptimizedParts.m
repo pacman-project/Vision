@@ -83,7 +83,7 @@ function [] = generateOptimizedParts(vocabulary, levelItr, options)
    for vocabNodeItr = 1:numel(vocabLevel)
         for sampleItr = 1:samplesPerPart
              % Obtain optimized projections.
-             nodes = [vocabNodeItr, 0, 0, levelItr];
+             nodes = [vocabNodeItr, round(imageSize(1)/2), round(imageSize(2)/2), levelItr];
              optimizeImagination(nodes, vocabulary, imageSize, prevImageSize, filters, visFilters, sampleItr, batchFlag, options.datasetName);
         end
     end

@@ -310,7 +310,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               end
 
               % Find an ideal cutoff ratio.
-              sampleVals = [0.5 0.6 0.7 0.8];
+              sampleVals = 0.3:0.025:0.85;
               for sampleVal = sampleVals
                    val = find(cutoffRatios <= sampleVal, 1, 'first');
                    if ~isempty(val)
