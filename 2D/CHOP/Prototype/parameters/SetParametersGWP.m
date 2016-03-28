@@ -124,7 +124,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % layers. 
     options.minContinuityCoverage = 0.9; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0.6; % Each node should cover this percentage of the nodes in its RF.
+    options.missingNodeThr = 0.75; % Each node should cover this percentage of the nodes in its RF.
     options.maxEdgeChangeLevel = 100; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
@@ -146,7 +146,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % 1/scaling.
     options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
+    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
@@ -191,10 +191,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 200; % The maximum 
+    options.reconstruction.numberOfORNodes = 250; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.maxNumberOfORNodes = 600; % Ideal number of OR 
+    options.reconstruction.maxNumberOfORNodes = 800; % Ideal number of OR 
     % nodes is searched in the range of 2-maxNumberOfOrNodes.
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========

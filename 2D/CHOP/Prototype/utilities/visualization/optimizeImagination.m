@@ -73,6 +73,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      
      %% First, imagine layer 1 nodes.
      [ experts, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode(nodes, vocabulary, sampleString);
+     rotatedSubChildren = subChildren;
      nodeAngles = zeros(numel(subChildren),1);
      nodeIds = nodes(:,1);
      nodeExpertCounts = cellfun(@(x) sum(cellfun(@(y) size(y,1), x)), subChildrenExperts);
@@ -222,6 +223,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               maxExperts = cell(numberOfMoves,1);
               maxSubChildrenExperts = cell(numberOfMoves,1);
               maxSubChildren = cell(numberOfMoves,1);
+              maxRotatedSubChildren = cell(numberOfMoves,1);
               maxOrNodeChoices = zeros(numberOfMoves,1);
               maxAngles = zeros(numberOfMoves,1);
               maxNodeExpertIds = cell(numberOfMoves,1);
@@ -249,7 +251,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                    
                    %% Apply the moves, and get a new set of experts.
                    % Or node choice don't forget!
-                   [ newExperts, newSubChildrenExperts, newSubChildren, newOrNodeChoice, newAngle ] = ...
+                   [ newExperts, newSubChildrenExperts, newSubChildren, newRotatedSubChildren, newOrNodeChoice, newAngle ] = ...
                         applyMove(nodes(expertToMove, 2:3), newExperts, newSubChildren, newSubChildrenExperts,...
                         moves(moveItr,:), expertOrNodeChoice, nodeAngles(expertToMove), numberOfRealFilters, numberOfFilters);
                    
@@ -305,6 +307,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                         maxExperts(moveItr) = {newExperts};
                         maxSubChildrenExperts(moveItr) = {newSubChildrenExperts};
                         maxSubChildren(moveItr) = {newSubChildren};
+                        maxRotatedSubChildren(moveItr) = {newRotatedSubChildren};
                         maxOrNodeChoices(moveItr) = newOrNodeChoice;
                         maxNodeExpertIds(moveItr) = {newNodeExpertIds};
                         maxAngles(moveItr) = newAngle;
@@ -350,7 +353,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               experts = maxExperts{maxMove};
               subChildrenExperts{expertToMove} = maxSubChildrenExperts{maxMove};
               subChildren{expertToMove} = maxSubChildren{maxMove};
-              
+              rotatedSubChildren{expertToMove} = maxRotatedSubChildren{maxMove};
               orNodeChoices(expertToMove) = maxOrNodeChoices(maxMove);
               nodeExpertIds = maxNodeExpertIds{maxMove};
               nodeAngles(expertToMove) = maxAngles(maxMove);

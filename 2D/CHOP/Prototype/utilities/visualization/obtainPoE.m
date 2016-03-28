@@ -20,12 +20,23 @@
 %> Updates
 %> Ver 1.0 on 07.02.2016
 function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg, likelihoodMat, imgSize, filters, likelihoodLookupTable, expertTypes)
+     % Before we do anything, let's find the experts on the edge of the
+     % image and eliminate them for fast processing.
+     filterSize = size(filters,1);
+     maxInfluenceRadius = ceil(filterSize/2);
+     validExpertIdx = experts(:,2) >= maxInfluenceRadius & experts(:,3) >= maxInfluenceRadius & ...
+         experts(:,2) <= (imgSize(1)-(maxInfluenceRadius-1)) & experts(:,3) < (imgSize(2)-(maxInfluenceRadius-1));
+     experts = experts(validExpertIdx,:);
+     [experts, IA, ~] = unique(experts, 'rows', 'stable');
+
      % Program arguments.
      % If added expert flags haven't been given, we consider all experts as new.
      if nargin == 6
           expertTypes = ones(size(experts,1),1);
           prevExpertsGiven = false;
      else
+          expertTypes = expertTypes(validExpertIdx);
+          expertTypes = expertTypes(IA);
           if nnz(expertTypes == 0) > 0
                prevExpertsGiven = true;
           else
@@ -50,14 +61,8 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
                likelihoodMat = zeros(imgSize);
           end
      end
-     filterSize = size(filters,1);
      filterMatrixSize = size(filters);
      minSigma = 0.15;
-     
-     % If fast flag is active, we don't take non-overlapping filters into
-     % account.
-     maxInfluenceRadius = ceil(filterSize/2);
-     maxDist = maxInfluenceRadius^2;
      
      %% Now, we obtain product of non-influencing experts from a range of 1 to max.
      % Eliminate unnecessary nodes.
@@ -69,14 +74,13 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
      
      % Find modified experts to focus on them. 
      changedExperts = [newExperts; removedExperts];
-     changedExperts = changedExperts(changedExperts(:,2) > 1 & changedExperts(:,2) < imgSize(1) + 1 & ...
-           changedExperts(:,3) > 1 & changedExperts(:,3) < imgSize(2) + 1, :);
      
      % Create overlap array.
-     maxOverlapMatrix = zeros(imgSize) > 0;
+     emptyImageMatrix = zeros(imgSize);
+     maxOverlapMatrix = emptyImageMatrix > 0;
      idx = sub2ind(imgSize, round(changedExperts(:,2)), round(changedExperts(:,3)));
      maxOverlapMatrix(idx) = 1;
-     cx=maxInfluenceRadius+1;cy=cx;ix=2*maxInfluenceRadius+1;iy=ix;r=maxInfluenceRadius;
+     cx=maxInfluenceRadius;cy=cx;ix=2*maxInfluenceRadius-1;iy=ix;r=maxInfluenceRadius;
      [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
      c_mask=((x.^2+y.^2)<r^2);
      maxOverlapMatrix = imdilate(maxOverlapMatrix, c_mask);
@@ -87,8 +91,6 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
      gaborIdArr = single(experts(finalExpertIdx, 1));
      
      % Create program variables, and find changed pixels.
-     firstHalf = ceil(filterSize/2) - 1;
-     secHalf = filterSize - (firstHalf+1);
      changedIdx = find(maxOverlapMatrix);
      [posX, posY] = ind2sub(imgSize, changedIdx);
      numberOfPixels = numel(changedIdx);
@@ -108,6 +110,10 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
           likelihoodMat(:) = dummyLog;
      end
      
+     distances = pdist2(posArr,[posX, posY]) < maxInfluenceRadius;
+     allExpertIds = 1:numberOfFinalExperts;
+     negPosArr = -posArr;
+     
      % Calculate pixel-level likelihoods.
      for pixelItr = 1:numberOfPixels
           % Obtain x and y coordinates.
@@ -116,28 +122,23 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
           
           % Initialize structures.
           logProb = 0;
-          location = [itr1, itr2];
-          
-          % Finally, we get the filters that overlap with this point.
-          relativeLocations = -posArr;
-          relativeLocations(:,1) = relativeLocations(:,1) + location(1);
-          relativeLocations(:,2) = relativeLocations(:,2) + location(2);
-          overlappingIdx = sum(relativeLocations.^2,2) < maxDist;
-          
+          location = [itr1, itr2] + maxInfluenceRadius;
+          logIdx = distances(:, pixelItr);
+          overlappingIdx = allExpertIds(logIdx);
+           
           % Keep track of overlapping gabors filters, and use them in
           % calculations.
-          overlappingIdx = find(overlappingIdx);
           overlappingIdxCount = numel(overlappingIdx);
           
           if overlappingIdxCount > 0
                % Obtain relative locations.
-               overlappingLocations = relativeLocations(overlappingIdx,:);
-               overlappingLocations(:,1) = firstHalf + 1 + overlappingLocations(:,1); 
-               overlappingLocations(:,2) = secHalf + 1 + overlappingLocations(:,2); 
+               overlappingLocations = negPosArr(logIdx,:);
+               overlappingLocations(:,1) = overlappingLocations(:,1) + location(1);
+               overlappingLocations(:,2) = overlappingLocations(:,2) + location(2);
 
                % No experts? Move on. We're confident.
-                predictionIdx = overlappingLocations(:,1) + (overlappingLocations(:,2)-1)*filterMatrixSize(1) + (gaborIdArr(overlappingIdx)-1)*filterMatrixSize(1)*filterMatrixSize(2);
-                predictionArr = filters(predictionIdx);
+               predictionIdx = overlappingLocations(:,1) + (overlappingLocations(:,2)-1)*filterMatrixSize(1) + (gaborIdArr(overlappingIdx)-1)*filterMatrixSize(1)*filterMatrixSize(2);
+               predictionArr = filters(predictionIdx);
 
                %% Calculate product of experts! We're using equal sigmas, which greatly reduces computation.
                aggMu = round(sum(predictionArr)/overlappingIdxCount);
