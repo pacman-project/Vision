@@ -17,8 +17,9 @@ function [ newExperts, newSubChildrenExperts, expertChildren, rotatedExpertChild
      % Set step size.
      stepSize = 1;
      newAngle = nodeAngle;
-     rotatedExpertChildren = double(expertChildren);
      newOrNodeChoice = expertOrNodeChoice;
+     nodeCoords = double(nodeCoords);
+     filterIds = round(((180/numberOfRealFilters) * (0:(numberOfRealFilters-1))) / (180/numberOfFilters))' + 1;
 
      % Apply all moves.
      switch move(1)
@@ -48,7 +49,6 @@ function [ newExperts, newSubChildrenExperts, expertChildren, rotatedExpertChild
               
               % Rotation ids
               if numberOfRealFilters < numberOfFilters
-                    filterIds = round(((180/numberOfRealFilters) * (0:(numberOfRealFilters-1))) / (180/numberOfFilters))' + 1;
                     newExperts(:,1) = filterIds(newExperts(:,1));
               end
           case 2
@@ -61,11 +61,17 @@ function [ newExperts, newSubChildrenExperts, expertChildren, rotatedExpertChild
                else
                     newAngle = mod(nodeAngle + 1, 2 * numberOfFilters);
                end
+          case 4
+               %% Only for rendering.
+               newAngle = nodeAngle;
      end
+     
+     % Save rotated expert children.
+     rotatedExpertChildren = double(expertChildren);
      
      % Rendering part! We have performed the required operations, now let's
      % obtain the experts and rotate everything around the center point.
-     if newAngle > 0
+     if newAngle ~= 0 
           % Create data structures.
           expertChildren = double(expertChildren);
           center = repmat(nodeCoords, size(expertChildren, 1), 1);
@@ -74,32 +80,34 @@ function [ newExperts, newSubChildrenExperts, expertChildren, rotatedExpertChild
           
           % Rotate children.
           rotatedExpertChildren(:,2:3) = round((R * ((expertChildren(:,2:3) - center))' + center')');
-          childrenOffsets = rotatedExpertChildren - expertChildren;
+          childrenOffsets = int32(rotatedExpertChildren - expertChildren);
           
           % Rotate low-level experts of children. First, we shift their
           % locations to the new places.
+          newExperts = newSubChildrenExperts;
           for childItr = 1:size(rotatedExpertChildren,1)
               tempExperts = newSubChildrenExperts{childItr};
-              tempExperts = tempExperts + repmat(childrenOffsets(childItr,2:3), size(tempExperts,1), 1);
+              tempExperts(:,2:3) = tempExperts(:,2:3) + repmat(childrenOffsets(childItr,2:3), size(tempExperts,1), 1);
               newSubChildrenExperts{childItr} = tempExperts;
+              
+              % Rotate low-level experts.
+              center = repmat(rotatedExpertChildren(childItr,2:3), size(tempExperts,1), 1);
+              tempExperts(:,2:3) = round((R * ((double(tempExperts(:,2:3)) - center))' + center')');
+              
+              % First, assign crude ids.
+              if numberOfRealFilters < numberOfFilters
+                    tempExperts(:,1) = filterIds(tempExperts(:,1));
+              end
+              
+              % Then, update the filter ids (for finer detail)
+              tempExperts(:,1) = mod(newAngle + (tempExperts(:,1) - 1), numberOfFilters) + 1;
+              
+              % Save final (rendered) experts.
+              newExperts{childItr} = tempExperts;
           end
-          
-          % Finally, rotate low-level filters as well.
-          newExperts = newSubChildrenExperts{childItr};
-          
-          for childItr = 1:size(rotatedExpertChildren,1)
-          
-          expertAngles = mod(newAngle + (expertChildren(:,1) - 1), numberOfFilters) + 1;
-          % Rotation matrices
-          center = repmat(nodeCoords, numberOfExperts, 1);
-          theta = -(2 * pi * newAngle / (numberOfFilters));
-          
-          % Perform rotation.
-          R = [cos(theta) -sin(theta); sin(theta) cos(theta)]; 
-          expertCoords = (R * ((expertCoords - center))' + center')';
-          
-          % Get new experts.
-          combinedExperts = round([expertAngles, expertCoords]);
+          newExperts = cat(1, newExperts{:});
+          expertChildren = int32(expertChildren);
+          rotatedExpertChildren = int32(rotatedExpertChildren);
      end
 end
 

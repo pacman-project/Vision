@@ -25,7 +25,12 @@ function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, exp
      % If there's only 1 type of OR node choice, we set the relevant flag
      % to 0.
      if expertOrNodeChoice == expertOrNodeChoiceCount
-          moveFlags(2) = 0;
+          if nnz(moveFlags) == 1
+               moves = [];
+               return;
+          else
+               moveFlags(2) = 0;
+          end
      end
      availableTypes = find(moveFlags);
      
@@ -35,9 +40,9 @@ function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, exp
          moves(:,1) = availableTypes;
     else
          moves(:,1) = ceil(rand(generatedMoveCount, 1) * nnz(moveFlags));
+         moves(moves(:,1)<1,1) = 1;
+         moves(:,1) = availableTypes(moves(:,1));
     end
-    moves(moves(:,1)<1,1) = 1;
-    moves(:,1) = availableTypes(moves(:,1));
 
     % 1) Now, let's also generate position moves for each entry, where needed.
     numberOfPosMoves = nnz(moves(:,1) == 1);

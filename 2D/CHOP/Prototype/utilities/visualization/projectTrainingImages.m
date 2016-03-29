@@ -17,7 +17,6 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
     imageIds = [graphLevel.imageId];
     realLabelIds = double(cat(1, graphLevel.realLabelId));
     precisePositions = double(cat(1, graphLevel.precisePosition));
-%    minIndividualPrint = 4;
     batchFlag = false;
     dummySigma = 0.15;
     angleStep = 3; % 22.5 for no rotations!
@@ -80,9 +79,13 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
          likelihoodLookupTable(itr+1,:) = (probs(2:end) - probs(1:(end-1))) / normProb;
     end
     likelihoodLookupTable = log(likelihoodLookupTable);
-
+    rfSizes = zeros(levelItr,1);
+    for rfSizeItr = 2:size(rfSizes,1)
+         rfSizes(rfSizeItr) = options.receptiveFieldSize * stride * (options.poolDim ^ (rfSizeItr-2)) * (inhibitionHalfSize+1);
+    end
+    
     %% Go through every image and find optimal version.
-    for imgItr = 500:max(imageIds)
+    for imgItr = 1:max(imageIds)
        % Obtain image-specific realizations.
        idx = imageIds == imgItr;
        
@@ -102,8 +105,7 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
 
        % Now, we get the top realizations and backproject to the original
        % image.
-       prevRFSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-3)) * (inhibitionHalfSize+1);
-       [~, ~] = optimizeImagination(curExportArr, vocabulary, options.imageSize, prevRFSize, optFilters, visFilters, 1, batchFlag, options.datasetName, likelihoodLookupTable, fileName);
+       [~, ~] = optimizeImagination(curExportArr, vocabulary, options.imageSize, rfSizes, optFilters, visFilters, 1, batchFlag, options.datasetName, likelihoodLookupTable, fileName);
 
 %        % For visualization, overlay the original image with reconstructed nodes.
 %        imwrite(muImg, [imgFolder '/' fileName '_level' num2str(levelItr) 'optimizedImagination.png']);

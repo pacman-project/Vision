@@ -27,7 +27,8 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
      validExpertIdx = experts(:,2) >= maxInfluenceRadius & experts(:,3) >= maxInfluenceRadius & ...
          experts(:,2) <= (imgSize(1)-(maxInfluenceRadius-1)) & experts(:,3) < (imgSize(2)-(maxInfluenceRadius-1));
      experts = experts(validExpertIdx,:);
-     [experts, IA, ~] = unique(experts, 'rows', 'stable');
+     IA = (1:size(experts,1))';
+%     [experts, IA, ~] = unique(experts, 'rows', 'stable');
 
      % Program arguments.
      % If added expert flags haven't been given, we consider all experts as new.

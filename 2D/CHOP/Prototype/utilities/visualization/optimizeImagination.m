@@ -16,15 +16,17 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.02.2016
-function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, prevImageSize, filters, visFilters, sampleItr, ~, datasetName, likelihoodLookupTable, fileName)
-     stopVal = 0.001;
+function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, filters, visFilters, sampleItr, ~, datasetName, likelihoodLookupTable, fileName)
+     stopVal = 0.01;
 %     maxSteps = 10 * size(nodes,1);
      maxSteps = 500;
-     minOptimizationLayer = 3;
-     minLikelihoodChange = 0.0001;
+     minOptimizationLayer = 4;
+     minLikelihoodChange = 0.01;
      % If an expert (on average) has better likelihood than this, it means it's more or less agreed.
-     likelihoodThr = likelihoodLookupTable(1,1) * 1.0001; % Change in likelihood that's enough to reconsider that sub.
+     likelihoodThr = likelihoodLookupTable(1,1) * 1.001; % Change in likelihood that's enough to reconsider that sub.
      poeCounter = 0;
+     curLevelItr = nodes(1, 4);
+     dummyBand = zeros(imageSize, 'uint8');
      
      % If the file name is given, use that one.
      sampleString = 'modal';
@@ -62,9 +64,6 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      % Position flags are the strings that keep things in place.
      positionFlag = false;
      
-     % Obtain number of choices per receptive field.
-     imageChoices = prevImageSize * prevImageSize;
-     
      % Arguments relating to availability of different moves.
      moveFlags = [1; 1; 1] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
      
@@ -75,7 +74,6 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      [ experts, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode(nodes, vocabulary, sampleString);
      rotatedSubChildren = subChildren;
      nodeAngles = zeros(numel(subChildren),1);
-     nodeIds = nodes(:,1);
      nodeExpertCounts = cellfun(@(x) sum(cellfun(@(y) size(y,1), x)), subChildrenExperts);
      nodeExpertIds = zeros(size(experts,1),1);
      startOffset = 1;
@@ -100,15 +98,19 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      
     % Only move nodes from level below.
     steps = 0;
-    curLevelItr = nodes(1, 4);
     
     % TODO REMOVE.
     imageArr = cell(maxSteps,1);
+    diffImageArr = cell(maxSteps,1);
+    diffImageArr{1} = dummyBand;
     posLikelihoodArr = zeros(maxSteps,1);
     poeLikelihoodArr = zeros(maxSteps,1);
     
     %% Continue with gradient descent until optimized.
     while steps < maxSteps && curLevelItr >= minOptimizationLayer
+          % Obtain number of choices per receptive field.
+          imageChoices = rfSizes(curLevelItr)^2;
+          
          % Get appropriate vocabulary level.
          currentLevel = vocabulary{curLevelItr};
          
@@ -148,10 +150,47 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
          while steps<maxSteps
               % If no experts could be moved, move on.
               if nnz(moveFlagArr) == 0
+                   
+                  % Get rotation angles.
+                  numberOfSubChildrenArr = cellfun(@(x) size(x,1), subChildren);
+                  newNodeAngles = zeros(sum(numberOfSubChildrenArr),1);
+                  nodeOffset = 1;
+                  for tempItr = 1:size(nodes,1)
+                       newNodeAngles(nodeOffset:(nodeOffset+(numberOfSubChildrenArr(tempItr)-1))) = nodeAngles(tempItr);
+                       nodeOffset = nodeOffset + numberOfSubChildrenArr(tempItr);
+                  end
+                  nodeAngles = newNodeAngles;
+                   
+                  % Generate lower level's data structures here.
+                  nodes = int32(cat(1, rotatedSubChildren{:}));
+                  nodes(:,4) = curLevelItr-1;
+                  [ ~, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode(nodes, vocabulary, sampleString);
+                  rotatedSubChildren = subChildren;
+                  rotNodes = (1:size(nodes,1))';
+                  rotNodes = rotNodes(nodeAngles ~= 0);
                   
+                  % Insert new experts to their appropriate places.
+                  nodeExpertCounts = cellfun(@(x) sum(cellfun(@(y) size(y,1), x)), subChildrenExperts);
+                  nodeExpertIds = zeros(size(experts,1),1);
+                  startOffset = 1;
+                  for tempItr = 1:size(nodes,1)
+                        nodeExpertIds(startOffset:(startOffset + nodeExpertCounts(tempItr) - 1)) = tempItr;
+                        startOffset = startOffset + nodeExpertCounts(tempItr);
+                  end
                   
-                  
-                  
+                   % Finally, rotate everything.
+                   if moveFlags(3)
+                       for nodeItr = 1:size(rotNodes,1)
+                             [ tempExperts, ~, ~, rotatedSubChildren{rotNodes(nodeItr)}, orNodeChoices(rotNodes(nodeItr)), ~ ] = ...
+                                  applyMove(nodes(rotNodes(nodeItr), 2:3), [], subChildren{rotNodes(nodeItr)}, subChildrenExperts{rotNodes(nodeItr)},...
+                                  4, orNodeChoices(rotNodes(nodeItr)), nodeAngles(rotNodes(nodeItr)), numberOfRealFilters, numberOfFilters);
+                             
+                             % Put the experts in relevant locations.
+                             beforeExperts = experts(nodeExpertIds < rotNodes(nodeItr), :);
+                             afterExperts = experts(nodeExpertIds > rotNodes(nodeItr), :);
+                             experts = cat(1, beforeExperts, tempExperts, afterExperts);
+                       end
+                   end
                   
                    break;
               end
@@ -162,7 +201,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               
               % Obtain expert information.
               expertToMove = modifiedExperts(tempIdx);
-              expertLabelId = nodeIds(expertToMove);
+              expertLabelId = nodes(expertToMove,1);
               expertNode = currentLevel(expertLabelId);
               
               % Get OR node info.
@@ -187,6 +226,12 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               stochasticMoves = round(max(minMoves, min(movesPerChild^size(expertChildren,1), maxMoves)));
               moves = generateMoves(stochasticMoves, numel(expertNode.children), moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount);
               numberOfMoves = size(moves,1);
+              
+              % No valid moves generated? Move on.
+              if numberOfMoves == 0             
+                   moveFlagArr(expertToMove) = 0;
+                   continue;
+              end
                
 %               %% Calculate existing prediction's position likelihood.
 %               childExpertCenter = expertChildren(1);
@@ -218,6 +263,8 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                         preLikelihoodMat = [];
                    end
               end
+               removedModalImg = obtainPoE(experts(nodeExpertIds == expertToMove,:) , [], [], imageSize, visFilters, likelihoodLookupTable);
+%               figure, imshow(removedModalImg);
               
               % Allocate space for max experts.
               maxExperts = cell(numberOfMoves,1);
@@ -233,6 +280,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               
               % Calculate moves, and their gradients.              
               for moveItr = 1:numberOfMoves
+                   % First, project back the high level nodes.
                    if moves(moveItr,1) == 2
                          newNodes = nodes(expertToMove,:);
                          [ newExperts, newSubChildrenExperts, newSubChildren, ~, ~ ] = projectNode(newNodes, vocabulary, sampleString, moves(moveItr,2));
@@ -244,6 +292,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                          newSubChildrenExperts = subChildrenExperts{expertToMove};
                          newSubChildren = subChildren{expertToMove};
                    end
+                   % Assign filter ids (fine ids for rotation). 
                    if rotationFlag 
                          filterIds = round(((180/numberOfRealFilters) * (0:(numberOfRealFilters-1))) / (180/numberOfFilters))' + 1;
                          newExperts(:,1) = filterIds(newExperts(:,1));
@@ -255,14 +304,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                         applyMove(nodes(expertToMove, 2:3), newExperts, newSubChildren, newSubChildrenExperts,...
                         moves(moveItr,:), expertOrNodeChoice, nodeAngles(expertToMove), numberOfRealFilters, numberOfFilters);
                    
-                   % Insert new experts to their appropriate places.
-                   nodeExpertCounts = cellfun(@(x) sum(cellfun(@(y) size(y,1), x)), subChildrenExperts);
-                   nodeExpertIds = zeros(size(experts,1),1);
-                   startOffset = 1;
-                   for tempItr = 1:size(nodes,1)
-                        nodeExpertIds(startOffset:(startOffset + nodeExpertCounts(tempItr) - 1)) = tempItr;
-                        startOffset = startOffset + nodeExpertCounts(tempItr);
-                   end
+                   % Put the experts in relevant locations.
                    beforeIdx = nodeExpertIds < expertToMove;
                    beforeExperts = experts(beforeIdx, :);
                    afterIdx = nodeExpertIds > expertToMove;
@@ -360,13 +402,22 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               steps = steps+1;
               
               %% Calculate new reference image.
-              expertTypes = [removedExperts; ones(nnz(addedExperts),1)];
-              updatedExperts = [prevExperts; experts(addedExperts>0,:)];
+              expertTypes = [removedExperts; ones(nnz(nodeExpertIds == expertToMove),1)];
+              updatedExperts = [prevExperts; experts(nodeExpertIds == expertToMove,:)];
               imageArr(steps+1) = {refModalImg};         
               [refModalImg, ~, ~] = obtainPoE(updatedExperts, refModalImg, [], imageSize, visFilters, [], expertTypes);
               imwrite(refModalImg, [folderName '/' num2str(steps+1) '.png']);
               poeCounter = poeCounter + 1;
               refLikelihoodMat = maxLikelihoodMat{maxMove};
+              
+               addedModalImg = obtainPoE(experts(nodeExpertIds == expertToMove,:) , [], [], imageSize, visFilters, likelihoodLookupTable);
+               removedModalImg = cat(3, removedModalImg, dummyBand, dummyBand);
+               addedModalImg= cat(3, dummyBand, addedModalImg, dummyBand);
+               combinedImg = max(removedModalImg, addedModalImg);
+               diffImageArr{steps+1} = combinedImg;
+               imwrite(combinedImg, [folderName '/' num2str(steps+1) '_change.png']);
+%               figure, imshow(addedModalImg);
+%               close all;
               
               %% Update the likelihood ordering array and linear indices.
               tempMatrix = zeroMatrix;
@@ -395,6 +446,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     % Create a gif image out of diagnostic information.
     if steps<maxSteps
          imageArr = imageArr(1:steps);
+         diffImageArr = diffImageArr(1:steps);
          posLikelihoodArr = posLikelihoodArr(1:steps);
          poeLikelihoodArr= poeLikelihoodArr(1:steps);
     end
@@ -410,55 +462,75 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
          
          for itr = 1:numel(imageArr)
              img = imageArr{itr};
-             writeVideo(outputVideo,img)
+             writeVideo(outputVideo,img);
          end
-         close(outputVideo);
+         
+         %% Also save diagnostic info.
+         outputVideo = VideoWriter([folderName '_analysis.avi']);
+         outputVideo.FrameRate = 5;
+         open(outputVideo)
 %          
-%          posPadding = (max(posLikelihoodArr) - min(posLikelihoodArr))/4;
-%          posLimits = [min(posLikelihoodArr) - posPadding, max(posLikelihoodArr) + posPadding];
-%          if numel(unique(posLimits)) == 1
-%               posLimits = [posLimits(1)-1, posLimits(1)+1];
-%          end
-%          poePadding = (max(poeLikelihoodArr) - min(poeLikelihoodArr))/4;
-%          poeLimits = [min(poeLikelihoodArr) - poePadding, max(poeLikelihoodArr) + poePadding];
-%          if numel(unique(poeLimits)) == 1
-%               poeLimits = [(poeLimits(1)-1), (poeLimits(1) +1)];
-%          end
-%          fileName = [folderName '.gif'];
-%          for stepItr = 1:min(maxSteps, (steps+1))
-%               figure('Visible', 'off'), hold on;
-%               axis square
-%               subplot(1,2,1), imshow(imageArr{stepItr});
-%               set(gca,'Position',[0.05 0.05 0.5 0.9])
-%                title('Imagined Data')
-% % 
-% %               subplot(1,2,2), plot(1:stepItr, posLikelihoodArr(1:stepItr));
-% %               ylim(posLimits);
-% %               if stepItr>1
-% %                     xlim([1, min(maxSteps, (steps+1))]);
-% %               end
-% %               title('Change in position likelihood')
-%      %         set(gca,'Position',[0.1 .1 0.75 0.85])
-%               subplot(1,2,2), plot(1:stepItr, poeLikelihoodArr(1:stepItr));
-%               set(gca,'Position',[0.62 0.05 0.34 0.8])
-%               ylim(poeLimits);
+         posPadding = (max(posLikelihoodArr) - min(posLikelihoodArr))/4;
+         posLimits = [min(posLikelihoodArr) - posPadding, max(posLikelihoodArr) + posPadding];
+         if numel(unique(posLimits)) == 1
+              posLimits = [posLimits(1)-1, posLimits(1)+1];
+         end
+         poePadding = (max(poeLikelihoodArr) - min(poeLikelihoodArr))/4;
+         poeLimits = [min(poeLikelihoodArr) - poePadding, max(poeLikelihoodArr) + poePadding];
+         if numel(unique(poeLimits)) == 1
+              poeLimits = [(poeLimits(1)-1), (poeLimits(1) +1)];
+         end
+%         fileName = [folderName '.gif'];
+         for stepItr = 1:min(maxSteps, (steps+1))
+              figure('Visible', 'off')
+              axis square
+              
+              subplot('Position',[0.05 0.05 0.4 0.4]), imshow(imageArr{stepItr});
+ %             set(gca,'Position',[0.05 0.05 0.4 0.4])
+               title('Imagined data')
+
+              subplot('Position',[0.05 0.55 0.4 0.4]), imshow(diffImageArr{stepItr});
+%              set(gca,'Position',[0.05 0.55 0.4 0.4])
+              title('Changed data (Yellow:Unchanged)')
+              
+%               subplot(1,2,2), plot(1:stepItr, posLikelihoodArr(1:stepItr));
+%               ylim(posLimits);
 %               if stepItr>1
 %                     xlim([1, min(maxSteps, (steps+1))]);
 %               end
-%               title('Product of experts likelihood')
-% 
-%               hold off;
-%               saveas(gcf,  [folderName '_temp.png']);
-%               im=imread([folderName '_temp.png']);
-%               [imind,cm] = rgb2ind(im, 256);
-% 
+%               title('Change in position likelihood')
+              subplot('Position',[0.55 0.05 0.4 0.4]), plot(1:stepItr, poeLikelihoodArr(1:stepItr));
+  %            set(gca,'Position',[0.55 0.05 0.4 0.4])
+              ylim(poeLimits);
+              if stepItr>1
+                    xlim([1, min(maxSteps, (steps+1))]);
+              end
+              title('Product of experts likelihood')
+              
+               % Print position likelihoods.
+              subplot('Position',[0.55 0.55 0.4 0.4]), plot(1:stepItr, posLikelihoodArr(1:stepItr));
+ %             set(gca,'Position',[0.55 0.55 0.4 0.4])
+              ylim(poeLimits);
+              if stepItr>1
+                    xlim([1, min(maxSteps, (steps+1))]);
+              end
+              title('Position likelihoods')
+              
+               
+
+              hold off;
+              saveas(gcf,  [folderName '_temp.png']);
+              im=imread([folderName '_temp.png']);
+              close(gcf);
+              
+             writeVideo(outputVideo,im);
 %               if stepItr == 1
 %                    imwrite(imind, cm, fileName, 'LoopCount', inf, 'DelayTime',2);
 %               else
 %                    imwrite(imind, cm, fileName, 'WriteMode', 'append');
 %               end
-%               close(gcf);
-%          end
+         end
+         close(outputVideo);
     catch %#ok<CTCH>
          % Visualization failed possibly due to parallelization. Let's
          % save the data structures for later use.
