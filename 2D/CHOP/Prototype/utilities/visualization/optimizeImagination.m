@@ -16,23 +16,23 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.02.2016
-function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, filters, visFilters, sampleItr, ~, datasetName, likelihoodLookupTable, fileName)
-     stopVal = 0.01;
+function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, filters, visFilters, sampleItr, datasetName, likelihoodLookupTable, fileName)
+     stopVal = 2;
 %     maxSteps = 10 * size(nodes,1);
-     maxSteps = 500;
-     minOptimizationLayer = 4;
-     minLikelihoodChange = 0.01;
+     maxSteps = 100;
+     minOptimizationLayer = 3;
+     minLikelihoodChange = 0.001;
      % If an expert (on average) has better likelihood than this, it means it's more or less agreed.
-     likelihoodThr = likelihoodLookupTable(1,1) * 1.001; % Change in likelihood that's enough to reconsider that sub.
+     likelihoodThr = likelihoodLookupTable(1,1) * 1.005; % Change in likelihood that's enough to reconsider that sub.
      poeCounter = 0;
      curLevelItr = nodes(1, 4);
+     topLevel = curLevelItr;
      dummyBand = zeros(imageSize, 'uint8');
      
      % If the file name is given, use that one.
      sampleString = 'modal';
-     if nargin < 11
+     if nargin < 10
           fileName = num2str(nodes(1,1));
-          sampleString = 'sample';
      end
      folderName = [pwd '/optimization/' datasetName '/level' num2str(nodes(1,4)) '/' fileName '_sample' num2str(sampleItr)];
      
@@ -65,7 +65,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      positionFlag = false;
      
      % Arguments relating to availability of different moves.
-     moveFlags = [1; 1; 1] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
+     moveFlags = [1; 0; 0] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
      
      % Shut down warnings.
      warning('off','all');
@@ -108,8 +108,11 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     
     %% Continue with gradient descent until optimized.
     while steps < maxSteps && curLevelItr >= minOptimizationLayer
-          % Obtain number of choices per receptive field.
-          imageChoices = rfSizes(curLevelItr)^2;
+        
+         topNodeFlag = curLevelItr == topLevel && size(nodes,1) == 1;
+        
+         % Obtain number of choices per receptive field.
+         imageChoices = rfSizes(curLevelItr)^2;
           
          % Get appropriate vocabulary level.
          currentLevel = vocabulary{curLevelItr};
@@ -132,14 +135,14 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
          expertIdx = cell(numel(modifiedExperts),1);
          zeroMatrix = zeros(imageSize) > 0;
          for expertItr = 1:numel(modifiedExperts)
-              subExperts = subChildrenExperts{expertItr};
-              subExperts = cat(1, subExperts{:});
+              subExperts = experts(nodeExpertIds == expertItr,:);
               lowLevelExperts = sub2ind(imageSize, subExperts(:,2), subExperts(:,3));
               tempMatrix = zeroMatrix;
               tempMatrix(lowLevelExperts) = 1;
               tempOverlapMatrix = imdilate(tempMatrix, c_mask);
               expertIdx(expertItr) = {find(tempOverlapMatrix)};
               avgLikelihoods(expertItr) = mean(refLikelihoodMat(tempOverlapMatrix));
+ %             avgLikelihoods(expertItr) = min(refLikelihoodMat(tempOverlapMatrix));
          end
          moveFlagArr = avgLikelihoods < likelihoodThr;
          
@@ -224,7 +227,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                
               %% We sample moves using available move types.
               stochasticMoves = round(max(minMoves, min(movesPerChild^size(expertChildren,1), maxMoves)));
-              moves = generateMoves(stochasticMoves, numel(expertNode.children), moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount);
+              moves = generateMoves(stochasticMoves, numel(expertNode.children), moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount, topNodeFlag);
               numberOfMoves = size(moves,1);
               
               % No valid moves generated? Move on.
@@ -343,6 +346,8 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                    
                    %% Finally, calculate the difference between the likelihoods and update gradients.
                    newDiffVal = newVal - expertJointLikelihoodVal;
+   %                changedCount = nnz(newLikelihoodMat ~= refLikelihoodMat);
+  %                 newDiffVal = newDiffVal/changedCount;
 
                    % Save the info.
                    if newDiffVal > stopVal
@@ -410,6 +415,8 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               poeCounter = poeCounter + 1;
               refLikelihoodMat = maxLikelihoodMat{maxMove};
               
+              
+              %% Generate acombined image for print out.
                addedModalImg = obtainPoE(experts(nodeExpertIds == expertToMove,:) , [], [], imageSize, visFilters, likelihoodLookupTable);
                removedModalImg = cat(3, removedModalImg, dummyBand, dummyBand);
                addedModalImg= cat(3, dummyBand, addedModalImg, dummyBand);
@@ -423,7 +430,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               
               %% Update the likelihood ordering array and linear indices.
               tempMatrix = zeroMatrix;
-              lowLevelExperts = sub2ind(imageSize, experts(nodeExpertIds == maxMove, 1), experts(nodeExpertIds == maxMove, 2));
+              lowLevelExperts = sub2ind(imageSize, experts(nodeExpertIds == expertToMove, 2), experts(nodeExpertIds == expertToMove, 3));
               tempMatrix(lowLevelExperts) = 1;
               tempOverlapMatrix = imdilate(tempMatrix, c_mask);
               expertIdx(expertToMove) = {find(tempOverlapMatrix)};
@@ -432,6 +439,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               oldAvgLikelihoods = avgLikelihoods;
               for expertItr = 1:numel(modifiedExperts)
                    avgLikelihoods(expertItr) = mean(refLikelihoodMat(expertIdx{expertItr}));
+ %                  avgLikelihoods(expertItr) = min(refLikelihoodMat(expertIdx{expertItr}));
               end
               
               % Check which experts' values have been changed.
@@ -512,7 +520,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                % Print position likelihoods.
               subplot('Position',[0.55 0.55 0.4 0.4]), plot(1:stepItr, posLikelihoodArr(1:stepItr));
  %             set(gca,'Position',[0.55 0.55 0.4 0.4])
-              ylim(poeLimits);
+              ylim(posLimits);
               if stepItr>1
                     xlim([1, min(maxSteps, (steps+1))]);
               end

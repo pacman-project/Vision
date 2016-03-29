@@ -18,13 +18,13 @@
 %>
 %> Updates
 %> Ver 1.0 on 24.03.2016
-function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount)
+function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount, topLevelFlag)
      generatedMoveCount = stochasticMoves * 2;
      moves = zeros(generatedMoveCount, numberOfChildren + 1);
      
      % If there's only 1 type of OR node choice, we set the relevant flag
-     % to 0.
-     if expertOrNodeChoice == expertOrNodeChoiceCount
+     % to 0. If only this mode is active, we return.
+     if expertOrNodeChoiceCount == 1 && moveFlags(2) == 1 && nnz(moveFlags) == 1
           if nnz(moveFlags) == 1
                moves = [];
                return;
@@ -32,6 +32,17 @@ function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, exp
                moveFlags(2) = 0;
           end
      end
+     
+     % If this is a top node with nothing around, we do not perform OR node
+     % or rotation operations.
+     if topLevelFlag
+         moveFlags(2:3) = 0;
+         if ~moveFlags(1)
+             moves = [];
+         end
+     end
+     
+     % Finally, get all available types.
      availableTypes = find(moveFlags);
      
     % If there's only one type of move allowed, we don't need to perform
@@ -70,8 +81,10 @@ function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, exp
     end
     
    % Remove invalid position moves.
-    moves = moves(~(moves(:,1) == 1 & range(moves(:,2:end),2) == 0), :);
-        
+   if topLevelFlag
+      moves = moves(~(moves(:,1) == 1 & range(moves(:,2:end),2) == 0), :);  
+   end
+   
     % The moves are now generated. Here, we remove duplicate rows.
     moves = unique(moves, 'stable', 'rows');
     

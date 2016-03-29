@@ -140,7 +140,7 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
                % No experts? Move on. We're confident.
                predictionIdx = overlappingLocations(:,1) + (overlappingLocations(:,2)-1)*filterMatrixSize(1) + (gaborIdArr(overlappingIdx)-1)*filterMatrixSize(1)*filterMatrixSize(2);
                predictionArr = filters(predictionIdx);
-
+               
                %% Calculate product of experts! We're using equal sigmas, which greatly reduces computation.
                aggMu = round(sum(predictionArr)/overlappingIdxCount);
 
@@ -153,7 +153,7 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
           end
           
           % Update Mu and Sigma of the final predictions.
-          modalImg(itr1, itr2) = aggMu;
+          modalImg(itr1, itr2) = uint8(aggMu);
          
           % Calculate likelihoods if needed.
           if likelihoodFlag
@@ -162,7 +162,7 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
                if noncontributingExpertCount > 0
                     logProb = logProb + dummyLikelihoodVals(noncontributingExpertCount);
                end
-
+               
                %% Save the information.
                likelihoodMat(itr1, itr2) = logProb / numberOfFinalExperts;
           end
