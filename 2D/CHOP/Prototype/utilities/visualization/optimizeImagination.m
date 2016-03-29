@@ -414,6 +414,8 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                removedModalImg = cat(3, removedModalImg, dummyBand, dummyBand);
                addedModalImg= cat(3, dummyBand, addedModalImg, dummyBand);
                combinedImg = max(removedModalImg, addedModalImg);
+               refModalImgRGB = cat(3,refModalImg,refModalImg,refModalImg);
+               combinedImg = uint8(round((0.25*single(refModalImgRGB) + 0.75*single(combinedImg))));
                diffImageArr{steps+1} = combinedImg;
                imwrite(combinedImg, [folderName '/' num2str(steps+1) '_change.png']);
 %               figure, imshow(addedModalImg);
@@ -516,8 +518,6 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               end
               title('Position likelihoods')
               
-               
-
               hold off;
               saveas(gcf,  [folderName '_temp.png']);
               im=imread([folderName '_temp.png']);
