@@ -24,8 +24,8 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
      % image and eliminate them for fast processing.
      filterSize = size(filters,1);
      maxInfluenceRadius = ceil(filterSize/2);
-     validExpertIdx = experts(:,2) >= maxInfluenceRadius & experts(:,3) >= maxInfluenceRadius & ...
-         experts(:,2) <= (imgSize(1)-(maxInfluenceRadius-1)) & experts(:,3) < (imgSize(2)-(maxInfluenceRadius-1));
+     validExpertIdx = experts(:,2) >= 1 & experts(:,3) >= 1 & ...
+         experts(:,2) <= imgSize(1) & experts(:,3) < imgSize(2);
      experts = experts(validExpertIdx,:);
      IA = (1:size(experts,1))';
 %     [experts, IA, ~] = unique(experts, 'rows', 'stable');
