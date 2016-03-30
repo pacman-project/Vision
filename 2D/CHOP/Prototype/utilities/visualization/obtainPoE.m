@@ -111,7 +111,7 @@ function [modalImg, likelihoodMat, likelihoodVal] = obtainPoE(experts, modalImg,
           likelihoodMat(:) = dummyLog;
      end
      
-     distances = pdist2(posArr,[posX, posY]) < maxInfluenceRadius;
+     distances = pdist2(posArr,single([posX, posY])) < maxInfluenceRadius;
      allExpertIds = 1:numberOfFinalExperts;
      negPosArr = -posArr;
      

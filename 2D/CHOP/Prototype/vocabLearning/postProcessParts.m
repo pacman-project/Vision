@@ -52,6 +52,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     end
     visFilters = cat(3, visFilters{:});
     visFilters(visFilters<1) = 1;
+    visFilters = double(visFilters);
     
     % Assign new labels of the remaining realizations.
     [remainingComps, ~, IC] = unique([graphLevel.labelId]);

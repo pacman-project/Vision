@@ -258,8 +258,12 @@
 
           % Backproject parts to the images.
           display('........ Imagining parts and their instances! This can take a while...');
-          if options.vis.printTrainRealizations
-%               projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
+          if options.vis.printTrainRealizations && levelItr >= 3
+              try
+                 projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
+              catch
+                 display('Visualization error'); 
+              end
           end
           matlabpool('open', options.numberOfThreads);
      end

@@ -65,7 +65,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      positionFlag = false;
      
      % Arguments relating to availability of different moves.
-     moveFlags = [1; 0; 0] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
+     moveFlags = [1; 1; 1] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
      
      % Shut down warnings.
      warning('off','all');

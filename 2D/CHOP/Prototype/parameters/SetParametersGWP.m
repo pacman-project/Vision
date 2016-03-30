@@ -18,7 +18,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
-    options.matlabRestartImageCount = 500; % If we have more than this number 
+    options.matlabRestartImageCount = 1000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
@@ -109,7 +109,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.edgeType = 'centroid';     % If 'centroid', downsampling is
+    options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
@@ -124,7 +124,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % layers. 
     options.minContinuityCoverage = 0.9; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0.75; % Each node should cover this percentage of the nodes in its RF.
+    options.missingNodeThr = 0.7; % Each node should cover this percentage of the nodes in its RF.
     options.maxEdgeChangeLevel = 100; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
@@ -144,7 +144,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
-    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.minimalEdgeCount = false; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
@@ -188,10 +188,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
                % Hint: A good number is the number of poses per object.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 3000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 250; % The maximum 
+    options.reconstruction.numberOfORNodes = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
     options.reconstruction.maxNumberOfORNodes = 800; % Ideal number of OR 

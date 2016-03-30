@@ -20,7 +20,6 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
     
     [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr);
     
-    
     %% Go through every image and find optimal version.
     for imgItr = 1:max(imageIds)
        % Obtain image-specific realizations.
