@@ -28,7 +28,7 @@
 %> Ver 1.0 on 06.05.2014
 %> Update on 23.02.2015 Added comments, performance boost.
 %> Update on 25.02.2015 Added support for single node subs.
-function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, levelItr, options)
+function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, vocabularyDistributions, levelItr, options)
     edgeCoords = options.edgeCoords;
     distType = options.distType;
     stopFlag = options.stopFlag;
@@ -37,10 +37,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     filterSize = size(options.filters{1});
     halfSize = ceil(filterSize(1)/2); 
     if strcmp(options.filterType, 'gabor')
-        inhibitionHalfSize = options.gabor.inhibitionRadius;
         stride = options.gabor.stride;
     else
-        inhibitionHalfSize = options.auto.inhibitionRadius;
         stride = options.auto.stride;
     end
     
@@ -87,7 +85,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
 
    %% We  are experimenting with different distance functions.
    % Find the correct image size.
-   imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) * (inhibitionHalfSize+1) + halfSize;
+   imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) + halfSize * 2;
    imageSize = [imageSize, imageSize];
    
    % For now, we make the image bigger.
@@ -98,7 +96,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    parfor vocabNodeItr = 1:numberOfNodes
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
-        experts = projectNode(nodes, vocabulary, 'modal');
+        experts = projectNode(nodes, vocabularyDistributions, 'modal');
 
         % Center the nodes.
         experts = double(experts);

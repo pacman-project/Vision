@@ -24,7 +24,7 @@ function moves = generateMoves(stochasticMoves, numberOfChildren, moveFlags, exp
      
      % If there's only 1 type of OR node choice, we set the relevant flag
      % to 0. If only this mode is active, we return.
-     if expertOrNodeChoiceCount == 1 && moveFlags(2) == 1 && nnz(moveFlags) == 1
+     if expertOrNodeChoiceCount == 1 && moveFlags(2) == 1
           if nnz(moveFlags) == 1
                moves = [];
                return;

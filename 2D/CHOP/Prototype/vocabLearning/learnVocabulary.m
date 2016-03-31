@@ -23,11 +23,12 @@
 %> Ver 1.2 on 12.01.2014 Commentary changes, for unified code look.
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
-function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords, ...
+function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, leafNodes, leafNodeCoords, ...
                                                             options, fileList, modes, modeProbArr)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
+    vocabularyDistributions = cell(options.maxLevels,1);
     allModes = cell(options.maxLevels,1);
     mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
@@ -36,6 +37,7 @@ function [] = learnVocabulary( vocabLevel, graphLevel, leafNodes, leafNodeCoords
     %% ========== Step 1: Create first vocabulary and graph layers with existing node/edge info ==========
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
     vocabulary(1) = {vocabLevel};
+    vocabularyDistributions(1) = {vocabLevelDistributions};
     mainGraph(1) = {graphLevel};
     allModes(1) = {modes};
     modeProbs(1) = {modeProbArr};

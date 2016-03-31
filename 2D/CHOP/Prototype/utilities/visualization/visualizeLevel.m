@@ -29,14 +29,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     vocabLevelLabels = [currentLevel.label];
     
     % Process filters for visualization, remove zero values.
-    filters = options.filters;
-    filters = cellfun(@(x) (x - min(min(x))) / (max(max(x)) - min(min(x))), filters, 'UniformOutput', false);
-    for filterItr = 1:numel(filters)
-         filters{filterItr} = uint8(round(filters{filterItr} * 255));
-    end
-    filters = cat(3, filters{:});
-    filters(filters<1) = 1;
-    
+    [~, filters, ~, ~] = createOptimizationStructures(options, levelId, false);
     
     vocabLevelIdx = zeros(max(vocabLevelLabels),1);
     for itr = 1:max(vocabLevelLabels)
@@ -218,7 +211,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                          
                          % Obtain a PoE visualization
                          [currentMask, ~, ~] = obtainPoE(projectedNodes, [], [], imgSize, filters, []);
-                         currentMask = uint8(currentMask*255);
+                         currentMask = uint8(currentMask);
                      end
                      
                     %% Print the files to output folders.

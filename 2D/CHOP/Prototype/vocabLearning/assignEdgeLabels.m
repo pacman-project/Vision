@@ -32,7 +32,7 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
      end
      
      % Get node ids of edges.
-     for graphLevelItr = 1:numel(graphLevel)
+     parfor graphLevelItr = 1:numel(graphLevel)
           edges = graphLevel(graphLevelItr).adjInfo;
 
           % Edges empty, do nothing.

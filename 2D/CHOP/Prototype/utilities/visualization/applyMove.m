@@ -15,7 +15,7 @@ function [ newExperts, newSubChildrenExperts, expertChildren, rotatedExpertChild
                         applyMove(nodeCoords, newExperts, expertChildren, newSubChildrenExperts, move, expertOrNodeChoice, nodeAngle, numberOfRealFilters, numberOfFilters)
      
      % Set step size.
-     stepSize = 1;
+     stepSize = unidrnd(3);
      newAngle = nodeAngle;
      newOrNodeChoice = expertOrNodeChoice;
      nodeCoords = double(nodeCoords);
@@ -63,7 +63,6 @@ function [ newExperts, newSubChildrenExperts, expertChildren, rotatedExpertChild
                end
           case 4
                %% Only for rendering.
-               newAngle = nodeAngle;
      end
      
      % Save rotated expert children.
@@ -75,7 +74,7 @@ function [ newExperts, newSubChildrenExperts, expertChildren, rotatedExpertChild
           % Create data structures.
           expertChildren = double(expertChildren);
           center = repmat(nodeCoords, size(expertChildren, 1), 1);
-          theta = -(2 * pi * newAngle / (numberOfFilters));
+          theta = -(pi * newAngle / (numberOfFilters));
           R = [cos(theta) -sin(theta); sin(theta) cos(theta)]; 
           
           % Rotate children.

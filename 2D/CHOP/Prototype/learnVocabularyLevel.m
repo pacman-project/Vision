@@ -68,6 +68,13 @@
        options.optimizationFlag = false;
    end
 
+   %% If we're at category level, our parts are supposed to cover most of the object. We can enforce this.
+   if levelItr == options.categoryLevel
+        1
+        
+        
+   end
+   
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
    [vocabLevel, graphLevel, ~, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix,...
        options, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Coords); %#ok<*ASGLU,*NODEF>
@@ -83,6 +90,7 @@
    if isempty(vocabLevel)
       % Write previous level's appearances to the output folder.
       vocabulary = vocabulary(1:(levelItr-1),:);
+      vocabularyDistributions = vocabularyDistributions(1:(levelItr-1),:);
       mainGraph = mainGraph(1:(levelItr-1),:);
       allModes = allModes(1:(levelItr-1), :);
       distanceMatrices = distanceMatrices(1:(levelItr-1),:);
@@ -121,7 +129,7 @@
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
    display('........ Learning sub-part label and position distributions.');
-   vocabLevel = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1}, levelItr, options);
+   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1}, levelItr, options);
    java.lang.System.gc();
 
    %% Calculate activations for every part realization.
@@ -155,7 +163,8 @@
    %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
    % In addition, we re-assign the node ids in graphLevel.
   display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
-  [vocabLevel, graphLevel, eucDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, levelItr, options);       
+   vocabularyDistributions{levelItr} = vocabLevelDistributions;
+  [vocabLevel, graphLevel, eucDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, vocabularyDistributions, levelItr, options);       
   
   % Visualize learned OR Nodes.
   visualizeORNodes( vocabLevel, levelItr, options);
@@ -206,7 +215,7 @@
    java.lang.System.gc();
 
    %% Here, we bring back statistical learning with mean/variance.
-   [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, options.debug);
+   [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
    graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
    mainGraph{levelItr} = graphLevel;
    allModes{levelItr} = modes;
@@ -220,7 +229,7 @@
    end
    
    %% At this step, we perform imagination of the parts at this layer (for later use).
-   vocabulary = projectVocabulary( vocabulary);
+   vocabularyDistributions = projectVocabulary( vocabularyDistributions);
 
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
@@ -231,11 +240,13 @@
 
    % Print everything to files.
    save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', 'edgeChangeLevel', '-append', '-v7.3');
+   save([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions');
    save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
    
       %% If we've reached max number of layers, don't keep going forward.
    if levelItr == options.maxLevels || stopFlag
        vocabulary = vocabulary(1:(levelItr),:);
+       vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
        allModes = allModes(1:(levelItr), :);
        mainGraph = mainGraph(1:(levelItr),:);
        distanceMatrices = distanceMatrices(1:(levelItr),:);
@@ -260,7 +271,7 @@
           display('........ Imagining parts and their instances! This can take a while...');
           if options.vis.printTrainRealizations && levelItr >= 3
               try
-                 projectTrainingImages(fileList, vocabulary, mainGraph, levelItr, options);
+                 projectTrainingImages(fileList, vocabularyDistributions, mainGraph, levelItr, options);
               catch
                  display('Visualization error'); 
               end
@@ -280,6 +291,7 @@
    newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));
    if ~newEdgesAvailable
        vocabulary = vocabulary(1:(levelItr),:);
+       vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
        allModes = allModes(1:(levelItr), :);
        mainGraph = mainGraph(1:(levelItr),:);
        distanceMatrices = distanceMatrices(1:(levelItr),:);

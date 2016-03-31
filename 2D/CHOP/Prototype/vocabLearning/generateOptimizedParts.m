@@ -36,18 +36,16 @@ function [] = generateOptimizedParts(vocabulary, levelItr, options)
     rng('shuffle');
     
     % Create data structures required for optimization.
-    [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr);
+    [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
     
     if strcmp(options.filterType, 'gabor')
-        inhibitionHalfSize = options.gabor.inhibitionRadius;
         stride = options.gabor.stride;
     else
-        inhibitionHalfSize = options.auto.inhibitionRadius;
         stride = options.auto.stride;
     end
     
    % Find the correct image size.
-   imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) * (inhibitionHalfSize+1) + halfSize * 2;
+   imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) + halfSize * 2;
    imageSize = [imageSize, imageSize];
    
    % For now, we make the image bigger.

@@ -33,6 +33,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     imageIds = [currentLevel.imageId]';
     edgeIdMatrix = options.edgeIdMatrix;
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
+    circularRF = options.circularRF;
     matrixSize = [options.receptiveFieldSize, options.receptiveFieldSize];
     edgeType = options.edgeType;
     minimalEdgeCount = options.minimalEdgeCount;
@@ -131,16 +132,26 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
              maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeNoveltyThr;
              curAdjacentNodes = cell(numberOfNodes,1);
 
+             % If circular RF is desired, we pre-calculate distances.
+             if circularRF
+                    allDistances = squareform(pdist(single(curNodeCoords)));
+             end
+             
              %% Find all edges within this image.
              for nodeItr = 1:numberOfNodes
                 centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
-                distances = zeros(numberOfNodes,1);
-                adjacentNodes = curNodeCoords(:,1) > (centerArr(:,1) - halfMatrixSize) & ...
-                     curNodeCoords(:,1) < (centerArr(:,1) + halfMatrixSize) & ...
-                     curNodeCoords(:,2) > (centerArr(:,2) - halfMatrixSize) & ...
-                     curNodeCoords(:,2) < (centerArr(:,2) + halfMatrixSize);
-                distances(adjacentNodes) = sum((curNodeCoords(adjacentNodes,:) - centerArr(adjacentNodes,:)).^2, 2);
-
+                distances = allDistances(:, nodeItr);
+                
+                %% If the RF is circular, we need to eliminate adjacent nodes further.
+                if circularRF
+                     adjacentNodes = distances < halfMatrixSize;
+                else
+                     adjacentNodes = curNodeCoords(:,1) > (centerArr(:,1) - halfMatrixSize) & ...
+                          curNodeCoords(:,1) < (centerArr(:,1) + halfMatrixSize) & ...
+                          curNodeCoords(:,2) > (centerArr(:,2) - halfMatrixSize) & ...
+                          curNodeCoords(:,2) < (centerArr(:,2) + halfMatrixSize);
+                end
+                
                 %% Check for edge novelty.
                 adjacentNodeIdx = find(adjacentNodes);
                 centerLeafNodes = [];

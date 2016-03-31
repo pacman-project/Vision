@@ -266,8 +266,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         options.validationIdx = validationIdx;
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
-        [vocabLevel, graphLevel] = generateLevels(leafNodes, leafNodeCoords, allNodeActivations, leafNodeSigns, options);
-        
+        [vocabLevel, vocabLevelDistributions, graphLevel] = generateLevels(leafNodes, leafNodeCoords, allNodeActivations, leafNodeSigns, options);
+
         %% Learn edge-based distance matrix once and for all.
         [edgeIdMatrix, edgeDistanceMatrix, edgeCoords, edgeLogMin, edgeLogRange ] = findEdgeDistanceMatrix(options.receptiveFieldSize, options.distType, options.edgeSimilarityAllowed);
         options.edgeIdMatrix = edgeIdMatrix;
@@ -283,7 +283,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         graphLevel = mainGraph{1};
         
         %% Here, we bring back statistical learning with mean/variance.
-        [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder, options.debug);
+        [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder, ~options.fastStatLearning && options.debug);
         graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
         mainGraph{1} = graphLevel; %#ok<NASGU>
         
@@ -293,7 +293,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'trainingFileNames', 'categoryNames');
         
         %% Learn vocabulary!
-        learnVocabulary(vocabLevel, graphLevel, leafNodes, leafNodeCoords, options, trainingFileNames, modes, modeProbArr);
+        learnVocabulary(vocabLevel, vocabLevelDistributions, graphLevel, leafNodes, leafNodeCoords, options, trainingFileNames, modes, modeProbArr);
         
         % Stop counting time.
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>

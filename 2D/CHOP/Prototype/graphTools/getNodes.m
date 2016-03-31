@@ -360,18 +360,17 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
 
     %% Eliminate nodes outside GT mask. If gt is not used, this does not have effect.
     responseImg(~gtMask) = 0;
-
     responseImg(ismember(responseImg, deadFeatures)) = 0;
     activationImg(responseImg == 0) = 0;
     
     %% We perform pooling with a stride defined by local inhibition.
-    if inhibitionHalfSize > 0
-         [vals, valsIdx] = MaxPooling(responseImg, [inhibitionHalfSize+1, inhibitionHalfSize+1]);
-         sizeVals =size(vals);
-         finalNodeIdx = sort(valsIdx(vals>0));
-    else
+%     if inhibitionHalfSize > 0
+%          [vals, valsIdx] = MaxPooling(responseImg, [inhibitionHalfSize+1, inhibitionHalfSize+1]);
+%          sizeVals =size(vals);
+%          finalNodeIdx = sort(valsIdx(vals>0));
+%     else
          finalNodeIdx = find(responseImg);
-    end
+%    end
     
     %% Out of this response image, we will create the nodes and output them.
     if strcmp(options.filterType, 'gabor')
@@ -385,12 +384,12 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
     nodes = cell(numel(finalNodeIdx), 3);
     nodeActivations = single(activationImg(finalNodeIdx));
     for nodeItr = 1:numel(finalNodeIdx)
-       if inhibitionHalfSize > 0
-           centerIdx = find(valsIdx == finalNodeIdx(nodeItr));
-           [centerX, centerY] = ind2sub(sizeVals, centerIdx);
-       else
+%        if inhibitionHalfSize > 0
+%            centerIdx = find(valsIdx == finalNodeIdx(nodeItr));
+%            [centerX, centerY] = ind2sub(sizeVals, centerIdx);
+%        else
            [centerX, centerY] = ind2sub(size(responseImg), finalNodeIdx(nodeItr));
-       end
+%       end
        nodes(nodeItr,:) = {responseImg(finalNodeIdx(nodeItr)), round([centerX, centerY]), round(realCoords(nodeItr,:))};
     end
     nodes = nodes(cellfun(@(x) ~isempty(x), nodes(:,1)),:);

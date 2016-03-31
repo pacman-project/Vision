@@ -21,8 +21,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
         options.debug = 1;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end
-    options.fastStatLearning = true;
-    options.vis.printTrainRealizations = true;
+    options.fastStatLearning = false;
+    options.vis.printTrainRealizations = 1;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
@@ -89,7 +89,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                    
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;
-    options.numberOfThreads = min(feature('NumCores')*2-1,12);
+%    options.numberOfThreads = min(feature('NumCores')*2-1,12);
+    options.numberOfThreads = 12;
     
     %% ========== DATASET-SPECIFIC PROGRAM PARAMETERS ==========
     % Learn dataset path relative to this m file
