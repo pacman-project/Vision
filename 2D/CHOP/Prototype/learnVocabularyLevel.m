@@ -70,9 +70,7 @@
 
    %% If we're at category level, our parts are supposed to cover most of the object. We can enforce this.
    if levelItr == options.categoryLevel
-        1
-        
-        
+        options.missingNodeThr = 0.9; % Each node should cover this percentage of the nodes in its RF.        
    end
    
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
@@ -208,6 +206,12 @@
    vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
    mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
 
+      %% If we're at category level, our parts are supposed to cover most of the object. We can enforce this.
+   if levelItr == options.categoryLevel - 1
+        options.edgeNoveltyThr = options.categoryLevelEdgeNoveltyThr;
+        options.maxNodeDegree = options.maxNodeDegree * 2; 
+   end
+   
    %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
    % Extract the edges between new realizations to form the new object graphs.
    [mainGraph] = extractEdges(mainGraph, options, levelItr);

@@ -109,6 +109,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
+    options.categoryLevelEdgeNoveltyThr = 0.2;       % Novelty threshold just before category level.
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
@@ -124,7 +125,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % layers. 
     options.minContinuityCoverage = 0.9; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0.5; % Each node should cover this percentage of the nodes in its RF.
+    options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
     options.maxEdgeChangeLevel = 4; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
@@ -171,7 +172,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 6; % The level where we switch from 
+    options.categoryLevel = 7; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -180,7 +181,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                                   % drastically. Set to an
                                                   % unlikely value (100)
                                                   % for no category nodes.
-    options.categoryLevelCoverage = 0.8; % If each node is covering this percent 
+    options.categoryLevelCoverage = 0.9; % If each node is covering this percent 
                                                                   % of its associated image, we switch to 
                                                                   % category node grouping.
     options.articulationsPerCategory = 10; % Number of top level nodes 
