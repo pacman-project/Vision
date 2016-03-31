@@ -46,7 +46,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.gabor.psi = 0;
     options.gabor.gamma = 0.2;
  %    options.gabor.gamma = 0.5;
-    options.gabor.inhibitionRadius = 3;
+    options.gabor.inhibitionRadius = 2;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
                                         % size in which weaker responses other 
@@ -55,7 +55,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % pooled with a stride of
                                         % (inhibitionRadius+1) after
                                         % inhibition.
-    options.gabor.stride = 1;           % Stride to use when extracting gabor
+    options.gabor.stride = 2;           % Stride to use when extracting gabor
                                        % features.     
     options.autoFilterSize = 10;         % Size (one side) of a autodetected 
                                         % filter. Assumed to be NxNxD.
@@ -109,6 +109,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
+    options.categoryLevelEdgeNoveltyThr = 0.2;       % Novelty threshold just before category level.
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
@@ -124,8 +125,8 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % layers. 
     options.minContinuityCoverage = 0.9; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0.7; % Each node should cover this percentage of the nodes in its RF.
-    options.maxEdgeChangeLevel = 100; % If this is the layer we're working on, we switch to centroid edges.
+    options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
+    options.maxEdgeChangeLevel = 4; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will
@@ -138,15 +139,16 @@ function [ options ] = SetParametersGWP( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = 5; % DEFAULT 5
     else
-        options.receptiveFieldSize = 3;
+        options.receptiveFieldSize = 11;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
+    options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
     options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
+    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
@@ -170,7 +172,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 100; % The level where we switch from 
+    options.categoryLevel = 7; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -179,7 +181,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                                   % drastically. Set to an
                                                   % unlikely value (100)
                                                   % for no category nodes.
-    options.categoryLevelCoverage = 0.8; % If each node is covering this percent 
+    options.categoryLevelCoverage = 0.9; % If each node is covering this percent 
                                                                   % of its associated image, we switch to 
                                                                   % category node grouping.
     options.articulationsPerCategory = 10; % Number of top level nodes 

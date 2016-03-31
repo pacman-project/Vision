@@ -133,10 +133,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     nodePositions = cat(1, graphLevel.position);
     edgeCoords = options.edgeCoords;
     
-     % Get number of probabilistic choices for vocabulary nodes.
-    numberOfProbabilisticChoicesArr = [vocabLevel.numberOfProbabilisticChoices];
-    [~, validVocabLevel, ~] = unique([vocabLevel.label], 'stable');
-    numberOfProbabilisticChoicesArr = numberOfProbabilisticChoicesArr(validVocabLevel);
     
     % If no edges are present, time to return.
     allSigns = uint8(cat(1, graphLevel.sign));
@@ -613,9 +609,6 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
            else
                vocabLevel(bestSubItr).children = bestSubs(remainingBestSubs(bestSubItr)).centerId;
            end
-           
-           % Assign the number of choices up to this point. 
-           vocabLevel(bestSubItr).numberOfProbabilisticChoices = sum(numberOfProbabilisticChoicesArr(vocabLevel(bestSubItr).children)) + (2 * int32(numberOfEdges) + 1); %#ok<PFBNS>
         end
         
         % Now, we fill in the info of vocabLevel.

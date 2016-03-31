@@ -19,11 +19,16 @@
 function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder, debug)
     display('Learning modes...');
     maxSamplesPerMode = 200;
-    minSamplesPerMode = 2;   
-    maximumModes = 3;
+    minSamplesPerMode = 5;   
+    maximumModes = 4;
     dummySigma = 0.1;
+    minProb = realmin('single');
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
+    
+     cx=halfSize;cy=cx;ix=edgeQuantize;iy=ix;r=halfSize;
+     [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
+     c_mask=((x.^2+y.^2)<r^2);
     
     % Set initial data structures for processing 
     edges = cat(1, currentLevel.adjInfo);
@@ -135,39 +140,47 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         
         % In order to calculate probabilities, we define an area for each
         % point. 
-        points = (points-(1/2)) / edgeQuantize;
-        endPoints = points + 1/edgeQuantize;
-        topPoints = points;
-        topPoints(:,1) = points(:,1) + 1/edgeQuantize;
-        rightPoints = points;
-        rightPoints(:,2) = points(:,2) + 1/edgeQuantize;
+         points = (points-(1/2)) / edgeQuantize;
+%         endPoints = points + 1/edgeQuantize;
+%         topPoints = points;
+%         topPoints(:,1) = points(:,1) + 1/edgeQuantize;
+%         rightPoints = points;
+%         rightPoints(:,2) = points(:,2) + 1/edgeQuantize;
         
         % Obtain probabilities based on each mode.
         allProbs = zeros(numberOfClusters, edgeQuantize, edgeQuantize, 'single');
         for centerItr = 1:numberOfClusters
-            try
-                probs = mvncdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            catch %#ok<*CTCH>
-                probs = mvncdf(points, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-            end
-            try
-                endProbs = mvncdf(endPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            catch
-                endProbs = mvncdf(endPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-            end
-            try
-                topProbs = mvncdf(topPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            catch
-                topProbs = mvncdf(topPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-            end 
-            try
-                rightProbs = mvncdf(rightPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            catch
-                rightProbs = mvncdf(rightPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-            end
+%             try
+%                 probs = mvncdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+%             catch %#ok<*CTCH>
+%                 probs = mvncdf(points, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+%             end
+%             try
+%                 endProbs = mvncdf(endPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+%             catch
+%                 endProbs = mvncdf(endPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+%             end
+%             try
+%                 topProbs = mvncdf(topPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+%             catch
+%                 topProbs = mvncdf(topPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+%             end 
+%             try
+%                 rightProbs = mvncdf(rightPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+%             catch
+%                 rightProbs = mvncdf(rightPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+%             end
+%             
+%             % Calculate point probs based on the integral.
+%             pointProbs = (endProbs - (topProbs + rightProbs)) + probs;
             
-            % Calculate point probs based on the integral.
-            pointProbs = (endProbs - (topProbs + rightProbs)) + probs;
+            % We use PDFs to calculate pseudo-statistics (faster, accurate
+            % enough).
+            try
+                pointProbs = mvnpdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            catch %#ok<CTCH>
+                pointProbs = mvnpdf(points, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+            end
             
             % Weight probabilities with the number of samples in each
             % cluster.
@@ -176,9 +189,9 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
             % Write probabilities into a matrix.
             allProbs(centerItr, :,:) = reshape(pointProbs, size(edgeIdMatrix));
         end
-        allProbs(allProbs <= 0) = 0;
         [combinedProbs, idx] = max(allProbs, [], 1);
         clusterAreas = squeeze(idx);
+        
         % Assign zero probabilities to the areas not covered by each
         % cluster.
         for centerItr = 1:numberOfClusters
@@ -190,6 +203,42 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
              probMatrix = probMatrix / sum(sum(probMatrix));
              allProbs(centerItr,:,:) = probMatrix;
         end
+        allProbs(allProbs < minProb) = minProb;
+        
+        fillFlag = false;
+        contFlag = true;
+        iterations = 0;
+        while contFlag && iterations < numberOfClusters
+             contFlag = false;
+             % Update cluster areas so that all areas consist of a single
+             % connected component.
+             for centerItr = 1:numberOfClusters
+                  CC = bwconncomp(clusterAreas == centerItr);
+
+                  % If there's more than one 
+                  if CC.NumObjects> 1
+                       pixelCounts = cellfun(@(x) numel(x), CC.PixelIdxList);
+                       [~,selectedArea] = max(pixelCounts);
+                       otherPixList = cat(1, CC.PixelIdxList{setdiff(1:numel(pixelCounts), selectedArea)});
+                       fillFlag = true;
+
+                       % Also mark probabilities as zero.
+                       probMatrix = squeeze(allProbs(centerItr, :, :));
+                       probMatrix(otherPixList) = 0;
+                       allProbs(centerItr, :, :) = probMatrix;
+                  end
+             end
+             if fillFlag
+                  [combinedProbs, idx] = max(allProbs, [], 1);
+                  clusterAreas = squeeze(idx);
+                  contFlag = true;
+             end
+             iterations = iterations + 1;
+        end
+        
+        clusterAreas(~c_mask) = 0;
+        
+        % Assign probabilities.
         modeProbArr{uniqueEdgeItr} = allProbs;
         
         % Get the probability image for visualization.

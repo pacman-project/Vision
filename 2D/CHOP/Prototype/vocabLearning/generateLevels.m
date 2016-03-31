@@ -17,15 +17,20 @@
 %> Updates
 %> Ver 1.0 on 03.02.2014
 %> Ver 1.1 on 01.09.2014 Adding negative signs.
-function [vocabLevel, graphLevel] = generateLevels(nodes, nodeCoords, activations, signs, options)
+function [vocabLevel, vocabLevelDistributions, graphLevel] = generateLevels(nodes, nodeCoords, activations, signs, options)
     % Allocate space for both levels.
     vocabLevel(options.numberOfFilters) = VocabNode();
+    vocabLevelDistributions(options.numberOfFilters) = NodeDistribution();
     graphLevel(size(nodes,1)) = GraphNode();
+    
+    % Fill distribution level.
+    for filterItr = 1:options.numberOfFilters
+         vocabLevelDistributions(filterItr).modalExperts = int32([filterItr 0 0 1]);
+    end
     
     % Fill vocabulary level with labels.
     labelArr = num2cell(int32(1:options.numberOfFilters));
     [vocabLevel.label] = deal(labelArr{:});
-    [vocabLevel.numberOfProbabilisticChoices] = deal(int32(0));
     clear labelArr;
     
     % Fill object graph level.

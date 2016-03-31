@@ -18,10 +18,10 @@ function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr,
     realLabelIds = double(cat(1, graphLevel.realLabelId));
     precisePositions = double(cat(1, graphLevel.precisePosition));
     
-    [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr);
+    [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
     
     %% Go through every image and find optimal version.
-    for imgItr = 1:max(imageIds)
+    for imgItr = 12:max(imageIds)
        % Obtain image-specific realizations.
        idx = imageIds == imgItr;
        

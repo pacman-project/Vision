@@ -59,6 +59,20 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(enumeratedEdges, 'rows');
     
+    % Eliminate roughly half of the unique edge types but lexicographical
+    % ordering. If new edge is lexicographically lower, it is not
+    % enumerated.
+    edges = sub.edges;
+    if ~isempty(edges)
+       uniqueEdgeTypesPart1 = uniqueEdgeTypes(uniqueEdgeTypes(:,1) == max(edges(:,1)), :);
+       if ~isempty(uniqueEdgeTypesPart1)
+           maxNode = max(edges(edges(:,1) == max(edges(:,1)),2));
+           uniqueEdgeTypesPart1 = uniqueEdgeTypesPart1(uniqueEdgeTypesPart1(:,2) >= maxNode, :);
+       end
+       uniqueEdgeTypesPart2 = uniqueEdgeTypes(uniqueEdgeTypes(:,1) > max(edges(:,1)), :);
+       uniqueEdgeTypes = cat(1, uniqueEdgeTypesPart1, uniqueEdgeTypesPart2);
+    end
+    
     % Extend the definition in sub with each edge type in uniqueEdgeTypes.
     % In addition, we pick suitable instances, add this edge, and mark used
     % field of relevant instances.

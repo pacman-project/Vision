@@ -14,7 +14,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.07.2015
-function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previousLevel, levelItr, options)
+function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLevel, graphLevel, previousLevel, levelItr, options)
     numberOfNodes = numel(vocabLevel);
     labelIds = [graphLevel.labelId];
     prevRealLabelIds = [previousLevel.realLabelId]';
@@ -22,16 +22,20 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
     noiseSigma = 0.0001;
     dummySigma = 0.001;
     posDim = size(prevPosition,2);
+    
+    %% Distribution parameters.
     sampleCountPerCluster = 100;
-    maxPointsToCluster = 500;
-    smallSampleCount = 10;
     maxClusters = 5;
-    minPoints = 10;
+    maxPointsToCluster = maxClusters * sampleCountPerCluster;
+    smallSampleCount = 10;
+    minPoints = maxClusters * 2;
     debugFlag = ~options.fastStatLearning;
     
-    % Close warnings.
+    % Allocate space for distribution data.
+    nodeDistributionLevel(numberOfNodes) = NodeDistribution();
     
-    pointSymbols = {'mo', 'bx', 'r*', 'kx', 'go'};
+    % Points to visualize on screen.
+    pointSymbols = {'mo', 'bx', 'r*', 'kx', 'go', 'gx', 'ro', 'm*', 'mx', 'bo'};
     
     debugFolder = [options.debugFolder '/level' num2str(levelItr) '/jointStats'];
     if ~exist(debugFolder, 'dir')
@@ -89,7 +93,6 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
         % Allocate space for discrete combinations, and their position distributions. 
         childrenLabelDistributions = zeros(size(combs,1), size(combs,2) + 1, 'single');
         childrenPosDistributions = cell(size(combs,1), 1);
-        childrenPosSamples = cell(size(combs,1), 1);
         if numel(IA)>1
              weights = hist(IC, 1:numel(IA))';
              weights = weights / sum(weights);
@@ -236,15 +239,14 @@ function [vocabLevel] = learnChildDistributions(vocabLevel, graphLevel, previous
              end
         end
         
-        vocabLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
-        vocabLevel(vocabItr).childrenPosDistributions{1} = childrenPosDistributions;
-%        vocabLevel(vocabItr).childrenPosSamples{1} = childrenPosSamples;
-        vocabLevel(vocabItr).realChildren = children;
+        nodeDistributionLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
+        nodeDistributionLevel(vocabItr).childrenPosDistributions{1} = childrenPosDistributions;
+        nodeDistributionLevel(vocabItr).realChildren = children;
         
         % Re-open warnings.
         warning(w);
     end
-    clearvars -except vocabLevel
+    clearvars -except vocabLevel nodeDistributionLevel
 end
 
 function parsave(fname, data, dataName) %#ok<INUSL>

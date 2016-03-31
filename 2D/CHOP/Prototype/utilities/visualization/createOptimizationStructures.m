@@ -1,13 +1,15 @@
-function [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr)
+function [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, optimizationFlag)
 
     dummySigma = 0.15;
-    angleStep = 3; % 22.5 for no rotations!
+    if optimizationFlag
+         angleStep = 3; % 22.5 for no rotations!
+    else
+         angleStep = 180/numel(options.filters);
+    end
     
     if strcmp(options.filterType, 'gabor')
-        inhibitionHalfSize = options.gabor.inhibitionRadius;
         stride = options.gabor.stride;
     else
-        inhibitionHalfSize = options.auto.inhibitionRadius;
         stride = options.auto.stride;
     end
     
@@ -18,9 +20,9 @@ function [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = create
     visFilterSize = size(options.filters{1},1);
     
     % Generate barrel filter (initial)
-    filterSize = visFilterSize + 30;
+    filterSize = visFilterSize + 16;
     padSize = 5;
-    vals = normpdf(1:filterSize, (filterSize+1)/2, 3);
+    vals = normpdf(1:filterSize, (filterSize+1)/2, 5);
     vals = vals/max(vals);
     firstFilter = repmat(vals, filterSize, 1);
     
@@ -65,6 +67,6 @@ function [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = create
     likelihoodLookupTable = log(likelihoodLookupTable);
     rfSizes = zeros(levelItr,1);
     for rfSizeItr = 2:size(rfSizes,1)
-         rfSizes(rfSizeItr) = options.receptiveFieldSize * stride * (options.poolDim ^ (rfSizeItr-2)) * (inhibitionHalfSize+1);
+         rfSizes(rfSizeItr) = options.receptiveFieldSize * stride * (options.poolDim ^ (rfSizeItr-2));
     end
 end

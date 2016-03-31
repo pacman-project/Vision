@@ -17,13 +17,13 @@
 %> Updates
 %> Ver 1.0 on 07.02.2016
 function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, filters, visFilters, sampleItr, datasetName, likelihoodLookupTable, fileName)
-     stopVal = 2;
+     stopVal = 0.05;
 %     maxSteps = 10 * size(nodes,1);
-     maxSteps = 100;
+     maxSteps = 500;
      minOptimizationLayer = 3;
-     minLikelihoodChange = 0.001;
+     minLikelihoodChange = 0.003;
      % If an expert (on average) has better likelihood than this, it means it's more or less agreed.
-     likelihoodThr = likelihoodLookupTable(1,1) * 1.005; % Change in likelihood that's enough to reconsider that sub.
+     likelihoodThr = likelihoodLookupTable(1,1) * 1.003; % Change in likelihood that's enough to reconsider that sub.
      poeCounter = 0;
      curLevelItr = nodes(1, 4);
      topLevel = curLevelItr;
@@ -43,7 +43,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
      c_mask=((x.^2+y.^2)<r^2);
      
-     % Create ourput folder.
+     % Create output folder.
      if ~exist(folderName, 'dir')
           mkdir(folderName);
      end
@@ -65,7 +65,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      positionFlag = false;
      
      % Arguments relating to availability of different moves.
-     moveFlags = [1; 1; 1] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
+     moveFlags = [1; 0; 1] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
      
      % Shut down warnings.
      warning('off','all');

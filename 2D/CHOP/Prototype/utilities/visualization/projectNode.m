@@ -16,7 +16,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.08.2015
-function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode( nodes, vocabulary, samplingMethod, orNodeChoice )
+function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode( nodes, vocabularyDistributions, samplingMethod, orNodeChoice )
 
     if nargin == 3
          orNodeChoice = [];
@@ -34,20 +34,20 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
     %% First, we recursively backproject the nodes. 
     startNodeOffset = 0;
     while levelItr > 1.001
-        vocabLevel = vocabulary{levelItr};
-        prevLevel = vocabulary{levelItr-1};
+        vocabLevelDistributions = vocabularyDistributions{levelItr};
+        prevLevelDistributions = vocabularyDistributions{levelItr-1};
         newNodes = cell(size(nodes,1),1);
         
         % If previous layer already has modal experts defined, we don't
         % need to proceed.
-        stopFlag = ~isempty(prevLevel(1).modalExperts) && strcmp(samplingMethod, 'modal') && levelItr == topLevel;
+        stopFlag = ~isempty(prevLevelDistributions(1).modalExperts) && strcmp(samplingMethod, 'modal') && levelItr == topLevel;
         
         for nodeItr = 1:size(nodes,1)
-            vocabNode = vocabLevel(nodes(nodeItr,1));
-            newNodeSet = zeros(numel(vocabNode.realChildren), 4, 'single');
+            vocabNodeDistributions = vocabLevelDistributions(nodes(nodeItr,1));
+            newNodeSet = zeros(numel(vocabNodeDistributions.realChildren), 4, 'single');
             
             % Sample from the discrete and continuous distributions.
-            childrenLabelDistributions = vocabNode.childrenLabelDistributions;
+            childrenLabelDistributions = vocabNodeDistributions.childrenLabelDistributions;
             choiceCounts = size(childrenLabelDistributions,1);
 
             % Reconstruct the nodes.
@@ -77,7 +77,7 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
             % most contribution, and sampling from that. 
             % TODO: We are planning to replace this with a smarter
             % search mechanism.
-            posDistributions = vocabNode.childrenPosDistributions{1};
+            posDistributions = vocabNodeDistributions.childrenPosDistributions{1};
             if numel(posDistributions) > 1
                 posDistributions = posDistributions{assignedRow};
             else
@@ -122,7 +122,7 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
                     newNodeSet = int32(round(newNodeSet(:,1:3)));
                     allExperts = cell(size(newNodeSet,1),1);
                     for expertItr = 1:size(newNodeSet,1)
-                         newChildren = prevLevel(newNodeSet(expertItr,1)).modalExperts;
+                         newChildren = prevLevelDistributions(newNodeSet(expertItr,1)).modalExperts;
                          newChildren(:,2:3) = repmat(newNodeSet(expertItr,2:3), size(newChildren,1),1) + newChildren(:,2:3);
                          allExperts{expertItr} = newChildren;
                     end
