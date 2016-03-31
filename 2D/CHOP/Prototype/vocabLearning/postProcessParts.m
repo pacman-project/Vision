@@ -308,24 +308,28 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    close all;
               end
 
-              % Find an ideal cutoff ratio.
-              sampleVals = 0.3:0.025:0.8;
-              for sampleVal = sampleVals
-                   val = find(cutoffRatios <= sampleVal, 1, 'first');
-                   if ~isempty(val)
-                        clusterCount = sampleCounts(val);
-                        break;
-                   else
-                        continue;
+              if numberOfNodes > options.reconstruction.minNumberOfORNodes
+                   % Find an ideal cutoff ratio.
+                   sampleVals = 0.3:0.025:0.8;
+                   for sampleVal = sampleVals
+                        val = find(cutoffRatios <= sampleVal, 1, 'first');
+                        if ~isempty(val)
+                             clusterCount = sampleCounts(val);
+                             break;
+                        else
+                             continue;
+                        end
                    end
-              end
-              % Haven't found a cutoff yet? Set to the fixed value.
-              if isempty(val)
-                   if size(newDistanceMatrix,1) < options.reconstruction.numberOfORNodes
-                        clusterCount = round(size(newDistanceMatrix,1) / 2);
-                   else
-                        clusterCount = options.reconstruction.numberOfORNodes;
+                   % Haven't found a cutoff yet? Set to the fixed value.
+                   if isempty(val)
+                        if size(newDistanceMatrix,1) < options.reconstruction.numberOfORNodes
+                             clusterCount = round(size(newDistanceMatrix,1) / 2);
+                        else
+                             clusterCount = options.reconstruction.numberOfORNodes;
+                        end
                    end
+              else
+                   clusterCount = numberOfNodes;
               end
          else
               clusterCount = options.reconstruction.numberOfORNodes;

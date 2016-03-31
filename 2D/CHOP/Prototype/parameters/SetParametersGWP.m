@@ -198,6 +198,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                            % that can be selected.
     options.reconstruction.maxNumberOfORNodes = 800; % Ideal number of OR 
     % nodes is searched in the range of 2-maxNumberOfOrNodes.
+    
+    options.reconstruction.minNumberOfORNodes = 100; % If the number of 
+                                   % nodes is less than this value, we don't need compression.
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========
     options.nodeSimilarityAllowed = false; % If true, node similarities are 
