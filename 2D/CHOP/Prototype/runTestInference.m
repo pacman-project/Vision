@@ -52,9 +52,10 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
            return;
         end
     
+        % Read all relevant structures.
         if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
-            load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'categoryNames', 'orNodeProbs', 'modeProbs', 'optimalThresholds', 'edgeChangeLevel');
-            load([options.currentFolder '/output/' datasetName '/export.mat']);
+            load([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', 'edgeChangeLevel', '-append', '-v7.3');
+            load([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions');
         else
             display('No vocabulary exists!');
             totalInferenceTime = 0;

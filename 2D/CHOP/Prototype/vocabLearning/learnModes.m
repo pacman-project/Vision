@@ -20,7 +20,11 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     display('Learning modes...');
     maxSamplesPerMode = 200;
     minSamplesPerMode = 5;   
-    maximumModes = 4;
+    if levelItr == 1
+         maximumModes = 8;
+    else
+         maximumModes = 5;
+    end
     dummySigma = 0.1;
     minProb = realmin('single');
     halfSize = ceil(size(edgeIdMatrix,1) / 2);

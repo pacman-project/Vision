@@ -104,12 +104,12 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.4;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.6;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.categoryLevelEdgeNoveltyThr = 0.2;       % Novelty threshold just before category level.
+    options.categoryLevelEdgeNoveltyThr = 0.3;       % Novelty threshold just before category level.
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
@@ -126,7 +126,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.minContinuityCoverage = 0.9; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
-    options.maxEdgeChangeLevel = 4; % If this is the layer we're working on, we switch to centroid edges.
+    options.maxEdgeChangeLevel = 6; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will
@@ -139,7 +139,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = 5; % DEFAULT 5
     else
-        options.receptiveFieldSize = 11;
+        options.receptiveFieldSize = 13;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
@@ -193,13 +193,13 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.reconstruction.numberOfReconstructiveSubs = 3000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 300; % The maximum 
+    options.reconstruction.numberOfORNodes = 400; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
     options.reconstruction.maxNumberOfORNodes = 800; % Ideal number of OR 
     % nodes is searched in the range of 2-maxNumberOfOrNodes.
     
-    options.reconstruction.minNumberOfORNodes = 100; % If the number of 
+    options.reconstruction.minNumberOfORNodes = 200; % If the number of 
                                    % nodes is less than this value, we don't need compression.
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========
