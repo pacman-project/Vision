@@ -133,8 +133,10 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
              curAdjacentNodes = cell(numberOfNodes,1);
 
              % If circular RF is desired, we pre-calculate distances.
-             if circularRF
+             if circularRF && numberOfNodes > 1
                     allDistances = squareform(pdist(single(curNodeCoords)));
+             else
+                  allDistances = 0;
              end
              
              %% Find all edges within this image.
