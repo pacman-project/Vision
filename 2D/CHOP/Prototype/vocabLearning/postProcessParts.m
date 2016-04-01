@@ -35,12 +35,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     
     vocabulary{levelItr} = vocabLevel;
     filterSize = size(options.filters{1});
-    halfSize = ceil(filterSize(1)/2); 
-    if strcmp(options.filterType, 'gabor')
-        stride = options.gabor.stride;
-    else
-        stride = options.auto.stride;
-    end
     
     %% As a case study, we replace gabors with 1D gaussian filters    
     visFilters = options.filters;
@@ -63,7 +57,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     vocabLevel = vocabLevel(1, remainingComps);
     newLabelArr = num2cell(int32(1:numel(vocabLevel)));
     [vocabLevel.label] = deal(newLabelArr{:});
-    vocabulary{levelItr} = vocabLevel;
     
     %% Find the distance matrix among the remaining parts in vocabLevel.
    edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
@@ -85,8 +78,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
 
    %% We  are experimenting with different distance functions.
    % Find the correct image size.
-   imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) + halfSize * 2;
-   imageSize = [imageSize, imageSize];
+   imageSize = getRFSize(options, levelItr);
+   imageSize = imageSize + filterSize;
    
    % For now, we make the image bigger.
 %   imageSize = round(imageSize * 1.5);

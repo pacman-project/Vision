@@ -104,12 +104,12 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.6;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.66;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.categoryLevelEdgeNoveltyThr = 0.3;       % Novelty threshold just before category level.
+    options.categoryLevelEdgeNoveltyThr = 0.4;       % Novelty threshold just before category level.
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
@@ -146,7 +146,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % receptive field size grows by 
                                          % 1/scaling.
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
-    options.maxNodeDegree = 5;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 4;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.minimalEdgeCount = true; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 

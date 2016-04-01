@@ -107,11 +107,11 @@
    [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodeCoords, maxCoverageVals, numberOfImages, options, 'preInhibition', levelItr);
    display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
 
-   %% If category level is reached, we reduce the number of desired nodes substantially.
+   %% If category level is reached, we reduce the number of desired nodes substantially. 
    nodeCoverages = zeros(numel(graphLevel),1);
    imageIds = [graphLevel.imageId];
    remainingImages = unique([graphLevel.imageId]);
-   imageCoverages = zeros(numel(remainingImages), 1);
+   imageCoverages = zeros(max(imageIds), 1);
    stopFlag = false;
    for nodeItr = 1:numel(graphLevel)
         nodeCoverages(nodeItr) = (numel(graphLevel(nodeItr).leafNodes) / nnz(level1Coords(:,1) == graphLevel(nodeItr).imageId)) / avgCoverage;
@@ -184,7 +184,7 @@
    % reduction in resolution for higher layers, therefore non-growing
    % receptive fields.
    display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
-   graphLevel = applyPooling(graphLevel, options.poolDim, options.poolFlag);
+   graphLevel = applyPooling(graphLevel, options.poolDim, options.poolFlag, ~ismember(levelItr, options.noPoolingLayers));
    java.lang.System.gc();
 
    %% Calculate statistics from this graph.
@@ -235,6 +235,16 @@
    %% At this step, we perform imagination of the parts at this layer (for later use).
    vocabularyDistributions = projectVocabulary( vocabularyDistributions);
 
+   %% If we've reached max number of layers, don't keep going forward.
+   if levelItr == options.maxLevels || stopFlag
+       vocabulary = vocabulary(1:(levelItr),:);
+       vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
+       allModes = allModes(1:(levelItr), :);
+       mainGraph = mainGraph(1:(levelItr),:);
+       distanceMatrices = distanceMatrices(1:(levelItr),:);
+       modeProbs = modeProbs(1:(levelItr),:);
+   end
+   
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
    display('Writing output to files.');
@@ -247,18 +257,6 @@
    save([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions');
    save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
    
-      %% If we've reached max number of layers, don't keep going forward.
-   if levelItr == options.maxLevels || stopFlag
-       vocabulary = vocabulary(1:(levelItr),:);
-       vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
-       allModes = allModes(1:(levelItr), :);
-       mainGraph = mainGraph(1:(levelItr),:);
-       distanceMatrices = distanceMatrices(1:(levelItr),:);
-       modeProbs = modeProbs(1:(levelItr),:);
-       save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
-       return;
-   end
-
    %% Visualize images and vocabulary.
    if ~isempty(vocabLevel) && options.debug
      display('........ Visualizing previous levels...');
@@ -285,6 +283,12 @@
      printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
      clear allNodeInstances representativeNodes;
      java.lang.System.gc();
+   end
+   
+   %% If we've reached max number of layers, don't keep going forward.
+   if levelItr == options.maxLevels || stopFlag
+       save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
+       return;
    end
 
    % Open/close matlabpool to save memory.

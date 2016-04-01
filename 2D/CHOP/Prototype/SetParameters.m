@@ -34,6 +34,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                       % If 2, size of the receptive field
                                       % is halved, as in the previous
                                       % version of the algorithm.
+    options.noPoolingLayers = [3, 6]; % No pooling is performed over the outcome of these layers.
     options.poolFlag = true; % If true, we apply max pooling to reduce number of 
                                             %  realizations. Otherwise,
                                             %  positions are updated, but

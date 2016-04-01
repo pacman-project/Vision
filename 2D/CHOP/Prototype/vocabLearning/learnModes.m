@@ -19,13 +19,13 @@
 function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder, debug)
     display('Learning modes...');
     maxSamplesPerMode = 200;
-    minSamplesPerMode = 5;   
+    minSamplesPerMode = 3;   
     if levelItr == 1
-         maximumModes = 8;
+         maximumModes = 10;
     else
          maximumModes = 5;
     end
-    dummySigma = 0.1;
+    dummySigma = 0.05;
     minProb = realmin('single');
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
@@ -217,7 +217,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
              % Update cluster areas so that all areas consist of a single
              % connected component.
              for centerItr = 1:numberOfClusters
-                  CC = bwconncomp(clusterAreas == centerItr);
+                  CC = bwconncomp(clusterAreas == centerItr, 4);
 
                   % If there's more than one 
                   if CC.NumObjects> 1

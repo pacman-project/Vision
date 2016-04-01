@@ -13,7 +13,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 16.09.2015
-function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim, poolFlag )
+function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim, poolFlag, downsampleFlag )
      labelIds = cat(1, graphLevel.labelId);
      imageIds = cat(1, graphLevel.imageId);
      coords = cat(1, graphLevel.position);
@@ -43,10 +43,15 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim, poolFlag )
      combinedArr = combinedArr(idx,:);
      
      %% Downsample the coordinates (pooling), and then perform max operation.
-     if poolFlag
+     if downsampleFlag
           combinedArr(:,3:4) = floor((combinedArr(:,3:4) - 1)/poolDim) + 1;
      end
-    [~, IA, ~] = unique(combinedArr, 'rows', 'stable');
+     
+     if poolFlag
+          [~, IA, ~] = unique(combinedArr, 'rows', 'stable');
+     else
+          IA = (1:size(combinedArr,1))';
+     end
      
      % Save real indices and activations.
      idx = idx(IA);
@@ -56,7 +61,9 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolDim, poolFlag )
      %% Create final graphLevel.
      updatedGraphLevel = graphLevel(idx);
      updatedPositions = coords(idx,:);
-     updatedPositions = int32(floor((double(updatedPositions) - 1)/poolDim) + 1);
+     if downsampleFlag
+          updatedPositions = int32(floor((double(updatedPositions) - 1)/poolDim) + 1);
+     end
      updatedPositions = mat2cell(updatedPositions, ones(numel(updatedGraphLevel),1), 2);
      activations = num2cell(activations);
      [updatedGraphLevel.activation] = deal(activations{:});

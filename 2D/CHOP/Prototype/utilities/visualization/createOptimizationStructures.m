@@ -67,6 +67,7 @@ function [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = create
     likelihoodLookupTable = log(likelihoodLookupTable);
     rfSizes = zeros(levelItr,1);
     for rfSizeItr = 2:size(rfSizes,1)
-         rfSizes(rfSizeItr) = options.receptiveFieldSize * stride * (options.poolDim ^ (rfSizeItr-2));
+         rfSize = getRFSize(options, rfSizeItr);
+         rfSizes(rfSizeItr) = rfSize(1);
     end
 end

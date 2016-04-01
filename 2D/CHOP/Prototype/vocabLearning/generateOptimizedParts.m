@@ -38,15 +38,8 @@ function [] = generateOptimizedParts(vocabulary, levelItr, options)
     % Create data structures required for optimization.
     [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
     
-    if strcmp(options.filterType, 'gabor')
-        stride = options.gabor.stride;
-    else
-        stride = options.auto.stride;
-    end
-    
    % Find the correct image size.
-   imageSize = options.receptiveFieldSize * stride * (options.poolDim ^ (levelItr-2)) + halfSize * 2;
-   imageSize = [imageSize, imageSize];
+   imageSize = getRFSize(options, levelItr);
    
    % For now, we make the image bigger.
    imageSize = round(imageSize * 1.2);
