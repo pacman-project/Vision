@@ -12,34 +12,27 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.11.2015
-function [ ] = projectTrainingImages( fileList, vocabulary, mainGraph, levelItr, options)
-    graphLevel = mainGraph{levelItr};
-    imageIds = [graphLevel.imageId];
-    realLabelIds = double(cat(1, graphLevel.realLabelId));
-    precisePositions = double(cat(1, graphLevel.precisePosition));
-    
+function [ ] = projectTrainingImages( fileList, vocabularyDistributions, exportArr, levelItr, options)
+
     [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
+    levelExportArr = exportArr(exportArr(:,4) == levelItr, :);
     
     %% Go through every image and find optimal version.
-    for imgItr = 12:max(imageIds)
-       % Obtain image-specific realizations.
-       idx = imageIds == imgItr;
-       
-       % If no nodes are present, move on.
-       if nnz(idx) == 0
-            continue;
-       end
-       imagePrecisePositions = precisePositions(idx,:);
-
+    for imgItr = 10:max(levelExportArr(:,5))
        % Create a folder if needed.
        [~, fileName, ~] = fileparts(fileList{imgItr});
 
        % Backproject from all possible levels.
-       curExportArr = [realLabelIds(idx,:), imagePrecisePositions, repmat(levelItr, nnz(idx),1)];
+       curExportArr = levelExportArr(levelExportArr(:,5) == imgItr,:);
+       
+       % If no nodes are present, move on.
+       if isempty(curExportArr)
+            continue;
+       end
 
        % Now, we get the top realizations and backproject to the original
        % image.
-       optimizeImagination(curExportArr, vocabulary, options.imageSize, rfSizes, optimizedFilters, visFilters, 1, options.datasetName, likelihoodLookupTable, fileName);
+       optimizeImagination(curExportArr, vocabularyDistributions, options.imageSize, rfSizes, optimizedFilters, visFilters, 1, options.datasetName, likelihoodLookupTable, fileName);
 
 %        % For visualization, overlay the original image with reconstructed nodes.
 %        imwrite(muImg, [imgFolder '/' fileName '_level' num2str(levelItr) 'optimizedImagination.png']);

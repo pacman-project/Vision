@@ -103,6 +103,9 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     else
          options.restartFlag = false;
     end
+    
+    %% Set number of category level OR nodes.
+    options.reconstruction.numberOfORNodesCategoryLayer = options.articulationsPerCategory * options.numberOfCategories;
       
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     edgeChangeLevel = -1;

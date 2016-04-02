@@ -68,11 +68,6 @@
        options.optimizationFlag = false;
    end
 
-   %% If we're at category level, our parts are supposed to cover most of the object. We can enforce this.
-   if levelItr == options.categoryLevel
-        options.missingNodeThr = 0.9; % Each node should cover this percentage of the nodes in its RF.        
-   end
-   
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
    [vocabLevel, graphLevel, ~, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix,...
        options, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Coords); %#ok<*ASGLU,*NODEF>
@@ -120,9 +115,6 @@
    if levelItr == options.categoryLevel || mean(imageCoverages(remainingImages)) >= options.categoryLevelCoverage
         stopFlag = true;
         options.stopFlag = true;
-        options.reconstruction.numberOfORNodes = options.articulationsPerCategory * options.numberOfCategories;
-   else
-        validVocabNodes = find(ones(numel(vocabLevel),1) > 0);
    end
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
@@ -192,10 +184,10 @@
    [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodeCoords, maxCoverageVals, numberOfImages, options, 'postInhibition', levelItr);
 
    %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
-   if avgCoverage < options.minContinuityCoverage && edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid') || levelItr == options.maxEdgeChangeLevel
+   if avgCoverage < options.minContinuityCoverage && options.edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid') || levelItr == options.maxEdgeChangeLevel
        options.edgeType = 'centroid';
        display('........ Switching to -centroid- type edges!');
-       edgeChangeLevel = levelItr;
+       options.edgeChangeLevel = levelItr;
    end
 
    % display debugging info.
@@ -207,10 +199,10 @@
    mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
 
       %% If we're at category level, our parts are supposed to cover most of the object. We can enforce this.
-   if levelItr == options.categoryLevel - 1
-        options.edgeNoveltyThr = options.categoryLevelEdgeNoveltyThr;
-        options.maxNodeDegree = options.maxNodeDegree * 2; 
-   end
+%    if levelItr == options.categoryLevel - 1
+%         options.edgeNoveltyThr = options.categoryLevelEdgeNoveltyThr;
+%         options.maxNodeDegree = options.maxNodeDegree * 2; 
+%    end
    
    %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
    % Extract the edges between new realizations to form the new object graphs.
@@ -248,13 +240,13 @@
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
    display('Writing output to files.');
-   [exportArr, activationArr, precisePositions] = exportRealizations(mainGraph); %#ok<ASGLU>
-   save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', 'precisePositions', '-append', '-v7.3'); 
+   [exportArr, activationArr] = exportRealizations(mainGraph); %#ok<ASGLU>
+   save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', '-append', '-v7.3'); 
    clear exportArr  activationArr precisePositions;
 
    % Print everything to files.
-   save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', 'edgeChangeLevel', '-append', '-v7.3');
-   save([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions');
+   save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', '-append', '-v7.3');
+   save([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions', 'options');
    save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
    
    %% Visualize images and vocabulary.
@@ -313,6 +305,7 @@
         % Finally, we save the workspace and call the next iteration.
          disp(['Saving layer ' num2str(levelItr) ' workspace.']);
          save([pwd '/Workspace.mat'], '-v7.3');
+         copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
          clearvars -except restartFlag scriptName datasetName
          system(scriptName);
          exit

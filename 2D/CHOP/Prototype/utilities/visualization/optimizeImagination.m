@@ -18,8 +18,9 @@
 %> Ver 1.0 on 07.02.2016
 function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, filters, visFilters, sampleItr, datasetName, likelihoodLookupTable, fileName)
      stopVal = 0.05;
+%     stopVal = 1;
 %     maxSteps = 10 * size(nodes,1);
-     maxSteps = 500;
+     maxSteps = 750;
      minOptimizationLayer = 3;
      minLikelihoodChange = 0.003;
      % If an expert (on average) has better likelihood than this, it means it's more or less agreed.
@@ -65,7 +66,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      positionFlag = false;
      
      % Arguments relating to availability of different moves.
-     moveFlags = [1; 0; 1] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
+     moveFlags = [1; 1; 0] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
      
      % Shut down warnings.
      warning('off','all');
@@ -108,6 +109,12 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     
     %% Continue with gradient descent until optimized.
     while steps < maxSteps && curLevelItr >= minOptimizationLayer
+         
+         % If we're at minimum optimization layer, start turning things
+         % around  as well.
+         if curLevelItr == minOptimizationLayer
+              moveFlags = [1; 1; 1] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
+         end
         
          topNodeFlag = curLevelItr == topLevel && size(nodes,1) == 1;
         
@@ -142,7 +149,6 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               tempOverlapMatrix = imdilate(tempMatrix, c_mask);
               expertIdx(expertItr) = {find(tempOverlapMatrix)};
               avgLikelihoods(expertItr) = mean(refLikelihoodMat(tempOverlapMatrix));
- %             avgLikelihoods(expertItr) = min(refLikelihoodMat(tempOverlapMatrix));
          end
          moveFlagArr = avgLikelihoods < likelihoodThr;
          
@@ -227,7 +233,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                
               %% We sample moves using available move types.
               stochasticMoves = round(max(minMoves, min(movesPerChild^size(expertChildren,1), maxMoves)));
-              moves = generateMoves(stochasticMoves, numel(expertNode.children), moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount, topNodeFlag);
+              moves = generateMoves(stochasticMoves, numel(expertNode.realChildren), moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount, topNodeFlag);
               numberOfMoves = size(moves,1);
               
               % No valid moves generated? Move on.

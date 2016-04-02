@@ -33,6 +33,13 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     distType = options.distType;
     stopFlag = options.stopFlag;
     
+    % Get number of OR nodes.
+    if stopFlag
+         numberOfORNodes = options.reconstruction.numberOfORNodes;
+    else
+         numberOfORNodes = options.reconstruction.numberOfORNodesCategoryLayer;
+    end
+    
     vocabulary{levelItr} = vocabLevel;
     filterSize = size(options.filters{1});
     
@@ -189,7 +196,6 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
          if ~stopFlag
               clusterStep = 1;
               maxNumberOfORNodes = options.reconstruction.maxNumberOfORNodes;
-      %        sampleCounts = 2:clusterStep:min([options.reconstruction.numberOfORNodes, ((size(newDistanceMatrix,1))-1), maxIdx]);
               sampleCounts = min([round(maxNumberOfORNodes/10), round(size(newDistanceMatrix,1)/2)]):...
                    clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrix,1))-round((size(newDistanceMatrix,1))/5))]);
               dunnVals = zeros(numel(sampleCounts),1);
@@ -315,17 +321,17 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    end
                    % Haven't found a cutoff yet? Set to the fixed value.
                    if isempty(val)
-                        if size(newDistanceMatrix,1) < options.reconstruction.numberOfORNodes
+                        if size(newDistanceMatrix,1) < numberOfORNodes
                              clusterCount = round(size(newDistanceMatrix,1) / 2);
                         else
-                             clusterCount = options.reconstruction.numberOfORNodes;
+                             clusterCount = numberOfORNodes;
                         end
                    end
               else
                    clusterCount = numberOfNodes;
               end
          else
-              clusterCount = options.reconstruction.numberOfORNodes;
+              clusterCount = numberOfORNodes;
          end
          
          % Find optimal number of clusters.

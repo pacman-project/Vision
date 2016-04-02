@@ -45,7 +45,6 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
     options.gabor.gamma = 0.2;
- %    options.gabor.gamma = 0.5;
     options.gabor.inhibitionRadius = 2;
                                         % The inhibition radius basically 
                                         % defines the half of the square's
@@ -98,7 +97,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -109,7 +108,6 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.categoryLevelEdgeNoveltyThr = 0.4;       % Novelty threshold just before category level.
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
@@ -123,10 +121,12 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.94; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
-    options.maxEdgeChangeLevel = 6; % If this is the layer we're working on, we switch to centroid edges.
+    options.categoryLevelMissingNodeThr = 0.9; %In category level, missing node threshold is treated differently.
+    options.edgeChangeLevel = -1; % Going to be updated in the code later.
+    options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
                                          % average node image in image visualization.
                                          % 'leaf': Detected leaf nodes will
@@ -172,7 +172,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 7; % The level where we switch from 
+    options.categoryLevel = 8; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -190,14 +190,16 @@ function [ options ] = SetParametersGWP( datasetName, options )
                % Hint: A good number is the number of poses per object.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 3000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 8000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 400; % The maximum 
+    options.reconstruction.numberOfORNodes = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
     options.reconstruction.maxNumberOfORNodes = 800; % Ideal number of OR 
-    % nodes is searched in the range of 2-maxNumberOfOrNodes.
+    % nodes is searched in the range of
+    % minNumberOfOrNodes-maxNumberOfOrNodes. If cannot be found,
+    % numberOfORNodes (set above) is used.
     
     options.reconstruction.minNumberOfORNodes = 200; % If the number of 
                                    % nodes is less than this value, we don't need compression.

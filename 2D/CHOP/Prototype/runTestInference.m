@@ -17,21 +17,32 @@
 %> Ver 1.1 on 12.01.2014 Timing is added by Mete
 function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
-    options = SetParameters(datasetName, false);
-    options.currentFolder = options.currentFolder;
-    
+   % Read all relevant structures.
+   if exist([pwd  '/output/' datasetName '/vb.mat'], 'file')
+       load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'modeProbs', 'options', 'categoryNames');
+       load([pwd '/output/' datasetName '/distributions.mat'], 'vocabularyDistributions');
+   else
+       display('No vocabulary exists!');
+       totalInferenceTime = 0;
+       return;
+   end
+   options.isTraining = false;
+   
+       %% ========== PATH FOLDER ADDITION ==========
+    w = warning('off', 'all');
+    addpath(genpath([options.currentFolder '/utilities']));
+    addpath(genpath([options.currentFolder '/demo']));
+    addpath(genpath([options.currentFolder '/graphTools']));
+    addpath(genpath([options.currentFolder '/vocabLearning']));
+    addpath(genpath([options.currentFolder '/inference']));
+    addpath(genpath([options.currentFolder '/categorization']));
+    warning(w);
+   
     % Remove output folder.
     if exist(options.testInferenceFolder, 'dir')
          rmdir(options.testInferenceFolder, 's');
     end
     mkdir(options.testInferenceFolder);
-    
-    %% Learn edge-based distance matrix once and for all.
-    [edgeIdMatrix, edgeDistanceMatrix, edgeCoords] = findEdgeDistanceMatrix(options.receptiveFieldSize, options.distType, options.edgeSimilarityAllowed);
-    options.edgeIdMatrix = edgeIdMatrix;
-    options.edgeDistanceMatrix = edgeDistanceMatrix;
-    options.edgeCoords = edgeCoords;
-    clear edgeIdMatrix edgeDistanceMatrix edgeCoords;
     
     % Open threads for parallel processing.
     if options.parallelProcessing
@@ -52,16 +63,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
            return;
         end
     
-        % Read all relevant structures.
-        if exist([options.currentFolder '/output/' datasetName '/vb.mat'], 'file')
-            load([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', 'edgeChangeLevel', '-append', '-v7.3');
-            load([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions');
-        else
-            display('No vocabulary exists!');
-            totalInferenceTime = 0;
-            return;
-        end
-        
         % Create the folder structure required.
         createFolders(options);
         
@@ -92,21 +93,17 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         % For some weird reason, Matlab workers cannot access variables
         % read from the file. They have to be used in the code. Here's my
         % workaround: 
-        distanceMatrices = distanceMatrices; %#ok<NODEF,ASGSL>
-        optimalThresholds = optimalThresholds; %#ok<NODEF,ASGSL>
-        categoryNames = categoryNames; %#ok<ASGSL>
-        edgeChangeLevel = edgeChangeLevel; %#ok<ASGSL,NODEF>
-        allModes = allModes; %#ok<ASGSL,NODEF>
         vocabulary = vocabulary; %#ok<ASGSL,NODEF>
-        orNodeProbs = orNodeProbs; %#ok<ASGSL,NODEF>
+        allModes = allModes; %#ok<ASGSL,NODEF>
         modeProbs = modeProbs; %#ok<ASGSL,NODEF>
+        categoryNames = categoryNames; %#ok<ASGSL>
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
         for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, orNodeProbs, modeProbs, distanceMatrices, categoryNames{categoryArrIdx(testImgItr)}, optimalThresholds, edgeChangeLevel, options); 
+            singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options); 
         end
         totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');

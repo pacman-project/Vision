@@ -82,12 +82,22 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     optimizationFlag = options.optimizationFlag;
     partSelectionFlag = options.partSelectionFlag;
     optimalThreshold = orgThreshold;
-    minRFCoverage = options.missingNodeThr;
+    
+    % If this is category level, we change the minimum RF coverage.
+    if levelItr+1 == options.categoryLevel
+         minRFCoverage = options.categoryLevelMissingNodeThr;
+    else
+         minRFCoverage = options.missingNodeThr;
+    end
+    
+    % Mark validation fold indices.
     if options.validationFlag
         validationFolds = options.validationFolds;
     else
         validationFolds = 1; 
     end
+    
+    % Set threshold.
     if optimizationFlag
         singleNodeThreshold = maxThreshold + singlePrecision;
     else
