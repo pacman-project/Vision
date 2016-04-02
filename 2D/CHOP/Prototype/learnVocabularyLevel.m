@@ -114,6 +114,7 @@
    end
    if levelItr == options.categoryLevel || mean(imageCoverages(remainingImages)) >= options.categoryLevelCoverage
         stopFlag = true;
+        options.categoryLevel = levelItr;
         options.stopFlag = true;
    end
 

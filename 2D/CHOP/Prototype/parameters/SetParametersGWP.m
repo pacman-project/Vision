@@ -97,13 +97,13 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0.4;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.66;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.6;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -121,7 +121,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.94; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.925; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
     options.categoryLevelMissingNodeThr = 0.9; %In category level, missing node threshold is treated differently.
