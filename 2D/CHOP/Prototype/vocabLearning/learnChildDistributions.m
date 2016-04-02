@@ -19,7 +19,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     labelIds = [graphLevel.labelId];
     prevRealLabelIds = [previousLevel.realLabelId]';
     prevPosition = double(cat(1, previousLevel.precisePosition));
-    noiseSigma = 0.0001;
+    noiseSigma = 0.001;
     dummySigma = 0.1;
     posDim = size(prevPosition,2);
     rfSize = getRFSize(options, levelItr);
@@ -240,7 +240,9 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              weights = obj.PComponents;
              pdfVals = weights;
              for mixItr = 1:size(mixtureMus,1)
-                  pdfVals(mixItr) = mvnpdf(meanCombSamples, mixtureMus(mixItr,:), squeeze(mixtureSigmas(:,:,mixItr))) * pdfVals(mixItr);
+                  sigmaMatrix = squeeze(mixtureSigmas(:,:,mixItr));
+                  sigmaMatrix = sigmaMatrix .* eye(size(sigmaMatrix,1)) * noiseSigma;
+                  pdfVals(mixItr) = mvnpdf(meanCombSamples, mixtureMus(mixItr,:), sigmaMatrix) * pdfVals(mixItr);
              end
              
              % Select most likely mode. If probability is zero, select the
