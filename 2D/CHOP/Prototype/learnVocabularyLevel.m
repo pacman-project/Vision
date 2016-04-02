@@ -196,7 +196,6 @@
 
    %% Step 2.5: Create the parent relationships between current level and previous level.
    vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
-   mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
 
       %% If we're at category level, our parts are supposed to cover most of the object. We can enforce this.
     if levelItr == options.categoryLevel - 1

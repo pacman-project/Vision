@@ -31,8 +31,11 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           return;
      end
      
+     % Create mode index array.
+     uniqueModes = unique(modes(:,1:2), 'stable', 'rows');
+     
      % Get node ids of edges.
-     parfor graphLevelItr = 1:numel(graphLevel)
+     for graphLevelItr = 1:numel(graphLevel)
           edges = graphLevel(graphLevelItr).adjInfo;
 
           % Edges empty, do nothing.
@@ -46,20 +49,34 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           end
           
           % Assign each edge a to a relevant mode.
-          probArr = zeros(size(edges,1),1, 'single');
-          graphLevel(graphLevelItr).realEdgeLabels = edges(:, 3);
           for edgeItr = 1:size(edges,1)
+               
+               % Get mode row id.
+               modeRow = find(uniqueModes(:,1) == edgeNodeLabels(edgeItr,1) & uniqueModes(:,2) == edgeNodeLabels(edgeItr,2));
+               if isempty(modeRow)
+                    continue;
+               end
+               
+               % Sanity check.
+               modeRow = modeRow(1);
+               
+               % Get possible row ids.
                relevantIdx = modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2);
                relevantModes = modes(relevantIdx,:);
+               
+               % Finally, obtain the edge id.
                relevantCoords = edgeCoords(edges(edgeItr,3),:);
-               clusterProbs = modeProbArr(relevantIdx,relevantCoords(1),relevantCoords(2));
-               [probability, clusterId] = max(clusterProbs);
-               probArr(edgeItr) = probability;
-               newLabel = int32(relevantModes(clusterId,3));
+               clusterId = modeProbArr(relevantCoords(1),relevantCoords(2), modeRow);
+               if clusterId == 0
+                    newLabel = 0;
+               else
+                    newLabel = int32(relevantModes(clusterId,3));
+               end
+               
+               % Assign new label.
                edges(edgeItr,3) = newLabel;
           end
-          graphLevel(graphLevelItr).adjInfo = edges;
-          graphLevel(graphLevelItr).edgeProbabilities = probArr;
+          graphLevel(graphLevelItr).adjInfo = edges(edges(:,3) > 0, :);
      end
      clearvars -except graphLevel
 end

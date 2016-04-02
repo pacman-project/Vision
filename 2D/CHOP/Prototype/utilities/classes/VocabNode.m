@@ -19,11 +19,9 @@ classdef VocabNode
         parents@int32 % Label ids of this node's parents in the next level.
         adjInfo@int32 % Edge information of the form (v2 edgeId isDirected; 
                                                % v3 edgeId isDirected; ...)
-        childrenDistributions@NodeDistribution % All generative distribution info 
         modalExperts@int32; % Imagined modal reconstruction in terms of layer 1 nodes.
         categoryArr@single % 1 x numberOfCategories array. Sums up to 1. 
                     % Determines how much this node has been found in each
                     % category.
-        orgRank@int32;
     end
 end

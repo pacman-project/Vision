@@ -50,7 +50,6 @@ function [vocabLevel, vocabLevelDistributions, graphLevel] = generateLevels(node
     % Set activation values.
     activationArr = num2cell(activations);
     [graphLevel.activation] = deal(activationArr{:});
-    [graphLevel.nodeProbability] = deal(single(1));
     
     % Add leaf nodes.
     leafNodes = num2cell(int32(1:size(nodes,1)));

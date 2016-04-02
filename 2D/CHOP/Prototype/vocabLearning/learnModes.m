@@ -243,10 +243,10 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         clusterAreas(~c_mask) = 0;
         
         % Assign probabilities.
-        modeProbArr{uniqueEdgeItr} = allProbs;
+        modeProbArr{uniqueEdgeItr} = uint8(clusterAreas);
         
         % Get the probability image for visualization.
-        if debug       
+        if debug
              gaussImg = squeeze(combinedProbs);
              gaussImg = gaussImg / max(max(gaussImg));
              gaussImg = uint8(round(gaussImg * 255));
@@ -283,7 +283,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         modes(uniqueEdgeItr) = {statistics};
         warning(w);
     end
-    modeProbArr = cat(1, modeProbArr{:});
+    modeProbArr = cat(3, modeProbArr{:});
     clear uniqueEdgeSamples;
     modes = cat(1, modes{:});
 
