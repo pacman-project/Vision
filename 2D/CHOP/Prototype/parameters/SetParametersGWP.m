@@ -184,7 +184,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.categoryLevelCoverage = 0.9; % If each node is covering this percent 
                                                                   % of its associated image, we switch to 
                                                                   % category node grouping.
-    options.articulationsPerCategory = 10; % Number of top level nodes 
+    options.articulationsPerCategory = 20; % Number of top level nodes 
                % for each category. Category nodes will be formed by
                % grouping top level parts.
                % Hint: A good number is the number of poses per object.
