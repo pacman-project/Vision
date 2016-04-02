@@ -224,16 +224,11 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                posProbDenom  = imageChoices ^ (size(expertChildren,1) - 1);
 
                % Then, we obtain the position pdfs.
-               childrenPosDistributions = expertNode.childrenPosDistributions{1};
-               if numel(childrenPosDistributions) > 1
-                    childrenPosDistributions = childrenPosDistributions{expertOrNodeChoice};
-               else
-                    childrenPosDistributions = childrenPosDistributions{1}; %#ok<FNDSB>
-               end
+               childrenPosDistributions = expertNode.childrenPosDistributions;
                
               %% We sample moves using available move types.
               stochasticMoves = round(max(minMoves, min(movesPerChild^size(expertChildren,1), maxMoves)));
-              moves = generateMoves(stochasticMoves, numel(expertNode.realChildren), moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount, topNodeFlag);
+              moves = generateMoves(stochasticMoves, (size(expertNode.childrenLabelDistributions,2)-1), moveFlags, expertOrNodeChoice, expertOrNodeChoiceCount, topNodeFlag);
               numberOfMoves = size(moves,1);
               
               % No valid moves generated? Move on.

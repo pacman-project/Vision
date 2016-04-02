@@ -28,19 +28,18 @@
 %> Ver 1.0 on 06.05.2014
 %> Update on 23.02.2015 Added comments, performance boost.
 %> Update on 25.02.2015 Added support for single node subs.
-function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, vocabularyDistributions, levelItr, options)
+function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, ~, vocabularyDistributions, levelItr, options)
     edgeCoords = options.edgeCoords;
     distType = options.distType;
     stopFlag = options.stopFlag;
     
     % Get number of OR nodes.
     if stopFlag
-         numberOfORNodes = options.reconstruction.numberOfORNodes;
-    else
          numberOfORNodes = options.reconstruction.numberOfORNodesCategoryLayer;
+    else
+         numberOfORNodes = options.reconstruction.numberOfORNodes;
     end
     
-    vocabulary{levelItr} = vocabLevel;
     filterSize = size(options.filters{1});
     
     %% As a case study, we replace gabors with 1D gaussian filters    

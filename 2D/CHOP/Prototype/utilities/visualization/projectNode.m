@@ -44,7 +44,7 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
         
         for nodeItr = 1:size(nodes,1)
             vocabNodeDistributions = vocabLevelDistributions(nodes(nodeItr,1));
-            newNodeSet = zeros(numel(vocabNodeDistributions.realChildren), 4, 'single');
+            newNodeSet = zeros((size(vocabNodeDistributions.childrenLabelDistributions,2)-1), 4, 'single');
             
             % Sample from the discrete and continuous distributions.
             childrenLabelDistributions = vocabNodeDistributions.childrenLabelDistributions;
@@ -77,17 +77,13 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
             % most contribution, and sampling from that. 
             % TODO: We are planning to replace this with a smarter
             % search mechanism.
-            posDistributions = vocabNodeDistributions.childrenPosDistributions{1};
-            if numel(posDistributions) > 1
-                posDistributions = posDistributions{assignedRow};
-            else
-                posDistributions = posDistributions{1};
-            end
+            posDistributions = vocabNodeDistributions.childrenPosDistributions;
+            posDistributionModes = vocabNodeDistributions.childrenPosDistributionModes;
+ 
             if ~isempty(posDistributions)
-                 mixturePs = (posDistributions.PComponents)'; 
                  % Sample from the distribution.
                  if strcmp(samplingMethod, 'modal')
-                     [~, assignedDist] = max(mixturePs); %#ok<UDIM>
+                     assignedDist = posDistributionModes(assignedRow);
                      posVect = posDistributions.mu(assignedDist,:);
                  else
                      posVect = random(posDistributions, 1);
@@ -126,7 +122,6 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
                          newChildren(:,2:3) = repmat(newNodeSet(expertItr,2:3), size(newChildren,1),1) + newChildren(:,2:3);
                          allExperts{expertItr} = newChildren;
                     end
- %                   allExperts = cat(1, allExperts{:});
                     if levelItr == topLevel
                          subChildrenExperts{nodeItr} = allExperts;
                     end

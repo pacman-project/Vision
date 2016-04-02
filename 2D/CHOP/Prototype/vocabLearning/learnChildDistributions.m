@@ -20,12 +20,15 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     prevRealLabelIds = [previousLevel.realLabelId]';
     prevPosition = double(cat(1, previousLevel.precisePosition));
     noiseSigma = 0.0001;
-    dummySigma = 0.001;
+    dummySigma = 0.1;
     posDim = size(prevPosition,2);
+    rfSize = getRFSize(options, levelItr);
+    imageChoices = rfSize(1)^2;
     
     %% Distribution parameters.
     sampleCountPerCluster = 100;
-    maxClusters = 5;
+    minSampleCountPerCluster = 10;
+    maxClusters = 10;
     maxPointsToCluster = maxClusters * sampleCountPerCluster;
     smallSampleCount = 10;
     minPoints = maxClusters * 2;
@@ -51,7 +54,6 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     parfor vocabItr = 1:numberOfNodes
         minX = -1; maxX = -1; minY = -1; maxY = -1; meanArr = []; scores=[]; coeff=[];
         w = warning('off', 'all');
-        children = vocabLevel(vocabItr).children;
         
         % Get data. 
         % TODO: Consider mapping here!
@@ -73,8 +75,6 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
         % Learn mean positions of the children.
         for instanceItr = 1:size(instanceChildren,2)
              relevantChildren = instanceChildren(:, instanceItr);
-             childLabel = mode(double(prevRealLabelIds(relevantChildren)));
-             children(instanceItr) = childLabel;
              
              % If we're working with peripheral sub-parts, we calculate
              % position distributions as well.
@@ -92,7 +92,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
         % the generative model.  For every combination, we learn a continuous label distribution.
         % Allocate space for discrete combinations, and their position distributions. 
         childrenLabelDistributions = zeros(size(combs,1), size(combs,2) + 1, 'single');
-        childrenPosDistributions = cell(size(combs,1), 1);
+        childrenPosDistributionModes = ones(size(combs,1), 1, 'uint8');
         if numel(IA)>1
              weights = hist(IC, 1:numel(IA))';
              weights = weights / sum(weights);
@@ -103,145 +103,161 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
         childrenLabelDistributions(:, end) = weights;
 
         % For every combination, learn relevant samples.
-        if ~isempty(instanceChildrenCombinedPos)
-             for combItr = 1:numel(IA)
-                  relevantSamples = instanceChildrenCombinedPos(IC==combItr,:);
-                  
-                  if debugFlag
-                       if size(relevantSamples,2) == 2
-                            coeff = eye(2);
-                            scores = relevantSamples;
-                       else
-                            [coeff, scores] = princomp(relevantSamples);
-                       end
-                       meanArr = mean(relevantSamples,1);
-                       
-                       % Find min/max values for showing sample points on screen.
-                       minX = min(scores(:,1)) - 1;
-                       maxX = max(scores(:,1)) + 1;
-                       minY = min(scores(:,2)) - 1;
-                       maxY = max(scores(:,2)) + 1;
-                       
-                       %% Get principle components and visualize samples in 2d space.
-                       figure('Visible', 'off'), hold on;
-                       axis square
-                       subplot(1,3,1), plot(scores(:,1), scores(:,2), 'ro');
-                       xlim([minX, maxX]);
-                       ylim([minY, maxY]);
-                       title('Original data points')
-                       % Save samples.
-                       parsave([debugFolder '/part' num2str(vocabItr) '_' mat2str(combs(combItr,:)) '.mat'], relevantSamples, 'relevantSamples');
-                  end
-                  
-                  %% Now, we try to fit multiple gaussians to the sample points. 
-                  % First, we learn the number of clusters.
-                  noiseArr = normrnd(0, noiseSigma, size(relevantSamples));
-                  relevantSamples = relevantSamples + noiseArr;
-
-                  % Find the number of clusters, and fit a gaussian mixture
-                  % distribution with the given number of clusters. This is
-                  % a very ugly piece of code that decides numerous
-                  % parameters for efficiency.
-                  regularizeTerm = 1e-5;
-                  bigRegularizeTerm = 0.1;
-                  if size(relevantSamples,1) < minPoints || size(relevantSamples,1) <= size(relevantSamples,2)
-                       % We simply don't have enough data here. We switch
-                       % to simpler fitting techniques.
-                       % Learn covariance matrices / mu rows for the data.
-                       if size(relevantSamples,1) == 1
-                            covMat = dummySigma;
-                            mu = relevantSamples;
-                       else
-                            if size(relevantSamples,1) <= size(relevantSamples,2)
-                                  covMat = cov(relevantSamples) + bigRegularizeTerm;
-                            else
-                                  covMat = cov(relevantSamples) + regularizeTerm;
-                            end
-                            mu = mean(relevantSamples,1);
-                       end
-                       
-                       % If there's a very limited number of samples ( 1 or
-                       % 2), we reduce number of generated samples.
-                       if size(relevantSamples,1) < 3
-                            numberOfClusters = size(relevantSamples,1);
-                            ids = 1:numberOfClusters;
-                            obj = gmdistribution(relevantSamples, repmat(dummySigma, 1, size(relevantSamples,2)));
-                            if size(relevantSamples,1) == 1
-                                 sampleCount = 1;
-                            else
-                                 sampleCount = smallSampleCount;
-                            end
-                       else
-                            % There's an intermediate number of samples,
-                            % and we can learn a proper gaussian from
-                            % these.
-                            numberOfClusters = 1;
-                            ids = ones(size(relevantSamples,1),1);
-                            obj = gmdistribution(mu, covMat);
-                            sampleCount = sampleCountPerCluster;
-                       end
-                  else
-                       
-                       % If we have too many samples, it makes sense to
-                       % reduce number for efficiency.
-                       if size(relevantSamples,1)>maxPointsToCluster
-                            idx = randperm(size(relevantSamples,1));
-                            idx = idx(1:maxPointsToCluster);
-                            relevantSamples = relevantSamples(idx,:);
-                       end
-                       
-                       % Here, we perform proper statistical learning.
-                       % Number of clusters are found, and clusters are
-                       % given as initializers to the gaussian fitting
-                       % process.
-                       ids = mec(relevantSamples, 'c', maxClusters);
-                       numberOfClusters = max(ids);
-                       sampleCount = sampleCountPerCluster * numberOfClusters;
-                       options = statset('MaxIter', 5);
-                       obj = gmdistribution.fit(relevantSamples, numberOfClusters, 'Regularize', regularizeTerm, 'Start', ids, 'Options', options);
-                  end
-                  
-                  % Generate random samples for density estimation.
-                  y = random(obj, sampleCount);
-                  
-                  % Save distributions.
-                  childrenPosDistributions(combItr) = {obj};
-%                  childrenPosSamples(combItr) = {y};
-                  
-                  if debugFlag
-                       % Visualize clusters.
-                       subplot(1,3,2), hold on 
-                       for clusterItr = 1:numberOfClusters
-                             plot(scores(ids == clusterItr,1), scores(ids == clusterItr,2), pointSymbols{clusterItr}); %#ok<PFBNS>
-                       end
-                       xlim([minX, maxX]);
-                       ylim([minY, maxY]);
-                       hold off
-                       title('Seed clusters for Gaussian Mixtures');
-                       
-                       % Calculate new scores for visualization.
-                       if size(relevantSamples,2) == 2
-                            newScores = y;
-                       else
-                            newScores = (y - repmat(meanArr, size(y,1), 1)) * coeff;
-                            newScores = newScores(:,1:2);
-                       end
-                       subplot(1,3,3), plot(newScores(:,1), newScores(:,2), 'mo');
-                       xlim([minX, maxX]);
-                       ylim([minY, maxY]);
-                       title('Multi-modal (max 5) distribution') 
-
-                       % Stop drawing, move on.
-                       hold off
-                       saveas(gcf, [debugFolder '/part' num2str(vocabItr) '_' mat2str(combs(combItr,:)) '.png']);
-                       close(gcf);
-                  end
+        relevantSamples = instanceChildrenCombinedPos;
+        if debugFlag
+             if size(relevantSamples,2) == 2
+                  coeff = eye(2);
+                  scores = relevantSamples;
+             else
+                  [coeff, scores] = princomp(relevantSamples);
              end
+             meanArr = mean(relevantSamples,1);
+
+             % Find min/max values for showing sample points on screen.
+             minX = min(scores(:,1)) - 1;
+             maxX = max(scores(:,1)) + 1;
+             minY = min(scores(:,2)) - 1;
+             maxY = max(scores(:,2)) + 1;
+
+             %% Get principle components and visualize samples in 2d space.
+             figure('Visible', 'off'), hold on;
+             axis square
+             subplot(1,3,1), plot(scores(:,1), scores(:,2), 'ro');
+             xlim([minX, maxX]);
+             ylim([minY, maxY]);
+             title('Original data points')
+             % Save samples.
+             parsave([debugFolder '/part' num2str(vocabItr) '_.mat'], relevantSamples, 'relevantSamples');
+        end
+
+        %% Now, we try to fit multiple gaussians to the sample points. 
+        % First, we learn the number of clusters.
+        noiseArr = normrnd(0, noiseSigma, size(relevantSamples));
+        relevantSamples = relevantSamples + noiseArr;
+
+        % Find the number of clusters, and fit a gaussian mixture
+        % distribution with the given number of clusters. This is
+        % a very ugly piece of code that decides numerous
+        % parameters for efficiency.
+        bigRegularizeTerm = 0.1;
+        if size(relevantSamples,1) < minPoints || size(relevantSamples,1) <= size(relevantSamples,2)
+             % We simply don't have enough data here. We switch
+             % to simpler fitting techniques.
+             % Learn covariance matrices / mu rows for the data.
+             if size(relevantSamples,1) == 1
+                  covMat = dummySigma;
+                  mu = relevantSamples;
+             else
+                  covMat = cov(relevantSamples) + bigRegularizeTerm;
+                  mu = mean(relevantSamples,1);
+             end
+
+             % If there's a very limited number of samples ( 1 or
+             % 2), we reduce number of generated samples.
+             if size(relevantSamples,1) < 3
+                  numberOfClusters = size(relevantSamples,1);
+                  ids = 1:numberOfClusters;
+                  obj = gmdistribution(relevantSamples, repmat(dummySigma, 1, size(relevantSamples,2)));
+                  if size(relevantSamples,1) == 1
+                       sampleCount = 1;
+                  else
+                       sampleCount = smallSampleCount;
+                  end
+             else
+                  % There's an intermediate number of samples,
+                  % and we can learn a proper gaussian from
+                  % these.
+                  numberOfClusters = 1;
+                  ids = ones(size(relevantSamples,1),1);
+                  obj = gmdistribution(mu, covMat);
+                  sampleCount = sampleCountPerCluster;
+             end
+        else
+
+             % If we have too many samples, it makes sense to
+             % reduce number for efficiency.
+             if size(relevantSamples,1)>maxPointsToCluster
+                  idx = randperm(size(relevantSamples,1));
+                  idx = idx(1:maxPointsToCluster);
+                  clusteredSamples = relevantSamples(idx,:);
+             else
+                  clusteredSamples = relevantSamples;
+             end
+
+             % Here, we perform proper statistical learning.
+             % Number of clusters are found, and clusters are
+             % given as initializers to the gaussian fitting
+             % process.
+             regularizeTerm = 1e-5;
+             curMaxClusters = min(maxClusters, round(size(clusteredSamples,1)/minSampleCountPerCluster));
+             ids = mec(clusteredSamples, 'c', curMaxClusters);
+             numberOfClusters = max(ids);
+             sampleCount = sampleCountPerCluster * numberOfClusters;
+             options = statset('MaxIter', 1);
+             obj = gmdistribution.fit(clusteredSamples, numberOfClusters, 'Regularize', regularizeTerm, 'Start', ids, 'Options', options);
+        end
+
+        % Generate random samples for density estimation.
+        y = random(obj, sampleCount);
+
+        if debugFlag
+             % Visualize clusters.
+             subplot(1,3,2), hold on 
+             for clusterItr = 1:numberOfClusters
+                   plot(scores(ids == clusterItr,1), scores(ids == clusterItr,2), pointSymbols{clusterItr}); %#ok<PFBNS>
+             end
+             xlim([minX, maxX]);
+             ylim([minY, maxY]);
+             hold off
+             title('Seed clusters for Gaussian Mixtures');
+
+             % Calculate new scores for visualization.
+             if size(relevantSamples,2) == 2
+                  newScores = y;
+             else
+                  newScores = (y - repmat(meanArr, size(y,1), 1)) * coeff;
+                  newScores = newScores(:,1:2);
+             end
+             subplot(1,3,3), plot(newScores(:,1), newScores(:,2), 'mo');
+             xlim([minX, maxX]);
+             ylim([minY, maxY]);
+             title('Multi-modal (max 10) distribution') 
+
+             % Stop drawing, move on.
+             hold off
+             saveas(gcf, [debugFolder '/part' num2str(vocabItr) '.png']);
+             close(gcf);
         end
         
+        % Here, we assign each label combination to the closest gaussian.
+        for combItr = 1:size(combs,1)
+             combSamples = relevantSamples(IC==combItr, :);
+             meanCombSamples = mean(combSamples,1);
+             
+             % Choose the closest mode.
+             mixtureMus = obj.mu;
+             mixtureSigmas = obj.Sigma;
+             weights = obj.PComponents;
+             pdfVals = weights;
+             for mixItr = 1:size(mixtureMus,1)
+                  pdfVals(mixItr) = mvnpdf(meanCombSamples, mixtureMus(mixItr,:), squeeze(mixtureSigmas(:,:,mixItr))) * pdfVals(mixItr);
+             end
+             
+             % Select most likely mode. If probability is zero, select the
+             % the mode with the most weight.
+             [val, idx] = max(pdfVals);
+             if val == 0
+                  [~, idx] = max(weights);
+             end
+             
+             % Assign mode.
+             childrenPosDistributionModes(combItr) = idx;
+        end
+        
+        % Assign distributions.
         nodeDistributionLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
-        nodeDistributionLevel(vocabItr).childrenPosDistributions{1} = childrenPosDistributions;
-        nodeDistributionLevel(vocabItr).realChildren = children;
+        nodeDistributionLevel(vocabItr).childrenPosDistributions = obj;
+        nodeDistributionLevel(vocabItr).childrenPosDistributionModes = childrenPosDistributionModes;
         
         % Re-open warnings.
         warning(w);
