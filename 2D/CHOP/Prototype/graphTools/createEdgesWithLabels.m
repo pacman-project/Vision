@@ -39,19 +39,14 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     minimalEdgeCount = options.minimalEdgeCount;
     imagesPerSet = 10;
     
-    possibleLeafNodeCounts = inf(numel(currentLevel),1);
-%     possibleLeafNodeCounts = zeros(numel(currentLevel),1);
-%      for nodeItr = 1:numel(currentLevel)
-%           if isempty(currentLevel(nodeItr).adjInfo)
-%                possibleLeafNodeCounts(nodeItr)  = numel(currentLevel(nodeItr).leafNodes);
-%           else
-%                possibleLeafNodeCounts(nodeItr) = numel(fastsortedunique(sort(cat(2, currentLevel(currentLevel(nodeItr).adjInfo(:,1:2)).leafNodes))'));
-%           end
-%      end
-    
     %% Program options into variables.
-    edgeNoveltyThr = 1-options.edgeNoveltyThr;
-    maxNodeDegree = options.maxNodeDegree;
+    if currentLevelId == options.categoryLevel - 1
+         edgeNoveltyThr = 1 - options.categoryLevelEdgeNoveltyThr;
+         maxNodeDegree = options.maxNodeDegree * 2;
+    else
+         edgeNoveltyThr = 1 - options.edgeNoveltyThr;
+         maxNodeDegree = options.maxNodeDegree;
+    end
     
     %% Put each image's node set into a different bin.
     numberOfImages = double(max(imageIds));
@@ -60,7 +55,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     imageGraphNodeSets = cell(numberOfImages, 1);
     imageNodeIdArr = cell(numberOfImages,1);
     imageNodeCoordArr = cell(numberOfImages,1);
-    imagePossibleLeafNodeCounts = cell(numberOfImages,1);
     nodeOffset = 0;
     for imageItr = 1:max(imageIds)
        imageNodeIdx = find(imageIds == imageItr)';
@@ -69,7 +63,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
        imageNodeIdArr(imageItr) = {nodeIds(imageNodeIdx)};
        imageNodeCoordArr(imageItr) = {nodeCoords(imageNodeIdx,:)};
        imageNodeOffsets(imageItr) = nodeOffset;
-       imagePossibleLeafNodeCounts(imageItr) = {possibleLeafNodeCounts(imageNodeIdx)};
        nodeOffset = nodeOffset + nnz(imageNodeIdx);
     end
     
@@ -92,14 +85,12 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     setGraphNodeSets = cell(numberOfSets,1);
     setNodeIdArr = cell(numberOfSets,1);
     setNodeCoordArr = cell(numberOfSets,1);
-    setPossibleLeafNodeCounts = cell(numberOfSets,1);
     for setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          setNodeIdxSets{setItr} = imageNodeIdxSets(imageIdx);
          setGraphNodeSets{setItr} = imageGraphNodeSets(imageIdx);
          setNodeIdArr{setItr} = imageNodeIdArr(imageIdx);
          setNodeCoordArr{setItr} = imageNodeCoordArr(imageIdx);
-         setPossibleLeafNodeCounts{setItr} = imagePossibleLeafNodeCounts(imageIdx);
     end
     
     %% Process each set separately (and in parallel)
@@ -109,7 +100,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
          imageGraphNodeSets = setGraphNodeSets{setItr};
          imageNodeIdArr = setNodeIdArr{setItr} ;
          imageNodeCoordArr = setNodeCoordArr{setItr};
-         imagePossibleLeafNodeCounts = setPossibleLeafNodeCounts{setItr};
  %        disp(['Processing set ' num2str(setItr) ', which has ' num2str(numel(imageIdx)) ' images.']);
          
          % For every image in this set, find edges and save them.
@@ -128,7 +118,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
              curNodeCoords = imageNodeCoordArr{imageItr};
              curGraphNodes = imageGraphNodeSets{imageItr};
              curLeafNodes = {curGraphNodes.leafNodes};
-             curPossibleLeafNodeCounts = imagePossibleLeafNodeCounts{imageItr};
              maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeNoveltyThr;
              curAdjacentNodes = cell(numberOfNodes,1);
 
@@ -190,7 +179,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                      selectedNodeCount = 0;
                      if numel(adjacentNodes) > maxNodeDegree || minimalEdgeCount
                           unpickedAdjacentNodes = ones(numel(adjacentNodes),1) > 0;
-                          while selectedNodeCount < maxNodeDegree && numel(curNodeList) < curPossibleLeafNodeCounts(nodeItr)
+                          while selectedNodeCount < maxNodeDegree
                               % If all nodes are picked, break.
                               if nnz(unpickedAdjacentNodes) == 0
                                    break;
