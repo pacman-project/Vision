@@ -15,10 +15,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, activationArr, allPrecisePositions, allRealLabelIds] = inferSubs(vocabulary, nodes, allModes, ~, modeProbs, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options)
+function [exportArr, activationArr] = inferSubs(vocabulary, vocabularyDistributions, nodes, nodeActivations, options)
     % Read data into helper data structures.
     edgeDistanceMatrix = double(options.edgeDistanceMatrix);
     firstLevelAdjNodes = [];
+    RFSize = options.receptiveFieldSize;
+    halfSize = ceil(RFSize/2);
     
     % If fast inference is not required, we do not perform inhibition.
     singlePrecision = options.singlePrecision;
@@ -27,64 +29,50 @@ function [exportArr, activationArr, allPrecisePositions, allRealLabelIds] = infe
     if isempty(nodes) || isempty(vocabulary)
         return;
     end
+    
+    % Output data structures.
     allNodes = cell(numel(vocabulary),1);
     allPrecisePositions = cell(numel(vocabulary), 1);
     allRealLabelIds = cell(numel(vocabulary), 1);
     allActivations = cell(numel(vocabulary),1);
     allNodes(1) = {nodes};
     allActivations(1) = {nodeActivations};
-    leafNodeArr = num2cell((int32(1:size(nodes,1)))');
+     
+    % Data structures for current array.
     precisePositions = single(nodes(:,4:5));
     allPrecisePositions(1) = {precisePositions};
     allRealLabelIds(1) = {nodes(:,1)};
     
     for vocabLevelItr = 2:numel(vocabulary)
-        poolDim = options.poolDim;
-        
         %% Match subs from vocabLevel to their instance in graphLevel.
         vocabLevel = vocabulary{vocabLevelItr};
+        vocabLevelDistributions = vocabularyDistributions{vocabLevelItr};
         vocabRealizations = cell(numel(vocabLevel),1);
         vocabRealizationsActivations = cell(numel(vocabLevel),1);
-        nodeDistanceMatrix = distanceMatrices{vocabLevelItr-1};
-        modes = allModes{vocabLevelItr-1};
         vocabLevelLabels = [vocabLevel.label];
-        
-       %% Here, we find edges for the nodes in the vocabulary. 
-       % Check the level we need to swith to centroid type edges,
-       % no matter what the previous option is.
-        if edgeChangeLevel == (vocabLevelItr - 1)
-           options.edgeType = 'centroid';
-        end
-        [allEdges, allEdgeProbs] = extractEdgesInference(nodes, modes, modeProbs{vocabLevelItr-1}, leafNodeArr, firstLevelAdjNodes, options, vocabLevelItr-1);
-        if vocabLevelItr == 2
-           nonemptyAdjNodeIdx = cellfun(@(x) ~isempty(x), allEdges);
-           firstLevelAdjNodes = cell(size(allEdges));
-           firstLevelAdjNodes(nonemptyAdjNodeIdx) = cellfun(@(x) x(:,1), allEdges(nonemptyAdjNodeIdx), 'UniformOutput', false);
-        end
+        nodeORLabels = vocabLevelLabels(nodes(:,1))';
         
         %% Starting inference from layer 2. 
          for vocabItr = 1:numel(vocabLevel)
-             adaptiveThreshold = single(optimalThresholds(vocabLevelItr) * ((size(vocabLevel(vocabItr).adjInfo,1)+1)*2-1)) + singlePrecision; % Hard threshold for cost of matching two subs.
-             %% Subgraph matching.
-             % Start with the center.
+             % Match the center first.
+             vocabNode = vocabLevel(vocabItr);
              centerId = vocabLevel(vocabItr).children(1);
-             centerMatchCosts = nodeDistanceMatrix(centerId, nodes(:,1))';
-             validInstances = centerMatchCosts < adaptiveThreshold;
+             validInstances = nodeORLabels == centerId;
              
+             % If no centers have matched, continue.
              if nnz(validInstances) == 0
                  continue;
              end
 
-            % Allocate space to hold the instances.
-             instanceChildren = int32(find(validInstances));
-             instanceMatchCosts = centerMatchCosts(validInstances);
-             instancePosProbs = ones(size(instanceChildren,1), 1, 'single');
-
-            %% Get descriptors for edges in the vocabulary node.
-             vocabEdges = vocabLevel(vocabItr).adjInfo;
+            % Allocate space to hold the instances and their activations.
+             centerNodes = find(validInstances);
+             instanceChildren = cell(numel(vocabNode.children),1);
+             instanceActivations = instanceChildren;
+             instanceActivations{1} = nodeActivations(validInstances);
+             instanceChildren{1} = centerNodes;
 
             %% Iteratively, try to match each edge to the instances.
-             for edgeItr = 1:size(vocabEdges,1)
+             for edgeItr = 2:vocabNode.children
                 if isempty(instanceChildren) 
                     break;
                 end
@@ -262,8 +250,6 @@ function [exportArr, activationArr, allPrecisePositions, allRealLabelIds] = infe
     end
     activationArr = cat(1, allActivations{:});
     numberOfInstances = sum(cellfun(@(x) size(x,1), allNodes));
-    allPrecisePositions = cat(1, allPrecisePositions{:});
-    allRealLabelIds = cat(1, allRealLabelIds{:});
     
     %% If no instances have been found, exit.
     if numberOfInstances<1

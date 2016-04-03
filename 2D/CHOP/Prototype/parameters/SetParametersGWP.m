@@ -108,6 +108,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
+    options.categoryLevelEdgeNoveltyThr = 0.4;
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within

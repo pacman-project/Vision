@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [] = singleTestImage(testFileName, vocabulary, allModes, nodeProbs, modeProbs, distanceMatrices, categoryName, optimalThresholds, edgeChangeLevel, options)
+function [] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, categoryName, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -31,15 +31,14 @@ function [] = singleTestImage(testFileName, vocabulary, allModes, nodeProbs, mod
     end
 
     %% Form the first level nodes.
-    [cellNodes, ~, nodeActivations, ~] = getNodes(img, [], options);
-%    imwrite(smoothedImg, [options.smoothedFolder '/' fileName '.png']);
-    if isempty(cellNodes)
+    [ nodes, ~, nodeActivations, ~, ~, ~ ] = getNodes( img, [], options );
+    if isempty(nodes)
         return;
     end
     % Save smoothed image.
     % Assign nodes their image ids.
-    nodes = int32(cell2mat(cellNodes));
-    [exportArr, activationArr, precisePositions, realLabelIds] = inferSubs(vocabulary, nodes, allModes, nodeProbs, modeProbs, nodeActivations, distanceMatrices, optimalThresholds, edgeChangeLevel, options); %#ok<ASGLU,NASGU>
+    nodes = int32(cell2mat(nodes));
+    [exportArr, activationArr] = inferSubs(vocabulary, vocabularyDistributions, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')

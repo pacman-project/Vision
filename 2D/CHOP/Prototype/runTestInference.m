@@ -103,7 +103,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            singleTestImage(testFileNames{testImgItr}, vocabulary, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options); 
+            singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, categoryNames{categoryArrIdx(testImgItr)}, options); 
         end
         totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
