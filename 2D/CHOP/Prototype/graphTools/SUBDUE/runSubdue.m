@@ -56,11 +56,18 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     parentSubs = [];
     nextVocabLevel = [];
     nextGraphLevel = [];
-    
+
     if levelItr > 1
         maxPossibleSize = options.maxNodeDegree + 1;
     else
          maxPossibleSize = inf;
+    end
+    
+    if levelItr < 4
+         maxPossibleSize = 3;
+         singleInstanceFlag = false;
+    else
+         singleInstanceFlag = true;
     end
     
     %% Get the parameters.
@@ -319,7 +326,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
                 childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, ...
-                     overallThreshold);
+                     overallThreshold, singleInstanceFlag);
                 if isempty(childSubs) 
                     continue;
                 end

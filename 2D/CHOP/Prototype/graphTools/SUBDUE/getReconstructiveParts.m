@@ -34,7 +34,8 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
    numberOfBestSubs = numel(bestSubs);
    remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
    numberOfChildren = {bestSubs.edges};
-   numberOfChildren = cellfun(@(x) size(x,1), numberOfChildren);
+   numberOfChildren = sqrt(cellfun(@(x) size(x,1) + 1, numberOfChildren));
+%   numberOfChildren = cellfun(@(x) size(x,1) + 1, numberOfChildren);
    firstGraphNodeCount = numel(remainingFirstLevelNodes);
    maxChildId = max(remainingFirstLevelNodes);
    
@@ -76,6 +77,7 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
        prevVal = nnz(markedNodes);
 
       for subItr = 1:numberOfBestSubs
+ %      for subItr = numberOfBestSubs:-1:1
            if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal >= valueArr(subItr)
                 continue;
            end
@@ -91,7 +93,8 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
            % Calculate value of a sub.
            tempMarkedNodes(children) = 1;
            diffVal = (nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr);
-
+ %         diffVal = (nnz(tempMarkedNodes) - prevVal);
+ 
            % Save diffVal.
            if diffVal < valueArr(subItr)
                 valueArr(subItr) = diffVal;

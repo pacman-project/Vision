@@ -14,7 +14,7 @@
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold)
+function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold, singleInstanceFlag)
     
     centerIdx = sub.instanceCenterIdx;
     subAllEdges = {allEdges(centerIdx).adjInfo}';
@@ -105,6 +105,11 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         newNodeCosts = nodeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,2), allUnusedEdges(:,4))';
         edgesToExtendCosts = allEdgePrevCosts + newEdgeCosts + newNodeCosts;
         edgesToExtendIdx = edgesToExtendCosts < threshold;
+        
+        if ~singleInstanceFlag &&nnz(edgesToExtendIdx) == 1
+             validSubs(edgeTypeItr) = 0;
+             continue;
+        end
         
         % Check for exact matching again.
         exactMatchFlags = allEdgeExactMatchFlags & ...
