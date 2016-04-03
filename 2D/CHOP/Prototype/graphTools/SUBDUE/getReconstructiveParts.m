@@ -33,6 +33,8 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
    coverageStoppingVal = 0.995;
    numberOfBestSubs = numel(bestSubs);
    remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
+   numberOfChildren = {bestSubs.edges};
+   numberOfChildren = cellfun(@(x) size(x,1), numberOfChildren);
    firstGraphNodeCount = numel(remainingFirstLevelNodes);
    maxChildId = max(remainingFirstLevelNodes);
    
@@ -88,7 +90,7 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
 
            % Calculate value of a sub.
            tempMarkedNodes(children) = 1;
-           diffVal = nnz(tempMarkedNodes) - prevVal;
+           diffVal = (nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr);
 
            % Save diffVal.
            if diffVal < valueArr(subItr)
@@ -122,15 +124,10 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
            break;
        end
 
-      % For likelihood, uncomment this line:
-     %            if cumVal > stoppingFVal
-     %                break;
-     %            end
-
       % Print output.
       if rem(subCounter, 10) == 1 && subCounter > 1
           display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
-              num2str(maxLoc) ', and coverage %' num2str(coverage*100) ', with current coverage:' num2str(cumVal) '.']);
+              num2str(maxLoc) ', and coverage %' num2str(coverage*100) ', with current coverage:' num2str(nnz(markedNodes)) '.']);
       end
      end
         

@@ -80,7 +80,7 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
             posDistributions = vocabNodeDistributions.childrenPosDistributions;
             posDistributionModes = vocabNodeDistributions.childrenPosDistributionModes;
  
-            if ~isempty(posDistributions)
+            if ~isempty(posDistributions.mu)
                  % Sample from the distribution.
                  if strcmp(samplingMethod, 'modal')
                      assignedDist = posDistributionModes(assignedRow);
