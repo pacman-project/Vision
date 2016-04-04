@@ -124,6 +124,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
          % Reduce memory consumption by writing all stuff to files,
          % clearing all, and then returning back to computation.
          save([pwd '/Workspace.mat'], '-v7.3');
+         copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
          scriptName = [options.currentFolder '/' options.datasetName '.sh'];
          
          % Let's generate the restart script.

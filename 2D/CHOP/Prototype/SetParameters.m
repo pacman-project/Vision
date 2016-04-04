@@ -22,7 +22,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                  % generated to aid debugging process.
     end
     options.fastStatLearning = false;
-    options.vis.printTrainRealizations = true;
+    options.vis.printTrainRealizations = false;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
