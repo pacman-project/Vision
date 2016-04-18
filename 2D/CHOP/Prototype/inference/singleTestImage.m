@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, categoryName, options)
+function [] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryName, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -38,7 +38,24 @@ function [] = singleTestImage(testFileName, vocabulary, vocabularyDistributions,
     % Save smoothed image.
     % Assign nodes their image ids.
     nodes = int32(cell2mat(nodes));
-    [exportArr, activationArr] = inferSubs(vocabulary, vocabularyDistributions, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
+    [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
+    maxLevel = max(exportArr(:,4));
+    
+    %% Project stuff from top layer.    % Create data structures required for optimization.
+    if ~exist([pwd '/filters/optimizationFilters.mat'], 'file')
+         [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
+         save([pwd '/filters/optimizationFilters.mat'], 'rfSizes', 'visFilters', 'optimizedFilters', 'likelihoodLookupTable');
+    else
+         load([pwd '/filters/optimizationFilters.mat'], 'visFilters');
+    end
+    validIdx = exportArr(:,4) == maxLevel;
+    maxLevelNodes = exportArr(validIdx,:);
+    maxLevelActivations = activationArr(validIdx);
+    [~, maxIdx] = max(maxLevelActivations);
+    experts = projectNode(maxLevelNodes(maxIdx, 1:4), vocabularyDistributions, 'modal');
+    filterIds = round(((180/numel(options.filters)) * (0:(numel(options.filters)-1))) / (180/size(visFilters,3)))' + 1;
+    experts(:,1) = filterIds(experts(:,1));
+    modalImg = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')

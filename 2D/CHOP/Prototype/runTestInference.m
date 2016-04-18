@@ -17,6 +17,16 @@
 %> Ver 1.1 on 12.01.2014 Timing is added by Mete
 function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     %% ========== Step 1: Run inference for all test images with the learned vocabulary. ==========
+       %% ========== PATH FOLDER ADDITION ==========
+    w = warning('off', 'all');
+    addpath(genpath([pwd '/utilities']));
+    addpath(genpath([pwd '/demo']));
+    addpath(genpath([pwd '/graphTools']));
+    addpath(genpath([pwd '/vocabLearning']));
+    addpath(genpath([pwd '/inference']));
+    addpath(genpath([pwd '/categorization']));
+    warning(w);
+    
    % Read all relevant structures.
    if exist([pwd  '/output/' datasetName '/vb.mat'], 'file')
        load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'modeProbs', 'options', 'categoryNames');
@@ -27,16 +37,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
        return;
    end
    options.isTraining = false;
-   
-       %% ========== PATH FOLDER ADDITION ==========
-    w = warning('off', 'all');
-    addpath(genpath([options.currentFolder '/utilities']));
-    addpath(genpath([options.currentFolder '/demo']));
-    addpath(genpath([options.currentFolder '/graphTools']));
-    addpath(genpath([options.currentFolder '/vocabLearning']));
-    addpath(genpath([options.currentFolder '/inference']));
-    addpath(genpath([options.currentFolder '/categorization']));
-    warning(w);
    
     % Remove output folder.
     if exist(options.testInferenceFolder, 'dir')
@@ -103,7 +103,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, categoryNames{categoryArrIdx(testImgItr)}, options); 
+            singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options); 
         end
         totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');

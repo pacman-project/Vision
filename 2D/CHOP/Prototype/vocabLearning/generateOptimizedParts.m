@@ -30,13 +30,16 @@
 %> Update on 25.02.2015 Added support for single node subs.
 function [] = generateOptimizedParts(vocabulary, levelItr, options)
     vocabLevel = vocabulary{levelItr};
-    filterSize = size(options.filters{1});
-    halfSize = ceil(filterSize(1)/2); 
-    samplesPerPart = 1;
+    samplesPerPart = 5;
     rng('shuffle');
     
     % Create data structures required for optimization.
-    [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
+    if ~exist([pwd '/filters/optimizationFilters.mat'], 'file')
+         [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
+         save([pwd '/filters/optimizationFilters.mat'], 'rfSizes', 'visFilters', 'optimizedFilters', 'likelihoodLookupTable');
+    else
+         load([pwd '/filters/optimizationFilters.mat'], 'rfSizes', 'visFilters', 'optimizedFilters', 'likelihoodLookupTable');
+    end
     
    % Find the correct image size.
    imageSize = getRFSize(options, levelItr);
@@ -44,13 +47,19 @@ function [] = generateOptimizedParts(vocabulary, levelItr, options)
    % For now, we make the image bigger.
    imageSize = round(imageSize * 1.2);
    vocabulary = vocabulary(1:levelItr);
+   datasetName = options.datasetName;
    
    %% First, for efficiency, we obtain pixel-level predictions for every part
-   for vocabNodeItr = 1:numel(vocabLevel)
+ %  for vocabNodeItr = 61:numel(vocabLevel)
+  % for vocabNodeItr = [6, 8, 15, 36, 59, 81, 87, 90, 98, 121]
+   printedNodes = [78];
+   for vocabNodeItr = 1:numel(printedNodes)
+%   for vocabNodeItr = 90
+        printedVocabNode = printedNodes(vocabNodeItr);
         for sampleItr = 1:samplesPerPart
              % Obtain optimized projections.
-             nodes = [vocabNodeItr, round(imageSize(1)/2), round(imageSize(2)/2), levelItr];
-             optimizeImagination(nodes, vocabulary, imageSize, rfSizes, optimizedFilters, visFilters, sampleItr, options.datasetName, likelihoodLookupTable);
+             nodes = [printedVocabNode, round(imageSize(1)/2), round(imageSize(2)/2), levelItr];
+             optimizeImagination(nodes, vocabulary, imageSize, rfSizes, optimizedFilters, visFilters, sampleItr, datasetName, likelihoodLookupTable);
         end
     end
    

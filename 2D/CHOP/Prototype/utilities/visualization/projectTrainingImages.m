@@ -13,8 +13,13 @@
 %> Updates
 %> Ver 1.0 on 19.11.2015
 function [ ] = projectTrainingImages( fileList, vocabularyDistributions, exportArr, levelItr, options)
-
-    [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
+    % Create data structures required for optimization.
+    if ~exist([pwd '/filters/optimizationFilters.mat'], 'file')
+         [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
+         save([pwd '/filters/optimizationFilters.mat'], 'rfSizes', 'visFilters', 'optimizedFilters', 'likelihoodLookupTable');
+    else
+         load([pwd '/filters/optimizationFilters.mat'], 'rfSizes', 'visFilters', 'optimizedFilters', 'likelihoodLookupTable');
+    end
     levelExportArr = exportArr(exportArr(:,4) == levelItr, :);
     
     %% Go through every image and find optimal version.

@@ -28,7 +28,6 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     visualizedNodes = options.vis.visualizedNodes;
     vocabLevelLabels = [currentLevel.label];
     
-    % Process filters for visualization, remove zero values.
     [~, filters, ~, ~] = createOptimizationStructures(options, levelId, false);
     
     vocabLevelIdx = zeros(max(vocabLevelLabels),1);
