@@ -21,7 +21,8 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
     if nargin == 3
          orNodeChoice = [];
     end
-
+    
+    minOptimizationLayer = 3;
     levelItr = nodes(1,4);
     nodes = single(nodes);
     posDim = 2;
@@ -34,6 +35,9 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
     %% First, we recursively backproject the nodes. 
     startNodeOffset = 0;
     while levelItr > 1.001
+         if levelItr < minOptimizationLayer
+              samplingMethod = 'modal';
+         end
         vocabLevelDistributions = vocabularyDistributions{levelItr};
         prevLevelDistributions = vocabularyDistributions{levelItr-1};
         newNodes = cell(size(nodes,1),1);

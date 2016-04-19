@@ -16,18 +16,17 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.02.2016
-function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, filters, visFilters, sampleItr, datasetName, likelihoodLookupTable, fileName)
-     stopVal = 0.05;
+function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, optFilters, visFilters, sampleItr, datasetName, likelihoodLookupTable, fileName)
+     stopVal = 0.1;
 %     stopVal = 1;
 %     maxSteps = 10 * size(nodes,1);
-     maxSteps = 750;
+     maxSteps = 200;
      minOptimizationLayer = 3;
-     minLikelihoodChange = 0.003;
+     minLikelihoodChange = 0.000001;
      % If an expert (on average) has better likelihood than this, it means it's more or less agreed.
-     likelihoodThr = likelihoodLookupTable(1,1) * 1.003; % Change in likelihood that's enough to reconsider that sub.
+     likelihoodThr = likelihoodLookupTable(1,1) * 1.000001; % Change in likelihood that's enough to reconsider that sub.
      poeCounter = 0;
      curLevelItr = nodes(1, 4);
-     topLevel = curLevelItr;
      dummyBand = zeros(imageSize, 'uint8');
      
      % If the file name is given, use that one.
@@ -37,22 +36,15 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      end
      folderName = [pwd '/optimization/' datasetName '/level' num2str(nodes(1,4)) '/' fileName '_sample' num2str(sampleItr)];
      
-     % Create a circular structure to move around the image.
-     filterSize = size(filters,1);
-     maxInfluenceRadius = ceil(filterSize/2);
-     cx=maxInfluenceRadius+1;cy=cx;ix=2*maxInfluenceRadius+1;iy=ix;r=maxInfluenceRadius;
-     [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
-     c_mask=((x.^2+y.^2)<r^2);
-     
      % Create output folder.
      if ~exist(folderName, 'dir')
           mkdir(folderName);
      end
      
      % Move parameters.
-     movesPerChild = 2;
-     maxMoves = 20;
-     minMoves = 10;
+     movesPerChild = 3;
+     maxMoves = 10;
+     minMoves = 5;
      
      if isempty(nodes)
           refModalImg = zeros(imageSize, 'uint8');
@@ -63,7 +55,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      % If poeFlag is true, we are searching for pixel level agreement.
      poeFlag = true;
      % Position flags are the strings that keep things in place.
-     positionFlag = false;
+     positionFlag = true;
      
      % Arguments relating to availability of different moves.
      moveFlags = [1; 1; 0] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
@@ -85,7 +77,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      experts = double(experts);
      
     % If rotation flag is on, we'll consider a wider range of filters.
-    numberOfFilters = size(filters,3);
+    numberOfFilters = size(visFilters,3);
     rotationFlag = numberOfFilters > numel(vocabulary{1});
     numberOfRealFilters = numel(vocabulary{1});
     if numberOfFilters > numel(vocabulary{1})
@@ -109,6 +101,15 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     
     %% Continue with gradient descent until optimized.
     while steps < maxSteps && curLevelItr >= minOptimizationLayer
+          % Select appropriate sized filter.
+          filters = optFilters{curLevelItr};
+         
+          % Create a circular structure to move around the image.
+          filterSize = size(filters,1);
+          maxInfluenceRadius = ceil(filterSize/2);
+          cx=maxInfluenceRadius+1;cy=cx;ix=2*maxInfluenceRadius+1;iy=ix;r=maxInfluenceRadius;
+          [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
+          c_mask=((x.^2+y.^2)<r^2);
          
          % If we're at minimum optimization layer, start turning things
          % around  as well.
@@ -116,7 +117,8 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
               moveFlags = [1; 1; 1] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
          end
         
-         topNodeFlag = curLevelItr == topLevel && size(nodes,1) == 1;
+         topNodeFlag = size(nodes,1) == 1;
+  %       topNodeFlag = true;
         
          % Obtain number of choices per receptive field.
          imageChoices = rfSizes(curLevelItr)^2;
@@ -193,7 +195,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                              [ tempExperts, ~, ~, rotatedSubChildren{rotNodes(nodeItr)}, orNodeChoices(rotNodes(nodeItr)), ~ ] = ...
                                   applyMove(nodes(rotNodes(nodeItr), 2:3), [], subChildren{rotNodes(nodeItr)}, subChildrenExperts{rotNodes(nodeItr)},...
                                   4, orNodeChoices(rotNodes(nodeItr)), nodeAngles(rotNodes(nodeItr)), numberOfRealFilters, numberOfFilters);
-                             
+                             tempExperts = tempExperts(:,1:3);
                              % Put the experts in relevant locations.
                              beforeExperts = experts(nodeExpertIds < rotNodes(nodeItr), :);
                              afterExperts = experts(nodeExpertIds > rotNodes(nodeItr), :);
@@ -237,16 +239,9 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                    continue;
               end
                
-%               %% Calculate existing prediction's position likelihood.
-%               childExpertCenter = expertChildren(1);
-%               if numel(expertChildren) > 1
-%                    childExpertPers = expertChildren(2:end);
-%               else
-%                    childExpertPers = [];
-%               end
               % If positions are involved, 
               if positionFlag
-                   expertPosLikelihoodVal = GetTreeLikelihood(childExpertCenter, childExpertPers, nodeCoords, childrenPosDistributions, posProbDenom);
+                   expertPosLikelihoodVal = GetTreeLikelihood(subChildren{expertToMove}, expertNode, posProbDenom);
               else
                    expertPosLikelihoodVal = 0;
               end
@@ -314,6 +309,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                    afterIdx = nodeExpertIds > expertToMove;
                    afterExperts = experts(afterIdx, :);
                    numberOfNewExperts = size(newExperts,1);
+                   newExperts = newExperts(:,1:3);
                    newExperts = cat(1, beforeExperts, newExperts, afterExperts);
                    
                    % Update expert-node associations.
@@ -323,7 +319,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                    
                    %% Calculate new position likelihood.
                    if positionFlag
-                        newPosLikelihoodVal = GetTreeLikelihood(childExpertCenter, childExpertPers, tempNodeCoords, childrenPosDistributions, posProbDenom);
+                        newPosLikelihoodVal = GetTreeLikelihood(newSubChildren, expertNode, posProbDenom);
                    else
                         newPosLikelihoodVal = 0;
                    end
@@ -543,7 +539,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     catch %#ok<CTCH>
          % Visualization failed possibly due to parallelization. Let's
          % save the data structures for later use.
-         save([folderName '.mat'], 'imageArr', 'posLikelihoodArr', 'poeLikelihoodArr');
+         save([folderName '.mat'], 'imageArr', 'diffImageArr', 'posLikelihoodArr', 'poeLikelihoodArr');
     end
     
     % Turn warnings on.
@@ -551,20 +547,32 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
 end
 
 %% Function to calculate parse tree likelihood. 
-function [expertPosLikelihoodVal] = GetTreeLikelihood(childExpertCenter, childExpertPers, nodeCoords, childrenPosDistributions, posProbDenom)
-    if ~isempty(childExpertPers)
-         sampledPos = nodeCoords(childExpertPers,:) - repmat(nodeCoords(childExpertCenter,:), numel(childExpertPers),1);
+function [expertPosLikelihoodVal] = GetTreeLikelihood(subChildren, expertNode, posProbDenom)
+     dummyLhood = log(0.001);
+     dummyPosSigma = 1;
+     %% First, we check for OR node likelihood.
+     expertChildren = subChildren(:,1)';
+     [memInfo, idx] = ismember(expertChildren, expertNode.childrenLabelDistributions(:,1:end-1), 'rows');
+     if memInfo
+          expertPosLikelihoodVal =  log(expertNode.childrenLabelDistributions(idx,end));
+     else
+          expertPosLikelihoodVal = dummyLhood;
+     end
+     subChildren = double(subChildren);
+     
+     if size(subChildren,1) > 1
+         sampledPos = subChildren(2:end,2:3) - repmat(subChildren(1,2:3), size(subChildren,1)- 1,1);
          refSampledPos = [];
          for childItr = 1:size(sampledPos,1)
               refSampledPos = [refSampledPos, sampledPos(childItr,:)]; %#ok<AGROW>
          end
+         cols = numel(refSampledPos);
          try
-              posProbability = pdf(childrenPosDistributions, refSampledPos)  / posProbDenom;
+              posProbability = pdf(expertNode.childrenPosDistributions, refSampledPos)  / posProbDenom;
          catch %#ok<CTCH>
-              posProbability = 0;
+              dummyPdf = gmdistribution(expertNode.childrenPosDistributions.mu(1,:), ones(1, cols)*dummyPosSigma);
+              posProbability = pdf(dummyPdf, refSampledPos);
          end
          expertPosLikelihoodVal = log(posProbability);
-    else
-         expertPosLikelihoodVal = 0;
-    end
+     end
 end
