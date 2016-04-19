@@ -1,11 +1,9 @@
 % Creates a subset of the pacman shape dataset for desired number of images
 % and classes.
 function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, classOrder)
-     naturalPose = [3 3];
      numberOfModels = 20;
      distance = 'UD';
-     classList = { 'Bottle', 'Bowl', 'Box', 'Mug', 'Cup', 'TeaPot', 'FryingPan', 'Spatula', 'TeaCup', 'Plate', 'Jug', 'Can', 'ChoppingBoard', 'Shaker', 'Tray', 'Fork', 'Knife', 'Scissors', 'Spoon', 'Vase'};
-     modelsToAvoidTraining = [];
+     classList = { 'Bottle', 'Bowl', 'Box', 'Mug', 'Cup', 'FryingPan', 'Spatula', 'TeaPot', 'TeaCup', 'Plate', 'Jug', 'Can', 'ChoppingBoard', 'Shaker', 'Tray', 'Fork', 'Knife', 'Scissors', 'Spoon', 'Vase'};
      load([pwd '/DemoModels/categoryNames.mat']);
      
      % Shuffle class list if needed.
@@ -15,37 +13,20 @@ function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, 
      
      % Generate sample views, and perfect view.
 %     poses= allcomb(1:32, 1:8);
-     poses = allcomb([35,45,55,125,135,145], 0:15:345);
-     numberOfPoses = size(poses,1);
-     naturalPoseIdx = find(ismember(poses, naturalPose, 'rows'));
-     
-     % Obtain the poses we will work with.
-     if imageCount == numberOfPoses
-          poseIdx = (1:numberOfPoses)';
-     elseif imageCount == 1
-          poseIdx = naturalPoseIdx;
-     else
-          poseIdx = randperm(numberOfPoses, imageCount);
-     end
+     poseIdx = datasample(1:400, imageCount, 'Replace', false);
      numberOfPoses = numel(poseIdx);
      
      % Go through every category, and create dataset.
      for classItr = 1:classCount
-          trueModelIdx = find(cellfun(@(x) ~isempty(x), strfind(categoryNames, classList{classItr})));
-          
-          shuffledModels = randperm(numberOfModels);
-          shuffledTrueModelIdx = trueModelIdx(shuffledModels);
-          validTrainingModels = ~ismember(shuffledTrueModelIdx, modelsToAvoidTraining);
-          if nnz(validTrainingModels) < trainingModelCount
-               curTrainingModelCount = nnz(validTrainingModels);
-          else
-               curTrainingModelCount = trainingModelCount;
-          end
-          validShuffledModels = shuffledModels(validTrainingModels);
-          trainingModels = validShuffledModels(1:curTrainingModelCount);
-          
+         
           % Go through the models.
           for modelItr = 1:numberOfModels
+              trueModelIdx = find(cellfun(@(x) ~isempty(x), strfind(categoryNames, classList{classItr})));
+              trainingModels = 1:trainingModelCount;
+              
+              imgList = dir([pwd '/DemoModels/images' distance '/D_' num2str(trueModelIdx(modelItr))]);
+              imgList = imgList(3:end);
+              
                if ismember(modelItr, trainingModels)
                     splitName = 'vocab';
                     modelId = trueModelIdx(modelItr);
@@ -59,11 +40,7 @@ function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, 
                mkdir(modelFolder);
                
                for poseItr = 1:numberOfPoses
-                    if poses(poseIdx(poseItr),1) < 90
-                         fileName = sprintf('%d_P-%d_IP%d.png', modelId, poses(poseIdx(poseItr),1), poses(poseIdx(poseItr),2));
-                    else
-                         fileName = sprintf('%d_P%d_IP%d.png', modelId, poses(poseIdx(poseItr),1), poses(poseIdx(poseItr),2));
-                    end
+                    fileName = imgList(poseIdx(poseItr)).name;
                     img = imread([inputFolder fileName]);
                     imwrite(img, [modelFolder fileName]);
                end

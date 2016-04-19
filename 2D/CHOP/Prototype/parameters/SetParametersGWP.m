@@ -18,7 +18,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
-    options.matlabRestartImageCount = 1000; % If we have more than this number 
+    options.matlabRestartImageCount = 4000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
@@ -108,7 +108,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.categoryLevelEdgeNoveltyThr = 0.4;
+    options.categoryLevelEdgeNoveltyThr = 0.25;
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
@@ -122,10 +122,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.925; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.93; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
-    options.categoryLevelMissingNodeThr = 0.9; %In category level, missing node threshold is treated differently.
+    options.categoryLevelMissingNodeThr = 0.95; %In category level, missing node threshold is treated differently.
     options.edgeChangeLevel = -1; % Going to be updated in the code later.
     options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
@@ -182,10 +182,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                                   % drastically. Set to an
                                                   % unlikely value (100)
                                                   % for no category nodes.
-    options.categoryLevelCoverage = 0.9; % If each node is covering this percent 
+    options.categoryLevelCoverage = 0.95; % If each node is covering this percent 
                                                                   % of its associated image, we switch to 
                                                                   % category node grouping.
-    options.articulationsPerCategory = 20; % Number of top level nodes 
+    options.articulationsPerCategory = 30; % Number of top level nodes 
                % for each category. Category nodes will be formed by
                % grouping top level parts.
                % Hint: A good number is the number of poses per object.
@@ -243,7 +243,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 3600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1800;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
