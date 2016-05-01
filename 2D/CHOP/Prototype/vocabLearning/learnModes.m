@@ -25,14 +25,14 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     else
          maximumModes = 5;
     end
-    dummySigma = 0.05;
+    dummySigma = 0.01;
     minProb = realmin('single');
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
     
-     cx=halfSize;cy=cx;ix=edgeQuantize;iy=ix;r=halfSize;
-     [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
-     c_mask=((x.^2+y.^2)<r^2);
+    cx=halfSize;cy=cx;ix=edgeQuantize;iy=ix;r=halfSize;
+    [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
+    c_mask=((x.^2+y.^2)<r^2);
     
     % Set initial data structures for processing 
     edges = cat(1, currentLevel.adjInfo);
@@ -106,9 +106,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
                covMat = cov(clusterSamples);
                statistics(centerItr,6:7) = covMat(1,:);
                statistics(centerItr,8:9) = covMat(2,:);
-               if nnz(statistics(centerItr,6:9)) < 2
-                    statistics(centerItr,[6, 9]) = max(statistics(centerItr,[6, 9]), [dummySigma, dummySigma]);
-               end
+               statistics(centerItr,[6, 9]) = max(statistics(centerItr,[6, 9]), [dummySigma, dummySigma]);
           else
                statistics(centerItr,[6, 9]) = dummySigma;
           end
@@ -138,46 +136,17 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         
         %% Here, we create probabilities of each entry based on each mode of the distribution.
         % First, we obtain all possible points in the receptive field.
-         yArr = repmat(1:edgeQuantize, edgeQuantize, 1);
-         xArr = repmat((1:edgeQuantize)', 1, edgeQuantize);
+        yArr = repmat(1:edgeQuantize, edgeQuantize, 1);
+        xArr = repmat((1:edgeQuantize)', 1, edgeQuantize);
         points = [xArr(:), yArr(:)];
         
         % In order to calculate probabilities, we define an area for each
         % point. 
-         points = (points-(1/2)) / edgeQuantize;
-%         endPoints = points + 1/edgeQuantize;
-%         topPoints = points;
-%         topPoints(:,1) = points(:,1) + 1/edgeQuantize;
-%         rightPoints = points;
-%         rightPoints(:,2) = points(:,2) + 1/edgeQuantize;
+        points = points / edgeQuantize;
         
         % Obtain probabilities based on each mode.
         allProbs = zeros(numberOfClusters, edgeQuantize, edgeQuantize, 'single');
         for centerItr = 1:numberOfClusters
-%             try
-%                 probs = mvncdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-%             catch %#ok<*CTCH>
-%                 probs = mvncdf(points, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-%             end
-%             try
-%                 endProbs = mvncdf(endPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-%             catch
-%                 endProbs = mvncdf(endPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-%             end
-%             try
-%                 topProbs = mvncdf(topPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-%             catch
-%                 topProbs = mvncdf(topPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-%             end 
-%             try
-%                 rightProbs = mvncdf(rightPoints, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-%             catch
-%                 rightProbs = mvncdf(rightPoints, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-%             end
-%             
-%             % Calculate point probs based on the integral.
-%             pointProbs = (endProbs - (topProbs + rightProbs)) + probs;
-            
             % We use PDFs to calculate pseudo-statistics (faster, accurate
             % enough).
             try
@@ -193,21 +162,21 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
             % Write probabilities into a matrix.
             allProbs(centerItr, :,:) = reshape(pointProbs, size(edgeIdMatrix));
         end
-        [combinedProbs, idx] = max(allProbs, [], 1);
+        initialAllProbs = allProbs;
+        [~, idx] = max(allProbs, [], 1);
         clusterAreas = squeeze(idx);
+        clusterAreas(~c_mask) = 0;
         
-        % Assign zero probabilities to the areas not covered by each
+        % Assign minimum probabilities to the areas not covered by each
         % cluster.
         for centerItr = 1:numberOfClusters
              probMatrix = squeeze(allProbs(centerItr,:,:));
              probMatrix(clusterAreas ~= centerItr) = 0;
              
-             % Renormalize the probabilities for each mode so that they sum
-             % up to 1.
-             probMatrix = probMatrix / sum(sum(probMatrix));
+             % Obtain 
+             probMatrix(c_mask) = max(minProb, probMatrix(c_mask));
              allProbs(centerItr,:,:) = probMatrix;
         end
-        allProbs(allProbs < minProb) = minProb;
         
         fillFlag = false;
         contFlag = true;
@@ -235,12 +204,23 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
              if fillFlag
                   [combinedProbs, idx] = max(allProbs, [], 1);
                   clusterAreas = squeeze(idx);
+                  clusterAreas(squeeze(combinedProbs) == 0) = 0;
                   contFlag = true;
              end
              iterations = iterations + 1;
         end
         
-        clusterAreas(~c_mask) = 0;
+        % Renormalize probabilities so they sum up to 1.
+        for centerItr = 1:numberOfClusters
+             probMatrix = squeeze(initialAllProbs(centerItr,:,:));
+             probMatrix(clusterAreas ~= centerItr) = 0;
+             
+             % Obtain 
+             probMatrix(c_mask) = max(minProb, probMatrix(c_mask));
+             allProbs(centerItr,:,:) = probMatrix;
+        end
+        [combinedProbs, ~] = max(allProbs, [], 1);
+        combinedProbs = combinedProbs / sum(sum(combinedProbs));
         
         % Assign probabilities.
         modeProbArr{uniqueEdgeItr} = uint8(clusterAreas);

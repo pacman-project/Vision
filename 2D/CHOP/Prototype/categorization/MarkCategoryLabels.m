@@ -17,7 +17,7 @@ function [ ] = MarkCategoryLabels( datasetName )
     options = SetParameters(datasetName, 'train');
     % Read the vocabulary and the exported realizations. 
     load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
-    load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx', 'poseArr');
+    load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx');
     
     % We go through each layer of the vocabulary, and update categoryArr of
     % every node in the vocabulary with the probabilities that this node

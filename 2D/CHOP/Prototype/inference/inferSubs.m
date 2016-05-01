@@ -23,7 +23,7 @@ function [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistr
     missingPartAllowed = false;
     activationThr = log(0.001);
     dummyPosSigma = 1;
-    maxLevel = 7;
+    maxLevel = 8;
     load([pwd '/filters/optimizationFilters.mat'], 'visFilters');
     filterIds = round(((180/numel(options.filters)) * (0:(numel(options.filters)-1))) / (180/size(visFilters,3)))' + 1;
     
@@ -36,7 +36,7 @@ function [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistr
     allNodes = cell(numel(vocabulary),1);
     allActivations = cell(numel(vocabulary),1);
     allPrecisePositions = cell(numel(vocabulary),1);
-    allLeafNodes = cell(numel(vocabulary),1);
+%    allLeafNodes = cell(numel(vocabulary),1);
     
     % Fill layer 1 data structures.
     precisePositions = single(nodes(:,4:5));
@@ -45,7 +45,7 @@ function [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistr
     
     allNodes(1) = {nodes(:,1:3)};
     allActivations(1) = {nodeActivations};
-    allLeafNodes{1} = leafNodes;
+%    allLeafNodes{1} = leafNodes;
     allPrecisePositions{1} = precisePositions;
     prevVocabORLabels = cat(1, vocabulary{1}.label);
     

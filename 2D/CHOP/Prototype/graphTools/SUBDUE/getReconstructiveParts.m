@@ -34,7 +34,8 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
    numberOfBestSubs = numel(bestSubs);
    remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
    numberOfChildren = {bestSubs.edges};
-   numberOfChildren = sqrt(cellfun(@(x) size(x,1) + 1, numberOfChildren));
+   numberOfChildren = cellfun(@(x) size(x,1) + 1, numberOfChildren).^(1/3);
+%   numberOfChildren = cellfun(@(x) size(x,1) + 1, numberOfChildren);
 %   numberOfChildren = cellfun(@(x) size(x,1) + 1, numberOfChildren);
    firstGraphNodeCount = numel(remainingFirstLevelNodes);
    maxChildId = max(remainingFirstLevelNodes);
@@ -52,6 +53,7 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
         coveredNodes = fastsortedunique(sort(cat(2, allLeafNodes{allNodes})));
         subCoveredNodes{subItr} = coveredNodes;
    end
+   childrenCounts = cellfun(@(x) numel(x), subCoveredNodes).^(1/3);
    
      %% Finally, we implement an algorithm for part selection. 
      % This step is done to perform an initial pass to reduce the number of
@@ -92,7 +94,9 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
 
            % Calculate value of a sub.
            tempMarkedNodes(children) = 1;
-           diffVal = (nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr);
+ %          diffVal = (nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr);
+ %          diffVal = (nnz(tempMarkedNodes) - prevVal) / childrenCounts(subItr);
+           diffVal = ((nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr))/ childrenCounts(subItr);
  %         diffVal = (nnz(tempMarkedNodes) - prevVal);
  
            % Save diffVal.

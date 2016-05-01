@@ -2,9 +2,11 @@
 %>
 %> Description: Given the hierarchical graph and newly formed level, this
 %> function embeds new level into the hierarchy by forming parent links
-%> between current level and the previous level. If the graph structure has
-%> position information, the positions of the children are averaged to find
-%> out the position of their super-structure.
+%> between current level and the previous level. Only center nodes have
+%> parent links: The reason being, we use parent info in the inference
+%> procedure. Since center node is the only node that *has* to be present for
+%> a part to be inferred, secondary nodes need not be linked to their
+%> parents. Center node links are enough.
 %>
 %> @param graph Hierarchical graph structure.
 %> @param level New level.
@@ -24,11 +26,16 @@ function [graph] = mergeIntoGraph(graph, level, ~, levelItr, position)
     
     %% Assign the nodes in the previuos layer to their parents in this level.
     if ~position
+        previousLevelLabels = cat(1, previousLevel.label);
         for newInstItr = 1:numel(level)
-            children = level(newInstItr).children;
-            if ~ismember(newInstItr, previousLevel(children(1)).parents)
-                previousLevel(children(1)).parents = ...
-                    [previousLevel(children(1)).parents, int32(newInstItr)];
+            centerChild = level(newInstItr).children(1);
+            % Find all low level nodes that correspond to this child.
+            relevantPrevLevelNodes = find(previousLevelLabels == centerChild);
+            for prevNodeItr = 1:numel(relevantPrevLevelNodes)
+                if ~ismember(newInstItr, previousLevel(relevantPrevLevelNodes(prevNodeItr)).parents)
+                    previousLevel(relevantPrevLevelNodes(prevNodeItr)).parents = ...
+                        [previousLevel(relevantPrevLevelNodes(prevNodeItr)).parents, int32(newInstItr)];
+                end
             end
         end
     end
