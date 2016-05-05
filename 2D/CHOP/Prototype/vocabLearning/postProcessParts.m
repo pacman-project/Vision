@@ -175,22 +175,27 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
         newDistanceMatrix = squareform(newDistanceMatrixVect);
    end
    
+   % Renormalize distance matrix.
    if nnz(newDistanceMatrix) > 0
        newDistanceMatrix = single(newDistanceMatrix/max(max(newDistanceMatrix)));
    end
-    %% Finally, we implement the OR nodes here.
-    % We apply agglomerative clustering on the generated distance matrix,
-    % and group parts based on their similarities. We have a limited number
-    % of resources when selecting parts.
-    % First, we check for the necessity.
-    % All good, group the nodes here.
+   if isempty(newDistanceMatrix)
+        newDistanceMatrix = 0;
+   end
     newDistanceMatrixVect = squareform(newDistanceMatrix);
-    Z = linkage(newDistanceMatrixVect, 'ward');
     
     %% Find an optimal number of clusters based on Davies-Bouldin index.
     if size(newDistanceMatrix,1) < 3
          clusters = (1:size(newDistanceMatrix,1))';
     else
+         %% Finally, we implement the OR nodes here.
+         % We apply agglomerative clustering on the generated distance matrix,
+         % and group parts based on their similarities. We have a limited number
+         % of resources when selecting parts.
+         % First, we check for the necessity.
+         % All good, group the nodes here.
+         Z = linkage(newDistanceMatrixVect, 'ward');
+         
          % If stop flag is not up, we find an optimal number of clusters.
          if ~stopFlag
               clusterStep = 1;

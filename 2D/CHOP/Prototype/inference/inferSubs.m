@@ -15,16 +15,18 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options)
+function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options)
     % Read data into helper data structures.
     RFSize = options.receptiveFieldSize;
     halfSize = ceil(RFSize/2);
     missingPartLog = log(0.00001);
     missingPartAllowed = false;
-    activationThr = log(0.001);
+ %   activationThr = log(0.001);
+    activationThr = -Inf;
     dummyPosSigma = 1;
     maxLevel = 8;
     load([pwd '/filters/optimizationFilters.mat'], 'visFilters');
+    outputImgFolder  = [options.currentFolder '/output/' options.datasetName '/reconstruction/test/' fileName];
     filterIds = round(((180/numel(options.filters)) * (0:(numel(options.filters)-1))) / (180/size(visFilters,3)))' + 1;
     
     exportArr = [];
@@ -76,8 +78,12 @@ function [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistr
         vocabNodeLabels = cat(1, vocabLevel.label);
         
         % Calculate pairwise distances.
-        distances = squareform(pdist(single(nodes(:,2:3))));
-        distances(1:(size(distances,1)+1):size(distances,1)^2) = Inf;
+        if size(nodes,1) == 1
+             distances = Inf;
+        else
+             distances = squareform(pdist(single(nodes(:,2:3))));
+             distances(1:(size(distances,1)+1):size(distances,1)^2) = Inf;
+        end
         
         %% Starting inference from layer 2. 
          for vocabItr = 1:numel(vocabLevel)
@@ -127,8 +133,14 @@ function [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistr
                                   relativeCoords = nodes(tempNodes,2:3) - repmat(nodes(centerNodes(centerItr), 2:3), numel(tempNodes),1) + halfSize;
                                   linIdx = sub2ind([RFSize, RFSize], relativeCoords(:,1), relativeCoords(:,2));
                                   curEdgeMatrix = edgeMatrices(:,:,childItr-1);
-                                  edgeTypeConnections  =curModes(curEdgeMatrix(linIdx), 3);
-                                  tempNodes = tempNodes(edgeTypeConnections == curEdgeType);
+                                  
+                                  % Save edge types.
+                                  edgeMatrixIndices = curEdgeMatrix(linIdx);
+                                  edgeTypes = zeros(size(edgeMatrixIndices),'single');
+                                  if find(edgeMatrixIndices) > 0
+                                       edgeTypes(edgeMatrixIndices>0) = curModes(edgeMatrixIndices(edgeMatrixIndices > 0), 3);
+                                  end
+                                  tempNodes = tempNodes(edgeTypes == curEdgeType);
                              end
                              
                              % If tempNodes is not empty, save it.
@@ -245,7 +257,7 @@ function [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistr
          nodeActivations = nodeActivations(validActivations,:);
          leafNodes = leafNodes(validActivations, :);
          precisePositions = precisePositions(validActivations, :);
-         pooledPositions = calculatePooledPositions(precisePositions, vocabLevelItr, options);
+         pooledPositions = calculatePooledPositions(precisePositions, vocabLevelItr+1, options);
          
          if isempty(nodes)
               break;
@@ -267,13 +279,16 @@ function [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistr
          leafNodes = leafNodes(validIdx, :);
          precisePositions = precisePositions(validIdx, :);
          prevVocabORLabels = cat(1, vocabLevel.label);
-         nodes(:,2:3) = calculatePooledPositions(precisePositions, vocabLevelItr, options);
+         nodes(:,2:3) = calculatePooledPositions(precisePositions, vocabLevelItr+1, options);
          
          %% For debugging purposes, we visualize the nodes.
          experts = projectNode([nodes(:,1), precisePositions, ones(size(nodes,1),1)*vocabLevelItr], vocabularyDistributions, 'modal');
          experts(:,1) = filterIds(experts(:,1));
          modalImg = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
-         figure, imshow((modalImg + img) / 2);
+         combinedImg = uint8((modalImg + img) / 2);
+         figure, imshow(combinedImg);
+         imwrite(modalImg, [outputImgFolder '/' fileName '_layer' num2str(vocabLevelItr) '_modal.png']);
+         imwrite(combinedImg, [outputImgFolder '/' fileName '_layer' num2str(vocabLevelItr) '_combined.png']);
          
          % Finally, save data structures.
          allNodes{vocabLevelItr} = nodes;

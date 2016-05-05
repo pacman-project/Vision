@@ -103,13 +103,13 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
     options.categoryLevelEdgeNoveltyThr = 0.25;
-    options.edgeType = 'continuity';     % If 'centroid', downsampling is
+    options.edgeType = 'centroid';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.

@@ -25,8 +25,8 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     else
          maximumModes = 5;
     end
-    dummySigma = 0.01;
-    minProb = realmin('single');
+    dummySigma = 0.005;
+    minProb = 0.01;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
     
@@ -86,6 +86,10 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
             classes = ones(size(samples,1),1);
         else
             classes = assignModes(samples, minSamplesPerMode, maximumModes);
+            tempNumberOfClusters = max(classes);
+            if tempNumberOfClusters > 1
+                 classes = kmeans(samples, tempNumberOfClusters, 'EmptyAction', 'singleton');
+            end
         end
 
         %% Calculate statistics (mu, sigma)
@@ -163,9 +167,10 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
             allProbs(centerItr, :,:) = reshape(pointProbs, size(edgeIdMatrix));
         end
         initialAllProbs = allProbs;
-        [~, idx] = max(allProbs, [], 1);
+        [probVals, idx] = max(allProbs, [], 1);
         clusterAreas = squeeze(idx);
         clusterAreas(~c_mask) = 0;
+        clusterAreas(probVals < minProb) = 0;     
         
         % Assign minimum probabilities to the areas not covered by each
         % cluster.
@@ -174,40 +179,52 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
              probMatrix(clusterAreas ~= centerItr) = 0;
              
              % Obtain 
-             probMatrix(c_mask) = max(minProb, probMatrix(c_mask));
+%             probMatrix(c_mask) = max(minProb, probMatrix(c_mask));
              allProbs(centerItr,:,:) = probMatrix;
         end
         
-        fillFlag = false;
-        contFlag = true;
-        iterations = 0;
-        while contFlag && iterations < numberOfClusters
-             contFlag = false;
-             % Update cluster areas so that all areas consist of a single
-             % connected component.
-             for centerItr = 1:numberOfClusters
-                  CC = bwconncomp(clusterAreas == centerItr, 4);
+%        fillFlag = false;
+%        contFlag = true;
+%        iterations = 0;
+%         while contFlag && iterations < numberOfClusters
+%              contFlag = false;
+%              % Update cluster areas so that all areas consist of a single
+%              % connected component.
+%              for centerItr = 1:numberOfClusters
+%                   CC = bwconncomp(clusterAreas == centerItr, 4);
+% 
+%                   % If there's more than one 
+%                   if CC.NumObjects> 1
+%                        pixelCounts = cellfun(@(x) numel(x), CC.PixelIdxList);
+%                        [~,selectedArea] = max(pixelCounts);
+%                        otherPixList = cat(1, CC.PixelIdxList{setdiff(1:numel(pixelCounts), selectedArea)});
+%                        fillFlag = true;
+% 
+%                        % Also mark probabilities as zero.
+%                        probMatrix = squeeze(allProbs(centerItr, :, :));
+%                        probMatrix(otherPixList) = 0;
+%                        allProbs(centerItr, :, :) = probMatrix;
+%                   end
+%              end
+%              if fillFlag
+%                   [combinedProbs, idx] = max(allProbs, [], 1);
+%                   clusterAreas = squeeze(idx);
+%                   clusterAreas(squeeze(combinedProbs) == 0) = 0;
+%                   contFlag = true;
+%              end
+%              iterations = iterations + 1;
+%         end
 
-                  % If there's more than one 
-                  if CC.NumObjects> 1
-                       pixelCounts = cellfun(@(x) numel(x), CC.PixelIdxList);
-                       [~,selectedArea] = max(pixelCounts);
-                       otherPixList = cat(1, CC.PixelIdxList{setdiff(1:numel(pixelCounts), selectedArea)});
-                       fillFlag = true;
+        for centerItr = 1:numberOfClusters
+             CC = bwconncomp(clusterAreas == centerItr, 8);
 
-                       % Also mark probabilities as zero.
-                       probMatrix = squeeze(allProbs(centerItr, :, :));
-                       probMatrix(otherPixList) = 0;
-                       allProbs(centerItr, :, :) = probMatrix;
-                  end
+             % If there's more than one 
+             if CC.NumObjects> 1
+                  pixelCounts = cellfun(@(x) numel(x), CC.PixelIdxList);
+                  [~,selectedArea] = max(pixelCounts);
+                  otherPixList = cat(1, CC.PixelIdxList{setdiff(1:numel(pixelCounts), selectedArea)});
+                  clusterAreas(otherPixList) = 0;
              end
-             if fillFlag
-                  [combinedProbs, idx] = max(allProbs, [], 1);
-                  clusterAreas = squeeze(idx);
-                  clusterAreas(squeeze(combinedProbs) == 0) = 0;
-                  contFlag = true;
-             end
-             iterations = iterations + 1;
         end
         
         % Renormalize probabilities so they sum up to 1.
@@ -216,7 +233,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
              probMatrix(clusterAreas ~= centerItr) = 0;
              
              % Obtain 
-             probMatrix(c_mask) = max(minProb, probMatrix(c_mask));
+ %            probMatrix(c_mask) = max(minProb, probMatrix(c_mask));
              allProbs(centerItr,:,:) = probMatrix;
         end
         [combinedProbs, ~] = max(allProbs, [], 1);

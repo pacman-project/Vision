@@ -35,10 +35,17 @@ function [] = singleTestImage(testFileName, vocabulary, vocabularyDistributions,
     if isempty(nodes)
         return;
     end
+    
+    % Create output folder for images.
+    outputImgFolder = [options.currentFolder '/output/' options.datasetName '/reconstruction/test/' fileName];
+    if ~exist(outputImgFolder, 'dir')
+         mkdir(outputImgFolder);
+    end
+    
     % Save smoothed image.
     % Assign nodes their image ids.
     nodes = int32(cell2mat(nodes));
-    [exportArr, activationArr] = inferSubs(img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
+    [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
     maxLevel = max(exportArr(:,4));
     
     %% Project stuff from top layer.    % Create data structures required for optimization.
@@ -59,8 +66,8 @@ function [] = singleTestImage(testFileName, vocabulary, vocabularyDistributions,
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', 'precisePositions', 'realLabelIds', '-append');
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', '-append');
     else
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', 'precisePositions', 'realLabelIds');
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize');
     end
 end
