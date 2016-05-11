@@ -95,7 +95,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    parfor vocabNodeItr = 1:numberOfNodes
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
-        experts = projectNode(nodes, vocabularyDistributions, 'modal');
+        experts = projectNode(nodes, vocabularyDistributions, 'modal', options);
 
         % Center the nodes.
         experts = double(experts);

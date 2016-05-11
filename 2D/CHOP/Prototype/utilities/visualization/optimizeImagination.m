@@ -16,22 +16,31 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.02.2016
-function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, optFilters, visFilters, sampleItr, datasetName, likelihoodLookupTable, fileName)
-     stopVal = 0.1;
-%     stopVal = 1;
-%     maxSteps = 10 * size(nodes,1);
-     maxSteps = 200;
-     minOptimizationLayer = 3;
-     minLikelihoodChange = 0.000001;
+function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imageSize, rfSizes, optFilters, visFilters, sampleItr, datasetName, likelihoodLookupTable, options, optimizationOptions, fileName)
+
+     stopVal = optimizationOptions.stopVal;
+     maxSteps = optimizationOptions.maxSteps;
+     minOptimizationLayer = optimizationOptions.minOptimizationLayer;
+     minLikelihoodChange = optimizationOptions.minLikelihoodChange;
+     movesPerChild = optimizationOptions.movesPerChild;
+     maxMoves = optimizationOptions.maxMoves;
+     minMoves = optimizationOptions.minMoves;
+     likelihoodChangeThr =  optimizationOptions.likelihoodChangeThr;
+     moveFlags = optimizationOptions.moveFlags;
+     % If poeFlag is true, we are searching for pixel level agreement.
+     poeFlag = optimizationOptions.poeFlag;
+     % Position flags are the strings that keep things in place.
+     positionFlag = optimizationOptions.positionFlag;
+     
      % If an expert (on average) has better likelihood than this, it means it's more or less agreed.
-     likelihoodThr = likelihoodLookupTable(1,1) * 1.000001; % Change in likelihood that's enough to reconsider that sub.
+     likelihoodThr = likelihoodLookupTable(1,1) * likelihoodChangeThr; % Change in likelihood that's enough to reconsider that sub.
      poeCounter = 0;
      curLevelItr = nodes(1, 4);
      dummyBand = zeros(imageSize, 'uint8');
      
      % If the file name is given, use that one.
      sampleString = 'modal';
-     if nargin < 10
+     if nargin < 12
           fileName = num2str(nodes(1,1));
      end
      folderName = [pwd '/optimization/' datasetName '/level' num2str(nodes(1,4)) '/' fileName '_sample' num2str(sampleItr)];
@@ -42,29 +51,17 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      end
      
      % Move parameters.
-     movesPerChild = 3;
-     maxMoves = 10;
-     minMoves = 5;
-     
      if isempty(nodes)
           refModalImg = zeros(imageSize, 'uint8');
           experts = [];
           return;
      end
      
-     % If poeFlag is true, we are searching for pixel level agreement.
-     poeFlag = true;
-     % Position flags are the strings that keep things in place.
-     positionFlag = true;
-     
-     % Arguments relating to availability of different moves.
-     moveFlags = [1; 1; 0] > 0; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
-     
      % Shut down warnings.
      warning('off','all');
      
      %% First, imagine layer 1 nodes.
-     [ experts, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode(nodes, vocabulary, sampleString);
+     [ experts, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode(nodes, vocabulary, sampleString, options);
      rotatedSubChildren = subChildren;
      nodeAngles = zeros(numel(subChildren),1);
      nodeExpertCounts = cellfun(@(x) sum(cellfun(@(y) size(y,1), x)), subChildrenExperts);
@@ -122,6 +119,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
         
          % Obtain number of choices per receptive field.
          imageChoices = rfSizes(curLevelItr)^2;
+         halfRFSize = round(rfSizes(curLevelItr)/2);
           
          % Get appropriate vocabulary level.
          currentLevel = vocabulary{curLevelItr};
@@ -175,7 +173,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                   % Generate lower level's data structures here.
                   nodes = int32(cat(1, rotatedSubChildren{:}));
                   nodes(:,4) = curLevelItr-1;
-                  [ ~, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode(nodes, vocabulary, sampleString);
+                  [ ~, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode(nodes, vocabulary, sampleString, options);
                   rotatedSubChildren = subChildren;
                   rotNodes = (1:size(nodes,1))';
                   rotNodes = rotNodes(nodeAngles ~= 0);
@@ -241,7 +239,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                
               % If positions are involved, 
               if positionFlag
-                   expertPosLikelihoodVal = GetTreeLikelihood(subChildren{expertToMove}, expertNode, posProbDenom);
+                   expertPosLikelihoodVal = GetTreeLikelihood(subChildren{expertToMove}, expertNode, halfRFSize, posProbDenom);
               else
                    expertPosLikelihoodVal = 0;
               end
@@ -282,7 +280,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                    % First, project back the high level nodes.
                    if moves(moveItr,1) == 2
                          newNodes = nodes(expertToMove,:);
-                         [ newExperts, newSubChildrenExperts, newSubChildren, ~, ~ ] = projectNode(newNodes, vocabulary, sampleString, moves(moveItr,2));
+                         [ newExperts, newSubChildrenExperts, newSubChildren, ~, ~ ] = projectNode(newNodes, vocabulary, sampleString, options, moves(moveItr,2));
                          newSubChildrenExperts = newSubChildrenExperts{1};
                          newSubChildren = newSubChildren{1};
                    else
@@ -319,7 +317,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
                    
                    %% Calculate new position likelihood.
                    if positionFlag
-                        newPosLikelihoodVal = GetTreeLikelihood(newSubChildren, expertNode, posProbDenom);
+                        newPosLikelihoodVal = GetTreeLikelihood(newSubChildren, expertNode, halfRFSize, posProbDenom);
                    else
                         newPosLikelihoodVal = 0;
                    end
@@ -452,10 +450,10 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
     
     % Create a gif image out of diagnostic information.
     if steps<maxSteps
-         imageArr = imageArr(1:steps);
-         diffImageArr = diffImageArr(1:steps);
-         posLikelihoodArr = posLikelihoodArr(1:steps);
-         poeLikelihoodArr= poeLikelihoodArr(1:steps);
+         imageArr = imageArr(1:min(1, steps));
+         diffImageArr = diffImageArr(1:min(1, steps));
+         posLikelihoodArr = posLikelihoodArr(1:min(1, steps));
+         poeLikelihoodArr= poeLikelihoodArr(1:min(1, steps));
     end
 
     % Try creating an image and save the image. If image showing
@@ -547,7 +545,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
 end
 
 %% Function to calculate parse tree likelihood. 
-function [expertPosLikelihoodVal] = GetTreeLikelihood(subChildren, expertNode, posProbDenom)
+function [expertPosLikelihoodVal] = GetTreeLikelihood(subChildren, expertNode, halfRFSize, posProbDenom)
      dummyLhood = log(0.001);
      dummyPosSigma = 1;
      %% First, we check for OR node likelihood.
@@ -567,6 +565,11 @@ function [expertPosLikelihoodVal] = GetTreeLikelihood(subChildren, expertNode, p
               refSampledPos = [refSampledPos, sampledPos(childItr,:)]; %#ok<AGROW>
          end
          cols = numel(refSampledPos);
+         
+         % Finally, we obtain position probability.
+         
+         refSampledPos = refSampledPos / halfRFSize;
+         
          try
               posProbability = pdf(expertNode.childrenPosDistributions, refSampledPos)  / posProbDenom;
          catch %#ok<CTCH>

@@ -21,6 +21,7 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
     halfSize = ceil(RFSize/2);
     missingPartLog = log(0.00001);
     missingPartAllowed = false;
+    poolFlag = false;
  %   activationThr = log(0.001);
     activationThr = -Inf;
     dummyPosSigma = 1;
@@ -270,7 +271,11 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
           [combinedArr, sortIdx] = sortrows(combinedArr);
           
           %% Perform max pooling and save data structures.
-          [~, IA, ~] = unique(combinedArr(:,1:3), 'rows', 'stable');
+          if poolFlag
+               [~, IA, ~] = unique(combinedArr(:,1:3), 'rows', 'stable');
+          else
+               IA = (1:size(combinedArr,1))';
+          end
 
           % Save remaining data and move on to the next layer.
          validIdx = sort(sortIdx(IA));
@@ -282,7 +287,7 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
          nodes(:,2:3) = calculatePooledPositions(precisePositions, vocabLevelItr+1, options);
          
          %% For debugging purposes, we visualize the nodes.
-         experts = projectNode([nodes(:,1), precisePositions, ones(size(nodes,1),1)*vocabLevelItr], vocabularyDistributions, 'modal');
+         experts = projectNode([nodes(:,1), precisePositions, ones(size(nodes,1),1)*vocabLevelItr], vocabularyDistributions, 'modal', options);
          experts(:,1) = filterIds(experts(:,1));
          modalImg = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
          combinedImg = uint8((modalImg + img) / 2);

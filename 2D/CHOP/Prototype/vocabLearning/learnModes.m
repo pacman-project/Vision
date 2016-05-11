@@ -19,14 +19,15 @@
 function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder, debug)
     display('Learning modes...');
     maxSamplesPerMode = 200;
-    minSamplesPerMode = 3;   
+    minSamplesPerMode = 2;   
     if levelItr == 1
          maximumModes = 10;
     else
          maximumModes = 5;
     end
-    dummySigma = 0.005;
-    minProb = 0.01;
+    dummySigma = 0.02;
+    noiseSigma = 0.001;
+    minProb = 0.002;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
     
@@ -74,7 +75,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
     modeProbArr = cell(numberOfUniqueEdges, 1);
-    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
+    for uniqueEdgeItr = 1:numberOfUniqueEdges
         probs = [];endProbs=[];topProbs=[];rightProbs=[]; %#ok<NASGU>
         w = warning('off', 'all');
         samples = single(uniqueEdgeSamples{uniqueEdgeItr});
@@ -107,10 +108,23 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
           statistics(centerItr,3) = double(edgeIdMatrix(normalizedCenter(1), normalizedCenter(2))); %#ok<PFBNS>
           
           if size(clusterSamples,1) > 1
+               %% Calculate covariance matrix.
                covMat = cov(clusterSamples);
+               covMat([1,4]) = max(covMat([1,4]), dummySigma);
+ %              minChannelVar = max(minVarMultiplier)
+               
+               % Smooth the covariance matrix, in case we're too narrow on
+               % one dimension.
+               covMat = max(covMat, 0);
+               try
+                    dummyProb = mvnpdf(statistics(centerItr,4:5), statistics(centerItr,4:5), covMat); %#ok<NASGU>
+               catch %#ok<CTCH>
+                    covMat = covMat .* eye(size(covMat,1)) * noiseSigma;
+               end
+               
+               % Assign matrix.
                statistics(centerItr,6:7) = covMat(1,:);
                statistics(centerItr,8:9) = covMat(2,:);
-               statistics(centerItr,[6, 9]) = max(statistics(centerItr,[6, 9]), [dummySigma, dummySigma]);
           else
                statistics(centerItr,[6, 9]) = dummySigma;
           end
@@ -147,17 +161,25 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         % In order to calculate probabilities, we define an area for each
         % point. 
         points = points / edgeQuantize;
+        numberOfPoints = size(points,1);
+        halfPixelSize = 1/(2*edgeQuantize);
+        halfPixelArr = ones(numberOfPoints,1) * halfPixelSize;
         
         % Obtain probabilities based on each mode.
         allProbs = zeros(numberOfClusters, edgeQuantize, edgeQuantize, 'single');
         for centerItr = 1:numberOfClusters
             % We use PDFs to calculate pseudo-statistics (faster, accurate
             % enough).
-            try
-                pointProbs = mvnpdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            catch %#ok<CTCH>
-                pointProbs = mvnpdf(points, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
-            end
+%            try
+            lowProbs = mvncdf(points + [-halfPixelArr, -halfPixelArr], statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            leftProbs = mvncdf(points + [halfPixelArr, -halfPixelArr], statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            rightProbs = mvncdf(points + [-halfPixelArr, halfPixelArr], statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            highProbs = mvncdf(points + [halfPixelArr, halfPixelArr], statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
+%            pointProbs = mvnpdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+%            catch %#ok<CTCH>
+%                pointProbs = mvnpdf(points, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
+%            end
             
             % Weight probabilities with the number of samples in each
             % cluster.

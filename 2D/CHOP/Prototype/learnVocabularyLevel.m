@@ -52,11 +52,11 @@
        addpath(genpath([options.currentFolder '/inference']));
        addpath(genpath([options.currentFolder '/categorization']));
        warning(w);
-   end
-   
-   % Try to restore break points.
-   try %#ok<TRYNC>
-   dbstop(bInfo);
+       
+        % Try to restore break points.
+        try %#ok<TRYNC>
+        dbstop(bInfo);
+        end
    end
    
    % Obtain the pre-set threshold for this level, if there is one.
@@ -220,7 +220,7 @@
    end
    
    %% At this step, we perform imagination of the parts at this layer (for later use).
-   vocabularyDistributions = projectVocabulary( vocabularyDistributions);
+   vocabularyDistributions = projectVocabulary( vocabularyDistributions, options);
 
    %% If we've reached max number of layers, don't keep going forward.
    if levelItr == options.maxLevels || stopFlag
@@ -237,7 +237,7 @@
    display('Writing output to files.');
    [exportArr, activationArr] = exportRealizations(mainGraph); %#ok<ASGLU>
    save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', '-append', '-v7.3'); 
-   clear exportArr  activationArr precisePositions;
+   clear activationArr precisePositions;
 
    % Print everything to files.
    save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', '-append', '-v7.3');
@@ -260,7 +260,7 @@
           display('........ Imagining parts and their instances! This can take a while...');
           if options.vis.printTrainRealizations && levelItr >= 3
               try
-                 projectTrainingImages(fileList, vocabularyDistributions, mainGraph, levelItr, options);
+                 projectTrainingImages(fileList, vocabularyDistributions, exportArr, levelItr, options);
               catch
                  display('Visualization error'); 
               end
@@ -297,6 +297,7 @@
    scriptName = [options.currentFolder '/' options.datasetName '.sh'];
    restartFlag = options.restartFlag;
    if restartFlag
+        bInfo = dbstatus;
         % Finally, we save the workspace and call the next iteration.
          disp(['Saving layer ' num2str(levelItr) ' workspace.']);
          save([pwd '/Workspace.mat'], '-v7.3');

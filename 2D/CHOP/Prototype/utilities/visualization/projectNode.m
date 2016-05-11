@@ -16,9 +16,9 @@
 %>
 %> Updates
 %> Ver 1.0 on 12.08.2015
-function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode( nodes, vocabularyDistributions, samplingMethod, orNodeChoice )
+function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCounts ] = projectNode( nodes, vocabularyDistributions, samplingMethod, options, orNodeChoice )
 
-    if nargin == 3
+    if nargin == 4
          orNodeChoice = [];
     end
     
@@ -35,9 +35,14 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
     %% First, we recursively backproject the nodes. 
     startNodeOffset = 0;
     while levelItr > 1.001
-         if levelItr < minOptimizationLayer
-              samplingMethod = 'modal';
-         end
+        % Get receptive field size.
+        rfSize = getRFSize(options, levelItr);
+        halfRFSize = round(rfSize(1)/2);
+         
+        % 
+        if levelItr < minOptimizationLayer
+             samplingMethod = 'modal';
+        end
         vocabLevelDistributions = vocabularyDistributions{levelItr};
         prevLevelDistributions = vocabularyDistributions{levelItr-1};
         newNodes = cell(size(nodes,1),1);
@@ -92,6 +97,9 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
                  else
                      posVect = random(posDistributions, 1);
                  end
+                 
+                 % Upsample positions.
+                 posVect = posVect * halfRFSize;
                  
                  % Assign positions.
                  for childItr = 2:numel(nodeCombination)

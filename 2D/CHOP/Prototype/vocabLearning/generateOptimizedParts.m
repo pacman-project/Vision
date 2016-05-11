@@ -49,6 +49,21 @@ function [] = generateOptimizedParts(vocabulary, levelItr, options)
    vocabulary = vocabulary(1:levelItr);
    datasetName = options.datasetName;
    
+    %% Create optimization options.
+     optimizationOptions.stopVal = 0.1;
+     optimizationOptions.maxSteps = 20;
+     optimizationOptions.minOptimizationLayer = 3;
+     optimizationOptions.minLikelihoodChange = 0.000001;
+     optimizationOptions.movesPerChild = 3;
+     optimizationOptions.maxMoves = 10;
+     optimizationOptions.minMoves = 5;
+     optimizationOptions.likelihoodChangeThr =  1.000001;
+     optimizationOptions.moveFlags = [1,1,0]; % 1 for position moves, 2 is for or moves, 3 for rotation moves.
+     % If poeFlag is true, we are searching for pixel level agreement.
+     optimizationOptions.poeFlag = true;
+     % Position flags are the strings that keep things in place.
+     optimizationOptions.positionFlag = true;
+   
    %% First, for efficiency, we obtain pixel-level predictions for every part
  %  for vocabNodeItr = 61:numel(vocabLevel)
   % for vocabNodeItr = [6, 8, 15, 36, 59, 81, 87, 90, 98, 121]
@@ -59,7 +74,7 @@ function [] = generateOptimizedParts(vocabulary, levelItr, options)
         for sampleItr = 1:samplesPerPart
              % Obtain optimized projections.
              nodes = [printedVocabNode, round(imageSize(1)/2), round(imageSize(2)/2), levelItr];
-             optimizeImagination(nodes, vocabulary, imageSize, rfSizes, optimizedFilters, visFilters, sampleItr, datasetName, likelihoodLookupTable);
+             optimizeImagination(nodes, vocabulary, imageSize, rfSizes, optimizedFilters, visFilters, sampleItr, datasetName, likelihoodLookupTable, options, optimizationOptions);
         end
     end
    

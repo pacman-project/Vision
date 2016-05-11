@@ -11,7 +11,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 23.03.2016
-function vocabularyDistributions = projectVocabulary( vocabularyDistributions)
+function vocabularyDistributions = projectVocabulary( vocabularyDistributions, options)
      nodeCounts = cellfun(@(x) numel(x), vocabularyDistributions);
      maxLevel = find(nodeCounts, 1, 'last');
      
@@ -27,7 +27,7 @@ function vocabularyDistributions = projectVocabulary( vocabularyDistributions)
           end
           for vocabNodeItr = 1:numel(vocabLevelDistributions)
                nodes = [vocabNodeItr, 0, 0, levelItr];
-               experts = projectNode(nodes, vocabularyDistributions, 'modal');
+               experts = projectNode(nodes, vocabularyDistributions, 'modal', options);
                
                % Write them back.
                vocabLevelDistributions(vocabNodeItr).modalExperts = experts;
