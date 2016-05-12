@@ -69,7 +69,7 @@ function [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = create
          likelihoodLookupTable(itr+1,:) = (probs(2:end) - probs(1:(end-1))) / normProb;
     end
     likelihoodLookupTable = log(likelihoodLookupTable);
-    rfSizes = zeros(levelItr,1);
+    rfSizes = zeros(10,1);
     for rfSizeItr = 2:size(rfSizes,1)
          rfSize = getRFSize(options, rfSizeItr);
          rfSizes(rfSizeItr) = rfSize(1);

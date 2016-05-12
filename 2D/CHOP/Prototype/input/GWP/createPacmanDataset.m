@@ -2,9 +2,10 @@
 % and classes.
 function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, classOrder)
      numberOfModels = 20;
-     distance = 'UD';
+     datasetStr = '400Pacmans';
+     distance = '600';
      classList = { 'Bottle', 'Bowl', 'Box', 'Mug', 'Cup', 'FryingPan', 'Spatula', 'TeaPot', 'TeaCup', 'Plate', 'Jug', 'Can', 'ChoppingBoard', 'Shaker', 'Tray', 'Fork', 'Knife', 'Scissors', 'Spoon', 'Vase'};
-     load([pwd '/DemoModels/categoryNames.mat']);
+     load([pwd '/' datasetStr '/categoryNames.mat']);
      
      % Shuffle class list if needed.
      if strcmp(classOrder, 'shuffle')
@@ -13,7 +14,7 @@ function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, 
      
      % Generate sample views, and perfect view.
 %     poses= allcomb(1:32, 1:8);
-     poseIdx = datasample(1:400, imageCount, 'Replace', false);
+     poseIdx = datasample(1:256, imageCount, 'Replace', false);
      numberOfPoses = numel(poseIdx);
      
      % Go through every category, and create dataset.
@@ -24,7 +25,7 @@ function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, 
               trueModelIdx = find(cellfun(@(x) ~isempty(x), strfind(categoryNames, classList{classItr})));
               trainingModels = 1:trainingModelCount;
               
-              imgList = dir([pwd '/DemoModels/images' distance '/D_' num2str(trueModelIdx(modelItr))]);
+              imgList = dir([pwd '/' datasetStr '/images' distance '/D_' num2str(trueModelIdx(modelItr))]);
               imgList = imgList(3:end);
               
                if ismember(modelItr, trainingModels)
@@ -35,7 +36,7 @@ function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, 
                     modelId = trueModelIdx(modelItr);
                end
                
-               inputFolder = [pwd '/DemoModels/images' distance '/D_' num2str(modelId) '/'];
+               inputFolder = [pwd '/' datasetStr '/images' distance '/D_' num2str(modelId) '/'];
                modelFolder = [pwd '/' splitName '/' classList{classItr} '/D_' num2str(modelId) '/'];
                mkdir(modelFolder);
                
