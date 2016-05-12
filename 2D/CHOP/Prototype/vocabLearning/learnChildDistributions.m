@@ -50,7 +50,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     end                       
     
     % Second, we go through each node, and collect statistics.
-    for vocabItr = 1:numberOfNodes
+    parfor vocabItr = 1:numberOfNodes
          
         minX = -1; maxX = -1; minY = -1; maxY = -1; meanArr = []; scores=[]; coeff=[];
         w = warning('off', 'all');

@@ -38,7 +38,7 @@ function [ ] = projectTrainingImages( fileList, vocabularyDistributions, exportA
      optimizationOptions.positionFlag = true;
     
     %% Go through every image and find optimal version.
-    for imgItr = 1:max(levelExportArr(:,5))
+    parfor imgItr = 1:max(levelExportArr(:,5))
        % Create a folder if needed.
        [~, fileName, ~] = fileparts(fileList{imgItr});
 
