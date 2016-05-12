@@ -103,7 +103,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.4;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -149,7 +149,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
     options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
+    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 

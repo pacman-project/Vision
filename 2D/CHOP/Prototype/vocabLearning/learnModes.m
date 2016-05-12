@@ -27,7 +27,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     end
     dummySigma = 0.02;
     noiseSigma = 0.001;
-    minProb = 0.002;
+    minProb = 0.001;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
     
