@@ -170,6 +170,7 @@
    vocabNodeLabels = [vocabLevel.label];
    updatedLabelIds = num2cell(vocabNodeLabels([graphLevel.labelId]));
    [graphLevel.labelId] = deal(updatedLabelIds{:});
+   clear updatedLabelIds;
    mainGraph{levelItr} = graphLevel;
 
    %% As an initial stage of inhibition, we downsample the responses, 

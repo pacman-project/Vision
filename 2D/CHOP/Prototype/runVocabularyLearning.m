@@ -221,12 +221,15 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % graphs but not negative ones will be favoured.
         imageSigns = ~strcmp(categoryArr, options.backgroundClass);
         leafNodeSigns = imageSigns(cell2mat(imageIds));
+        clear imageIds;
         
         % Transform category array into an index-based one (having numbers
         % instead of category strings). The category string labels is saved
         % in categoryNames.
         [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); 
         categoryNames = categoryArr(categoryNames); 
+        
+        clear categoryArr;
         
         %% Here, we select the validation sets.
         % We select options.validationFolds (number) non-overlapping sets
@@ -267,6 +270,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
         [vocabLevel, vocabLevelDistributions, graphLevel] = generateLevels(leafNodes, leafNodeCoords, allNodeActivations, leafNodeSigns, options);
+        clear allNodeActivations;
 
         %% Learn edge-based distance matrix once and for all.
         [edgeIdMatrix, edgeDistanceMatrix, edgeCoords, edgeLogMin, edgeLogRange ] = findEdgeDistanceMatrix(options.receptiveFieldSize, options.distType, options.edgeSimilarityAllowed);

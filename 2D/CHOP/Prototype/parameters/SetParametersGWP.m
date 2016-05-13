@@ -103,7 +103,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.4;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -122,7 +122,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.93; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.94; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
     options.categoryLevelMissingNodeThr = 0.95; %In category level, missing node threshold is treated differently.

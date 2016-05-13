@@ -19,17 +19,18 @@
 function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder, debug)
     display('Learning modes...');
     maxSamplesPerMode = 200;
-    minSamplesPerMode = 2;   
+    minSamplesPerMode = 1.5;   
     if levelItr == 1
          maximumModes = 10;
     else
-         maximumModes = 5;
+         maximumModes = 8;
     end
-    dummySigma = 0.02;
-    noiseSigma = 0.001;
-    minProb = 0.001;
+    dummySigma = 0.0005;
+    noiseSigma = 0.0001;
+    minProb = 0.0001;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
+    sampleDist = (1/edgeQuantize) * 2;
     
     cx=halfSize;cy=cx;ix=edgeQuantize;iy=ix;r=halfSize;
     [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
@@ -76,6 +77,12 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
     modeProbArr = cell(numberOfUniqueEdges, 1);
     for uniqueEdgeItr = 1:numberOfUniqueEdges
+        
+        
+        if uniqueEdgeItr == 430
+           1 
+        end
+        
         probs = [];endProbs=[];topProbs=[];rightProbs=[]; %#ok<NASGU>
         w = warning('off', 'all');
         samples = single(uniqueEdgeSamples{uniqueEdgeItr});
@@ -92,6 +99,30 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
                  classes = kmeans(samples, tempNumberOfClusters, 'EmptyAction', 'singleton');
             end
         end
+        
+        
+        % Before we move on, we post-process the class information. We do
+        % not want singular classes. 
+        newClassLabel = max(classes) + 1;
+        if numel(classes) > 1
+           memberCounts = hist(double(classes), double(unique(classes)));
+           classesToCheck = find(memberCounts == 2);
+           if numel(classesToCheck) > 0
+               for classItr = 1:numel(classesToCheck)
+                  sampleIdx = find(classes == classesToCheck(classItr));
+                  classSamples = samples(classes == classesToCheck(classItr),:);
+               
+                  % If the two samples are far apart, assign a new class
+                  % label to one of them.
+                  if sum(abs(classSamples(1,:) - classSamples(2,:))) > sampleDist
+                      classes(sampleIdx(2)) = newClassLabel;
+                      newClassLabel = newClassLabel + 1;
+                  end
+               end
+           end
+        end
+        
+        
 
         %% Calculate statistics (mu, sigma)
         numberOfClusters = max(classes);
