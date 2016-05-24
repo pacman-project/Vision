@@ -29,8 +29,6 @@ function [childSubsFinal, childSubs] = getFinalSubs(childSubs, adaptiveThreshold
         childSubsFinal(childSubItr).instanceCenterIdx = childSubsFinal(childSubItr).instanceCenterIdx(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceCategories = childSubsFinal(childSubItr).instanceCategories(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceEdges = childSubsFinal(childSubItr).instanceEdges(validInstanceIdx, :);
-        childSubsFinal(childSubItr).instanceMatchCosts = childSubsFinal(childSubItr).instanceMatchCosts(validInstanceIdx, :);
-        childSubsFinal(childSubItr).instanceExactMatchFlags = childSubsFinal(childSubItr).instanceExactMatchFlags(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceSigns = childSubsFinal(childSubItr).instanceSigns(validInstanceIdx, :);
         childSubsFinal(childSubItr).instanceValidationIdx = childSubsFinal(childSubItr).instanceValidationIdx(validInstanceIdx, :);
     end

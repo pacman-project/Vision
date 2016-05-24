@@ -34,11 +34,11 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
      % Create mode index array.
      uniqueModes = unique(modes(:,1:2), 'stable', 'rows');
      
-     totalEdgeCount = 0;
-     validEdgeCount = 0;
+%     totalEdgeCount = 0;
+%     validEdgeCount = 0;
      
      % Get node ids of edges.
-     for graphLevelItr = 1:numel(graphLevel)
+     parfor graphLevelItr = 1:numel(graphLevel)
           edges = graphLevel(graphLevelItr).adjInfo;
 
           % Edges empty, do nothing.
@@ -82,17 +82,17 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           
           % Collect statistics about what percentage of edges are rendered
           % useless.
-          totalEdgeCount = totalEdgeCount + size(edges,1);
-          validEdgeCount = validEdgeCount + nnz(edges(:,3) > 0);
+%          totalEdgeCount = totalEdgeCount + size(edges,1);
+%          validEdgeCount = validEdgeCount + nnz(edges(:,3) > 0);
           
           % Save edges.
           graphLevel(graphLevelItr).adjInfo = edges(edges(:,3) > 0, :);
      end
      
      % Report on deleted edges.
-     display(['%' num2str(round(100*(validEdgeCount/totalEdgeCount)))...
-         ' of all edges have been preserved. Total: ' num2str(totalEdgeCount) ...
-         ' edges. Deleted:' num2str(totalEdgeCount - validEdgeCount) ' edges.']); 
+%     display(['%' num2str(round(100*(validEdgeCount/totalEdgeCount)))...
+%         ' of all edges have been preserved. Total: ' num2str(totalEdgeCount) ...
+%         ' edges. Deleted:' num2str(totalEdgeCount - validEdgeCount) ' edges.']); 
      
      clearvars -except graphLevel
 end

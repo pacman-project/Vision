@@ -161,26 +161,15 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
     % use. For this one, we consider only the nodes within the receptive
     % field.
     possibleLeafNodeCounts = zeros(numel(allLeafNodes),1);
-%     bounds = calculateRFBounds(nodePositions, levelItr, options, false);
-%     for nodeItr = 1:size(allSigns,1);
-%         possibleLeafNodes{nodeItr} = int32(find(level1Nodes(:,1) == imageIdx(nodeItr) & ...
-%              level1Nodes(:,2) >= bounds(nodeItr,1) & level1Nodes(:,2) <= bounds(nodeItr,3) & ...
-%              level1Nodes(:,3) >= bounds(nodeItr,2) & level1Nodes(:,3) <= bounds(nodeItr,4)));
-%     end
-     for nodeItr = 1:size(allSigns,1)
- %         tempLeafNodes = possibleLeafNodes{nodeItr};
-%           if isempty(allEdges(nodeItr).adjInfo)
-%                validIdx  = ismembc(tempLeafNodes, graphLevel(nodeItr).leafNodes)';
-%           else
-%                validIdx = ismembc(tempLeafNodes, sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))');
-%           end
-          if isempty(allEdges(nodeItr).adjInfo)
-               possibleLeafNodeCounts(nodeItr)  = numel((graphLevel(nodeItr).leafNodes)');
-          else
-               possibleLeafNodeCounts(nodeItr) = numel(fastsortedunique(sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))'));
-          end
- %         possibleLeafNodes{nodeItr} = tempLeafNodes(validIdx);
-     end
+    if minRFCoverage > 0
+         for nodeItr = 1:size(allSigns,1)
+              if isempty(allEdges(nodeItr).adjInfo)
+                   possibleLeafNodeCounts(nodeItr)  = numel((graphLevel(nodeItr).leafNodes)');
+              else
+                   possibleLeafNodeCounts(nodeItr) = numel(fastsortedunique(sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))'));
+              end
+         end
+    end
     
 %     % Check script.
 %     for nodeItr = 1:size(allSigns,1);
@@ -322,7 +311,7 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
             
             %% All good, continue with the main algorithm.
             processedSet = parentSubSets{setItr};
-            parfor parentItr = processedSet
+            for parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
                 display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
                 childSubs = extendSub(parentSubs(parentItr), allEdges, nodeDistanceMatrix, edgeDistanceMatrix, ...
@@ -450,33 +439,35 @@ function [nextVocabLevel, nextGraphLevel, optimalThreshold, isSupervisedSelectio
             [~, idx] = sort(mdlScoresTemp, 'descend');
             childSubArrExtend = childSubArrExtend(idx);
             
+
             % Write down children-s parents and only keep one parent for
             % each child.
-            encounterArr = inf(numel(graphLevel), 1);
-            leafNodeCountArr = zeros(numel(graphLevel),1);
-            for itr = numel(childSubArrExtend):-1:1
-                 instanceCenterIdx = childSubArrExtend(itr).instanceCenterIdx;
-                 instanceChildren = childSubArrExtend(itr).instanceChildren;
+            if numel(childSubArrExtend) > beam
+                encounterArr = inf(numel(graphLevel), 1);
+    %            leafNodeCountArr = zeros(numel(graphLevel),1);
+                for itr = numel(childSubArrExtend):-1:1
+                     instanceCenterIdx = childSubArrExtend(itr).instanceCenterIdx;
+    %                 instanceChildren = childSubArrExtend(itr).instanceChildren;                 
+    %                  %% We employ a greedy approach, and keep info of instances with maximum number of leaf nodes.
+    %                  coveredLeafNodeCount = zeros(numel(instanceCenterIdx),1);
+    %                  for childItr = 1:numel(instanceCenterIdx)
+    %                       coveredLeafNodeCount(childItr) = numel(fastsortedunique(sort(cat(2, allLeafNodes{instanceChildren(childItr,:)}))));
+    %                  end
+    %                  
+    %                  % Greedy elimination. Check current number of covered leaf
+    %                  % nodes for a center. If this is more, update the relevant
+    %                  % sub indices.
+    %                  comparisonNodeCounts = leafNodeCountArr(instanceCenterIdx);
+    %                  assgnIdx = coveredLeafNodeCount > comparisonNodeCounts; 
+    %                  leafNodeCountArr(instanceCenterIdx(assgnIdx)) = coveredLeafNodeCount(assgnIdx);
+    %                  encounterArr(instanceCenterIdx(assgnIdx)) = itr;
+    %                 % Save sub id.
+    %                 encounterArr(instanceCenterIdx) = min(itr, encounterArr(instanceCenterIdx));
                  
-                 %% We employ a greedy approach, and keep info of instances with maximum number of leaf nodes.
-                 coveredLeafNodes = cell(numel(instanceCenterIdx),1);
-                 for childItr = 1:numel(instanceCenterIdx)
-                      coveredLeafNodes{childItr} = int32(fastsortedunique(sort(cat(2, allLeafNodes{instanceChildren(childItr,:)}))));
-                 end
-                 coveredLeafNodeCount = cellfun(@(x) numel(x), coveredLeafNodes);
-                 
-                 % Greedy elimination. Check current number of covered leaf
-                 % nodes for a center. If this is more, update the relevant
-                 % sub indices.
-                 comparisonNodeCounts = leafNodeCountArr(instanceCenterIdx);
-                 assgnIdx = coveredLeafNodeCount > comparisonNodeCounts; 
-                 leafNodeCountArr(instanceCenterIdx(assgnIdx)) = coveredLeafNodeCount(assgnIdx);
-                 encounterArr(instanceCenterIdx(assgnIdx)) = itr;
-                 
-                 % Save sub id.
-                 encounterArr(instanceCenterIdx) = min(itr, encounterArr(instanceCenterIdx));
+                     encounterArr(instanceCenterIdx) = itr;
+                end
+                childSubArrExtend = childSubArrExtend(setdiff(unique(encounterArr), Inf));
             end
-            childSubArrExtend = childSubArrExtend(setdiff(unique(encounterArr), Inf));
             
             % Check for maxSize to put to extendedSubs (parentSubs for next level).
             if currentSize < maxSize

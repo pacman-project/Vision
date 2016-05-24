@@ -7,11 +7,10 @@ function [bestAcc, bestPrecision] = calculateCategorizationAccuracy(bestSubs, ..
     % Put the instances ([labelId, imageId, validationIdx] triple) into an array.
     allInstances = cell(numel(bestSubs),1);
     for bestSubItr = 1:numel(bestSubs)
-       adaptiveThreshold = ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);       
-       validInstanceIdx = bestSubs(bestSubItr).instanceMatchCosts < adaptiveThreshold;
-       allInstances{bestSubItr} = [imageIdx(bestSubs(bestSubItr).instanceCenterIdx(validInstanceIdx, :)),...
-           repmat(bestSubItr, numel(bestSubs(bestSubItr).instanceCenterIdx(validInstanceIdx, :)), 1), ...
-           bestSubs(bestSubItr).instanceValidationIdx(validInstanceIdx, :)];
+       adaptiveThreshold = ((midThr * (size(bestSubs(bestSubItr).edges,1) * 2 + 1)) + singlePrecision);   
+       allInstances{bestSubItr} = [imageIdx(bestSubs(bestSubItr).instanceCenterIdx),...
+           repmat(bestSubItr, numel(bestSubs(bestSubItr).instanceCenterIdx), 1), ...
+           bestSubs(bestSubItr).instanceValidationIdx];
     end
     allInstances = cat(1, allInstances{:});
     allInstances = sortrows(allInstances);

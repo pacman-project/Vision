@@ -50,13 +50,21 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     %% Get number of valid images in which we get gabor responses.
     numberOfImages = numel(unique([graphLevel.imageId]));
     
-    % Open/close matlabpool to save memory. 
+    % Open threads for parallel processing.
     if options.parallelProcessing
-        s = matlabpool('size');
-        if s>0
-           matlabpool close; 
+        if options.parpoolFlag
+            p = gcp('nocreate');
+            if ~isempty(p)
+                delete(p);
+            end
+            parpool(options.numberOfThreads);
+        else
+            s = matlabpool('size');
+            if s>0
+               matlabpool close; 
+            end
+            matlabpool('open', options.numberOfThreads);
         end
-        matlabpool('open', options.numberOfThreads);
     end
     
     %% Print first vocabulary and graph level.
@@ -66,11 +74,11 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     end
     
     if options.debug
-        matlabpool close; 
+%        matlabpool close; 
         display('........ Visualizing the realizations in the first level...');
         visualizeImages( fileList, vocabLevel, graphLevel, [], allNodeInstances, leafNodes, leafNodeCoords, 1, options, 'train' );
 %        visualizeCroppedImgs( vocabulary{1}, 1, options);
-        matlabpool('open', options.numberOfThreads);
+%        matlabpool('open', options.numberOfThreads);
     end
     printCloseFilters(eucDistanceMatrix, [], 1, options);
     
@@ -118,13 +126,13 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     
     % Save workspace into a file.
     levelItr = 1;
- 
+    save([pwd '/Workspace.mat'], '-v7');
+    copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
+        
     if options.restartFlag
          disp('Saving layer 1 workspace.');
          % Reduce memory consumption by writing all stuff to files,
          % clearing all, and then returning back to computation.
-         save([pwd '/Workspace.mat'], '-v7.3');
-         copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
          scriptName = [options.currentFolder '/' options.datasetName '.sh'];
          
          % Let's generate the restart script.
@@ -135,7 +143,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
          else
               matlabString = [];
          end
-         fileString = fprintf(fid, '#!/bin/bash\n%s\nscreen -d -m matlab -r "learnVocabularyLevel()"', matlabString, options.datasetName);
+         fileString = fprintf(fid, '#!/bin/bash\n%s\nscreen -d -m matlab -r "learnVocabularyLevel()"', matlabString);
          system(['chmod 755 ' scriptName]);
          fclose(fid);
          system(scriptName);

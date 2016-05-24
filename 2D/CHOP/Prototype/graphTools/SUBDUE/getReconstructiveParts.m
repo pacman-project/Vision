@@ -97,7 +97,7 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
  %          diffVal = (nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr);
  %          diffVal = (nnz(tempMarkedNodes) - prevVal) / childrenCounts(subItr);
            diffVal = ((nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr))/ childrenCounts(subItr);
- %         diffVal = (nnz(tempMarkedNodes) - prevVal);
+%          diffVal = (nnz(tempMarkedNodes) - prevVal);
  
            % Save diffVal.
            if diffVal < valueArr(subItr)

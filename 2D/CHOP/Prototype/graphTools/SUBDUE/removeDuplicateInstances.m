@@ -14,33 +14,23 @@
 function [ subList ] = removeDuplicateInstances( subList )
     parfor bestSubItr = 1:numel(subList)
         instanceChildren = subList(bestSubItr).instanceChildren;
-        instanceMatchCosts = subList(bestSubItr).instanceMatchCosts;
-        % We handle these cases by only keeping
-        % unique instances. In addition, for each instance, the minimum
-        % cost of matching is kept here.
-        [minMatchCosts, sortIdx] = sort(instanceMatchCosts, 'ascend');
-        sortedChildren = instanceChildren(sortIdx, :);
-        [~, validIdx, ~] = unique(sort(sortedChildren,2), 'rows', 'stable');
-        sortIdx = sortIdx(validIdx);
+        [~, validIdx, ~] = unique(sort(instanceChildren,2), 'rows', 'stable');
 
         % Get minimum matching costs and children.
-        instanceMatchCosts = minMatchCosts(validIdx, :);
-        sortedChildren = sortedChildren(validIdx, :);
+        instanceChildren = instanceChildren(validIdx, :);
 
         % Finally, order children by rows and update remaining data
         % structures.
-        [subList(bestSubItr).instanceChildren, idx] = sortrows(sortedChildren);
-        sortIdx = sortIdx(idx);
-        subList(bestSubItr).instanceMatchCosts = instanceMatchCosts(idx, :);
-        subList(bestSubItr).instanceCenterIdx = subList(bestSubItr).instanceCenterIdx(sortIdx, :);
+        [subList(bestSubItr).instanceChildren, idx] = sortrows(instanceChildren);
+        validIdx = validIdx(idx);
+        subList(bestSubItr).instanceCenterIdx = subList(bestSubItr).instanceCenterIdx(validIdx, :);
         if ~isempty(subList(bestSubItr).instanceEdges)
-            subList(bestSubItr).instanceEdges = subList(bestSubItr).instanceEdges(sortIdx, :);
+            subList(bestSubItr).instanceEdges = subList(bestSubItr).instanceEdges(validIdx, :);
         end
-        subList(bestSubItr).instanceCategories = subList(bestSubItr).instanceCategories(sortIdx, :);
-        subList(bestSubItr).instanceSigns = subList(bestSubItr).instanceSigns(sortIdx, :);
-        subList(bestSubItr).instanceValidationIdx = subList(bestSubItr).instanceValidationIdx(sortIdx, :);
-        subList(bestSubItr).instanceMappings = subList(bestSubItr).instanceMappings(sortIdx, :);
-        subList(bestSubItr).instanceExactMatchFlags = subList(bestSubItr).instanceExactMatchFlags(sortIdx, :);
+        subList(bestSubItr).instanceCategories = subList(bestSubItr).instanceCategories(validIdx, :);
+        subList(bestSubItr).instanceSigns = subList(bestSubItr).instanceSigns(validIdx, :);
+        subList(bestSubItr).instanceValidationIdx = subList(bestSubItr).instanceValidationIdx(validIdx, :);
+        subList(bestSubItr).instanceMappings = subList(bestSubItr).instanceMappings(validIdx, :);
     end
 end
 

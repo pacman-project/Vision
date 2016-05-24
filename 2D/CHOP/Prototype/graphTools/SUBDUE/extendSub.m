@@ -32,16 +32,12 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     
     % Record which edge belongs to which instance. 
     allEdgeInstanceIds = zeros(sum(cellfun(@(x) size(x,1), allUnusedEdges)),1);
-    allEdgePrevCosts = zeros(size(allEdgeInstanceIds), 'single');
-    allEdgeExactMatchFlags = zeros(size(allEdgeInstanceIds), 'uint8')>0;
     itrOffset = 1;
     unusedEdgeCounts = cellfun(@(x) size(x,1), allUnusedEdges);
     for itr = 1:numel(allUnusedEdges)
         beginOffset = itrOffset;
         endOffset = (beginOffset+(unusedEdgeCounts(itr)-1));
         allEdgeInstanceIds(beginOffset:endOffset) = itr;
-        allEdgePrevCosts(beginOffset:endOffset) = sub.instanceMatchCosts(itr);
-        allEdgeExactMatchFlags(beginOffset:endOffset) = sub.instanceExactMatchFlags(itr);
         itrOffset = itrOffset + unusedEdgeCounts(itr);
     end         
     allUnusedEdges = cat(1, allUnusedEdges{:});
@@ -54,7 +50,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
     
     % Eliminate the edges which exist only in validation data. We do not
     % enumerate any edges which do not exist in training data.
-    enumeratedEdges = allUnusedEdges(allEdgeExactMatchFlags, 3:4);
+    enumeratedEdges = allUnusedEdges(:, 3:4);
     
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(enumeratedEdges, 'rows');
@@ -67,6 +63,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
        uniqueEdgeTypesPart1 = uniqueEdgeTypes(uniqueEdgeTypes(:,1) == max(edges(:,1)), :);
        if ~isempty(uniqueEdgeTypesPart1)
            maxNode = max(edges(edges(:,1) == max(edges(:,1)),2));
+%           uniqueEdgeTypesPart1 = uniqueEdgeTypesPart1(uniqueEdgeTypesPart1(:,2) >= maxNode, :);
            uniqueEdgeTypesPart1 = uniqueEdgeTypesPart1(uniqueEdgeTypesPart1(:,2) > maxNode, :);
        end
        uniqueEdgeTypesPart2 = uniqueEdgeTypes(uniqueEdgeTypes(:,1) > max(edges(:,1)), :);
@@ -103,18 +100,13 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         % is a valid instance.
         newEdgeCosts = edgeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,1), allUnusedEdges(:,3))';
         newNodeCosts = nodeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,2), allUnusedEdges(:,4))';
-        edgesToExtendCosts = allEdgePrevCosts + newEdgeCosts + newNodeCosts;
+        edgesToExtendCosts = newEdgeCosts + newNodeCosts;
         edgesToExtendIdx = edgesToExtendCosts < threshold;
         
         if ~singleInstanceFlag &&nnz(edgesToExtendIdx) == 1
              validSubs(edgeTypeItr) = 0;
              continue;
         end
-        
-        % Check for exact matching again.
-        exactMatchFlags = allEdgeExactMatchFlags & ...
-             min(edgeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,1),:)) == newEdgeCosts & ...
-             min(nodeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,2),:)) == newNodeCosts;
         
         % Save instance ids.
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
@@ -135,9 +127,7 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         % unique instances. In addition, for each instance, the minimum
         % cost of matching is kept here.
         curInstanceMatchCosts = edgesToExtendCosts(edgesToExtendIdx);
-        curInstanceExactMatchFlags = exactMatchFlags(edgesToExtendIdx);
-        [minMatchCosts, sortIdx] = sort(curInstanceMatchCosts, 'ascend');
-        curInstanceExactMatchFlags = curInstanceExactMatchFlags(sortIdx);
+        [~, sortIdx] = sort(curInstanceMatchCosts, 'ascend');
         sortedAllChildren = allChildren(sortIdx, :);
         sortedCenterIdx = sub.instanceCenterIdx(edgeInstanceIds(sortIdx));
 
@@ -150,8 +140,6 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         sortIdx = sortIdx(validIdx);
         
         % Get minimum matching costs and children.
-        minMatchCosts = minMatchCosts(validIdx, :);
-        curInstanceExactMatchFlags = curInstanceExactMatchFlags(validIdx,:);
         sortedAllChildren = sortedAllChildren(validIdx, :);
         
         % Finally, order children by rows.
@@ -165,8 +153,6 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         newSub.instanceCenterIdx = sub.instanceCenterIdx(edgeInstanceIds);
         newSub.instanceSigns = sub.instanceSigns(edgeInstanceIds);
         newSub.instanceCategories = sub.instanceCategories(edgeInstanceIds);
-        newSub.instanceMatchCosts = minMatchCosts(idx,:);
-        newSub.instanceExactMatchFlags = curInstanceExactMatchFlags(idx,:);
         newSub.instanceValidationIdx = sub.instanceValidationIdx(edgeInstanceIds);
         
         % Add the edge to the definition.

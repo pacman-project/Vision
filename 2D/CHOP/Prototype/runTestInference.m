@@ -46,11 +46,19 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     
     % Open threads for parallel processing.
     if options.parallelProcessing
-        s = matlabpool('size');
-        if s>0
-           matlabpool close; 
+        if options.parpoolFlag
+            p = gcp('nocreate');
+            if ~isempty(p)
+                delete(p);
+            end
+            parpool(options.numberOfThreads);
+        else
+            s = matlabpool('size');
+            if s>0
+               matlabpool close; 
+            end
+            matlabpool('open', options.numberOfThreads);
         end
-        matlabpool('open', options.numberOfThreads);
     end
     
     if options.testImages
@@ -111,6 +119,8 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     
     % Close thread pool if opened.
     if options.parallelProcessing
-        matlabpool close;
+        if ~options.parpoolFlag
+            matlabpool close;
+        end
     end
 end

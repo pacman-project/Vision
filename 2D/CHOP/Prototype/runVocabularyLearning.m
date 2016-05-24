@@ -38,11 +38,19 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     
     % Open threads for parallel processing.
     if options.parallelProcessing
-        s = matlabpool('size');
-        if s>0
-           matlabpool close; 
+        if options.parpoolFlag
+            p = gcp('nocreate');
+            if ~isempty(p)
+                delete(p);
+            end
+            parpool(options.numberOfThreads);
+        else
+            s = matlabpool('size');
+            if s>0
+               matlabpool close; 
+            end
+            matlabpool('open', options.numberOfThreads);
         end
-        matlabpool('open', options.numberOfThreads);
     end
     
     if options.learnVocabulary
@@ -293,8 +301,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'categoryNames', 'categoryArrIdx', 'validationIdx', 'poseArr');
-        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'trainingFileNames', 'categoryNames');
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'categoryNames', 'categoryArrIdx', 'validationIdx', 'poseArr', '-v7');
+        save([options.currentFolder '/output/' datasetName '/vb.mat'], 'trainingFileNames', 'categoryNames', '-v7');
         
         %% Learn vocabulary!
         learnVocabulary(vocabLevel, vocabLevelDistributions, graphLevel, leafNodes, leafNodeCoords, options, trainingFileNames, modes, modeProbArr);
@@ -305,7 +313,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     
     % Close thread pool if opened.
     if options.parallelProcessing
-        matlabpool close;
+        if ~options.parpoolFlag
+            matlabpool close;
+        end
     end
 end
 

@@ -58,8 +58,6 @@ function singleNodeSubs = getSingleNodeSubs(allLabels, allSigns, nodeDistanceMat
             singleNodeSubs(subItr).instanceChildren = instances;
             singleNodeSubs(subItr).instanceMappings = instanceMappings;
             singleNodeSubs(subItr).instanceCategories = categoryIdx;
-            singleNodeSubs(subItr).instanceMatchCosts = instanceDistances;
-            singleNodeSubs(subItr).instanceExactMatchFlags = allLabels(instances) == subItr;
             singleNodeSubs(subItr).instanceSigns = instanceSigns;
             singleNodeSubs(subItr).instanceValidationIdx = instanceValidationIdx;
         else

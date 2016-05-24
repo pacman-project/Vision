@@ -31,14 +31,23 @@
         load([pwd '/Workspace.mat']);
    end
    
-  % Open/close matlabpool to save memory. 
-   if options.parallelProcessing
-       s = matlabpool('size');
-       if s>0
-          matlabpool close; 
-       end
-       matlabpool('open', options.numberOfThreads);
-   end
+    % Open threads for parallel processing.
+    if options.parallelProcessing
+        if options.parpoolFlag
+            p = gcp('nocreate');
+            if ~isempty(p)
+                delete(p);
+            end
+            parpool(options.numberOfThreads);
+        else
+            s = matlabpool('size');
+            if s>0
+               matlabpool close; 
+            end
+            matlabpool('open', options.numberOfThreads);
+        end
+    end
+    
    % Increase level itr.
    levelItr = levelItr + 1; %#ok<*NASGU>
    
@@ -67,7 +76,7 @@
        presetThreshold = options.subdue.presetThresholds(levelItr-1);
        options.optimizationFlag = false;
    end
-
+   
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
    [vocabLevel, graphLevel, ~, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix,...
        options, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Coords); %#ok<*ASGLU,*NODEF>
@@ -76,8 +85,8 @@
 %        testSuccess = testMapping(vocabLevel, graphLevel, newDistanceMatrix, mainGraph{levelItr-1});
 
    % Open/close matlabpool to save memory.
-   matlabpool close;
-   matlabpool('open', options.numberOfThreads);
+%   matlabpool close;
+%   matlabpool('open', options.numberOfThreads);
 
    %% If no new subs have been found, finish processing.
    if isempty(vocabLevel)
@@ -148,8 +157,8 @@
    end
 
    % Open/close matlabpool to save memory.
-   matlabpool close;
-   matlabpool('open', options.numberOfThreads);
+%   matlabpool close;
+%   matlabpool('open', options.numberOfThreads);
 
    %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
    % In addition, we re-assign the node ids in graphLevel.
@@ -205,6 +214,11 @@
    [mainGraph] = extractEdges(mainGraph, options, levelItr);
    graphLevel = mainGraph{levelItr};
    java.lang.System.gc();
+   
+   %% We delete unnecessary levels.
+   if levelItr > 3
+      mainGraph(levelItr-2) = []; 
+   end
 
    %% Here, we bring back statistical learning with mean/variance.
    [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
@@ -237,13 +251,13 @@
    % Export realizations into easily-readable arrays.
    display('Writing output to files.');
    [exportArr, activationArr] = exportRealizations(mainGraph); %#ok<ASGLU>
-   save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', '-append', '-v7.3'); 
+   save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', '-append'); 
    clear activationArr precisePositions;
 
    % Print everything to files.
-   save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', '-append', '-v7.3');
-   save([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions', 'options');
-   save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
+   save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', '-append');
+   save([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions', 'options', '-v7');
+   save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7'); 
    
    %% Visualize images and vocabulary.
    if ~isempty(vocabLevel) && options.debug
@@ -251,7 +265,7 @@
      [allNodeInstances, representativeNodes] =visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
      display('........ Visualizing realizations on images...');
      if ~isempty(vocabLevel)
-          matlabpool close;
+ %         matlabpool close;
           % Visualize realizations on images, and crop relevant
           % image parts.
           visualizeImages( fileList, vocabLevel, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, 'train' );
@@ -266,7 +280,7 @@
                  display('Visualization error'); 
               end
           end
-          matlabpool('open', options.numberOfThreads);
+%          matlabpool('open', options.numberOfThreads);
      end
      printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
      clear allNodeInstances representativeNodes;
@@ -275,13 +289,13 @@
    
    %% If we've reached max number of layers, don't keep going forward.
    if levelItr == options.maxLevels || stopFlag
-       save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
+       save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7'); 
        return;
    end
 
    % Open/close matlabpool to save memory.
-   matlabpool close;
-   matlabpool('open', options.numberOfThreads);
+%   matlabpool close;
+%   matlabpool('open', options.numberOfThreads);
 
    %% Step 2.6: If no new edges found, kill program.
    newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));
@@ -297,15 +311,19 @@
    % clearing all, and then returning back to computation.
    scriptName = [options.currentFolder '/' options.datasetName '.sh'];
    restartFlag = options.restartFlag;
+   
+   % Save workspace for later operation.
+   disp(['Saving layer ' num2str(levelItr) ' workspace.']);
+   save([pwd '/Workspace.mat'], '-v7');
+   copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
+
+   % Restart program.
    if restartFlag
         bInfo = dbstatus;
         % Finally, we save the workspace and call the next iteration.
-         disp(['Saving layer ' num2str(levelItr) ' workspace.']);
-         save([pwd '/Workspace.mat'], '-v7.3');
-         copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
-         clearvars -except restartFlag scriptName datasetName
-         system(scriptName);
-         exit
+        clearvars -except restartFlag scriptName datasetName
+        system(scriptName);
+        exit
    else
          learnVocabularyLevel();
    end

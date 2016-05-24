@@ -21,16 +21,16 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     maxSamplesPerMode = 200;
     minSamplesPerMode = 1.5;   
     if levelItr == 1
-         maximumModes = 10;
+         maximumModes = 6;
     else
-         maximumModes = 8;
+         maximumModes = 4;
     end
     dummySigma = 0.0005;
     noiseSigma = 0.0001;
     minProb = 0.0001;
     halfSize = ceil(size(edgeIdMatrix,1) / 2);
     edgeQuantize = size(edgeIdMatrix,1);
-    sampleDist = (1/edgeQuantize) * 2;
+    sampleDist = (1/edgeQuantize) * 4;
     
     cx=halfSize;cy=cx;ix=edgeQuantize;iy=ix;r=halfSize;
     [x,y]=meshgrid(-(cx-1):(ix-cx),-(cy-1):(iy-cy));
@@ -76,12 +76,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     
     %% For each unique edge type (node1-node2 pair), estimate modes and save them in modes array.
     modeProbArr = cell(numberOfUniqueEdges, 1);
-    for uniqueEdgeItr = 1:numberOfUniqueEdges
-        
-        
-        if uniqueEdgeItr == 430
-           1 
-        end
+    parfor uniqueEdgeItr = 1:numberOfUniqueEdges
         
         probs = [];endProbs=[];topProbs=[];rightProbs=[]; %#ok<NASGU>
         w = warning('off', 'all');

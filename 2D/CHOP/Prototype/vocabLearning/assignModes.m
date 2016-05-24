@@ -26,11 +26,11 @@ function [ classes ] = assignModes( samples, minSamplesPerMode, maximumModes )
         if numberOfClusters <= 1
             classes = ones(size(samples,1),1);
         else
-            classes = mec(samples, 'c', numberOfClusters, 'kmeans_i', 3, 'kernel', 1);
+            classes = mec(samples, 'c', numberOfClusters, 'kernel', 1, 'width', 1.6);
         end
    else
        % Enough samples, process data.
-       classes = mec(samples, 'c', maximumModes, 'kmeans_i', 3, 'kernel', 1);
+       classes = mec(samples, 'c', maximumModes, 'kernel', 1, 'mec_maxiter', 50, 'width', 1.6);
    end
    classes = int32(classes);
 end

@@ -18,7 +18,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
-    options.matlabRestartImageCount = 4000; % If we have more than this number 
+    options.matlabRestartImageCount = 2000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
@@ -103,13 +103,13 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.5;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.categoryLevelEdgeNoveltyThr = 0.25;
-    options.edgeType = 'centroid';     % If 'centroid', downsampling is
+    options.categoryLevelEdgeNoveltyThr = 0.3;
+    options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
@@ -125,7 +125,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.minContinuityCoverage = 0.94; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
-    options.categoryLevelMissingNodeThr = 0.95; %In category level, missing node threshold is treated differently.
+    options.categoryLevelMissingNodeThr = 0.9; %In category level, missing node threshold is treated differently.
     options.edgeChangeLevel = -1; % Going to be updated in the code later.
     options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
@@ -173,7 +173,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 8; % The level where we switch from 
+    options.categoryLevel = 9; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -284,16 +284,14 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                 % when looking for an optimal threshold.
                                 % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = min(10, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 10000;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 300000;  % Maximum number of nodes allowed in a level.
+    options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
                                      % unique (in terms of node sets) instances 
                                      % are taken into account (DEFAULT).
-                                     % Also, redundancy is removed from the
-                                     % main graph.
      options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 

@@ -35,7 +35,7 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
     validExtSubs = ones(numberOfSubs,1) > 0;
-    parfor subItr = 1:numberOfSubs
+    for subItr = 1:numberOfSubs
         % Find the weight of this node, by taking the max of the category distribution. 
         if isSupervised
             categoryArr = double(subs(subItr).instanceCategories);
@@ -90,9 +90,7 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
              sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
              sub.instanceChildren = sub.instanceChildren(validInstances,:);
              sub.instanceEdges = sub.instanceEdges(validInstances,:);
-             sub.instanceExactMatchFlags = sub.instanceExactMatchFlags(validInstances,:);
              sub.instanceMappings = sub.instanceMappings(validInstances,:);
-             sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
              sub.instanceSigns = sub.instanceSigns(validInstances,:);
              sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
         end

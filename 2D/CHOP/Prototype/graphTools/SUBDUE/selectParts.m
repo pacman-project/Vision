@@ -100,10 +100,9 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
         % cross-validation, we fit the training data.
         if validationFolds > 1
             for subItr = 1:numel(orgBestSubs)
-                instanceMatchCosts = orgBestSubs(subItr).instanceMatchCosts;
                 instanceValidationIdx = orgBestSubs(subItr).instanceValidationIdx;
 
-                if nnz(instanceMatchCosts == 0 & instanceValidationIdx ~= valItr) == 0
+                if nnz(instanceValidationIdx ~= valItr) == 0
                    validSubIdx(subItr) = 0; 
                 end
             end
@@ -138,20 +137,4 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
     
    % Update instance information.
    bestSubs = bestSubs(finalSubList);
-   % Update bestSubs instances by taking the new threshold into account.
-   parfor bestSubItr = 1:numel(bestSubs)
-        sub = bestSubs(bestSubItr);
-        validInstances = sub.instanceMatchCosts < ((size(sub.edges,1)*2+1) * optimalThreshold + singlePrecision);
-        sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
-        sub.instanceChildren = sub.instanceChildren(validInstances,:);
-        sub.instanceMappings = sub.instanceMappings(validInstances,:);
-        if ~isempty(sub.edges)
-            sub.instanceEdges = sub.instanceEdges(validInstances,:);
-        end
-        sub.instanceSigns = sub.instanceSigns(validInstances,:);
-        sub.instanceCategories = sub.instanceCategories(validInstances,:);
-        sub.instanceMatchCosts = sub.instanceMatchCosts(validInstances,:);
-        sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
-        bestSubs(bestSubItr) = sub;
-   end
 end
