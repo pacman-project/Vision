@@ -41,6 +41,7 @@ function [avgShareability, avgCoverage, maxCoverageVals] = saveStats(vocabLevel,
     numberOfVocabNodes = max(vocabLabelIds);
     labelIds = vocabLabelIds([graphLevel.labelId]');
     imageIds = [graphLevel.imageId]';
+    leafNodes = {graphLevel.leafNodes};
     compositionImageCountArr = zeros(numberOfVocabNodes,1);
     
     for labelId = 1:numberOfVocabNodes
@@ -50,8 +51,8 @@ function [avgShareability, avgCoverage, maxCoverageVals] = saveStats(vocabLevel,
     
     %% Calculate coverage of each image's leaf nodes in detected realizations.
     imageCoverageArr = zeros(numberOfImages,1);
-    for imageItr = 1:numberOfImages
-       detectedLeafNodes = int32(unique([graphLevel(imageIds == imageItr).leafNodes]));
+    parfor imageItr = 1:numberOfImages
+       detectedLeafNodes = int32(fastsortedunique(sort([leafNodes{imageIds == imageItr}])));
        detectedLeafNodeCoords = leafNodeCoords(detectedLeafNodes, :);
        imageMatrix = zeros(imageSize) > 0;
        for leafNodeItr = 1:numel(detectedLeafNodes)

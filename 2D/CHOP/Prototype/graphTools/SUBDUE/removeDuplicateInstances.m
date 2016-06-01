@@ -24,13 +24,7 @@ function [ subList ] = removeDuplicateInstances( subList )
         [subList(bestSubItr).instanceChildren, idx] = sortrows(instanceChildren);
         validIdx = validIdx(idx);
         subList(bestSubItr).instanceCenterIdx = subList(bestSubItr).instanceCenterIdx(validIdx, :);
-        if ~isempty(subList(bestSubItr).instanceEdges)
-            subList(bestSubItr).instanceEdges = subList(bestSubItr).instanceEdges(validIdx, :);
-        end
-        subList(bestSubItr).instanceCategories = subList(bestSubItr).instanceCategories(validIdx, :);
         subList(bestSubItr).instanceSigns = subList(bestSubItr).instanceSigns(validIdx, :);
-        subList(bestSubItr).instanceValidationIdx = subList(bestSubItr).instanceValidationIdx(validIdx, :);
-        subList(bestSubItr).instanceMappings = subList(bestSubItr).instanceMappings(validIdx, :);
     end
 end
 

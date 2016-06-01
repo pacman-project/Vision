@@ -18,7 +18,7 @@
 %> Ver 1.0 on 21.01.2014
 function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatrix, datasetName, levelItr, currentFolder, debug)
     display('Learning modes...');
-    maxSamplesPerMode = 200;
+    maxSamples = 200;
     minSamplesPerMode = 1.5;   
     if levelItr == 1
          maximumModes = 6;
@@ -64,10 +64,11 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         sampleEdgeCoords = nodeCoords(sampleIds(:,2),:) - nodeCoords(sampleIds(:,1),:); %#ok<PFBNS>
         
         %% If there are too many samples, get random samples.
-        if size(samplesForEdge,1)>maxSamplesPerMode
-            [samplesForEdge, idx] = datasample(samplesForEdge, maxSamplesPerMode, 'Replace', false);
+        if size(samplesForEdge,1)>maxSamples
+            [samplesForEdge, idx] = datasample(samplesForEdge, maxSamples, 'Replace', false);
             sampleEdgeCoords = sampleEdgeCoords(idx,:);
         end
+        
         %Downsample samplesForEdge and save them.
         samplesForEdge = (double(samplesForEdge + halfSize) / edgeQuantize);
         uniqueEdgeSamples(uniqueEdgeItr) = {samplesForEdge};

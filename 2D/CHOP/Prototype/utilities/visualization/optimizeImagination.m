@@ -36,6 +36,7 @@ function [ refModalImg, experts ] = optimizeImagination( nodes, vocabulary, imag
      likelihoodThr = likelihoodLookupTable(1,1) * likelihoodChangeThr; % Change in likelihood that's enough to reconsider that sub.
      poeCounter = 0;
      curLevelItr = nodes(1, 4);
+     minOptimizationLayer = min(minOptimizationLayer, curLevelItr);
      dummyBand = zeros(imageSize, 'uint8');
      
      % If the file name is given, use that one.
@@ -549,7 +550,7 @@ function [expertPosLikelihoodVal] = GetTreeLikelihood(subChildren, expertNode, h
      dummyLhood = log(0.001);
      dummyPosSigma = 1;
      %% First, we check for OR node likelihood.
-     expertChildren = subChildren(:,1)';
+     expertChildren = single(subChildren(:,1)');
      [memInfo, idx] = ismember(expertChildren, expertNode.childrenLabelDistributions(:,1:end-1), 'rows');
      if memInfo
           expertPosLikelihoodVal =  log(expertNode.childrenLabelDistributions(idx,end));

@@ -31,41 +31,51 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           return;
      end
      
+     [~, edgeOffsets] = ismember(1:numel(graphLevel), allEdges(:,1));
+     edgeOffsets = edgeOffsets - 1;
+     
      % Create mode index array.
-     uniqueModes = unique(modes(:,1:2), 'stable', 'rows');
+     [uniqueModes, IA, ~] = unique(modes(:,1:2), 'stable', 'rows');
+     maxMode = numel(IA);
+     uniqueModes = int32(uniqueModes);
+     
+     [~, modeMapIds] = ismember(nodeIds(allEdges(:, 1:2)), uniqueModes, 'rows');
+     allEdges = {graphLevel.adjInfo};
      
 %     totalEdgeCount = 0;
 %     validEdgeCount = 0;
      
      % Get node ids of edges.
+     zeroEdges = zeros(0, 'int32');
+     modes = modes(:,3);
+     assignedEdges = cell(numel(graphLevel),1);
      parfor graphLevelItr = 1:numel(graphLevel)
-          edges = graphLevel(graphLevelItr).adjInfo;
+          edges = allEdges{graphLevelItr};
 
           % Edges empty, do nothing.
           if isempty(edges)
+               assignedEdges{graphLevelItr} = zeroEdges;
                continue;
           end
           
-          edgeNodeLabels = nodeIds(edges(:, 1:2));
-          if size(edgeNodeLabels,2) ~= 2
-               edgeNodeLabels = edgeNodeLabels';
-          end
+          edgeOffset = edgeOffsets(graphLevelItr);
           
           % Assign each edge a to a relevant mode.
-          for edgeItr = 1:size(edges,1)
+          numberOfEdges = size(edges,1);
+          for edgeItr = 1:numberOfEdges
+               % Get the mode map id.
+               modeRow = modeMapIds(edgeOffset + edgeItr);
                
-               % Get mode row id.
-               modeRow = find(uniqueModes(:,1) == edgeNodeLabels(edgeItr,1) & uniqueModes(:,2) == edgeNodeLabels(edgeItr,2));
-               if isempty(modeRow)
-                    continue;
+               if modeRow == 0
+                  continue; 
                end
                
-               % Sanity check.
-               modeRow = modeRow(1);
-               
                % Get possible row ids.
-               relevantIdx = modes(:, 1) == edgeNodeLabels(edgeItr,1) & modes(:,2) == edgeNodeLabels(edgeItr,2);
-               relevantModes = modes(relevantIdx,:);
+               if modeRow == maxMode
+                   relevantModes = modes(IA(modeRow):end, 1);
+               else
+                   relevantModes = modes(IA(modeRow):(IA(modeRow+1)-1), 1);
+               end
                
                % Finally, obtain the edge id.
                relevantCoords = edgeCoords(edges(edgeItr,3),:);
@@ -73,21 +83,23 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
                if clusterId == 0
                     newLabel = 0;
                else
-                    newLabel = int32(relevantModes(clusterId,3));
+                    newLabel = int32(relevantModes(clusterId));
                end
                
                % Assign new label.
                edges(edgeItr,3) = newLabel;
           end
-          
           % Collect statistics about what percentage of edges are rendered
           % useless.
 %          totalEdgeCount = totalEdgeCount + size(edges,1);
 %          validEdgeCount = validEdgeCount + nnz(edges(:,3) > 0);
           
           % Save edges.
-          graphLevel(graphLevelItr).adjInfo = edges(edges(:,3) > 0, :);
+          assignedEdges{graphLevelItr} = edges(edges(:,3) > 0, :);
      end
+     
+     % Assign the edges to the relevant data structure.
+     [graphLevel.adjInfo] = deal(assignedEdges{:});
      
      % Report on deleted edges.
 %     display(['%' num2str(round(100*(validEdgeCount/totalEdgeCount)))...

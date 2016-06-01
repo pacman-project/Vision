@@ -22,8 +22,6 @@ classdef GraphNode
                  % mainGraph(object graphs). They link to realization ids,
                  % which are indices of GraphNodes in respective mainGraph
                  % level.
-        mapping@uint8 % The mapping of children nodes to the definition of the
-                      % part, indicated by labelId. 
         adjInfo@int32 % Different than VocabNode, this field encodes relations of 
                 % this graph node with its surroundings. It has nothing to
                 % do with the children or the parent. After learning

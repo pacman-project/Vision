@@ -14,10 +14,9 @@
 %> Ver 1.0 on 03.07.2014
 function [ ] = runDiscriminativeAnalysis( datasetName )
     %#ok<*NODEF>
-    options = SetParameters(datasetName, 'train');
     % Read the vocabulary and the exported realizations. 
-    load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'distanceMatrices');
-    load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx', 'poseArr');
+    load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'distanceMatrices', 'options');
+    load([pwd '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx', 'poseArr');
     
     % We go through each layer of the vocabulary, and calculate precision,
     % recall, f-score of each part. 
@@ -60,8 +59,7 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
         
         if levelItr>1
             mdlScores = cat(1, vocabLevel(IA).mdlScore);
-            normMdlScores = cat(1, vocabLevel(IA).normMdlScore);
-            mdlScoreArr(partOffset:(partOffset+numberOfParts-1),3:4) = [mdlScores, normMdlScores];
+            mdlScoreArr(partOffset:(partOffset+numberOfParts-1),3:4) = [mdlScores, mdlScores];
         end
         
         %% Calculate the metrics for every part and category pair. 

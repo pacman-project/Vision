@@ -32,6 +32,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     edgeCoords = options.edgeCoords;
     distType = options.distType;
     stopFlag = options.stopFlag;
+    smallImageSize = 50;
     
     % Get number of OR nodes.
     if stopFlag
@@ -118,6 +119,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    % Comparison of modal reconstructions involves creating a pixel
    % prediction for every pixel, and then looking for matches.
    muImgs = zeros(numberOfNodes, imageSize(1), imageSize(2));
+   smallImageSize = min(smallImageSize, imageSize(1));
+   smallMuImgs = zeros(numberOfNodes, smallImageSize, smallImageSize);
    newDistanceMatrix = zeros(numel(vocabLevel), 'single');
 
    % Create a blurring filter.
@@ -132,10 +135,19 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
         muImg = uint8(round(255*(double(muImg) / double(max(max(muImg))))));
         blurredMuImg = uint8(imfilter(muImg, H, 'replicate'));
         muImgs(vocabNodeItr,:,:) = blurredMuImg;
+        
+        % Save the image in a small array.
+        if imageSize(1) > smallImageSize
+            smallMuImgs(vocabNodeItr, :, :) = imresize(muImg, [smallImageSize, smallImageSize]); %#ok<PFOUS>
+        else
+            smallMuImgs(vocabNodeItr, :, :) = muImg;
+        end
+           
         blurredMuImg = uint8(round(255*(double(blurredMuImg) / double(max(max(blurredMuImg))))));
         imwrite(muImg, [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '.png']);
         imwrite(blurredMuImg, [debugFolder '/level' num2str(levelItr) '/modalProjection/' num2str(vocabNodeItr) '_blurred.png']);
    end
+   save([debugFolder '/level' num2str(levelItr) '/modalProjection/muImgs.mat'], 'smallMuImgs'); 
    
    display('........ Calculating part distances and performing clustering, based on a dynamic cut-off index..');
    if strcmp(distType, 'modal')
@@ -198,7 +210,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
          
          % If stop flag is not up, we find an optimal number of clusters.
          if ~stopFlag
-              clusterStep = 1;
+              clusterStep = 5;
               maxNumberOfORNodes = options.reconstruction.maxNumberOfORNodes;
               sampleCounts = min([round(maxNumberOfORNodes/10), round(size(newDistanceMatrix,1)/2)]):...
                    clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrix,1))-round((size(newDistanceMatrix,1))/5))]);
@@ -338,6 +350,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               clusterCount = numberOfORNodes;
          end
          
+  %      clusterCount = numberOfORNodes;
+
          % Find optimal number of clusters.
 %          [~, maxIdx] = max(dunnVals);
 %          clusterCount = sampleCounts(maxIdx);

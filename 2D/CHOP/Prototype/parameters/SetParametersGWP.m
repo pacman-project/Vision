@@ -147,9 +147,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % receptive field size grows by 
                                          % 1/scaling.
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
-    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
+    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
@@ -173,7 +173,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 9; % The level where we switch from 
+    options.categoryLevel = 8; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -191,10 +191,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
                % Hint: A good number is the number of poses per object.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 8000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 3000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 300; % The maximum 
+    options.reconstruction.numberOfORNodes = 250; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
     options.reconstruction.maxNumberOfORNodes = 800; % Ideal number of OR 
@@ -249,42 +249,8 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
-    options.subdue.threshold = 0.05; % Theshold for elastic part matching. 
-                                    % Can be in [0,1]. 
-                                    % 0: Strict matching, 
-                                    % (value -> 1) Matching criterion 
-                                    % gets looser.
-                                    % This similarity threshold is used to
-                                    % group parts in the same level
-                                    % together in order to increase
-                                    % generalization ability of detected
-                                    % parts.
-                                    % Ignored if reconstruction flag is
-                                    % true, since an optimal threshold is
-                                    % searched within the limits specified
-                                    % by minThreshold and maxThreshold.
-    options.subdue.presetThresholds = 0.05;
-%    options.subdue.presetThresholds = [0.05, 0.15, 0.2 0.2 0.2 0.2 0.2 0.2 0.2]; % This array 
-                                    % is used to define a pre-defined set
-                                    % of thresholds to be used for graph
-                                    % mining. It's added in order to speed
-                                    % up the subgraph discovery process.
-                                    % The first entry belongs to level 2,
-                                    % while the Nth entry belongs to level
-                                    % N+1. If the number of levels the
-                                    % algorithm is supposed to perform is
-                                    % more than length(presetThresholds)+1,
-                                    % the default threshold is used for the
-                                    % rest of the way.
-    % The following min/max threshold values limit the area in which an
-    % optimal elasticity threshold is going to be searched. 
-    options.subdue.minThreshold = 0.05; % Minimum threshold for elastic matching.
-    options.subdue.maxThreshold = 0.2   ; % Max threshold for elastic part matching. 
-    options.subdue.thresholdSearchMaxDepth = 10; % The depth of binary search 
-                                % when looking for an optimal threshold.
-                                % (min 10).
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
+    options.subdue.maxSize = min(3, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
     options.subdue.nsubs = 300000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

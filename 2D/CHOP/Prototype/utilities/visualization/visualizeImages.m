@@ -17,16 +17,12 @@
 %>
 %> Updates
 %> Ver 1.0 on 09.12.2013
-function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, type )
+function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, type )
     outputTempDir = [options.outputFolder '/reconstruction/' type];
     backgroundDir = [options.outputFolder '/reconstruction/' type '/' options.backgroundClass];
     processedFolder = options.processedFolder;   
     reconstructionType = options.reconstructionType;
-    instancePerNode = options.vis.instancePerNode-1;
     printTrainRealizations = options.vis.printTrainRealizations;
-    numberOfVocabLevelNodes = double(max([vocabLevel.label]));
-    activations = cat(1, graphLevel.activation);
-    
     filter1 = options.filters{1};
     filtBandCount = size(filter1,3);
     
@@ -115,6 +111,13 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
            continue; 
         end
         
+        % Allocate arrays for fast access.
+        nodePrecisePositions = cat(1, nodes.precisePosition);
+        nodeLabelIds = cat(1, nodes.labelId);
+        nodeRealLabelIds = cat(1, nodes.realLabelId);
+        nodeLeafNodes = {nodes.leafNodes};
+        nodeAdjInfo = {nodes.adjInfo};
+        
         % Learn if this image is a background image.
         isBackground = ~nodes(1).sign;
         
@@ -136,13 +139,11 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
         
         %% Reconstruct each node.
         for nodeItr = 1:numel(nodes)
-            activation = nodes(nodeItr).activation;
-            
             % Fetch the node list to reconstruct.
             if strcmp(reconstructionType, 'true')
                 reconstructedNodes = nodeItr;
             else
-                reconstructedNodes = nodes(nodeItr).leafNodes;
+                reconstructedNodes = nodeLeafNodes{nodeItr};
             end
             
             %% Process each reconstructed node, and write them to a mask if necessary.
@@ -201,16 +202,16 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)));
                  
                  avgNodeMask = mean(nodeMask,3);
-                 reconstructedPatch(avgNodeMask > 10) = nodes(nodeItr).labelId;
+                 reconstructedPatch(avgNodeMask > 10) = nodeLabelIds(nodeItr);
                  labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2))) = reconstructedPatch;
             end
             
             %% Write original image's cropped area to a file.
             if ~isempty(allNodeInstances)
-                 representativeNode = representativeNodes(nodes(nodeItr).labelId);
+                 representativeNode = representativeNodes(nodeLabelIds(nodeItr));
                  nodeInstances = allNodeInstances{representativeNode};
-                 if ismember(relevantNodeIds(nodeItr), nodeInstances(:,1))
+                 if ismembc(relevantNodeIds(nodeItr), nodeInstances(:,1))
                      imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
                      nodeInfo = nodeInstances(imgId+1,:);
                      buffer = max([0, 1-nodeInfo(2), 1-nodeInfo(3), nodeInfo(4) - imageSize(1), nodeInfo(5) - imageSize(2)]);
@@ -226,8 +227,8 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
                      end
                  end
                  
-                 nodeInstances = allNodeInstances{nodes(nodeItr).realLabelId};
-                 if ismember(relevantNodeIds(nodeItr), nodeInstances(:,1)) && nodes(nodeItr).realLabelId ~= representativeNode
+                 nodeInstances = allNodeInstances{nodeRealLabelIds(nodeItr)};
+                 if ismembc(relevantNodeIds(nodeItr), nodeInstances(:,1)) && nodeRealLabelIds(nodeItr) ~= representativeNode
                      imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
                      
                      % Crop the image and print it.
@@ -238,17 +239,17 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
                          nodeInfo(:,2:5) = [nodeInfo(2:3) + buffer, nodeInfo(4:5) - buffer];
                          tempImg((buffer+1):(end-buffer), (buffer+1):(end-buffer), :) = actualImg(nodeInfo(2):nodeInfo(4), ...
                               nodeInfo(3):nodeInfo(5), :);
-                         imwrite(tempImg, [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
+                         imwrite(tempImg, [croppedOrgFolder '/' num2str(nodeRealLabelIds(nodeItr)) '_' num2str(imgId) '.png']);
                      else
                           imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
-                              nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(nodes(nodeItr).realLabelId) '_' num2str(imgId) '.png']);
+                              nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(nodeRealLabelIds(nodeItr)) '_' num2str(imgId) '.png']);
                      end
                  end
             end
             
             %% Mark the center of each realization with its label id.
-            labeledReconstructedMask(round(nodes(nodeItr).precisePosition(1)-1):round(nodes(nodeItr).precisePosition(1)+1), ...
-                round(nodes(nodeItr).precisePosition(2)-1):round(nodes(nodeItr).precisePosition(2)+1)) = nodes(nodeItr).labelId;
+            labeledReconstructedMask((nodePrecisePositions(nodeItr,1)-1):(nodePrecisePositions(nodeItr,1)+1), ...
+                (nodePrecisePositions(nodeItr,2)-1):(nodePrecisePositions(nodeItr,2)+1)) = nodeLabelIds(nodeItr);
         end
        
         % Normalize and obtain final reconstructed image.
@@ -280,35 +281,50 @@ function [ ] = visualizeImages( fileList, vocabLevel, graphLevel, representative
             %% Add edges to the image for visualization.
             edgeImg = zeros(sizeOfImage);
             edgeRgbImg = rgbImg;
-            
             nodeImg = zeros(sizeOfImage);
+            
             centerSize = 1;
             for nodeItr = 1:numel(nodes)
-                edgeImg(round(nodes(nodeItr).precisePosition(1)-centerSize):round(nodes(nodeItr).precisePosition(1)+centerSize), ...
-                    round(nodes(nodeItr).precisePosition(2)-centerSize):round(nodes(nodeItr).precisePosition(2)+centerSize)) = nodes(nodeItr).labelId;
-                nodeImg(round(nodes(nodeItr).precisePosition(1)-centerSize):round(nodes(nodeItr).precisePosition(1)+centerSize), ...
-                    round(nodes(nodeItr).precisePosition(2)-centerSize):round(nodes(nodeItr).precisePosition(2)+centerSize)) = nodes(nodeItr).labelId;
+                edgeImg((nodePrecisePositions(nodeItr, 1) - centerSize):(nodePrecisePositions(nodeItr, 1) + centerSize), ...
+                    (nodePrecisePositions(nodeItr, 2) - centerSize):(nodePrecisePositions(nodeItr, 2) + centerSize)) = nodeLabelIds(nodeItr);
+                nodeImg((nodePrecisePositions(nodeItr, 1) - centerSize):(nodePrecisePositions(nodeItr, 1) + centerSize), ...
+                    (nodePrecisePositions(nodeItr, 2) - centerSize):(nodePrecisePositions(nodeItr, 2) + centerSize)) = nodeLabelIds(nodeItr);
             end
             
+             allEdges = cat(1, nodes.adjInfo);
+             if ~isempty(allEdges)
+                [~, IA, ~] = unique(sort(allEdges(:,1:2),2), 'stable', 'rows');
+                validEdges = zeros(size(allEdges,1),1) > 0;
+                validEdges(IA) = 1;
+             else
+                validEdges = [];
+             end
+             
+             
+            edgeOffset = 0;
             for nodeItr = 1:numel(nodes)
-                edges = nodes(nodeItr).adjInfo;
+                edges = nodeAdjInfo{nodeItr};
                 if ~isempty(edges)
                     edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
+                    
+                    % Remove double edges.
                     if ~isempty(edges)
                         for edgeItr = 1:size(edges,1)
-                           edgeIdx = drawline(double(nodes(edges(edgeItr,1)).precisePosition), double(nodes(edges(edgeItr,2)).precisePosition), sizeOfImage);
-                           edgeImg(edgeIdx) = edges(edgeItr,3);
+                           if validEdges(edgeOffset + edgeItr)
+                               edgeIdx = drawline(nodePrecisePositions(edges(edgeItr,1), :), nodePrecisePositions(edges(edgeItr,2), :), sizeOfImage);
+                               edgeImg(edgeIdx) = edges(edgeItr,3);
+                           end
                         end
+                        edgeOffset = edgeOffset + size(edges,1);
                     end
                 end
             end
             
-            % 
             edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
             nodeImg = label2rgb(nodeImg, 'jet', 'k', 'shuffle');
             edgeRgbImg = max(edgeRgbImg, edgeImg);
 
-            % 
+            % Write images to output.
             if levelItr>1
                 imwrite(rgbImg, [outputDir, '/' fileName '_level' num2str(levelItr) '_' reconstructionType '.png']);
                 imwrite(edgeImg, [outputDir, '/' fileName '_level' num2str(levelItr) 'onlyEdges.png']);

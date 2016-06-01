@@ -1,5 +1,5 @@
 function [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs, numberOfFinalSubs, ...
-    categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision)
+    categoryArrIdx, imageIdx, singlePrecision)
 
     numberOfFinalSubs = numberOfFinalSubs * 2;
     if numel(bestSubs) < numberOfFinalSubs

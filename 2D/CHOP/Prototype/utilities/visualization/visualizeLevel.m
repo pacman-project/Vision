@@ -17,16 +17,14 @@
 %> Updates
 %> Ver 1.0 on 10.02.2014
 %> Redundant vocabulary output option added. 10.05.2014
-function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel, vocabulary, graphLevel, firstActivations, leafNodes, leafNodeCoords, levelId, numberOfFirstLevelNodes, ~, options)
+function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel, graphLevel, firstActivations, leafNodes, leafNodeCoords, levelId, numberOfFirstLevelNodes, ~, options)
     % Read options to use in this file.
     currentFolder = options.currentFolder;
     datasetName = options.datasetName;
-    filtBandCount = size(options.filters{1},3);
-    numberOfThreads = options.numberOfThreads;
-    childrenPerNode = options.vis.nodeReconstructionChildren;
     instancePerNode = options.vis.instancePerNode;
     visualizedNodes = options.vis.visualizedNodes;
     vocabLevelLabels = [currentLevel.label];
+    maxImgSize = 50;
     
     [~, filters, ~, ~] = createOptimizationStructures(options, levelId, false);
     
@@ -58,13 +56,11 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     %% Learn positions of leaf nodes.
     if levelId > 1
         leafNodeSets = {graphLevel.leafNodes}';
-        centerPos = int32(round(cat(1, graphLevel.precisePosition)));
         nodeLabelIds = double(cat(1, graphLevel.realLabelId));
         orNodeLabelIds = double(cat(1, graphLevel.labelId));
         nodeImageIds = cat(1, graphLevel.imageId);
         nodeActivations = cat(1, graphLevel.activation);
         leafNodeLabelIds = leafNodes(:, 1);
-        leafNodePos = leafNodeCoords;
     end
     
     % Find representative parts for every or node (the one with most
@@ -109,7 +105,6 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
         %% In other levels, combine the nodes of previous levels depending on mode info and visualize current level.
         % Read previous layer's masks.
         firstLevelDir = [currentFolder '/debug/' datasetName '/level' num2str(1) '/reconstruction/'];
-%        numberOfNodes = double(max(vocabLevelLabels));
         numberOfNodes = numel(vocabLevelLabels);
         firstNodeMasks = cell(numberOfFirstLevelNodes,1);
         avgFirstNodeMasks = cell(numberOfFirstLevelNodes,1);
@@ -129,13 +124,12 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
         %% To parallelize things, we put vocabulary nodes in different sets, and give each to a thread.
         nodeSet = (1:numberOfNodes);
         numberOfThreadsUsed = 1;
-        if options.parallelProcessing && numberOfThreads > 1 && numberOfNodes > numberOfThreads
-            parallelNodeSetIdx = round(1:((numberOfNodes-1)/numberOfThreads):numberOfNodes);
+        if options.parallelProcessing && numberOfThreadsUsed > 1 && numberOfNodes > numberOfThreadsUsed
+            parallelNodeSetIdx = round(1:((numberOfNodes-1)/numberOfThreadsUsed):numberOfNodes);
             parallelNodeSetIdx = parallelNodeSetIdx(2:end)-parallelNodeSetIdx(1:(end-1));
             parallelNodeSetIdx(end) = parallelNodeSetIdx(end) + 1;
             parallelNodeSets = mat2cell(nodeSet, 1, parallelNodeSetIdx);
             parallelVocabNodeSets = parallelNodeSets;
-            numberOfThreadsUsed = numberOfThreads;
         else
             parallelNodeSets = {nodeSet};
             parallelVocabNodeSets = {1:numberOfNodes};
@@ -153,9 +147,8 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
             nodeImgs = cell(numel(nodeSet),1);
             
             % Go through each composition in current node set.
-            for nodeItr = 1:numel(nodeSet)
+            parfor nodeItr = 1:numel(nodeSet)
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
-   %             labelId = vocabLevelIdx(vocabNodeSet(nodeItr));
                 labelId = vocabNodeSet(nodeItr);
           
                 orNodeId = find(representativeNodes == labelId);
@@ -221,6 +214,11 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                         imwrite(currentMask, [reconstructionDir num2str(nodeSet(nodeItr)) '_var_' num2str(nodeInstanceItr) '.png']);
                     end
                     
+                    % For saving images, we work with smaller sizes.
+                    if size(currentMask,1) > maxImgSize
+                       currentMask = imresize(currentMask, [maxImgSize, maxImgSize]); 
+                    end
+                    
                     % Save all instances. We'll print them to another
                     % image.
                     instanceImgs(nodeInstanceItr) = {currentMask};
@@ -228,7 +226,9 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                 
                 % Combine instance images together, write them to a larger
                 % image and save it.
-                allNodeInstances{labelId} = nodeInstances;
+                %allNodeInstances{labelId} = nodeInstances; (True if set >
+                %1).
+                allNodeInstances{nodeItr} = nodeInstances;
                 nodeImgs(nodeItr) = {instanceImgs};
             end
             warning(w);
@@ -259,7 +259,6 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     imgSize = [size(nodeImgs{1}{1},1), size(nodeImgs{1}{1},2)];
     overallImage = NaN((rowImgCount)*(imgSize(1)+1)+1, colImgCount * (imgSize(2)+1)+1, dim3);
     overallInstanceImage = NaN((smallRowImgCount * instanceImgDim)*(imgSize(1)+1)+1, smallColImgCount * instanceImgDim * (imgSize(2)+1)+1, dim3);
- %   overallInstanceRealImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
     for nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{visRepresentativeNodes(nodeItr)};
         for instItr = 1:numel(instanceImgs)
@@ -304,8 +303,8 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     overallInstanceImage = uint8(overallInstanceImage);
 
     % Then, write the compositions the final image.
-    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.png']);
-    imwrite(overallInstanceImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb_variations.png']);
+    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb.jpg']);
+    imwrite(overallInstanceImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb_variations.jpg']);
     clearvars -except allNodeInstances representativeNodes
 end
 

@@ -14,7 +14,6 @@ classdef VocabNode
               % In case of redundant parts, the true label id of the part, 
               % indexed to vocabLevel, not redundantVocabLevel.
         mdlScore@double % Estimated MDL score of the part.
-        normMdlScore@double % Normalized MDL score of the part.
         children@int32 % Label ids of this node's children in the previous level.
         parents@int32 % Label ids of this node's parents in the next level.
         adjInfo@int32 % Edge information of the form (v2 edgeId isDirected; 

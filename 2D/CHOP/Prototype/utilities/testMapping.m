@@ -8,7 +8,7 @@ function [ testSuccess ] = testMapping( vocabLevel, graphLevel, newDistanceMatri
      faultIdx = zeros(numel(graphLevel),1) > 0;
      for graphLevelItr = 1:numel(graphLevel)
           children = graphLevel(graphLevelItr).children;
-          orderedChildren = children(graphLevel(graphLevelItr).mapping);
+          orderedChildren = children;
           
           % Check for node labels.
           childrenTrueLabels = vocabLevel(graphLevel(graphLevelItr).labelId).children;

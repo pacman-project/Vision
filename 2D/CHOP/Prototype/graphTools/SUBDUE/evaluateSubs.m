@@ -30,24 +30,16 @@
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extendSubs, evalMetric, allEdges, allEdgeNodePairs, allSigns, graphSize, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, isSupervised, isMDLNormalized, ...
+function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdgeCounts, allEdgeNodePairs, allSigns, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
      allLeafNodes, minRFCoverage, maxLeafCounts, avgDegree)
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
     validExtSubs = ones(numberOfSubs,1) > 0;
     for subItr = 1:numberOfSubs
-        % Find the weight of this node, by taking the max of the category distribution. 
-        if isSupervised
-            categoryArr = double(subs(subItr).instanceCategories);
-            weight = nnz(categoryArr == mode(categoryArr)) / numel(categoryArr);
-        else
-            weight = 1;
-        end
         
         % Calculate Substructure score.
-        [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(subs(subItr), allEdges, allEdgeNodePairs, evalMetric, ...
-           allSigns, mdlNodeWeight, mdlEdgeWeight, ....
-            overlap, isMDLExact, avgDegree);
+        [subScore, sub] = getSubScore(subs(subItr), allEdgeCounts, allEdgeNodePairs, evalMetric, ...
+           allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact, avgDegree);
        
        % If this sub has multiple children, we process the instances to
        % make sure those instances which cover a large portion of their
@@ -62,53 +54,34 @@ function [subs, extendSubs, validSubs, validExtSubs] = evaluateSubs(subs, extend
                    coveredLeafNodes{childItr} = int32(fastsortedunique(sort(cat(2, allLeafNodes{allChildren(childItr,:)}))));
               end
 
-             % Find all covered leaf nodes.
-%             allRFs = {allEdges(allChildren(:,1)).adjInfo};
-%             allRFLeafNodes = cellfun(@(x) x(:,1:2), allRFs, 'UniformOutput', false);
-%             allRFLeafNodes = cellfun(@(x) fastsortedunique(sort(cat(2, allLeafNodes{x(:)}))), allRFLeafNodes, 'UniformOutput', false)';
-
              % Find the intersection of two sets, to assess coverage.
              coveredLeafNodeCount = cellfun(@(x) numel(x), coveredLeafNodes);
-             maxCoverLeafNodeCount = maxLeafCounts(allChildren(:,1));
+             maxCoverLeafNodeCount = maxLeafCounts(allChildren(:,1)); %#ok<PFBNS>
              coverageRatios =  coveredLeafNodeCount ./ maxCoverLeafNodeCount;
              validInstances = coverageRatios >= minRFCoverage;
 
              % If there are full instances that do not extension (cover
              % enough of RF), we delete them.
-%             validInstancesExt = coverageRatios < 1;
              if mean(coverageRatios) >= minRFCoverage
                   validExtSubs(subItr) = 0;
              end
 
-        %% If the coverage is too small, we don't consider this sub.
+             %% If the coverage is too small, we don't consider this sub.
              if nnz(validInstances) == 0
                   validSubs(subItr) = 0;
              end
 
              %% Update instances to keep only valid ones (which cover most of RF).
-             sub.instanceCategories = sub.instanceCategories(validInstances,:);
              sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
              sub.instanceChildren = sub.instanceChildren(validInstances,:);
-             sub.instanceEdges = sub.instanceEdges(validInstances,:);
-             sub.instanceMappings = sub.instanceMappings(validInstances,:);
              sub.instanceSigns = sub.instanceSigns(validInstances,:);
-             sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
         end
+        
         % We compress the object graph using the children, and the
         % edges they are involved. 
-        subScore = subScore * weight;
         subs(subItr) = sub;
         
         %% Assign the score of the sub, as well as its normalized mdl score if applicable.
         subs(subItr).mdlScore = double(subScore);
-        if strcmp(evalMetric, 'mdl') || strcmp(evalMetric, 'likelihood')
-            subs(subItr).normMdlScore = 1 - (double(subScore) / graphSize);
-            
-            % If the normalized MDL score is being asked for, we divide
-            % subScore by the number of valid instances.
-            if isMDLNormalized
-                 subs(subItr).mdlScore = subs(subItr).mdlScore / numberOfNonoverlappingInstances;
-            end
-        end
     end
 end

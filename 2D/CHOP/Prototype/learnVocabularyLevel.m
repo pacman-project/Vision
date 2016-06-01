@@ -68,18 +68,9 @@
         end
    end
    
-   % Obtain the pre-set threshold for this level, if there is one.
-   if levelItr > (numel(options.subdue.presetThresholds) + 1)
-       presetThreshold = options.subdue.threshold;
-       options.optimizationFlag = orgOptimizationFlag;
-   else
-       presetThreshold = options.subdue.presetThresholds(levelItr-1);
-       options.optimizationFlag = false;
-   end
-   
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-   [vocabLevel, graphLevel, ~, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, newDistanceMatrix,...
-       options, presetThreshold, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, level1Coords); %#ok<*ASGLU,*NODEF>
+   [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, ...
+       options, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy); %#ok<*ASGLU,*NODEF>
    java.lang.System.gc();
    % Test if the mapping is correct (for debugging).
 %        testSuccess = testMapping(vocabLevel, graphLevel, newDistanceMatrix, mainGraph{levelItr-1});
@@ -112,19 +103,9 @@
    display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
 
    %% If category level is reached, we reduce the number of desired nodes substantially. 
-   nodeCoverages = zeros(numel(graphLevel),1);
-   imageIds = [graphLevel.imageId];
-   remainingImages = unique([graphLevel.imageId]);
-   imageCoverages = zeros(max(imageIds), 1);
-   stopFlag = false;
-   for nodeItr = 1:numel(graphLevel)
-        nodeCoverages(nodeItr) = (numel(graphLevel(nodeItr).leafNodes) / nnz(level1Coords(:,1) == graphLevel(nodeItr).imageId)) / avgCoverage;
-        imageCoverages(graphLevel(nodeItr).imageId) = max(imageCoverages(graphLevel(nodeItr).imageId), nodeCoverages(nodeItr));
-   end
-   if levelItr == options.categoryLevel || mean(imageCoverages(remainingImages)) >= options.categoryLevelCoverage
-        stopFlag = true;
-        options.categoryLevel = levelItr;
-        options.stopFlag = true;
+   if levelItr > 6
+       display('........ Checking for image coverages for category level..');
+       [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel, level1Coords, levelItr, avgCoverage, options);
    end
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
@@ -138,7 +119,7 @@
    java.lang.System.gc();
 
    %% Remove low-coverage nodes when we're at category layer.
-   if stopFlag
+   if options.stopFlag
         graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)));
    end
    
@@ -238,7 +219,7 @@
    vocabularyDistributions = projectVocabulary( vocabularyDistributions, options);
 
    %% If we've reached max number of layers, don't keep going forward.
-   if levelItr == options.maxLevels || stopFlag
+   if levelItr == options.maxLevels || options.stopFlag
        vocabulary = vocabulary(1:(levelItr),:);
        vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
        allModes = allModes(1:(levelItr), :);
@@ -250,7 +231,9 @@
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
    display('Writing output to files.');
-   [exportArr, activationArr] = exportRealizations(mainGraph); %#ok<ASGLU>
+   [exportArr, activationArr] = exportRealizations(graphLevel, levelItr);
+   exportArr = cat(1, preExportArr, exportArr);
+   activationArr = cat(1, preActivationArr, activationArr);
    save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', '-append'); 
    clear activationArr precisePositions;
 
@@ -262,18 +245,18 @@
    %% Visualize images and vocabulary.
    if ~isempty(vocabLevel) && options.debug
      display('........ Visualizing previous levels...');
-     [allNodeInstances, representativeNodes] =visualizeLevel( vocabLevel, vocabulary, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+     [allNodeInstances, representativeNodes] =visualizeLevel( vocabLevel, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
      display('........ Visualizing realizations on images...');
      if ~isempty(vocabLevel)
  %         matlabpool close;
           % Visualize realizations on images, and crop relevant
           % image parts.
-          visualizeImages( fileList, vocabLevel, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, 'train' );
+          visualizeImages( fileList, graphLevel, representativeNodes, allNodeInstances, leafNodes, leafNodeCoords, levelItr, options, 'train' );
           visualizeCroppedImgs( vocabLevel, representativeNodes, levelItr, options);
 
           % Backproject parts to the images.
           display('........ Imagining parts and their instances! This can take a while...');
-          if options.vis.printTrainRealizations && levelItr >= 3
+          if options.vis.printTrainRealizations
               try
                  projectTrainingImages(fileList, vocabularyDistributions, exportArr, levelItr, options);
               catch
@@ -288,8 +271,7 @@
    end
    
    %% If we've reached max number of layers, don't keep going forward.
-   if levelItr == options.maxLevels || stopFlag
-       save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7'); 
+   if levelItr == options.maxLevels || options.stopFlag
        return;
    end
 

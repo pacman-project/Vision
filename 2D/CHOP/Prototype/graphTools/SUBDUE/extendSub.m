@@ -14,43 +14,30 @@
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDistanceMatrix, threshold, singleInstanceFlag)
-    
+function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstanceFlag)
+    % Get center list.
     centerIdx = sub.instanceCenterIdx;
-    subAllEdges = {allEdges(centerIdx).adjInfo}';
-    % Get unused edges from sub's instances.
-    allUsedEdgeIdx = sub.instanceEdges;
-    if ~isempty(allUsedEdgeIdx)
-        allUsedEdgeIdx = mat2cell(allUsedEdgeIdx, ones(size(allUsedEdgeIdx,1),1), size(allUsedEdgeIdx,2));
-        allUnusedEdgeIdx = cellfun(@(x,y) fast_setdiff(1:size(x,1),y), subAllEdges, allUsedEdgeIdx, 'UniformOutput', false);
-        allUnusedEdges = cellfun(@(x,y) x(y,:), subAllEdges, allUnusedEdgeIdx, 'UniformOutput', false);
-        allUnusedEdgeIdx = [allUnusedEdgeIdx{:}]';
-    else
-        allUnusedEdges = subAllEdges;
-        allUnusedEdgeIdx = [];
-    end
     
     % Record which edge belongs to which instance. 
-    allEdgeInstanceIds = zeros(sum(cellfun(@(x) size(x,1), allUnusedEdges)),1);
+    edgeCounts = allEdgeCounts(centerIdx);
+    allEdgeInstanceIds = zeros(sum(edgeCounts),1);
     itrOffset = 1;
-    unusedEdgeCounts = cellfun(@(x) size(x,1), allUnusedEdges);
-    for itr = 1:numel(allUnusedEdges)
+    for itr = 1:numel(centerIdx)
         beginOffset = itrOffset;
-        endOffset = (beginOffset+(unusedEdgeCounts(itr)-1));
-        allEdgeInstanceIds(beginOffset:endOffset) = itr;
-        itrOffset = itrOffset + unusedEdgeCounts(itr);
+        allEdgeInstanceIds(beginOffset:(beginOffset+(edgeCounts(itr)-1))) = itr;
+        itrOffset = itrOffset + edgeCounts(itr);
     end         
-    allUnusedEdges = cat(1, allUnusedEdges{:});
+    subAllEdges = cat(1, allEdges(centerIdx).adjInfo);
     
-    % If no edges remain, exit.
-    if isempty(allUnusedEdges)
+    % If there are no edges, exit.
+    if isempty(subAllEdges)
         extendedSubs = [];
         return; 
     end
     
     % Eliminate the edges which exist only in validation data. We do not
     % enumerate any edges which do not exist in training data.
-    enumeratedEdges = allUnusedEdges(:, 3:4);
+    enumeratedEdges = subAllEdges(:, 3:4);
     
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(enumeratedEdges, 'rows');
@@ -63,25 +50,22 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
        uniqueEdgeTypesPart1 = uniqueEdgeTypes(uniqueEdgeTypes(:,1) == max(edges(:,1)), :);
        if ~isempty(uniqueEdgeTypesPart1)
            maxNode = max(edges(edges(:,1) == max(edges(:,1)),2));
-%           uniqueEdgeTypesPart1 = uniqueEdgeTypesPart1(uniqueEdgeTypesPart1(:,2) >= maxNode, :);
            uniqueEdgeTypesPart1 = uniqueEdgeTypesPart1(uniqueEdgeTypesPart1(:,2) > maxNode, :);
        end
        uniqueEdgeTypesPart2 = uniqueEdgeTypes(uniqueEdgeTypes(:,1) > max(edges(:,1)), :);
        uniqueEdgeTypes = cat(1, uniqueEdgeTypesPart1, uniqueEdgeTypesPart2);
     end
     
+    % If no edges remain, exit.
+    if isempty(uniqueEdgeTypes)
+       extendedSubs = [];
+       return;
+    end
+    
     % Extend the definition in sub with each edge type in uniqueEdgeTypes.
     % In addition, we pick suitable instances, add this edge, and mark used
     % field of relevant instances.
     numberOfEdgeTypes = size(uniqueEdgeTypes,1);
-    if numberOfEdgeTypes == 0
-        extendedSubs = [];
-        return;
-    end
-    
-    % Save local indices for all edges, to be used later.
-    allLocalEdgeIdx = cellfun(@(x) 1:size(x,1), subAllEdges, 'UniformOutput', false);
-    allLocalEdgeIdx = [allLocalEdgeIdx{:}]';
     
     % Allocate space for new subs and fill them in.
     validSubs = ones(numberOfEdgeTypes,1) > 0;
@@ -98,12 +82,12 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         % Extend the subs by taking the threshold into account. Unless the
         % instance's collective matching cost surpasses the threshold, it
         % is a valid instance.
-        newEdgeCosts = edgeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,1), allUnusedEdges(:,3))';
-        newNodeCosts = nodeDistanceMatrix(uniqueEdgeTypes(edgeTypeItr,2), allUnusedEdges(:,4))';
-        edgesToExtendCosts = newEdgeCosts + newNodeCosts;
-        edgesToExtendIdx = edgesToExtendCosts < threshold;
+        edgesToExtendIdx = subAllEdges(:,3) == uniqueEdgeTypes(edgeTypeItr,1) & ...
+            subAllEdges(:,4) == uniqueEdgeTypes(edgeTypeItr,2);
         
-        if ~singleInstanceFlag &&nnz(edgesToExtendIdx) == 1
+        % If single instance subs are not allowed, we render this sub
+        % invalid if it has a single instance.
+        if ~singleInstanceFlag && nnz(edgesToExtendIdx) == 1
              validSubs(edgeTypeItr) = 0;
              continue;
         end
@@ -111,78 +95,19 @@ function [extendedSubs] = extendSub(sub, allEdges, nodeDistanceMatrix, edgeDista
         % Save instance ids.
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
         allChildren = [sub.instanceChildren(edgeInstanceIds,:), ...
-             allUnusedEdges(edgesToExtendIdx,2)];
-%        [allChildren, allChildrenSortIdx] = sort(allChildren, 2);
+             subAllEdges(edgesToExtendIdx,2)];
 
-        % Calculate mappings of instances' nodes to the description.
-        newMappings = [sub.instanceMappings(edgeInstanceIds, :), ...
-            ones(size(edgeInstanceIds,1), 1, 'uint8') * size(allChildren,2)];
-%         [rows, cols] = size(allChildren);
-%         R = repmat((1:rows)',[1 cols]);
-%         nIdx = R + (allChildrenSortIdx-1)*rows;
-%         newMappings = newMappings(nIdx);
-        
-        %% Note: allChildren may have duplicate entries, since an instance can
-        % have multiple parse trees. We handle these cases by only keeping
-        % unique instances. In addition, for each instance, the minimum
-        % cost of matching is kept here.
-        curInstanceMatchCosts = edgesToExtendCosts(edgesToExtendIdx);
-        [~, sortIdx] = sort(curInstanceMatchCosts, 'ascend');
-        sortedAllChildren = allChildren(sortIdx, :);
-        sortedCenterIdx = sub.instanceCenterIdx(edgeInstanceIds(sortIdx));
-
-        % Eliminate instances which have the same node set, and the same
-        % center node. 
- %       [~, validIdx, ~] = unique([sortedCenterIdx, sortedAllChildren], 'rows', 'stable');
-        validIdx = (1:numel(sortedCenterIdx))';
-        
-        % Keep ordering but remove duplicates.
-        sortIdx = sortIdx(validIdx);
-        
-        % Get minimum matching costs and children.
-        sortedAllChildren = sortedAllChildren(validIdx, :);
-        
         % Finally, order children by rows.
-        [newSub.instanceChildren, idx] = sortrows(sortedAllChildren);
-        sortIdx = sortIdx(idx);
-        edgeInstanceIds = edgeInstanceIds(sortIdx, :);
-        newMappings = newMappings(sortIdx, :);
+        [newSub.instanceChildren, idx] = sortrows(allChildren);
+        edgeInstanceIds = edgeInstanceIds(idx, :);
         
         %% Assign all relevant instance-related fields of the sub.
-        newSub.instanceMappings = newMappings;
         newSub.instanceCenterIdx = sub.instanceCenterIdx(edgeInstanceIds);
         newSub.instanceSigns = sub.instanceSigns(edgeInstanceIds);
-        newSub.instanceCategories = sub.instanceCategories(edgeInstanceIds);
-        newSub.instanceValidationIdx = sub.instanceValidationIdx(edgeInstanceIds);
-        
-        % Add the edge to the definition.
-        existingEdges = sub.instanceEdges;
-        combinedEdges = zeros(numel(edgeInstanceIds), size(existingEdges,2)+1, 'uint8');
-        if ~isempty(existingEdges)
-            existingEdges = existingEdges(edgeInstanceIds,:);
-            combinedEdges(:, 1:size(existingEdges,2)) = existingEdges;
-        end
-        
-        % Adding the local edges to the instance edge lists.
-        edgesToExtendLinIdx = find(edgesToExtendIdx);
-        if ~isempty(sub.edges)
-            relevantLocalEdgeIdx = allUnusedEdgeIdx(edgesToExtendLinIdx(sortIdx));
-        else
-            relevantLocalEdgeIdx = allLocalEdgeIdx(edgesToExtendLinIdx(sortIdx));
-        end
-        combinedEdges(:,end) = relevantLocalEdgeIdx;
-        newSub.instanceEdges = combinedEdges;
         
         % All instances assigned, good to go.
         extendedSubs(edgeTypeItr) = newSub;
     end
     
     extendedSubs = extendedSubs(validSubs);
-end
-
-function Z = fast_setdiff(X,Y)
-       check = false(1, max(max(X), max(Y)));
-       check(X) = true;
-       check(Y) = false;
-       Z = X(check(X));  
 end

@@ -26,12 +26,11 @@
 %>
 %> Updates
 %> Ver 1.0 on 18.09.2014
-function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, allEdges, allEdgeNodePairs, evalMetric, ...
+function [subScore, sub] = getSubScore(sub, allEdgeCounts, allEdgeNodePairs, evalMetric, ...
                 allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact, avgDegree)
     isMultiNodeSub = ~isempty(sub.edges);
     % Read signs and edges of the instances.
     instanceSigns = allSigns(sub.instanceCenterIdx);
-    numberOfNonoverlappingInstances = numel(instanceSigns);
     
     % If we're doing something other than MDL: 'size' (sub. size x frequency)
     % or frequency based evaluation, we do not need to proceed with the
@@ -40,12 +39,12 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             (isMultiNodeSub && ~overlap) || ... % multi node + overlap
             (isMultiNodeSub && strcmp(evalMetric, 'mdl')) % multi node + mdl
         centerIdx = sub.instanceCenterIdx;
-        instanceEdges = {allEdges(centerIdx).adjInfo}';
+        instanceEdgeCounts = allEdgeCounts(centerIdx);
         
         % Calculate outgoing nodes (destinations of edges where
         % instance's children are the source).
         instanceChildren = sub.instanceChildren;
-        numberOfNodes = numel(allEdges);
+        numberOfNodes = numel(allEdgeCounts);
         numberOfInstances = numel(instanceSigns);   % Beware: Changes if overlap not allowed!
 
         % If this is a single sub, we only take instances with no POSSIBLE
@@ -54,17 +53,14 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
         % their children.
         if ~isMultiNodeSub
             % Obtain valid instances and reserve certain data structures.
-            validInstances = cellfun(@(x) isempty(x), instanceEdges);
+            validInstances = instanceEdgeCounts == 0;
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances);
             
             % Assign valid instances.
             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
             sub.instanceChildren = sub.instanceChildren(validInstances,:);
-            sub.instanceMappings = sub.instanceMappings(validInstances,:);
             sub.instanceSigns = sub.instanceSigns(validInstances,:);
-            sub.instanceCategories = sub.instanceCategories(validInstances,:);
-            sub.instanceValidationIdx = sub.instanceValidationIdx(validInstances,:);
         end
 
         % In multi-node case, if overlaps are not allowed, filter out overlapping instances.
@@ -83,7 +79,6 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
             % Filter out data for invalid instances from existing data structures.
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances, :);
-            numberOfNonoverlappingInstances = nnz(validInstances);
         end
     end
     
@@ -156,6 +151,8 @@ function [subScore, sub, numberOfNonoverlappingInstances] = getSubScore(sub, all
                         instanceNeighbors = unique(instanceNeighbors, 'rows');
                         subScore = subScore - round(sum(multConstants(instanceNeighbors(:,1))) * mdlEdgeWeight);
                     else
+                        error('Exact MDL case with overlap has not been handled.');
+                        % TODO: Will be fixed, currently not working.
                         instanceOutNeighbors = cellfun(@(x) numel(setdiff(allEdgeNodePairs(ismember(allEdgeNodePairs(:,1), x),2), x)), instanceChildren);
                         instanceInNeighbors = cellfun(@(x) numel(setdiff(allEdgeNodePairs(ismember(allEdgeNodePairs(:,2), x),1), x)), instanceChildren);
                         subScore = subScore - round(sum((instanceOutNeighbors + instanceInNeighbors) .* instanceConstants) * mdlEdgeWeight);

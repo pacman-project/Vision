@@ -23,8 +23,8 @@ function [] = visualizeORNodes( currentLevel, levelId, options)
     datasetName = options.datasetName;
     labelIds = double(cat(1, currentLevel.label));
     reconstructionDir = [options.debugFolder '/level' num2str(levelId) '/modalProjection/'];
-    sampleImg = imread([reconstructionDir num2str(1) '.png']);
-    compMaskSize = size(sampleImg);
+    load([reconstructionDir 'muImgs.mat']);
+    maskSize = size(smallMuImgs,2);
     
     % Get the count of the most frequent label.
     if numel(unique(labelIds)) > 1
@@ -32,38 +32,29 @@ function [] = visualizeORNodes( currentLevel, levelId, options)
          maxCount = max(labelCounts);
          [~, sortIdx] = sort(labelCounts, 'descend');
     else
-         labelCounts = numel(labelIds);
          maxCount = numel(labelIds);
          sortIdx = 1:numel(labelIds);
     end
     
     % Using the maximum dimensions, transform each composition image to the
-    % same size. 
-    if numel(compMaskSize) == 2
-         bandCount = 1;
-    else
-         bandCount = compMaskSize(3);
-    end
-    overallImage = NaN(numel(unique(labelIds)) * (compMaskSize(2)+1)+1, (maxCount)*(compMaskSize(1)+1)+1, bandCount);
+    % same size. ß
+    overallImage = ones(numel(unique(labelIds)) * (maskSize+1)+1, (maxCount)*(maskSize+1)+1, 1, 'uint8') * 255;
 
     % Write images one by one.
     for labelItr = 1:numel(sortIdx)
          optionSet = find(labelIds == sortIdx(labelItr));
-         rowStart = 2 + (labelItr-1)*(compMaskSize(1)+1);
+         rowStart = 2 + (labelItr-1)*(maskSize+1);
          for optionItr = 1:numel(optionSet)
-              colStart = 2 + (optionItr-1) * (compMaskSize(2)+1);
-              sampleImg = imread([reconstructionDir num2str(optionSet(optionItr)) '.png']);
-              overallImage(rowStart:(rowStart+compMaskSize(1)-1), ...
-                    colStart:(colStart+compMaskSize(2)-1), :) = sampleImg;
+              colStart = 2 + (optionItr-1) * (maskSize+1);
+              sampleImg = squeeze(smallMuImgs(optionSet(optionItr), :, :));
+              overallImage(rowStart:(rowStart+maskSize-1), ...
+                    colStart:(colStart+maskSize-1), :) = sampleImg;
          end
     end
     
     % A final make up in order to separate masks from each other by 1s.
-    overallImage(isnan(overallImage)) = 0;
-    overallImage = uint8(overallImage);
-
-    % Then, write the compositions the final image.
-    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_ORNodeSets.png']);
+    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_ORNodeSets.jpg']);
+    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_ORNodeSets_HQ.png']);
     clearvars
 end
 

@@ -21,6 +21,7 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
     orgImgWeight = 0.6;
+    maxImgSize = 50;
     
     if isempty(currentLevel)
        return; 
@@ -37,7 +38,7 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
 
     % Read cropped images.
     nodeImgs = cell(numberOfNodes,1);
-    for nodeItr = 1:numberOfVocabLevelNodes
+    parfor nodeItr = 1:numberOfVocabLevelNodes %#ok<PFUIX>
         instanceImgs = cell(instancePerNode-1, 1);
         randomColor = rand(1,3);
         randomColor = randomColor / max(randomColor);
@@ -70,6 +71,13 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
                     % Stretch the histogram.
                     img = uint8(round(double(img) * ( 255 / double(max(max(max(img)))))));
                 end
+                
+                % Change size of img if it's too big.
+                if size(img, 1) > maxImgSize
+                    img = imresize(img, [maxImgSize, maxImgSize]);
+                end
+                
+                % Save img.
                 instanceImgs(instItr) = {img};
             else
                 break;
@@ -94,7 +102,7 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
     compMaskSize = max(compMaskSize, [size(imgVar,1), size(imgVar,2)]);
     
     % Put the part to the instance list, too.
-    for nodeItr = 1:numberOfNodes
+    parfor nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
         filterImg = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/modalProjection/' num2str(nodeItr) '.png']);
         newSize=min([size(filterImg,1), size(filterImg,2)], compMaskSize);
@@ -107,12 +115,12 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
         else
             filterMultipleImg = filterImg;
         end
-        instanceImgs = [{filterMultipleImg}; instanceImgs];
+        instanceImgs = [{filterMultipleImg}; instanceImgs]; %#ok<AGROW>
         nodeImgs(nodeItr) = {instanceImgs};
     end
     
     % Make mask sizes uniform and write them all back.
-    for nodeItr = 1:numberOfNodes
+    parfor nodeItr = 1:numberOfNodes
         instanceImgs = nodeImgs{nodeItr};
         for instItr = 1:numel(instanceImgs)
             tempMask2 = instanceImgs{instItr};

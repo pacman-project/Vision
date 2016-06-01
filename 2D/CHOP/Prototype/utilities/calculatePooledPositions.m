@@ -1,11 +1,5 @@
-function [ positions ] = calculatePooledPositions( precisePositions, levelItr, options )
-     if strcmp(options.filterType, 'gabor')
-          stride = options.gabor.stride;
-     else
-          stride = options.auto.stride;
-     end
-     poolFactor = numel(setdiff(2:(levelItr-1), options.noPoolingLayers));
+function [ positions ] = calculatePooledPositions( precisePositions, poolFactor, poolDim, stride )
      tempPositions = floor((precisePositions-1) / stride);
-     tempPositions = floor(tempPositions / ((options.poolDim)^poolFactor));
+     tempPositions = floor(tempPositions / (poolDim^poolFactor));
      positions = tempPositions + 1;
 end

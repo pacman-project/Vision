@@ -26,18 +26,25 @@ function [graph] = mergeIntoGraph(graph, level, ~, levelItr, position)
     
     %% Assign the nodes in the previuos layer to their parents in this level.
     if ~position
+        emptyArr = {zeros(0, 'int32')};
+        prevLevelParents = cell(numel(previousLevel),1);
+        for itr = 1:numel(prevLevelParents)
+            prevLevelParents(itr) = emptyArr;
+        end
         previousLevelLabels = cat(1, previousLevel.label);
         for newInstItr = 1:numel(level)
             centerChild = level(newInstItr).children(1);
             % Find all low level nodes that correspond to this child.
             relevantPrevLevelNodes = find(previousLevelLabels == centerChild);
             for prevNodeItr = 1:numel(relevantPrevLevelNodes)
-                if ~ismember(newInstItr, previousLevel(relevantPrevLevelNodes(prevNodeItr)).parents)
-                    previousLevel(relevantPrevLevelNodes(prevNodeItr)).parents = ...
-                        [previousLevel(relevantPrevLevelNodes(prevNodeItr)).parents, int32(newInstItr)];
+                curParents = prevLevelParents{relevantPrevLevelNodes(prevNodeItr)};
+                if ~ismembc(int32(newInstItr), int32(curParents))
+                    curParents = cat(2, curParents, int32(newInstItr));
+                    prevLevelParents{relevantPrevLevelNodes(prevNodeItr)} = curParents;
                 end
             end
         end
+        [previousLevel.parents] = deal(prevLevelParents{:});
     end
     
     %% Assign new levels and move on.

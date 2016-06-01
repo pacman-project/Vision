@@ -125,41 +125,52 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         allNodes = cell(size(trainingFileNames,1),1);
         allNodeActivations = cell(size(trainingFileNames,1),1);
         smoothedFolder = options.smoothedFolder;
-        parfor fileItr = 1:size(trainingFileNames,1)
-            [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
-            img = imread([processedFolder '/' fileName '.png']);
-            
-%            edgeImg = edge(img, 'canny', [0.05 0.1], 1);
-            % Get the Level 1 features.
-            [nodes, smoothedImg, nodeActivations, smoothActivationImg, responseImgs, edgeImg] = getNodes(img, gtFileNames{fileItr}, options);
- 
-            % Generate an imperfect backprojection from obtained peaks.
-%             level1Nodes = cell2mat(nodes);
- %            level1Nodes = [level1Nodes(:,[1,4,5]), double(nodeActivations)];
-%             img1 = obtainPoE(level1Nodes, size(edgeImg), options);
-%             
-%             % Generate a perfect backprojection.
-%             [activationImg, nodeIdImg] = max(responseImgs, [], 3);
-%             activationImg(edgeImg == 0) = 0;
-%             nodeIdImg(edgeImg == 0) = 0;
-%             peaks = find(nodeIdImg);
-%             [x,y] = ind2sub(size(nodeIdImg), peaks);
-%             level1Nodes = [nodeIdImg(peaks), x, y, activationImg(peaks)];
-%             img2 = obtainPoE(level1Nodes, size(nodeIdImg), options);
-            
-            % Keep nodes in the array.
-            allNodes(fileItr) = {nodes};
-            allNodeActivations(fileItr) = {nodeActivations};
+        
+        % If the images have been processed earlier, no need for us to do
+        % this again.
+        if exist([options.currentFolder '/outputNodes/' options.datasetName '/nodes.mat'], 'file')
+           load([options.currentFolder '/outputNodes/' options.datasetName '/nodes.mat']);
+        else
+            parfor fileItr = 1:size(trainingFileNames,1)
+                [~, fileName, ~] = fileparts(trainingFileNames{fileItr});
+                img = imread([processedFolder '/' fileName '.png']);
 
-            % Save smoothed image.
-            imwrite(smoothedImg, [smoothedFolder '/' fileName '_peaks.png']);
-            imwrite(edgeImg, [smoothedFolder '/' fileName '_edgeImg.png']);
-             imwrite(smoothActivationImg, [smoothedFolder '/' fileName '.png']);
-%  %           imwrite(img1, [smoothedFolder '/' fileName '_peakPoE.png']);
-% %            imwrite(img2, [smoothedFolder '/' fileName '_perfectPoE.png']);
-             parsave([smoothedFolder '/' fileName '_responseImgs.mat'], responseImgs, 'responseImgs');
+    %            edgeImg = edge(img, 'canny', [0.05 0.1], 1);
+                % Get the Level 1 features.
+                [nodes, smoothedImg, nodeActivations, smoothActivationImg, responseImgs, edgeImg] = getNodes(img, gtFileNames{fileItr}, options);
+
+                % Generate an imperfect backprojection from obtained peaks.
+    %             level1Nodes = cell2mat(nodes);
+     %            level1Nodes = [level1Nodes(:,[1,4,5]), double(nodeActivations)];
+    %             img1 = obtainPoE(level1Nodes, size(edgeImg), options);
+    %             
+    %             % Generate a perfect backprojection.
+    %             [activationImg, nodeIdImg] = max(responseImgs, [], 3);
+    %             activationImg(edgeImg == 0) = 0;
+    %             nodeIdImg(edgeImg == 0) = 0;
+    %             peaks = find(nodeIdImg);
+    %             [x,y] = ind2sub(size(nodeIdImg), peaks);
+    %             level1Nodes = [nodeIdImg(peaks), x, y, activationImg(peaks)];
+    %             img2 = obtainPoE(level1Nodes, size(nodeIdImg), options);
+
+                % Keep nodes in the array.
+                allNodes(fileItr) = {nodes};
+                allNodeActivations(fileItr) = {nodeActivations};
+
+                % Save smoothed image.
+                imwrite(smoothedImg, [smoothedFolder '/' fileName '_peaks.png']);
+                imwrite(edgeImg, [smoothedFolder '/' fileName '_edgeImg.png']);
+                imwrite(smoothActivationImg, [smoothedFolder '/' fileName '.png']);
+    %  %           imwrite(img1, [smoothedFolder '/' fileName '_peakPoE.png']);
+    % %            imwrite(img2, [smoothedFolder '/' fileName '_perfectPoE.png']);
+                parsave([smoothedFolder '/' fileName '_responseImgs.mat'], responseImgs, 'responseImgs');
+            end
+            if ~exist([options.currentFolder '/outputNodes/' options.datasetName], 'dir')
+                mkdir([options.currentFolder '/outputNodes/' options.datasetName]);
+            end
+            save([options.currentFolder '/outputNodes/' options.datasetName '/nodes.mat'], 'allNodes', 'allNodeActivations', '-v7');
         end
-
+        
         % Calculate image size.
         [~, fileName, ~] = fileparts(trainingFileNames{1});
         img = imread([processedFolder '/' fileName '.png']);
@@ -236,45 +247,8 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         % in categoryNames.
         [~, categoryNames, categoryArrIdx] = unique(categoryArr, 'stable'); 
         categoryNames = categoryArr(categoryNames); 
-        
-        clear categoryArr;
-        
-        %% Here, we select the validation sets.
-        % We select options.validationFolds (number) non-overlapping sets
-        % from each category, and assign validation set indices for these
-        % images.
         options.numberOfCategories = numel(categoryNames);
-        if options.validationFlag
-            validationIdx = zeros(numel(imageSigns),1, 'uint8');
-            for categoryItr = 1:numel(categoryNames)
-                categoryImageIdx = find(categoryArrIdx == categoryItr);
-                
-                % Put images into separate folders for cross-validation in
-                % threshold selection.
-                validationSets = 0:(numel(categoryImageIdx)/options.validationFolds):numel(categoryImageIdx);
-                validationSets = round(validationSets);
-                validationSets = validationSets(2:(end)) - validationSets(1:(end-1));
-                if numel(validationSets) < options.validationFolds
-                   validationSets = [validationSets , numel(categoryImageIdx) - sum(validationSets)]; %#ok<AGROW>
-                end
-                
-                % Select images belonging to this category in random order.
-                categorySetsImageIdx = datasample(categoryImageIdx, ...
-                    numel(categoryImageIdx), 'Replace', false);
-                
-                % Assign set indices for cross-validation.
-                imgOffset = 1;
-                for valItr = 1:(options.validationFolds)
-                    validationIdx(categorySetsImageIdx(imgOffset:(imgOffset + (validationSets(valItr) - 1)))) = valItr;
-                    imgOffset = imgOffset + validationSets(valItr);
-                end
-            end
-        else
-            % If no cross-validation is desired, we're considering the
-            % training data as a single subset.
-            validationIdx = ones(numel(imageSigns),1, 'uint8');
-        end
-        options.validationIdx = validationIdx;
+        clear categoryArr;
         
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
         [vocabLevel, vocabLevelDistributions, graphLevel] = generateLevels(leafNodes, leafNodeCoords, allNodeActivations, leafNodeSigns, options);
@@ -301,7 +275,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  
-        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'categoryNames', 'categoryArrIdx', 'validationIdx', 'poseArr', '-v7');
+        save([options.currentFolder '/output/' datasetName '/export.mat'], 'trainingFileNames', 'categoryNames', 'categoryArrIdx', 'poseArr', '-v7');
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'trainingFileNames', 'categoryNames', '-v7');
         
         %% Learn vocabulary!

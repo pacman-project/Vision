@@ -111,6 +111,8 @@ elseif hypercube
     w_dist = @(a,b,c) all((abs(repmat(a,size(b,1),1)-b) ./ repmat(c,size(b,1),1)) <= 0.5, 2)';
     neighbor = pdist(data, @(X,Y) w_dist(X,Y,h));
 end
+fullNeighbor = squareform(neighbor);
+fullNeighbor(1:size(fullNeighbor,1)+1:(size(fullNeighbor,1))^2) = 0;
 plim = length(neighbor);
 psz = uint32(round(((sqrt(1+8*plim)) + 1) / 2)); % size of square form (psz-by-psz)
 
@@ -131,7 +133,7 @@ for m = 1:mec_i
     most_neighbor_cluster = zeros(size(data,1), 1, 'uint16');
     k_j = zeros(size(data,1), c, 'uint16');
     for i = 1:size(data,1)
-        nbors = conv_gri(neighbor(getrowind(i,psz,plim)),i);
+        nbors = fullNeighbor(i,:);
         k_j(i,:) = histc(labels(nbors), 1:c)';
         most_neighbor_cluster(i) = find(k_j(i,:) == max(k_j(i,:)), 1);
     end
@@ -148,11 +150,15 @@ for m = 1:mec_i
             old_entropy = 0;
             new_entropy = 0;
             if most_neighbor_cluster(curr_sample) ~= labels(curr_sample)
-                curr_neighbors = find(conv_gri(neighbor(getrowind(curr_sample,psz,plim)),curr_sample));
+                curr_neighbors = find(fullNeighbor(curr_sample,:));
+                
+                % Speed-up
+                rowSums = double(sum(k_j(curr_neighbors, :),2));
+                
                 for j = 1:length(curr_neighbors)
                     n = curr_neighbors(j);
 
-                    nnn = double(sum(k_j(n,:)));
+                    nnn = rowSums(j);
                     scn = double(k_j(n,labels(curr_sample)));
                     mnc = double(k_j(n,most_neighbor_cluster(curr_sample)));
 
@@ -189,7 +195,7 @@ for m = 1:mec_i
                         n = curr_neighbors(k);
                         k_j(n,labels(curr_sample)) = k_j(n,labels(curr_sample))-1;
                         k_j(n,most_neighbor_cluster(curr_sample)) = k_j(n,most_neighbor_cluster(curr_sample))+1;
-                        most_neighbor_cluster(n) = find(k_j(n,:) == max(k_j(n,:)),1);
+                        [~, most_neighbor_cluster(n)] = max(k_j(n,:));
                     end
                     labels(curr_sample) = most_neighbor_cluster(curr_sample);
                 end

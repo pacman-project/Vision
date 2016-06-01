@@ -73,7 +73,7 @@ for line_number = 1:size(p1,1)
     % A- Both points are out of range.
     if  ((p1r < 1 || M < p1r) || (p1c < 1 || N < p1c)) && ...
         ((p2r < 1 || M < p2r) || (p2c < 1 || N < p2c)),
-        error(['Both points in line segment nº ', num2str(line_number),...
+        error(['Both points in line segment nï¿½ ', num2str(line_number),...
                 ' are out of range. New coordinates are requested to fit',...
                 ' the points in image boundaries.']) 
     end
@@ -172,7 +172,8 @@ for line_number = 1:size(p1,1)
             iter = iter + 1;
         end
         alpha = round(alpha(1:end-1)); beta = round(beta(1:end-1));
-        ind = cat(2,ind,sub2ind(image_size,alpha,beta));
+        idx = alpha + (beta-1)*image_size(1);
+        ind = cat(2,ind,idx);
         label = cat(2,label,line_number*ones(1,max(size(alpha))));
     end
     % ... 
@@ -186,9 +187,9 @@ for line_number = 1:size(p1,1)
             iter = iter + 1;
         end
         alpha = round(alpha(1:end-1)); beta = round(beta(1:end-1));
-        ind = cat(2,ind,sub2ind(image_size,beta,alpha));
+        idx = beta + (alpha-1)*image_size(1);
+        ind = cat(2,ind,idx);
         label = cat(2,label,line_number*ones(1,max(size(alpha))));
     end
-    clear alpha beta
     continue
 end

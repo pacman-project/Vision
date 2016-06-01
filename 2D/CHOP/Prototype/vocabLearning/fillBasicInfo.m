@@ -17,37 +17,59 @@
 %> Updates
 %> Ver 1.0 on 04.02.2014
 function graphLevel = fillBasicInfo(previousLevel, graphLevel, levelItr, options)
-    numberOfThreads = options.numberOfThreads;
     numberOfNodes = numel(graphLevel);
-    nodeSets = repmat(ceil(numberOfNodes/numberOfThreads), numberOfThreads,1);
-    setCountDiff = sum(nodeSets) - numberOfNodes;
-    nodeSets((end-setCountDiff+1):end, :) = nodeSets((end-setCountDiff+1):end, :) - 1;
-    nodeSets = nodeSets(nodeSets>0);
-    nodeSets = mat2cell(graphLevel, 1, nodeSets);
-    parfor setItr = 1:numel(nodeSets)
-        subLevel = nodeSets{setItr};
-        for newNodeItr = 1:numel(subLevel)
-            nodeChildren = subLevel(newNodeItr).children;
-            numberOfChildren = numel(nodeChildren);
-            subLevel(newNodeItr).imageId = previousLevel(nodeChildren(1)).imageId;
-            nodeLeafNodes = cell(numberOfChildren,1);
-            for childItr = 1:numberOfChildren
-               nodeLeafNodes(childItr) = {previousLevel(nodeChildren(childItr)).leafNodes}; 
-            end
-            nodeLeafNodes = unique([nodeLeafNodes{:}]);
-            
-            % Calculate both positions. For precise position, we obtain the
-            % mean of the bounding box that is spanned by the leaf nodes.
-            childrenPos = cat(1, previousLevel(nodeChildren).precisePosition);
-            precisePosition = round((min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2);
-            subLevel(newNodeItr).precisePosition = precisePosition;
-            subLevel(newNodeItr).position = int32(calculatePooledPositions(precisePosition, levelItr, options));
-            subLevel(newNodeItr).leafNodes = nodeLeafNodes;
-        end
-        nodeSets(setItr) = {subLevel};
+    
+    % Save variables to fast-access data structures for previous layer.
+    previousLevelImageIds = cat(1, previousLevel.imageId);
+    previousLevelLeafNodes = {previousLevel.leafNodes};
+    previousLevelPrecisePositions = cat(1, previousLevel.precisePosition);
+    clear previousLevel;
+    
+    % Learn stride.
+    if strcmp(options.filterType, 'gabor')
+         stride = options.gabor.stride;
+    else
+         stride = options.auto.stride;
     end
-    graphLevel = cat(2, nodeSets{:});
+    poolDim = options.poolDim;
+    
+    % Calculate pool factor.
+    if levelItr> 2 && ~isempty(options.noPoolingLayers)
+        poolFactor = nnz(~ismembc(2:(levelItr-1), options.noPoolingLayers));
+    else
+        poolFactor = 0;
+    end
+    clear options;
+    
+    childrenArr = {graphLevel.children};
 
+    % Allocate space for fast data structures for current layer.
+    newImageIds = cell(numberOfNodes,1);
+    newPrecisePositions = newImageIds;
+    newPositions = newImageIds;
+    newLeafNodes = newImageIds;
+
+    parfor newNodeItr = 1:numberOfNodes
+        nodeChildren = childrenArr{newNodeItr};
+        newImageIds{newNodeItr} = previousLevelImageIds(nodeChildren(1));
+        nodeLeafNodes = cat(2, previousLevelLeafNodes{nodeChildren});
+        nodeLeafNodes = fastsortedunique(sort(nodeLeafNodes));
+
+        % Calculate both positions. For precise position, we obtain the
+        % mean of the bounding box that is spanned by the leaf nodes.
+        childrenPos = previousLevelPrecisePositions(nodeChildren, :);
+        precisePosition = round((min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2);
+        newPrecisePositions{newNodeItr} = precisePosition;
+        newPositions{newNodeItr} = int32(calculatePooledPositions(precisePosition, poolFactor, poolDim, stride));
+        newLeafNodes{newNodeItr} = nodeLeafNodes;
+    end
+
+    % Finally, assign everything to the new structure.
+    [graphLevel.imageId] = deal(newImageIds{:});
+    [graphLevel.precisePosition] = deal(newPrecisePositions{:});
+    [graphLevel.position] = deal(newPositions{:});
+    [graphLevel.leafNodes] = deal(newLeafNodes{:});
+    
     % Rearrange graph level so it is sorted by image id.
     arrayToSort = [[graphLevel.imageId]', [graphLevel.labelId]', cat(1, graphLevel.position)];
     [~, sortedIdx] = sortrows(arrayToSort);

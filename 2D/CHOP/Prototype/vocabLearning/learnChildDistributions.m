@@ -26,9 +26,9 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     halfRFSize = round(rfSize(1)/2);
     
     %% Distribution parameters.
-    sampleCountPerCluster = 100;
+    sampleCountPerCluster = 50;
     minSampleCountPerCluster = 3;
-    maxClusters = 10;
+    maxClusters = 5;
     maxPointsToCluster = maxClusters * sampleCountPerCluster;
     smallSampleCount = 5;
     debugFlag = ~options.fastStatLearning;
@@ -50,7 +50,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     end                       
     
     % Second, we go through each node, and collect statistics.
-    parfor vocabItr = 1:numberOfNodes
+    for vocabItr = 1:numberOfNodes
          
         minX = -1; maxX = -1; minY = -1; maxY = -1; meanArr = []; scores=[]; coeff=[];
         w = warning('off', 'all');
@@ -124,6 +124,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
 
              %% Get principle components and visualize samples in 2d space.
              figure('Visible', 'off'), hold on;
+%             figure, hold on;
              axis square
              subplot(1,3,1), plot(scores(:,1), scores(:,2), 'ro');
              xlim([minX, maxX]);
@@ -269,6 +270,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
 
                   % Stop drawing, move on.
                   hold off
+                  
                   saveas(gcf, [debugFolder '/part' num2str(vocabItr) '.png']);
                   close(gcf);
              end

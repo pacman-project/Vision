@@ -42,11 +42,10 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     %% Program options into variables.
     if currentLevelId == options.categoryLevel - 1
          edgeNoveltyThr = 1 - options.categoryLevelEdgeNoveltyThr;
-         maxNodeDegree = options.maxNodeDegree * 2;
     else
          edgeNoveltyThr = 1 - options.edgeNoveltyThr;
-         maxNodeDegree = options.maxNodeDegree;
     end
+    maxNodeDegree = options.maxNodeDegree;
     
     %% Put each image's node set into a different bin.
     numberOfImages = double(max(imageIds));
@@ -93,6 +92,12 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
          setNodeCoordArr{setItr} = imageNodeCoordArr(imageIdx);
     end
     
+    emptyArr = zeros(0, 'int32');
+    dummyOneArrs = cell(maxNodeDegree * 2, 1);
+    for itr = 1:(maxNodeDegree*2)
+       dummyOneArrs(itr) = {ones(itr,1, 'int32')};
+    end
+    
     %% Process each set separately (and in parallel)
     parfor setItr = 1:numberOfSets
          imageIdx = sets{setItr};
@@ -129,6 +134,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
              end
              
              %% Find all edges within this image.
+             numberAdjArr = zeros(numberOfNodes,1);
              for nodeItr = 1:numberOfNodes
                 centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
                 distances = allDistances(:, nodeItr);
@@ -217,15 +223,34 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                 end
 
                 %% Assign final adjacent nodes.
-                curAdjacentNodes(nodeItr) = {[repmat(int32(nodeItr), numel(adjacentNodes),1), adjacentNodes]}; 
+                numberOfAdjacentNodes = numel(adjacentNodes);
+                numberAdjArr(nodeItr) = numberOfAdjacentNodes;
+                if numberOfAdjacentNodes > 0
+                    curAdjacentNodes(nodeItr) = {adjacentNodes}; 
+                else
+                    curAdjacentNodes(nodeItr) = {emptyArr};
+                end
              end
-
+             
+             % Trial
+             initialsArr = zeros(sum(numberAdjArr), 1, 'int32');
+             offset = 1;
+             for itr = 1:numberOfNodes
+                 initialsArr(offset:(offset+numberAdjArr(itr)-1)) = itr;
+                 offset = offset + numberAdjArr(itr);
+             end
+             
              % Get rid of empty entries in curAdjacentNodes.
-             nonemptyCurAdjacentNodeIdx = cellfun(@(x) ~isempty(x), curAdjacentNodes);
+             nonemptyCurAdjacentNodeIdx = numberAdjArr > 0;
              curAdjacentNodes = curAdjacentNodes(nonemptyCurAdjacentNodeIdx);
+             
 
              % Obtain edges and count them.
              allEdges = cat(1, curAdjacentNodes{:});
+             
+             % Add initial nodes as well.
+             allEdges = cat(2, initialsArr, allEdges);
+             
              numberOfAllEdges = size(allEdges,1);
 
              if numberOfAllEdges == 0
@@ -266,12 +291,16 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
 
             %% Assign all edges to their respective nodes in the final graph.
             if ~isempty(edges)
+                tempEdgeArr = cell(numberOfNodes,1);
                 for nodeItr = 1:numberOfNodes
                     edgeIdx = edges(:,1) == (nodeItr + imageNodeOffset);
                     if nnz(edgeIdx) > 0
-                        curGraphNodes(nodeItr).adjInfo = edges(edgeIdx,:);
+                        tempEdgeArr{nodeItr} = edges(edgeIdx,:);
+                    else
+                        tempEdgeArr{nodeItr} = emptyArr;
                     end
                 end
+                [curGraphNodes.adjInfo] = deal(tempEdgeArr{:});
             end
             imageGraphNodeSets(imageItr) = {curGraphNodes};
          end

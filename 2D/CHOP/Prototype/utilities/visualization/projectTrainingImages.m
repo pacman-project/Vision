@@ -52,7 +52,10 @@ function [ ] = projectTrainingImages( fileList, vocabularyDistributions, exportA
 
        % Now, we get the top realizations and backproject to the original
        % image.
-       refModalImg = optimizeImagination(curExportArr, vocabularyDistributions, options.imageSize, rfSizes, optimizedFilters, visFilters, 1, options.datasetName, likelihoodLookupTable, options, optimizationOptions, fileName);
+       [ experts, ~, ~, ~, ~ ] = projectNode(curExportArr, vocabularyDistributions, 'modal', options);
+       [refModalImg, ~, ~] = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
+       
+%       refModalImg = optimizeImagination(curExportArr, vocabularyDistributions, options.imageSize, rfSizes, optimizedFilters, visFilters, 1, options.datasetName, likelihoodLookupTable, options, optimizationOptions, fileName);
 
 %        % For visualization, overlay the original image with reconstructed nodes.
         imwrite(refModalImg, [options.outputFolder '/reconstruction/train/' fileName '/' fileName '_level' num2str(levelItr) 'imagination.png']);

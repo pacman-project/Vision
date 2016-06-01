@@ -68,7 +68,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     end
     
     %% Print first vocabulary and graph level.
-    allNodeInstances = visualizeLevel( vocabulary{1}, [], [], [], [], [], 1, 0, 0, options);
+    allNodeInstances = visualizeLevel( vocabulary{1}, [], [], [], [], 1, 0, 0, options);
     if ~isempty(distanceMatrices{1})
        imwrite(distanceMatrices{1}, [options.currentFolder '/debug/' options.datasetName '/level' num2str(1) '_dist.png']);
     end
@@ -76,7 +76,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     if options.debug
 %        matlabpool close; 
         display('........ Visualizing the realizations in the first level...');
-        visualizeImages( fileList, vocabLevel, graphLevel, [], allNodeInstances, leafNodes, leafNodeCoords, 1, options, 'train' );
+        visualizeImages( fileList, graphLevel, [], allNodeInstances, leafNodes, leafNodeCoords, 1, options, 'train' );
 %        visualizeCroppedImgs( vocabulary{1}, 1, options);
 %        matlabpool('open', options.numberOfThreads);
     end
@@ -98,8 +98,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     if supervisedSelectionFlag && strcmp(supervisedSelectionMode, 'manual')
         isSupervisedSelectionRunning = true;
     end
-    previousAccuracy = 0;
-    orgOptimizationFlag = options.optimizationFlag; %#ok<*NASGU>
+    previousAccuracy = 0; %#ok<*NASGU>
     
     %% Obtain level 1 coords to subsample them in higher layers.
     level1Coords = [double(cat(1, graphLevel.imageId)), double(cat(1, graphLevel.position))];
@@ -114,6 +113,10 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     
     %% Set number of category level OR nodes.
     options.reconstruction.numberOfORNodesCategoryLayer = options.articulationsPerCategory * options.numberOfCategories;
+    
+    %% Export first level realizations.
+    levelItr = 1;
+    [preExportArr, preActivationArr] = exportRealizations(graphLevel, levelItr); %#ok<ASGLU>
       
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     edgeChangeLevel = -1;
@@ -125,12 +128,12 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     datasetName = options.datasetName;
     
     % Save workspace into a file.
-    levelItr = 1;
+    disp('Saving layer 1 workspace.');
     save([pwd '/Workspace.mat'], '-v7');
     copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
         
     if options.restartFlag
-         disp('Saving layer 1 workspace.');
+         
          % Reduce memory consumption by writing all stuff to files,
          % clearing all, and then returning back to computation.
          scriptName = [options.currentFolder '/' options.datasetName '.sh'];

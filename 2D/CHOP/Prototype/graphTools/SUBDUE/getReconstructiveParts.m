@@ -28,7 +28,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 08.10.2015
-function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqueChildren, allLeafNodes)
+function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqueChildren, allLeafNodes)
 
    coverageStoppingVal = 0.9975;
    numberOfBestSubs = numel(bestSubs);
@@ -96,8 +96,8 @@ function [validSubs, overallCoverage] = getReconstructiveParts(bestSubs, numberO
            tempMarkedNodes(children) = 1;
  %          diffVal = (nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr);
  %          diffVal = (nnz(tempMarkedNodes) - prevVal) / childrenCounts(subItr);
-           diffVal = ((nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr))/ childrenCounts(subItr);
-%          diffVal = (nnz(tempMarkedNodes) - prevVal);
+ %          diffVal = ((nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr))/ childrenCounts(subItr);
+          diffVal = (nnz(tempMarkedNodes) - prevVal);
  
            % Save diffVal.
            if diffVal < valueArr(subItr)

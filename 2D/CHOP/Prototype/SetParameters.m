@@ -16,12 +16,12 @@ function [ options ] = SetParameters( datasetName, isTraining )
     options.isTraining = isTraining;
     %% ========== DEBUG PARAMETER ==========
     if ~isTraining
-        options.debug = 1;
+        options.debug = true;
     else
-        options.debug = 1;           % If debug = 1, additional output will be 
+        options.debug = true;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end
-    options.fastStatLearning = false;
+    options.fastStatLearning = true;
     options.vis.printTrainRealizations = true;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
@@ -40,25 +40,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                             %  positions are updated, but
                                             %  no elimination is performed.
     
-    %% ========== VALIDATION PARAMETERS ==========
-    options.validationFlag = false; % If true, a subset of the training
-                                    % set is used as a validation
-                                    % set. The matching threshold
-                                    % in Subdue is estimated
-                                    % according to the validation
-                                    % data.
-    options.validationFolds = 4;   % Number of random subsets of 
-                                    % validation data which will
-                                    % help finding an optimal
-                                    % matching threshold. The
-                                    % results are aggregated over
-                                    % all sets. Ideal threshold is
-                                    % estimated as the average
-                                    % value.
-    options.validationIdx = [];    % The indices of the images to be used 
-                                   % in validation. ( Will be filled in 
-                                   % runVocabularyLearning.m). 
-                                   
     %% ========== PART SELECTION PARAMETERS ==========
     options.partSelectionFlag = true; % When this flag is false, the default 
                                       % part selection scheme is applied

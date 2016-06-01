@@ -43,11 +43,9 @@
 %>
 %> Updates
 %> Ver 1.0 on 13.04.2015
-function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, realNodeLabels, ...
-    nodePositions, edgeCoords, ...
-    singlePrecision, numberOfFinalSubs, fixedThreshold, ...
-    validationFolds, validationIdx, categoryArrIdx, imageIdx, ...
-    allSigns, allLeafNodes, possibleLeafNodeCounts, supervisionFlag)
+function [bestSubs, currentAccuracy] = selectParts(bestSubs, ...
+    numberOfFinalSubs, categoryArrIdx, imageIdx, ...
+    allSigns, allLeafNodes, supervisionFlag)
 
     % Keep a list of positive children, if required.
     posNodes = find(allSigns);
@@ -59,9 +57,6 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
         display('[SUBDUE] Running unsupervised part selection. This may take a while..');
     end
 
-    % Keep best subs.
-    orgBestSubs = bestSubs;
-    
     % Start processing with the remaining subs.
     numberOfOrgBestSubs = numel(bestSubs);
     allChildren = cell(numberOfOrgBestSubs,1);
@@ -85,56 +80,23 @@ function [bestSubs, optimalThreshold, optimalAccuracy] = selectParts(bestSubs, r
         allChildren{bestSubItr} = children;
     end
 
-    optimalThreshold = fixedThreshold;
     optimalCount = numberOfFinalSubs;
-    optimalAccuracy = -1;
+    currentAccuracy = -1;
     
-    %% Finally, given the optimal threshold, we select the best subs based on different validation sets and aggregate them.
-    aggregatedSubs = cell(validationFolds,1);
-    for valItr = 1:validationFolds
-        % We exclude the subs which have zero-cost matchs on this subset,
-        % but not on other subsets.
-        validSubIdx = ones(numel(orgBestSubs),1) > 0;
+    % Select remaining children and filter negative nodes.
+    remainingChildren = fastsortedunique(sort(cat(1, allChildren{:})));
+    if ~supervisionFlag
+        remainingChildren = intersect(remainingChildren, posNodes);
+    end
 
-        % If there's only one fold, or we do not wish to do
-        % cross-validation, we fit the training data.
-        if validationFolds > 1
-            for subItr = 1:numel(orgBestSubs)
-                instanceValidationIdx = orgBestSubs(subItr).instanceValidationIdx;
-
-                if nnz(instanceValidationIdx ~= valItr) == 0
-                   validSubIdx(subItr) = 0; 
-                end
-            end
-        end
-        bestSubs = orgBestSubs(validSubIdx);
-        numberOfBestSubs = numel(bestSubs);
-        if numberOfBestSubs == 0
-           continue; 
-        end
-
-        % Select remaining children and filter negative nodes.
-        remainingChildren = fastsortedunique(sort(cat(1, allChildren{validSubIdx})));
-        if ~supervisionFlag
-            remainingChildren = intersect(remainingChildren, posNodes);
-        end
-        
-        validSubIdx = find(validSubIdx);
-        
-        % Select subs.
-        if supervisionFlag
-            [validSubs, ~, ~] = getMRMRParts(bestSubs, optimalCount, ...
-                categoryArrIdx, imageIdx, validationIdx, valItr, optimalThreshold, singlePrecision);
-        else
-           [validSubs, ~] = getReconstructiveParts(bestSubs, optimalCount, remainingChildren, allLeafNodes);
-        end
-        aggregatedSubs{valItr} = validSubIdx(validSubs);
+    % Select subs.
+    if supervisionFlag
+        [validSubs, ~, ~] = getMRMRParts(bestSubs, optimalCount, ...
+            categoryArrIdx, imageIdx);
+    else
+        [validSubs] = getReconstructiveParts(bestSubs, optimalCount, remainingChildren, allLeafNodes);
     end
     
-    % Finally, obtain a list of final subs and get their union.
-    finalSubList = unique(cat(1, aggregatedSubs{:}));
-    bestSubs = orgBestSubs;
-    
-   % Update instance information.
-   bestSubs = bestSubs(finalSubList);
+    % Update instance information.
+    bestSubs = bestSubs(validSubs);
 end
