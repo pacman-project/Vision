@@ -21,7 +21,7 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     maxSamples = 200;
     minSamplesPerMode = 1.5;   
     if levelItr == 1
-         maximumModes = 6;
+         maximumModes = 4;
     else
          maximumModes = 4;
     end

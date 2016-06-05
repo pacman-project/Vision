@@ -1,4 +1,4 @@
-%> Name: SetParametersCommon
+    %> Name: SetParametersCommon
 %>
 %> Description: Common parameters for CHOP. This file is called when the
 %> dataset we are working on does not have its own parameter set.
@@ -103,12 +103,15 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.9;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.categoryLevelEdgeNoveltyThr = 0.3;
+    options.minEdgeNoveltyThr = 0.3;    % Minimum edge novelty threshold.
+    options.edgeNoveltyThrRate = 0.1;   % The edge novelty threshold 
+                                       % is supposed to reduce each level by 
+                                       % this amount.
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
@@ -147,9 +150,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % receptive field size grows by 
                                          % 1/scaling.
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
-    options.maxNodeDegree = 8;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
+    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
@@ -250,7 +253,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = min(3, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
+    options.subdue.maxSize = min(5, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
     options.subdue.nsubs = 300000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

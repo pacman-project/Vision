@@ -105,6 +105,7 @@
    %% If category level is reached, we reduce the number of desired nodes substantially. 
    if levelItr > 6
        display('........ Checking for image coverages for category level..');
+       imageIds = [graphLevel.imageId];
        [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel, level1Coords, levelItr, avgCoverage, options);
    end
 
@@ -198,7 +199,7 @@
    
    %% We delete unnecessary levels.
    if levelItr > 3
-      mainGraph(levelItr-2) = []; 
+      mainGraph(levelItr-2) = {[]}; 
    end
 
    %% Here, we bring back statistical learning with mean/variance.

@@ -22,7 +22,7 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 %> Separate mode learning from this function on 28.01.2014
-function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
+function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, edgeNoveltyThr)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
     currentLevel = mainGraph{currentLevelId};
@@ -40,11 +40,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
     imagesPerSet = 10;
     
     %% Program options into variables.
-    if currentLevelId == options.categoryLevel - 1
-         edgeNoveltyThr = 1 - options.categoryLevelEdgeNoveltyThr;
-    else
-         edgeNoveltyThr = 1 - options.edgeNoveltyThr;
-    end
+    edgeNoveltyThr = 1-edgeNoveltyThr;
     maxNodeDegree = options.maxNodeDegree;
     
     %% Put each image's node set into a different bin.
@@ -209,17 +205,17 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId)
                               selectedNodeCount = selectedNodeCount + 1;
                           end
                           adjacentNodes = adjacentNodes(~unpickedAdjacentNodes);
-                     else
-                           %% Eliminate far away nodes if this one has too many neighbors
-                           % Calculate scores (distances).
-                           scores = -distances(adjacentNodes);
-
-                           % Eliminate nodes having lower scores.
-                          if numel(adjacentNodes)>maxNodeDegree
-                                [idx] = getLargestNElements(scores, maxNodeDegree);
-                                adjacentNodes = adjacentNodes(idx);
-                         end
                      end
+                else
+                   %% Eliminate far away nodes if this one has too many neighbors
+                   % Calculate scores (distances).
+                   scores = distances(adjacentNodes);
+
+                   % Eliminate nodes having lower scores.
+                  if numel(adjacentNodes)>maxNodeDegree
+                        [idx] = getLargestNElements(scores, maxNodeDegree);
+                        adjacentNodes = adjacentNodes(idx);
+                  end
                 end
 
                 %% Assign final adjacent nodes.
