@@ -17,8 +17,8 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
-    options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
-    options.matlabRestartImageCount = 2000; % If we have more than this number 
+    options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
+    options.matlabRestartImageCount = 2500; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
@@ -35,12 +35,13 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 15;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 13;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
 %    options.gabor.sigma = 2.5;            % Gabor filter parameters
-    options.gabor.sigma = 1.21;    
+ %   options.gabor.sigma = 1.21;    
+    options.gabor.sigma = 1;    
     options.gabor.theta = 0;
     options.gabor.lambda = 1;
     options.gabor.psi = 0;
@@ -69,7 +70,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % level features. Only works in
                                        % auto-filter mode, since gabors are
                                        % extracted using conv2, convolution
-                                       % implementation of matlab.                                 
+                                       % implementation of matlab.d                                 
     options.auto.deadFeatureStd = 0; % In case of auto-learned features, 
                                        % some dead features may come up.
                                        % The standard deviation check is
@@ -127,7 +128,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % layers. 
     options.minContinuityCoverage = 0.94; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
+    options.missingNodeThr = 0.6; % Each node should cover this percentage of the nodes in its RF.
     options.categoryLevelMissingNodeThr = 0.9; %In category level, missing node threshold is treated differently.
     options.edgeChangeLevel = -1; % Going to be updated in the code later.
     options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
@@ -150,9 +151,11 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % receptive field size grows by 
                                          % 1/scaling.
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
-    options.maxNodeDegree = 6;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
+    options.maxFirstLevelNodeDegree = 3;  % (N) closest N nodes are linked for 
+                                       % every node in the object graphs (layer 1).
+    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
@@ -176,7 +179,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 8; % The level where we switch from 
+    options.categoryLevel = 9; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -194,10 +197,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
                % Hint: A good number is the number of poses per object.
                                  
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 3000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 250; % The maximum 
+    options.reconstruction.numberOfORNodes = 300; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
     options.reconstruction.maxNumberOfORNodes = 800; % Ideal number of OR 
@@ -253,7 +256,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = min(5, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
+    options.subdue.maxSize = min(6, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
     options.subdue.nsubs = 300000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

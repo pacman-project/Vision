@@ -47,7 +47,7 @@
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 %> Ver 1.2 on 02.09.2014 Adding display commentary.
 function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, ...
-    graphLevel, categoryArrIdx, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, levelItr, options)
+    graphLevel, level1Coords, categoryArrIdx, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, levelItr, options)
     %% First thing we do is to convert vocabLevel and graphLevel into different data structures.
     % This process is done to assure fast, vectorized operations.
     % Initialize the priority queue.
@@ -57,8 +57,10 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     nextGraphLevel = [];
 
     if levelItr < 4
+        minSize = 2;
         singleInstanceFlag = false;
     else
+        minSize = options.subdue.minSize;
         singleInstanceFlag = true;
     end
     
@@ -71,8 +73,8 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     beam = options.subdue.beam;
     nsubs = options.subdue.nsubs;
     maxTime = options.subdue.maxTime;
-    minSize = options.subdue.minSize;
     maxSize = options.subdue.maxSize;
+    halfRFSize = ceil(options.receptiveFieldSize/2);
     
     % If this is category level, we change the minimum RF coverage.
     if levelItr+1 == options.categoryLevel
@@ -82,6 +84,9 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     end
     parentsPerSet = 2000;
     
+%     % On lower levels, we do not need to extend too much.
+%     maxSize = min(maxSize, levelItr + 1);
+    
     % At this point we get more subs than we need, since we're trying to
     % optimize based on the number of subs.
     numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs;
@@ -89,25 +94,26 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
     % Helper data structures.
-    assignedEdges = {graphLevel.adjInfo};    
-    if isempty(assignedEdges) 
+    allEdges = {graphLevel.adjInfo};    
+    if isempty(allEdges) 
         return;
     else
-        allEdgeNodePairs = cat(1,assignedEdges{:});
+        allEdgeNodePairs = cat(1,allEdges{:});
         if isempty(allEdgeNodePairs)
             return;
         end
         clear allEdgeNodePairs;
     end
-    nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), assignedEdges);
+    nonemptyEdgeIdx = cellfun(@(x) ~isempty(x), allEdges);
     allLabels = cat(1, graphLevel.labelId);
-    assignedEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
-        assignedEdges(nonemptyEdgeIdx), 'UniformOutput', false);
-    allEdges(numel(graphLevel)) = AdjInfo();
-    [allEdges.adjInfo] = deal(assignedEdges{:});
-    allEdgeNodePairs = cat(1,allEdges.adjInfo);
+    allEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
+        allEdges(nonemptyEdgeIdx), 'UniformOutput', false);
+ %   allEdges(numel(graphLevel)) = AdjInfo();
+ %   [allEdges.adjInfo] = deal(assignedEdges{:});
+    allEdgeNodePairs = cat(1,allEdges{:});
     allEdgeNodePairs = allEdgeNodePairs(:,1:2);
     allEdgeCounts = hist(double(allEdgeNodePairs(:,1)), 1:numel(graphLevel))';
+    allCoords = cat(1, graphLevel.position);
     clear assignedEdges;
     avgDegree = size(allEdgeNodePairs,1)/numel(graphLevel);
     
@@ -121,14 +127,49 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     % Learn possible leaf nodes within every RF, and save them for future
     % use. For this one, we consider only the nodes within the receptive
     % field.
+    % Learn stride.
+    if strcmp(options.filterType, 'gabor')
+         stride = options.gabor.stride;
+    else
+         stride = options.auto.stride;
+    end
+    poolDim = options.poolDim;
+    
+    % Calculate pool factor.
+    if levelItr> 1 && ~isempty(options.noPoolingLayers)
+        poolFactor = nnz(~ismembc(2:levelItr, options.noPoolingLayers));
+    else
+        poolFactor = 0;
+    end
+    
+    % Allocate space for counts for every center, and find number of
+    % accessible leaf nodes for each receptive field.
+    level1CoordsPooled = calculatePooledPositions(level1Coords(:,2:3), poolFactor, poolDim, stride);
     possibleLeafNodeCounts = zeros(numel(allLeafNodes),1);
     if minRFCoverage > 0
-         for nodeItr = 1:size(allSigns,1)
-              if isempty(allEdges(nodeItr).adjInfo)
-                   possibleLeafNodeCounts(nodeItr)  = numel((graphLevel(nodeItr).leafNodes)');
-              else
-                   possibleLeafNodeCounts(nodeItr) = numel(fastsortedunique(sort(cat(2, graphLevel(allEdges(nodeItr).adjInfo(:,1:2)).leafNodes))'));
-              end
+         parfor nodeItr = 1:size(allSigns,1)
+             % Obtain node related data.
+             nodeEdges = allEdges{nodeItr};
+             nodeCoords = allCoords(nodeItr,:);
+             nodeChildren = allLeafNodes{nodeItr};
+             
+             % Calculate number of accessible leaf nodes within the RF.
+             if isempty(nodeEdges)
+                  possibleLeafNodeCounts(nodeItr)  = numel(nodeChildren);
+             else
+                 tempChildren = cat(1, nodeItr, nodeEdges(:,2));
+                 tempLeafNodes = fastsortedunique(sort(cat(2, allLeafNodes{tempChildren})));
+                 tempLeafNodeCoords = level1CoordsPooled(tempLeafNodes,:);
+                 
+                 % Keep only leaf nodes which exist within this RF.
+                 tempLeafNodes = tempLeafNodes(tempLeafNodeCoords(:,1) > nodeCoords(1) - halfRFSize & ...
+                     tempLeafNodeCoords(:,1) < nodeCoords(1) + halfRFSize & ...
+                     tempLeafNodeCoords(:,2) > nodeCoords(2) - halfRFSize & ...
+                     tempLeafNodeCoords(:,2) < nodeCoords(2) + halfRFSize);
+                 
+                 % Save the number.
+                 possibleLeafNodeCounts(nodeItr) = numel(tempLeafNodes);
+             end
          end
     end
    
@@ -170,8 +211,8 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                
                % Evaluate them.
                 singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
-                    allSigns, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+                    allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
+                    allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, possibleLeafNodeCounts, avgDegree);
 
                 %% Remove those with no instances. 
                 centerIdxArr = {singleNodeSubsFinal.instanceCenterIdx};
@@ -235,8 +276,8 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                  
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 [childSubsFinal, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
-                    allSigns, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+                    allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
+                    allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, possibleLeafNodeCounts, avgDegree);
                 
                 % Assign mdl scores of subs chosen for extension as well. 
                 [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
@@ -401,7 +442,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     if numberOfInstances>0
        display(['[SUBDUE] We have found ' num2str(numberOfBestSubs) ' subs with ' num2str(numberOfInstances) ' instances.']);
        [selectedSubs, optimalAccuracy] = selectParts(bestSubs, ...
-           numberOfReconstructiveSubs, categoryArrIdx, imageIdx, allSigns, allLeafNodes, ...
+           numberOfReconstructiveSubs, categoryArrIdx, imageIdx, allSigns, allLeafNodes, level1Coords,...
            isSupervisedSelectionRunning);
 
        % If supervision flag is set, and the performance has dropped
@@ -421,8 +462,8 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
 
        % Re-evaluate best subs.
        bestSubs = evaluateSubs(bestSubs, 'mdl', allEdgeCounts, allEdgeNodePairs, ...
-           allSigns, overlap, mdlNodeWeight, mdlEdgeWeight, false, ...
-           allLeafNodes, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+           allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, false, ...
+           allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, possibleLeafNodeCounts, avgDegree);
 
        % Sort bestSubs by their mdl scores.
        mdlScores = [bestSubs.mdlScore];

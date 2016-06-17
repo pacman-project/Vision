@@ -53,6 +53,16 @@ function [ ] = projectTrainingImages( fileList, vocabularyDistributions, exportA
        % Now, we get the top realizations and backproject to the original
        % image.
        [ experts, ~, ~, ~, ~ ] = projectNode(curExportArr, vocabularyDistributions, 'modal', options);
+       
+       % If rotation flag is on, we'll consider a wider range of filters.
+       numberOfFilters = size(visFilters,3);
+       numberOfRealFilters = numel(vocabularyDistributions{1});
+       if numberOfFilters > numel(vocabularyDistributions{1})
+             filterIds = round(((180/numberOfRealFilters) * (0:(numberOfRealFilters-1))) / (180/numberOfFilters))' + 1;
+             experts(:,1) = filterIds(experts(:,1));
+       end
+       
+       % Visualize the experts.
        [refModalImg, ~, ~] = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
        
 %       refModalImg = optimizeImagination(curExportArr, vocabularyDistributions, options.imageSize, rfSizes, optimizedFilters, visFilters, 1, options.datasetName, likelihoodLookupTable, options, optimizationOptions, fileName);

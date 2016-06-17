@@ -20,7 +20,7 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
     datasetName = options.datasetName;
     instancePerNode = options.vis.instancePerNode;
     instanceImgDim = round(sqrt(instancePerNode));
-    orgImgWeight = 0.6;
+    orgImgWeight = 0.5;
     maxImgSize = 50;
     
     if isempty(currentLevel)
@@ -119,28 +119,29 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
         nodeImgs(nodeItr) = {instanceImgs};
     end
     
-    % Make mask sizes uniform and write them all back.
-    parfor nodeItr = 1:numberOfNodes
-        instanceImgs = nodeImgs{nodeItr};
-        for instItr = 1:numel(instanceImgs)
-            tempMask2 = instanceImgs{instItr};
-            finalTempMask = zeros([compMaskSize, size(tempMask2,3)], 'uint8');
-            margins = (compMaskSize - [size(tempMask2,1), size(tempMask2,2)])/2;
-            finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
-                (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
-           
-            % A make-up to fill in NaNs (empty points).
-            instanceImgs{instItr} = finalTempMask;
-            imwrite(finalTempMask, [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png']);
-        end
-        nodeImgs{nodeItr} = instanceImgs;
-    end
+%     % Make mask sizes uniform and write them all back.
+%     parfor nodeItr = 1:numberOfNodes
+%         instanceImgs = nodeImgs{nodeItr};
+%         for instItr = 1:numel(instanceImgs)
+%             tempMask2 = instanceImgs{instItr};
+%             finalTempMask = zeros([compMaskSize, size(tempMask2,3)], 'uint8');
+%             margins = (compMaskSize - [size(tempMask2,1), size(tempMask2,2)])/2;
+%             finalTempMask((floor(margins(1))+1):(end-ceil(margins(1))), ...
+%                 (floor(margins(2))+1):(end-ceil(margins(2))), :) = tempMask2;
+%            
+%             % A make-up to fill in NaNs (empty points).
+%             instanceImgs{instItr} = finalTempMask;
+%             imwrite(finalTempMask, [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png']);
+%         end
+%         nodeImgs{nodeItr} = instanceImgs;
+%     end
 
     % Only visualize representative nodes.
     numberOfNodes = numel(representativeNodes);
     
     % Using the maximum dimensions, transform each composition image to the
     % same size. 
+    compMaskSize = min(compMaskSize, maxImgSize);
     colImgCount = ceil(sqrt(numberOfNodes));
     rowImgCount = ceil(numberOfNodes/colImgCount);
     overallInstanceImage = NaN((rowImgCount * instanceImgDim)*(compMaskSize(1)+1)+1, colImgCount * instanceImgDim * (compMaskSize(2)+1)+1, dim3);
@@ -149,6 +150,10 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
         instanceImgs = nodeImgs{representativeNodes(nodeItr)};
         for instItr = 1:numel(instanceImgs)
             compFinalMask = instanceImgs{instItr};
+            
+            if instItr == 1
+                compFinalMask = imresize(compFinalMask, compMaskSize);
+            end
 
             % Add the composition's mask to the overall mask image.
             rowStart2= 2 + floor((nodeItr-1)/colImgCount)*(compMaskSize(1)+1) *instanceImgDim ;

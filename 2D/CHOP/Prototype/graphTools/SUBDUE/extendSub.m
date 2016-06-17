@@ -27,7 +27,7 @@ function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstance
         allEdgeInstanceIds(beginOffset:(beginOffset+(edgeCounts(itr)-1))) = itr;
         itrOffset = itrOffset + edgeCounts(itr);
     end         
-    subAllEdges = cat(1, allEdges(centerIdx).adjInfo);
+    subAllEdges = cat(1, allEdges{centerIdx});
     
     % If there are no edges, exit.
     if isempty(subAllEdges)

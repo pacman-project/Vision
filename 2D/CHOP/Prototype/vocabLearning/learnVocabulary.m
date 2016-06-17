@@ -101,7 +101,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     previousAccuracy = 0; %#ok<*NASGU>
     
     %% Obtain level 1 coords to subsample them in higher layers.
-    level1Coords = [double(cat(1, graphLevel.imageId)), double(cat(1, graphLevel.position))];
+    level1Coords = [cat(1, graphLevel.imageId), int32(cat(1, graphLevel.precisePosition))];
     
     %% If we have passed the limit for number of images, we go into a different mode 
     % where we perform matlab restarts for memory optimization.
@@ -129,9 +129,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     
     % Save workspace into a file.
     disp('Saving layer 1 workspace.');
-    save([pwd '/Workspace.mat'], '-v7');
-    copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
-        
+    saveWorkspace();
     if options.restartFlag
          
          % Reduce memory consumption by writing all stuff to files,

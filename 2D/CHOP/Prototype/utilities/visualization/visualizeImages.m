@@ -212,38 +212,44 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
                  representativeNode = representativeNodes(nodeLabelIds(nodeItr));
                  nodeInstances = allNodeInstances{representativeNode};
                  if ismembc(relevantNodeIds(nodeItr), nodeInstances(:,1))
+                     
+                     % Create an empty image.
                      imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
-                     nodeInfo = nodeInstances(imgId+1,:);
-                     buffer = max([0, 1-nodeInfo(2), 1-nodeInfo(3), nodeInfo(4) - imageSize(1), nodeInfo(5) - imageSize(2)]);
-                     if buffer > 0
-                         tempImg = zeros((nodeInfo(4)-nodeInfo(2))+1, (nodeInfo(5)-nodeInfo(3))+1, size(actualImg,3), class(actualImg));
-                         nodeInfo(:,2:5) = [nodeInfo(2:3) + buffer, nodeInfo(4:5) - buffer];
-                         tempImg((buffer+1):(end-buffer), (buffer+1):(end-buffer), :) = actualImg(nodeInfo(2):nodeInfo(4), ...
-                              nodeInfo(3):nodeInfo(5), :);
-                         imwrite(tempImg, [croppedOrgFolder '/' num2str(representativeNode) '_' num2str(imgId) '.png']);
-                     else
-                          imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
-                              nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(representativeNode) '_' num2str(imgId) '.png']);
-                     end
+                     emptyImg = zeros(1 + nodeInstances(2,4) - nodeInstances(2,2), 1 + nodeInstances(2,5) - nodeInstances(2,3), size(actualImg,3), 'uint8');
+                     
+                     % Calculate which parts of the image will be obtained.
+                     tempBounds = nodeInstances(imgId+1,2:5);
+                     maxBounds = max(0, tempBounds(:, [3 4]) - [size(actualImg,1), size(actualImg,2)]);
+                     minBounds = max(0, [1,1] - tempBounds(:, [1 2]));
+                     tempBounds(:, [3 4]) = min([size(actualImg,1), size(actualImg,2)], tempBounds(:, [3 4]));
+                     tempBounds(:, [1 2]) = max([1, 1], tempBounds(:, [1 2]));
+                     
+                     % Get the relevant part of the image and write to an
+                     % array.
+                     emptyImg(1+minBounds(1):end-(maxBounds(1)), 1+minBounds(2):end-(maxBounds(2)), :) = ...
+                         actualImg(tempBounds(1):tempBounds(3), tempBounds(2):tempBounds(4), :);
+                     imwrite(emptyImg, [croppedOrgFolder '/' num2str(representativeNode) '_' num2str(imgId) '.png']);
                  end
                  
                  nodeInstances = allNodeInstances{nodeRealLabelIds(nodeItr)};
                  if ismembc(relevantNodeIds(nodeItr), nodeInstances(:,1)) && nodeRealLabelIds(nodeItr) ~= representativeNode
-                     imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
                      
-                     % Crop the image and print it.
-                     nodeInfo = nodeInstances(imgId+1,:);
-                     buffer = max([0, 1-nodeInfo(2), 1-nodeInfo(3), nodeInfo(4) - imageSize(1), nodeInfo(5) - imageSize(2)]);
-                     if buffer > 0
-                         tempImg = zeros((nodeInfo(4)-nodeInfo(2))+1, (nodeInfo(5)-nodeInfo(3))+1, size(actualImg,3), class(actualImg));
-                         nodeInfo(:,2:5) = [nodeInfo(2:3) + buffer, nodeInfo(4:5) - buffer];
-                         tempImg((buffer+1):(end-buffer), (buffer+1):(end-buffer), :) = actualImg(nodeInfo(2):nodeInfo(4), ...
-                              nodeInfo(3):nodeInfo(5), :);
-                         imwrite(tempImg, [croppedOrgFolder '/' num2str(nodeRealLabelIds(nodeItr)) '_' num2str(imgId) '.png']);
-                     else
-                          imwrite(actualImg(nodeInstances(imgId+1,2):nodeInstances(imgId+1,4), ...
-                              nodeInstances(imgId+1,3):nodeInstances(imgId+1,5), :), [croppedOrgFolder '/' num2str(nodeRealLabelIds(nodeItr)) '_' num2str(imgId) '.png']);
-                     end
+                     % Create an empty image.
+                     imgId = find(nodeInstances(:,1) == relevantNodeIds(nodeItr)) - 1;
+                     emptyImg = zeros(1 + nodeInstances(2,4) - nodeInstances(2,2), 1 + nodeInstances(2,5) - nodeInstances(2,3), size(actualImg,3), 'uint8');
+                     
+                     % Calculate which parts of the image will be obtained.
+                     tempBounds = nodeInstances(imgId+1,2:5);
+                     maxBounds = max(0, tempBounds(:, [3 4]) - [size(actualImg,1), size(actualImg,2)]);
+                     minBounds = max(0, [1,1] - tempBounds(:, [1 2]));
+                     tempBounds(:, [3 4]) = min([size(actualImg,1), size(actualImg,2)], tempBounds(:, [3 4]));
+                     tempBounds(:, [1 2]) = max([1, 1], tempBounds(:, [1 2]));
+                     
+                     % Get the relevant part of the image and write to an
+                     % array.
+                     emptyImg(1+minBounds(1):end-(maxBounds(1)), 1+minBounds(2):end-(maxBounds(2)), :) = ...
+                         actualImg(tempBounds(1):tempBounds(3), tempBounds(2):tempBounds(4), :);
+                     imwrite(emptyImg, [croppedOrgFolder '/' num2str(nodeRealLabelIds(nodeItr)) '_' num2str(imgId) '.png']);
                  end
             end
             

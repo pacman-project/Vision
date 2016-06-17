@@ -3,7 +3,7 @@
 function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, classOrder)
      numberOfModels = 20;
      datasetStr = '400Pacmans';
-     distance = '600';
+     distance = '900';
      classList = { 'Bottle', 'Bowl', 'Box', 'Mug', 'Cup', 'FryingPan', 'Spatula', 'TeaPot', 'TeaCup', 'Plate', 'Jug', 'Can', 'ChoppingBoard', 'Shaker', 'Tray', 'Fork', 'Knife', 'Scissors', 'Spoon', 'Vase'};
      load([pwd '/' datasetStr '/categoryNames.mat']);
      
@@ -22,6 +22,7 @@ function [ ] = createPacmanDataset( classCount, imageCount, trainingModelCount, 
          
           % Go through the models.
           for modelItr = 1:numberOfModels
+              poseIdx = datasample(1:256, imageCount, 'Replace', false);
               trueModelIdx = find(cellfun(@(x) ~isempty(x), strfind(categoryNames, classList{classItr})));
               trainingModels = 1:trainingModelCount;
               

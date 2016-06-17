@@ -45,7 +45,7 @@
 %> Ver 1.0 on 13.04.2015
 function [bestSubs, currentAccuracy] = selectParts(bestSubs, ...
     numberOfFinalSubs, categoryArrIdx, imageIdx, ...
-    allSigns, allLeafNodes, supervisionFlag)
+    allSigns, allLeafNodes, level1Coords, supervisionFlag)
 
     % Keep a list of positive children, if required.
     posNodes = find(allSigns);
@@ -94,7 +94,7 @@ function [bestSubs, currentAccuracy] = selectParts(bestSubs, ...
         [validSubs, ~, ~] = getMRMRParts(bestSubs, optimalCount, ...
             categoryArrIdx, imageIdx);
     else
-        [validSubs] = getReconstructiveParts(bestSubs, optimalCount, remainingChildren, allLeafNodes);
+        [validSubs] = getReconstructiveParts(bestSubs, optimalCount, level1Coords, remainingChildren, allLeafNodes);
     end
     
     % Update instance information.

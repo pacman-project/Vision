@@ -26,14 +26,14 @@
 %> Updates
 %> Ver 1.0 on 15.01.2014
 %> 'self' type search added on 05.02.2014
-function [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs( vocabLevel, graphLevel, ...
+function [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs( vocabLevel, graphLevel, level1Coords, ...
     options, levelItr, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy)
     startTime = tic;
     display(['.... Discovering compositions in level ' num2str(levelItr) '.']); 
     load([options.currentFolder '/output/' options.datasetName '/export.mat'], 'categoryArrIdx');
     
     % Search for substructures.
-    [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, graphLevel, categoryArrIdx, ...
+    [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = runSubdue(vocabLevel, graphLevel, level1Coords, categoryArrIdx, ...
         supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy, levelItr, options);
     
     % Show time elapsed.

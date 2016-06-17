@@ -28,17 +28,26 @@
 %>
 %> Updates
 %> Ver 1.0 on 08.10.2015
-function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqueChildren, allLeafNodes)
+function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level1Coords, uniqueChildren, allLeafNodes)
 
-   coverageStoppingVal = 0.9975;
+   coverageStoppingVal = 0.95;
    numberOfBestSubs = numel(bestSubs);
    remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
-   numberOfChildren = {bestSubs.edges};
-   numberOfChildren = cellfun(@(x) size(x,1) + 1, numberOfChildren).^(1/3);
+%   numberOfChildren = {bestSubs.edges};
+%   numberOfChildren = cellfun(@(x) size(x,1) + 1, numberOfChildren).^(1/3);
 %   numberOfChildren = cellfun(@(x) size(x,1) + 1, numberOfChildren);
 %   numberOfChildren = cellfun(@(x) size(x,1) + 1, numberOfChildren);
    firstGraphNodeCount = numel(remainingFirstLevelNodes);
-   maxChildId = max(remainingFirstLevelNodes);
+   
+   % Find number of leaf nodes per image.
+   leafNodeImageIds = single(level1Coords(:,1));
+   allImageIds = 1:max(leafNodeImageIds);
+   imageLeafNodeCounts = hist(leafNodeImageIds(remainingFirstLevelNodes), allImageIds);
+   
+   % For images which do not have any leaf nodes left, we assign the count
+   % 1 to prevent division by zero.
+   imageLeafNodeCounts(imageLeafNodeCounts == 0) = 1;
+   numberOfRemainingImages = numel(unique(leafNodeImageIds(remainingFirstLevelNodes)));
    
    % Allocate space for log likelihood results.
    subCoveredNodes = cell(numberOfBestSubs,1);
@@ -53,7 +62,7 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqu
         coveredNodes = fastsortedunique(sort(cat(2, allLeafNodes{allNodes})));
         subCoveredNodes{subItr} = coveredNodes;
    end
-   childrenCounts = cellfun(@(x) numel(x), subCoveredNodes).^(1/3);
+%   childrenCounts = cellfun(@(x) numel(x), subCoveredNodes).^(1/3);
    
      %% Finally, we implement an algorithm for part selection. 
      % This step is done to perform an initial pass to reduce the number of
@@ -63,8 +72,11 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqu
      subCounter = 0; 
      addedValueArr = [];
      selectedSubIdx = zeros(1,numberOfBestSubs) > 0;
-     markedNodes = zeros(maxChildId,1) > 0;
+     markedNodes = zeros(size(level1Coords,1),1) > 0;
      valueArr = inf(1,numberOfBestSubs);
+     
+     % We calculate image-based coverage and then round it.
+     validNodeArr = ones(size(level1Coords,1),1) > 0;
 
      % Mark invalid nodes.
      invalidArr = cellfun(@(x) numel(x), subCoveredNodes);
@@ -76,7 +88,7 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqu
        maxLoc = 0;
        maxSubIdx = [];
        maxLocMarkedNodes = [];
-       prevVal = nnz(markedNodes);
+       prevVal = nnz(markedNodes(validNodeArr));
 
       for subItr = 1:numberOfBestSubs
  %      for subItr = numberOfBestSubs:-1:1
@@ -97,7 +109,7 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqu
  %          diffVal = (nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr);
  %          diffVal = (nnz(tempMarkedNodes) - prevVal) / childrenCounts(subItr);
  %          diffVal = ((nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr))/ childrenCounts(subItr);
-          diffVal = (nnz(tempMarkedNodes) - prevVal);
+           diffVal = (nnz(tempMarkedNodes(validNodeArr)) - prevVal);
  
            % Save diffVal.
            if diffVal < valueArr(subItr)
@@ -123,18 +135,28 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, uniqu
       cumVal = cumVal + maxLocVal;
       selectedSubIdx = maxSubIdx;
       subCounter = subCounter + 1;
-
-     %            % Calculate coverage, and check if we've covered enough data.
-     %             % Then, break if necessary.
-       coverage = nnz(markedNodes) / firstGraphNodeCount;
-       if coverage >= coverageStoppingVal 
-           break;
-       end
+      
+      % Calculate coverage. 
+      imageCoverages = hist(leafNodeImageIds(markedNodes), allImageIds);
+      achievedImages = imageCoverages ./ imageLeafNodeCounts >= coverageStoppingVal;
+      validNodeArr(ismembc(leafNodeImageIds, single(find(achievedImages)))) = 0;
+      
+      % Calculate coverage, and check if we've covered enough data.
+      % Then, break if necessary.
+%       coverage = nnz(markedNodes) / firstGraphNodeCount;
+%        if coverage >= coverageStoppingVal 
+%            break;
+%        end
+      if nnz(achievedImages) == numberOfRemainingImages
+         break; 
+      end
 
       % Print output.
       if rem(subCounter, 10) == 1 && subCounter > 1
-          display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
-              num2str(maxLoc) ', and coverage %' num2str(coverage*100) ', with current coverage:' num2str(nnz(markedNodes)) '.']);
+%           display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
+%               num2str(maxLoc) ', and coverage %' num2str(coverage*100) ', with current coverage:' num2str(nnz(markedNodes)) '.']);
+            display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
+               num2str(maxLoc) ', and ' num2str(nnz(achievedImages)) ' out of ' num2str(numberOfRemainingImages) ' images have been covered at least %' num2str(coverageStoppingVal*100) '.']);
       end
      end
         

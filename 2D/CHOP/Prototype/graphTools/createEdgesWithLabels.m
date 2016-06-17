@@ -33,11 +33,45 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     imageIds = [currentLevel.imageId]';
     edgeIdMatrix = options.edgeIdMatrix;
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
+    incHalfMatrixSize = halfMatrixSize - 1;
+    if ismember(currentLevelId, options.smallRFLayers)
+        rfRadius = ceil(halfMatrixSize/2);
+    else
+        rfRadius = halfMatrixSize;
+    end
     circularRF = options.circularRF;
     matrixSize = [options.receptiveFieldSize, options.receptiveFieldSize];
+    receptiveFieldSize = options.receptiveFieldSize;
     edgeType = options.edgeType;
     minimalEdgeCount = options.minimalEdgeCount;
     imagesPerSet = 10;
+    maxFirstLevelNodeDegree = options.maxFirstLevelNodeDegree;
+    
+    %% Create elliptical RFs for layer 1.
+    if currentLevelId == 1
+       validMatrices = cell(options.numberOfGaborFilters, 1); 
+       smallSize = 1;
+       mainSize = 4;
+       dummyMask = zeros(receptiveFieldSize) > 0;
+       dummyMask(halfMatrixSize-mainSize:halfMatrixSize+mainSize, halfMatrixSize-smallSize:halfMatrixSize+smallSize) = 1;
+       angleStep = 180 / options.numberOfGaborFilters;
+       for filterItr = 1:options.numberOfGaborFilters;
+          rotatedMask = imrotate(dummyMask, -(filterItr-1) * angleStep, 'nearest', 'crop');
+          validMatrices{filterItr} = rotatedMask;
+       end
+        secValidMatrices = validMatrices;
+       % Create secondary (thinner) validation matrices.
+%        secValidMatrices = cell(options.numberOfGaborFilters, 1);
+%        dummyMask = zeros(receptiveFieldSize) > 0;
+%        dummyMask(halfMatrixSize-mainSize:halfMatrixSize+mainSize, halfMatrixSize) = 1;
+%        for filterItr = 1:options.numberOfGaborFilters;
+%           rotatedMask = imrotate(dummyMask, -(filterItr-1) * angleStep, 'nearest', 'crop');
+%           secValidMatrices{filterItr} = rotatedMask;
+%        end
+    else
+        validMatrices = [];
+        secValidMatrices = [];
+    end
     
     %% Program options into variables.
     edgeNoveltyThr = 1-edgeNoveltyThr;
@@ -95,7 +129,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     end
     
     %% Process each set separately (and in parallel)
-    parfor setItr = 1:numberOfSets
+    for setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          imageNodeIdxSets = setNodeIdxSets{setItr};
          imageGraphNodeSets = setGraphNodeSets{setItr};
@@ -137,39 +171,79 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 
                 %% If the RF is circular, we need to eliminate adjacent nodes further.
                 if circularRF
-                     adjacentNodes = distances < halfMatrixSize;
+                     adjacentNodes = distances < rfRadius;
                 else
-                     adjacentNodes = curNodeCoords(:,1) > (centerArr(:,1) - halfMatrixSize) & ...
-                          curNodeCoords(:,1) < (centerArr(:,1) + halfMatrixSize) & ...
-                          curNodeCoords(:,2) > (centerArr(:,2) - halfMatrixSize) & ...
-                          curNodeCoords(:,2) < (centerArr(:,2) + halfMatrixSize);
+                     adjacentNodes = curNodeCoords(:,1) > (centerArr(:,1) - rfRadius) & ...
+                          curNodeCoords(:,1) < (centerArr(:,1) + rfRadius) & ...
+                          curNodeCoords(:,2) > (centerArr(:,2) - rfRadius) & ...
+                          curNodeCoords(:,2) < (centerArr(:,2) + rfRadius);
                 end
+                adjacentNodes(nodeItr) = 0;
+                adjacentNodes = find(adjacentNodes);
                 
-                %% Check for edge novelty.
-                adjacentNodeIdx = find(adjacentNodes);
-                centerLeafNodes = [];
-                if currentLevelId > 1
-                    centerLeafNodes = curLeafNodes{nodeItr};
-                    commonLeafCounts = cellfun(@(x) sum(ismembc(x, centerLeafNodes)), curLeafNodes(adjacentNodes));
-                    novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
-                    adjacentNodes = adjacentNodeIdx(novelNodes);
-                else
-                    adjacentNodes = adjacentNodeIdx;
-                end
-                adjacentNodes = adjacentNodes(adjacentNodes~=nodeItr);
-
                 %% A further check is done to ensure boundary/surface continuity.
                 if strcmp(edgeType, 'continuity') && currentLevelId > 1
-                    centerLeafEdges = cat(1, firstLevelAdjInfo{centerLeafNodes}); %#ok<PFBNS>
+                    centerLeafEdges = cat(1, firstLevelAdjInfo{curLeafNodes{nodeItr}}); %#ok<PFBNS>
                     if isempty(centerLeafEdges)
                          adjacentNodes = [];
                     else
                          centerAdjNodes = sort(centerLeafEdges(:,2));
                          adjLeafNodes = curLeafNodes(adjacentNodes);
                          validAdjacentNodes = cellfun(@(x) nnz(ismembc(x, centerAdjNodes)), adjLeafNodes) > 0;
-                         adjacentNodes = adjacentNodes(validAdjacentNodes);
+                         if nnz(validAdjacentNodes > 1)
+                            adjacentNodes = adjacentNodes(validAdjacentNodes);
+                         end
                     end
-                end           
+                end
+                
+                %% Check for edge novelty.
+                if currentLevelId > 1 
+                    if edgeNoveltyThr < 1
+                        commonLeafCounts = cellfun(@(x) sum(ismembc(x, curLeafNodes{nodeItr})), curLeafNodes(adjacentNodes));
+                        novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
+                        if nnz(novelNodes) > 1
+                            adjacentNodes = adjacentNodes(novelNodes);
+                        end
+                    end
+                else
+                    % For layer 1, we check for contour connectivity when
+                    % forming an edge between two nodes.
+                    centerRF = validMatrices{curNodeIds(nodeItr)};
+                    adjacentNodeCoords = (curNodeCoords(adjacentNodes,:) - centerArr(adjacentNodes,:)) + halfMatrixSize;
+                    centerCoords = halfMatrixSize - (adjacentNodeCoords - halfMatrixSize); 
+                    validAdjacentNodes = ones(numel(adjacentNodes),1) > 0;
+                    shareRFCounts = zeros(numel(adjacentNodes),1);
+                    for adjItr = 1:numel(adjacentNodes)
+                        tempRF = centerRF(max(1, adjacentNodeCoords(adjItr,1) - incHalfMatrixSize):...
+                            min(receptiveFieldSize, adjacentNodeCoords(adjItr,1) + incHalfMatrixSize), ...
+                            max(1, adjacentNodeCoords(adjItr,2) - incHalfMatrixSize): ...
+                            min(receptiveFieldSize, adjacentNodeCoords(adjItr,2) + incHalfMatrixSize));
+                        
+                        % Now, we reverse the situation and get the part of
+                        % the RF that is adjacent-node based.
+                        adjRF = secValidMatrices{curNodeIds(adjacentNodes(adjItr))};
+                        tempRF = tempRF & adjRF(max(1, centerCoords(adjItr,1) - incHalfMatrixSize):...
+                            min(receptiveFieldSize, centerCoords(adjItr,1) + incHalfMatrixSize), ...
+                            max(1, centerCoords(adjItr,2) - incHalfMatrixSize): ...
+                            min(receptiveFieldSize, centerCoords(adjItr,2) + incHalfMatrixSize));
+                        
+                        % If both rfs do not match, we move on.
+                        if nnz(tempRF) < 2
+                            validAdjacentNodes(adjItr) = 0;
+                        else
+                            shareRFCounts(adjItr) = nnz(tempRF);
+                        end
+                    end
+                    
+                    % If this node has too many adjacent node pairs, we
+                    % simply don't consider unlikely ones.
+                    if nnz(shareRFCounts) > maxFirstLevelNodeDegree
+                        [~, idx] = sort(shareRFCounts, 'descend');
+                        adjacentNodes = adjacentNodes(sort(idx(1:maxFirstLevelNodeDegree)));
+                    else
+                        adjacentNodes = adjacentNodes(validAdjacentNodes);
+                    end
+                end
 
                 %% Now, we'll find a canonical edge representation for this node. 
                 % We'll pick adjacent nodes one by one, based on their
@@ -177,34 +251,48 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 % distance. Ideally, we want to pick closer nodes with high
                 % contributions.
                 if currentLevelId > 1
-                     curNodeList = centerLeafNodes;
-                     selectedNodeCount = 0;
+                     curNodeList = curLeafNodes{nodeItr};
+                     
+                     
                      if numel(adjacentNodes) > maxNodeDegree || minimalEdgeCount
-                          unpickedAdjacentNodes = ones(numel(adjacentNodes),1) > 0;
-                          while selectedNodeCount < maxNodeDegree
-                              % If all nodes are picked, break.
-                              if nnz(unpickedAdjacentNodes) == 0
-                                   break;
-                              end
-
-                              % Get the adjacent nodes to work with.
-                              tempAdjacentNodes = adjacentNodes(unpickedAdjacentNodes);
-
-                              % Count the number of novel nodes for every adjacent
-                              % node (which wasn't picked).
-                              novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(tempAdjacentNodes))';
-                              if nnz(novelNodeCounts) == 0
-                                   break;
-                              end
-
-                              % Now, we pick next best adjacent node. 
-                              sortArr = [-novelNodeCounts, distances(tempAdjacentNodes)];
-                              [~, idx] = sortrows(sortArr);
-                              unpickedAdjacentNodes(idx(1)) = 0;
-                              curNodeList = fastsortedunique(sort(cat(2, curNodeList, curLeafNodes{tempAdjacentNodes(idx(1))})));
-                              selectedNodeCount = selectedNodeCount + 1;
-                          end
-                          adjacentNodes = adjacentNodes(~unpickedAdjacentNodes);
+                         % Alternative 1.
+                         novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(adjacentNodes))';
+                         if nnz(novelNodeCounts) > 0
+                             sortArr = [-novelNodeCounts, distances(adjacentNodes), single(curNodeIds(adjacentNodes))];
+                             [~, idx] = sortrows(sortArr);
+                             adjacentNodes = adjacentNodes(sort(idx(1:maxNodeDegree)));
+                         else
+                             adjacentNodes = [];
+                         end
+                         
+                         % Alternative 2.
+%                            selectedNodeCount = 0;
+%                           pickedAdjacentNodes = [];
+%                           while selectedNodeCount < maxNodeDegree && ~isempty(adjacentNodes)
+%                               % Count the number of novel nodes for every adjacent
+%                               % node (which wasn't picked).
+%                               novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(adjacentNodes))';
+%                               if nnz(novelNodeCounts) == 0
+%                                    break;
+%                               end
+%                               
+%                               % Eliminate instances that have already been
+%                               % used for coverage.
+%                               validArr = novelNodeCounts > 0;
+% 
+%                               % Now, we pick next best adjacent node.
+%                       %        sortArr = [-novelNodeCounts, distances(adjacentNodes)];
+%                               sortArr = [-novelNodeCounts, curNodeIds(adjacentNodes)];
+%                               [~, idx] = sortrows(sortArr);
+%                               pickedAdjacentNodes = cat(1, pickedAdjacentNodes, adjacentNodes(idx(1)));
+%                               validArr(idx(1)) = 0;
+%                               curNodeList = fastsortedunique(sort(cat(2, curNodeList, curLeafNodes{adjacentNodes(idx(1))})));
+%                               selectedNodeCount = selectedNodeCount + 1;
+%                               
+%                               % Update lists.
+%                               adjacentNodes = adjacentNodes(validArr);
+%                           end
+%                           adjacentNodes = pickedAdjacentNodes;
                      end
                 else
                    %% Eliminate far away nodes if this one has too many neighbors

@@ -5,8 +5,8 @@
 %case of publication with this code, please cite the paper above.
 
 function H=HOG(Im)
-nwin_x=8;%set here the number of HOG windows per bound box
-nwin_y=8;
+nwin_x=10;%set here the number of HOG windows per bound box
+nwin_y=10;
 B=16;%set here the number of histogram bins
 stepOffset = floor(B/2)+1;
 [L,C]=size(Im); % L num of lines ; C num of columns

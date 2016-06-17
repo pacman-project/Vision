@@ -30,8 +30,8 @@
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdgeCounts, allEdgeNodePairs, allSigns, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-     allLeafNodes, minRFCoverage, maxLeafCounts, avgDegree)
+function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdgeCounts, allEdgeNodePairs, allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
+     allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, maxLeafCounts, avgDegree)
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
     validExtSubs = ones(numberOfSubs,1) > 0;
@@ -45,13 +45,20 @@ function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdg
        % make sure those instances which cover a large portion of their
        % receptive field survives.
         if size(subs(subItr).instanceChildren,2) > 1 && minRFCoverage > 0
-             allChildren = subs(subItr).instanceChildren;
-             % Here, we check if we're actually covering enough of every
-             % receptive field out there.
-             numberOfInstances = size(allChildren,1);
+              allChildren = subs(subItr).instanceChildren;
+              % Here, we check if we're actually covering enough of every
+              % receptive field out there.
+              numberOfInstances = size(allChildren,1);
               coveredLeafNodes = cell(numberOfInstances,1);
               for childItr = 1:numberOfInstances
-                   coveredLeafNodes{childItr} = int32(fastsortedunique(sort(cat(2, allLeafNodes{allChildren(childItr,:)}))));
+                   tempLeafNodes = fastsortedunique(sort(cat(2, allLeafNodes{allChildren(childItr,:)})));
+                   tempLeafNodeCoords = level1CoordsPooled(tempLeafNodes,:);
+                   nodeCoords = allCoords(allChildren(childItr,1),:);
+                   tempLeafNodes = tempLeafNodes(tempLeafNodeCoords(:,1) > nodeCoords(1) - halfRFSize & ...
+                     tempLeafNodeCoords(:,1) < nodeCoords(1) + halfRFSize & ...
+                     tempLeafNodeCoords(:,2) > nodeCoords(2) - halfRFSize & ...
+                     tempLeafNodeCoords(:,2) < nodeCoords(2) + halfRFSize);
+                   coveredLeafNodes{childItr} = int32(tempLeafNodes);
               end
 
              % Find the intersection of two sets, to assess coverage.
@@ -63,18 +70,20 @@ function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdg
              % If there are full instances that do not extension (cover
              % enough of RF), we delete them.
              if mean(coverageRatios) >= minRFCoverage
-                  validExtSubs(subItr) = 0;
+                 validExtSubs(subItr) = 0;
+              else
+                 validSubs(subItr) = 0;
              end
 
-             %% If the coverage is too small, we don't consider this sub.
+%              %% If the coverage is too small, we don't consider this sub.
              if nnz(validInstances) == 0
-                  validSubs(subItr) = 0;
+                 validSubs(subItr) = 0;
              end
 
-             %% Update instances to keep only valid ones (which cover most of RF).
-             sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
-             sub.instanceChildren = sub.instanceChildren(validInstances,:);
-             sub.instanceSigns = sub.instanceSigns(validInstances,:);
+%              %% Update instances to keep only valid ones (which cover most of RF).
+%              sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
+%              sub.instanceChildren = sub.instanceChildren(validInstances,:);
+%              sub.instanceSigns = sub.instanceSigns(validInstances,:);
         end
         
         % We compress the object graph using the children, and the

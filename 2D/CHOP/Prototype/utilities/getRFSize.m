@@ -8,4 +8,3 @@ function [ rfSize ] = getRFSize( options, levelItr )
    rfSize = options.receptiveFieldSize * stride * (options.poolDim ^ poolFactor);
    rfSize = [rfSize, rfSize];
 end
-

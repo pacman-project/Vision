@@ -28,20 +28,17 @@
 %> Ver 1.0 on 06.05.2014
 %> Update on 23.02.2015 Added comments, performance boost.
 %> Update on 25.02.2015 Added support for single node subs.
-function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, ~, vocabularyDistributions, levelItr, options)
+function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabularyDistributions, levelItr, options)
     edgeCoords = options.edgeCoords;
     distType = options.distType;
     stopFlag = options.stopFlag;
     smallImageSize = 50;
     
     % Get number of OR nodes.
-    if stopFlag
-         numberOfORNodes = options.reconstruction.numberOfORNodesCategoryLayer;
-    else
-         numberOfORNodes = options.reconstruction.numberOfORNodes;
-    end
-    
+    numberOfORNodes = options.reconstruction.numberOfORNodes;
+    % Get filter size.
     filterSize = size(options.filters{1});
+    halfFilterSize = floor(filterSize(1)/2);
     
     %% As a case study, we replace gabors with 1D gaussian filters    
     visFilters = options.filters;
@@ -61,7 +58,10 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
     clear IC;
     
     % Eliminate unused compositions from vocabulary.
-    vocabLevel = vocabLevel(1, remainingComps);
+    vocabLevel = vocabLevel(remainingComps);
+    vocabLevelDistributions = vocabularyDistributions{levelItr};
+    vocabLevelDistributions = vocabLevelDistributions(remainingComps);
+    vocabularyDistributions{levelItr} = vocabLevelDistributions;
     newLabelArr = num2cell(int32(1:numel(vocabLevel)));
     [vocabLevel.label] = deal(newLabelArr{:});
     
@@ -72,6 +72,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    vocabEdges = cellfun(@(x) double(x), vocabEdges, 'UniformOutput', false);
    newEdge = size(edgeCoords,1);
    largeSubIdx = cellfun(@(x) ~isempty(x), vocabEdges);
+   numberOfSingleSubs = numel(largeSubIdx) - nnz(largeSubIdx);
    vocabNeighborModes = num2cell(repmat(newEdge, 1, numel(vocabEdges)));
    vocabNeighborModes(largeSubIdx) = cellfun(@(x,y) [y; x(:,3)], vocabEdges(largeSubIdx), vocabNeighborModes(largeSubIdx), 'UniformOutput', false);
    vocabNodePositions = cellfun(@(x) edgeCoords(x,:) - repmat(min(edgeCoords(x,:)), numel(x), 1), vocabNeighborModes, 'UniformOutput', false);
@@ -86,7 +87,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    %% We  are experimenting with different distance functions.
    % Find the correct image size.
    imageSize = getRFSize(options, levelItr);
-   imageSize = imageSize + filterSize;
+   imageSize = imageSize + filterSize - 1;
    
    % For now, we make the image bigger.
 %   imageSize = round(imageSize * 1.5);
@@ -110,15 +111,25 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    end
    
    % Normalize positions by placing all in the center.
+   minX = imageSize(1);maxX = 1;minY = minX;maxY = maxX;
+   
    for vocabNodeItr = 1:numberOfNodes
         experts = level1Experts{vocabNodeItr};
         experts(:,2:3) = round(experts(:,2:3) + repmat(imageSize/2, size(experts,1), 1));
+        minX = max(1, min(min(experts(:,2))-halfFilterSize,minX));
+        maxX = min(max(max(experts(:,2))+halfFilterSize,maxX), imageSize(1));
+        minY = max(1, min(min(experts(:,3))-halfFilterSize,minY));
+        maxY = min(max(max(experts(:,3))+halfFilterSize,maxY), imageSize(1));
         level1Experts{vocabNodeItr} = experts;
    end
    
+   % Find minimum&maximum coords of experts, so we can have a smaller
+   % window to operate.
+   blurredImageSize = [(maxX - minX) + 1, (maxY - minY) + 1];
+   
    % Comparison of modal reconstructions involves creating a pixel
    % prediction for every pixel, and then looking for matches.
-   muImgs = zeros(numberOfNodes, imageSize(1), imageSize(2));
+   muImgs = zeros(numberOfNodes, blurredImageSize(1), blurredImageSize(2));
    smallImageSize = min(smallImageSize, imageSize(1));
    smallMuImgs = zeros(numberOfNodes, smallImageSize, smallImageSize);
    newDistanceMatrix = zeros(numel(vocabLevel), 'single');
@@ -133,7 +144,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    parfor vocabNodeItr = 1:numberOfNodes
         [muImg, ~, ~] = obtainPoE(level1Experts{vocabNodeItr}, [], [], imageSize, visFilters, []);
         muImg = uint8(round(255*(double(muImg) / double(max(max(muImg))))));
-        blurredMuImg = uint8(imfilter(muImg, H, 'replicate'));
+        blurredMuImg = uint8(imfilter(muImg(minX:maxX, minY:maxY, :), H, 'replicate'));
         muImgs(vocabNodeItr,:,:) = blurredMuImg;
         
         % Save the image in a small array.
@@ -194,12 +205,16 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
    if isempty(newDistanceMatrix)
         newDistanceMatrix = 0;
    end
-    newDistanceMatrixVect = squareform(newDistanceMatrix);
     
     %% Find an optimal number of clusters based on Davies-Bouldin index.
     if size(newDistanceMatrix,1) < 3
          clusters = (1:size(newDistanceMatrix,1))';
     else
+         % Convert the distance matrix to vector form.
+         newDistanceMatrixValid = newDistanceMatrix(largeSubIdx, largeSubIdx);
+         newDistanceMatrixVect = squareform(newDistanceMatrixValid);
+         descriptors = descriptors(largeSubIdx, :);
+         
          %% Finally, we implement the OR nodes here.
          % We apply agglomerative clustering on the generated distance matrix,
          % and group parts based on their similarities. We have a limited number
@@ -212,8 +227,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
          if ~stopFlag
               clusterStep = 5;
               maxNumberOfORNodes = options.reconstruction.maxNumberOfORNodes;
-              sampleCounts = min([round(maxNumberOfORNodes/10), round(size(newDistanceMatrix,1)/2)]):...
-                   clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrix,1))-round((size(newDistanceMatrix,1))/5))]);
+              sampleCounts = min([round(maxNumberOfORNodes/10), round(size(newDistanceMatrixValid,1)/2)]):...
+                   clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrixValid,1))-round((size(newDistanceMatrixValid,1))/5))]);
               dunnVals = zeros(numel(sampleCounts),1);
               valIndices =  zeros(numel(sampleCounts),1);
               cutoffRatios =  zeros(numel(sampleCounts),1);
@@ -227,7 +242,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    clusters = cluster(Z, curClusterCount);
 
                    %% Dunn's index.
-                   dunnVals(stepItr) = dunns(max(clusters), double(newDistanceMatrix), clusters);
+                   dunnVals(stepItr) = dunns(max(clusters), double(newDistanceMatrixValid), clusters);
 
                    %% Davies-Boulin index.
                    % Calculate the index.
@@ -309,7 +324,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
               figure, plot(sampleCounts, dunnVals);
               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DunnIndex.png']);
               stepSize = 5;
-              if size(newDistanceMatrix,1) > 1
+              if size(newDistanceMatrixValid,1) > 1
                    ZVals = Z(2:end,3) - Z(1:(end-1),3);
                    figure, plot(1:size(Z,1), Z(:,3));
                    saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_combinationCosts.png']);         
@@ -337,8 +352,8 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    end
                    % Haven't found a cutoff yet? Set to the fixed value.
                    if isempty(val)
-                        if size(newDistanceMatrix,1) < numberOfORNodes
-                             clusterCount = round(size(newDistanceMatrix,1) / 2);
+                        if size(newDistanceMatrixValid,1) < numberOfORNodes
+                             clusterCount = round(size(newDistanceMatrixValid,1) / 2);
                         else
                              clusterCount = numberOfORNodes;
                         end
@@ -347,7 +362,7 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
                    clusterCount = numberOfNodes;
               end
          else
-              clusterCount = numberOfORNodes;
+              clusterCount = numberOfNodes;
          end
          
   %      clusterCount = numberOfORNodes;
@@ -358,6 +373,9 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
 
          display(['........ Obtained ' num2str(clusterCount) ' clusters! Finishing clustering.']);
          clusters = cluster(Z, 'maxclust', clusterCount);
+         
+         % Finally, add single node subs.
+         clusters = cat(1, clusters, ((clusterCount + 1):(clusterCount+numberOfSingleSubs))');
 
          % Visualize dendogram.
           try %#ok<TRYNC>
@@ -389,5 +407,5 @@ function [vocabLevel, graphLevel, newDistanceMatrix] = postProcessParts(vocabLev
          newDistanceMatrix = condensedDistanceMatrix;
     end
     
-    clearvars -except vocabLevel graphLevel newDistanceMatrix
+    clearvars -except vocabLevel vocabularyDistributions graphLevel newDistanceMatrix
 end

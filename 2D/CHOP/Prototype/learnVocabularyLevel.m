@@ -25,11 +25,11 @@
 %> Ver 1.4 on 03.02.2014 Refactoring
    % Reduce memory consumption by writing all stuff to files,
    % clearing all, and then returning back to computation.
-   addpath(genpath([pwd '/utilities']));
-   if exist([pwd '/Workspace.mat'], 'file')
-        disp('Loading workspace from the previous layer.');
-        load([pwd '/Workspace.mat']);
-   end
+  addpath(genpath([pwd '/utilities']));
+  if exist([pwd '/Workspace.mat'], 'file')
+       disp('Loading workspace from the previous layer.');
+       loadWorkspace();
+  end
    
     % Open threads for parallel processing.
     if options.parallelProcessing
@@ -69,7 +69,7 @@
    end
    
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-   [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, ...
+   [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, level1Coords,...
        options, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy); %#ok<*ASGLU,*NODEF>
    java.lang.System.gc();
    % Test if the mapping is correct (for debugging).
@@ -121,7 +121,7 @@
 
    %% Remove low-coverage nodes when we're at category layer.
    if options.stopFlag
-        graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)));
+        graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)'));
    end
    
    %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
@@ -145,9 +145,9 @@
    %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
    % In addition, we re-assign the node ids in graphLevel.
   display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
-   vocabularyDistributions{levelItr} = vocabLevelDistributions;
-  [vocabLevel, graphLevel, eucDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabulary, vocabularyDistributions, levelItr, options);       
-  
+  vocabularyDistributions{levelItr} = vocabLevelDistributions;   
+  [vocabLevel, vocabularyDistributions, graphLevel, eucDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabularyDistributions, levelItr, options);    
+
   % Visualize learned OR Nodes.
   visualizeORNodes( vocabLevel, levelItr, options);
   
@@ -234,6 +234,7 @@
    display('Writing output to files.');
    [exportArr, activationArr] = exportRealizations(graphLevel, levelItr);
    exportArr = cat(1, preExportArr, exportArr);
+   preExportArr = exportArr;
    activationArr = cat(1, preActivationArr, activationArr);
    save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', '-append'); 
    clear activationArr precisePositions;
@@ -297,9 +298,7 @@
    
    % Save workspace for later operation.
    disp(['Saving layer ' num2str(levelItr) ' workspace.']);
-   save([pwd '/Workspace.mat'], '-v7');
-   copyfile([pwd '/Workspace.mat'], [options.currentFolder '/output/' options.datasetName '/Workspace' num2str(levelItr) '.mat']);
-
+   saveWorkspace();
    % Restart program.
    if restartFlag
         bInfo = dbstatus;
