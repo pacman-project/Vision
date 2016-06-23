@@ -22,12 +22,9 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 %> Separate mode learning from this function on 28.01.2014
-function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, edgeNoveltyThr)
+function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes, options, currentLevelId, edgeNoveltyThr)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
-    currentLevel = mainGraph{currentLevelId};
-    firstLevel = mainGraph{1};
-    firstLevelAdjInfo = {firstLevel.adjInfo};
     nodeIds = [currentLevel.labelId]';
     nodeCoords = cat(1, currentLevel.position);
     imageIds = [currentLevel.imageId]';
@@ -35,7 +32,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
     incHalfMatrixSize = halfMatrixSize - 1;
     if ismember(currentLevelId, options.smallRFLayers)
-        rfRadius = ceil(halfMatrixSize/2);
+        rfRadius = ceil(halfMatrixSize/2) + 1;
     else
         rfRadius = halfMatrixSize;
     end
@@ -45,7 +42,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     edgeType = options.edgeType;
     minimalEdgeCount = options.minimalEdgeCount;
     imagesPerSet = 10;
-    maxFirstLevelNodeDegree = options.maxFirstLevelNodeDegree;
     
     %% Create elliptical RFs for layer 1.
     if currentLevelId == 1
@@ -74,8 +70,13 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     end
     
     %% Program options into variables.
-    edgeNoveltyThr = 1-edgeNoveltyThr;
-    maxNodeDegree = options.maxNodeDegree;
+    edgeShareabilityThr = 1 - edgeNoveltyThr;
+    maxShareabilityThr = 1 - options.minEdgeNoveltyThr;
+    if currentLevelId == 1
+        maxNodeDegree = options.maxFirstLevelNodeDegree;
+    else
+        maxNodeDegree = options.maxNodeDegree;
+    end
     
     %% Put each image's node set into a different bin.
     numberOfImages = double(max(imageIds));
@@ -102,6 +103,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
          sets = repmat(imagesPerSet, numberOfSets, 1);
          if finalSet > 0
               sets = [sets; finalSet];
+              numberOfSets = numberOfSets + 1;
          end
          sets = mat2cell(1:numberOfImages, 1, sets);
     else
@@ -114,6 +116,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     setGraphNodeSets = cell(numberOfSets,1);
     setNodeIdArr = cell(numberOfSets,1);
     setNodeCoordArr = cell(numberOfSets,1);
+    setEdgeDiagnostics = cell(numberOfSets,1);
     for setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          setNodeIdxSets{setItr} = imageNodeIdxSets(imageIdx);
@@ -129,12 +132,13 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
     end
     
     %% Process each set separately (and in parallel)
-    for setItr = 1:numberOfSets
+    parfor setItr = 1:numberOfSets
          imageIdx = sets{setItr};
          imageNodeIdxSets = setNodeIdxSets{setItr};
          imageGraphNodeSets = setGraphNodeSets{setItr};
          imageNodeIdArr = setNodeIdArr{setItr} ;
          imageNodeCoordArr = setNodeCoordArr{setItr};
+         edgeDiagnostics = cell(numel(imageIdx),1);
  %        disp(['Processing set ' num2str(setItr) ', which has ' num2str(numel(imageIdx)) ' images.']);
          
          % For every image in this set, find edges and save them.
@@ -147,13 +151,17 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
              if numberOfNodes == 0
                 continue; 
              end
+             
+             % Allocate space for edge diagnostics.
+             imageEdgeDiagnostics = zeros(numberOfNodes, 1, 'uint8');
 
              % Get data structures containing information about the nodes in this image.
              curNodeIds = imageNodeIdArr{imageItr};
              curNodeCoords = imageNodeCoordArr{imageItr};
              curGraphNodes = imageGraphNodeSets{imageItr};
              curLeafNodes = {curGraphNodes.leafNodes};
-             maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeNoveltyThr;
+             allowedSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * edgeShareabilityThr;
+             maxSharedLeafNodes = cellfun(@(x) numel(x), curLeafNodes) * maxShareabilityThr;
              curAdjacentNodes = cell(numberOfNodes,1);
 
              % If circular RF is desired, we pre-calculate distances.
@@ -169,6 +177,12 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 centerArr = repmat(curNodeCoords(nodeItr,:), numberOfNodes,1);
                 distances = allDistances(:, nodeItr);
                 
+                % Save info, if there are no other nodes in our RF.
+                if numberOfNodes == 1
+                    imageEdgeDiagnostics(nodeItr) = 1;
+                    continue;
+                end
+                
                 %% If the RF is circular, we need to eliminate adjacent nodes further.
                 if circularRF
                      adjacentNodes = distances < rfRadius;
@@ -181,16 +195,24 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 adjacentNodes(nodeItr) = 0;
                 adjacentNodes = find(adjacentNodes);
                 
+                % Save info, if there are no other nodes in our RF.
+                if numel(adjacentNodes) == 0
+                    imageEdgeDiagnostics(nodeItr) = 2;
+                    continue;
+                end
+                
                 %% A further check is done to ensure boundary/surface continuity.
                 if strcmp(edgeType, 'continuity') && currentLevelId > 1
-                    centerLeafEdges = cat(1, firstLevelAdjInfo{curLeafNodes{nodeItr}}); %#ok<PFBNS>
-                    if isempty(centerLeafEdges)
+                    centerAdjNodes = firstLevelAdjNodes(curLeafNodes{nodeItr}, :); %#ok<PFBNS>
+                    centerAdjNodes = centerAdjNodes(:)';
+                    centerAdjNodes = centerAdjNodes(centerAdjNodes>0);
+                    if isempty(centerAdjNodes)
                          adjacentNodes = [];
                     else
-                         centerAdjNodes = sort(centerLeafEdges(:,2));
+                         centerAdjNodes = fastsortedunique(sort(centerAdjNodes));
                          adjLeafNodes = curLeafNodes(adjacentNodes);
                          validAdjacentNodes = cellfun(@(x) nnz(ismembc(x, centerAdjNodes)), adjLeafNodes) > 0;
-                         if nnz(validAdjacentNodes > 1)
+                         if nnz(validAdjacentNodes) > 1
                             adjacentNodes = adjacentNodes(validAdjacentNodes);
                          end
                     end
@@ -198,10 +220,13 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 
                 %% Check for edge novelty.
                 if currentLevelId > 1 
-                    if edgeNoveltyThr < 1
+                    if edgeShareabilityThr < 1
                         commonLeafCounts = cellfun(@(x) sum(ismembc(x, curLeafNodes{nodeItr})), curLeafNodes(adjacentNodes));
-                        novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
+                        novelNodes = (commonLeafCounts <= allowedSharedLeafNodes(adjacentNodes))';
                         if nnz(novelNodes) > 1
+                            adjacentNodes = adjacentNodes(novelNodes);
+                        else
+                            novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
                             adjacentNodes = adjacentNodes(novelNodes);
                         end
                     end
@@ -237,12 +262,19 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                     
                     % If this node has too many adjacent node pairs, we
                     % simply don't consider unlikely ones.
-                    if nnz(shareRFCounts) > maxFirstLevelNodeDegree
+                    if nnz(shareRFCounts) > maxNodeDegree
                         [~, idx] = sort(shareRFCounts, 'descend');
-                        adjacentNodes = adjacentNodes(sort(idx(1:maxFirstLevelNodeDegree)));
+                        adjacentNodes = adjacentNodes(sort(idx(1:maxNodeDegree)));
                     else
                         adjacentNodes = adjacentNodes(validAdjacentNodes);
                     end
+                end
+                
+                % Save info, if edge novelty threshold eliminated all
+                % edges.
+                if numel(adjacentNodes) == 0
+                    imageEdgeDiagnostics(nodeItr) = 3;
+                    continue;
                 end
 
                 %% Now, we'll find a canonical edge representation for this node. 
@@ -253,8 +285,8 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 if currentLevelId > 1
                      curNodeList = curLeafNodes{nodeItr};
                      
-                     
-                     if numel(adjacentNodes) > maxNodeDegree || minimalEdgeCount
+%                     if numel(adjacentNodes) > maxNodeDegree || minimalEdgeCount
+                     if numel(adjacentNodes) > maxNodeDegree
                          % Alternative 1.
                          novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(adjacentNodes))';
                          if nnz(novelNodeCounts) > 0
@@ -328,7 +360,6 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
              nonemptyCurAdjacentNodeIdx = numberAdjArr > 0;
              curAdjacentNodes = curAdjacentNodes(nonemptyCurAdjacentNodeIdx);
              
-
              % Obtain edges and count them.
              allEdges = cat(1, curAdjacentNodes{:});
              
@@ -338,6 +369,7 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
              numberOfAllEdges = size(allEdges,1);
 
              if numberOfAllEdges == 0
+                edgeDiagnostics(imageItr) = {imageEdgeDiagnostics};
                 continue;
              end
 
@@ -372,6 +404,12 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
              % Due to some approximations in neighborhood calculations, some edgeIds might 
              % have been assigned as 0. Eliminate such cases.
              edges = edges(edgeIds>0,:);
+             
+             % Finally, save the info for edges eliminated due to
+             % collection of statistics.
+             singleNodes = intersect(setdiff(1:numberOfNodes, unique(edges(:,1)) - imageNodeOffset), ...
+                 find(imageEdgeDiagnostics==0));
+             imageEdgeDiagnostics(singleNodes) = 4;
 
             %% Assign all edges to their respective nodes in the final graph.
             if ~isempty(edges)
@@ -387,11 +425,30 @@ function [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId,
                 [curGraphNodes.adjInfo] = deal(tempEdgeArr{:});
             end
             imageGraphNodeSets(imageItr) = {curGraphNodes};
+            edgeDiagnostics(imageItr) = {imageEdgeDiagnostics};
          end
          setGraphNodeSets{setItr} = imageGraphNodeSets;
+         setEdgeDiagnostics{setItr} = edgeDiagnostics;
     end
     currentLevel = cat(1, setGraphNodeSets{:});
     currentLevel = [currentLevel{:}];
-    mainGraph(currentLevelId) = {currentLevel};
-    clearvars -except mainGraph
+    
+    % Obtain all diagnostics.
+    edgeDiagnostics = cat(1, setEdgeDiagnostics{:});
+    edgeDiagnostics = cat(1, edgeDiagnostics{:});
+    
+    %% Collect statistics about number of edges per node and print the stuff.
+    edgeCounts = {currentLevel.adjInfo};
+    edgeCounts = cellfun(@(x) size(x,1), edgeCounts);
+    figure('Visible', 'off'), hist(edgeCounts, 0:max(edgeCounts));
+    saveas(gcf, [options.debugFolder '/level' num2str(currentLevelId) 'EdgHist.png']); 
+    display([num2str(nnz(edgeCounts == 0)) ' (%' num2str(100*nnz(edgeDiagnostics>0)/numel(edgeDiagnostics)) ') nodes have no edges.']);
+    display([num2str(nnz(edgeDiagnostics == 1)) ' (%' num2str(100 * nnz(edgeDiagnostics == 1)/numel(edgeDiagnostics)) ') nodes are the only representatives in their images.']);
+    display([num2str(nnz(edgeDiagnostics == 2)) ' (%' num2str(100 * nnz(edgeDiagnostics == 2)/numel(edgeDiagnostics)) ') nodes do not have edges cause RFs are too small.']);
+    if currentLevelId == 1
+        display([num2str(nnz(edgeDiagnostics == 3)) ' (%' num2str(100 * nnz(edgeDiagnostics == 3)/numel(edgeDiagnostics)) ') nodes do not have edges because of connectivity constraints.']);
+    else
+        display([num2str(nnz(edgeDiagnostics == 3)) ' (%' num2str(100 * nnz(edgeDiagnostics == 3)/numel(edgeDiagnostics)) ') nodes do not have edges since edge novelty threshold is too high.']);
+    end
+    display([num2str(nnz(edgeDiagnostics == 4)) ' (%' num2str(100 * nnz(edgeDiagnostics == 4)/numel(edgeDiagnostics)) ') nodes do not have edges since collected statistics are too tight.']);
 end

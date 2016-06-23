@@ -14,11 +14,9 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.07.2015
-function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLevel, graphLevel, previousLevel, levelItr, options)
+function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLevel, graphLevel, prevRealLabelIds, prevPosition, levelItr, options)
     numberOfNodes = numel(vocabLevel);
     labelIds = [graphLevel.labelId];
-    prevRealLabelIds = [previousLevel.realLabelId]';
-    prevPosition = double(cat(1, previousLevel.precisePosition));
     noiseSigma = 0.0001;
     dummySigma = 0.001;
     posDim = size(prevPosition,2);

@@ -98,7 +98,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
@@ -109,7 +109,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.minEdgeNoveltyThr = 0.3;    % Minimum edge novelty threshold.
+    options.minEdgeNoveltyThr = 0.5;    % Minimum edge novelty threshold.
     options.edgeNoveltyThrRate = 0.1;   % The edge novelty threshold 
                                        % is supposed to reduce each level by 
                                        % this amount.
@@ -151,9 +151,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % receptive field size grows by 
                                          % 1/scaling.
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
-    options.maxNodeDegree = 10;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 20;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxFirstLevelNodeDegree = 3;  % (N) closest N nodes are linked for 
+    options.maxFirstLevelNodeDegree = 4;  % (N) closest N nodes are linked for 
                                        % every node in the object graphs (layer 1).
     options.minimalEdgeCount = false; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
@@ -200,15 +200,15 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = 300; % The maximum 
+    options.reconstruction.numberOfORNodes = [100 120 800 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.maxNumberOfORNodes = 800; % Ideal number of OR 
+    options.reconstruction.maxNumberOfORNodes = 2000; % Ideal number of OR 
     % nodes is searched in the range of
     % minNumberOfOrNodes-maxNumberOfOrNodes. If cannot be found,
     % numberOfORNodes (set above) is used.
     
-    options.reconstruction.minNumberOfORNodes = 200; % If the number of 
+    options.reconstruction.minNumberOfORNodes = 300; % If the number of 
                                    % nodes is less than this value, we don't need compression.
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========
@@ -256,7 +256,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = min(6, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
+    options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
     options.subdue.nsubs = 300000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

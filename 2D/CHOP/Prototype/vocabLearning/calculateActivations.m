@@ -13,7 +13,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 18.01.2016
-function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLevel, mainGraph, level1Coords, options, levelItr )
+function [ graphLevel ] = calculateActivations( vocabLevel, vocabulary, graphLevel, level1Coords, options, levelItr )
 %      % Program variables.
 %      epsilon = 0.0001;
 %      logEpsilon = single(log(epsilon));

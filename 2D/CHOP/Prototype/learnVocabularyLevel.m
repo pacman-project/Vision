@@ -12,7 +12,6 @@
 %> @param fileList input image name list.
 %>
 %> @retval vocabulary The hierarchic vocabulary learnt from the data.
-%> @retval mainGraph The hierarchic object graphs.
 %> @retval distanceMatrices Distance matrix of compositions.
 %> 
 %> Author: Rusen
@@ -68,12 +67,16 @@
         end
    end
    
+   %% Before we start, we save relevant info regarding last layer so we can use it forming next layer.
+    previousLevelImageIds = cat(1, graphLevel.imageId);
+    previousLevelLeafNodes = {graphLevel.leafNodes};
+    previousLevelPrecisePositions = cat(1, graphLevel.precisePosition);
+    prevRealLabelIds = [graphLevel.realLabelId]';
+   
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
    [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, level1Coords,...
        options, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy); %#ok<*ASGLU,*NODEF>
    java.lang.System.gc();
-   % Test if the mapping is correct (for debugging).
-%        testSuccess = testMapping(vocabLevel, graphLevel, newDistanceMatrix, mainGraph{levelItr-1});
 
    % Open/close matlabpool to save memory.
 %   matlabpool close;
@@ -84,17 +87,14 @@
       % Write previous level's appearances to the output folder.
       vocabulary = vocabulary(1:(levelItr-1),:);
       vocabularyDistributions = vocabularyDistributions(1:(levelItr-1),:);
-      mainGraph = mainGraph(1:(levelItr-1),:);
       allModes = allModes(1:(levelItr-1), :);
       distanceMatrices = distanceMatrices(1:(levelItr-1),:);
       modeProbs = modeProbs(1:(levelItr-1),:);
-      save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7.3'); 
       return; 
    end
 
    %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
-   previousLevel = mainGraph{levelItr-1};
-   graphLevel = fillBasicInfo(previousLevel, graphLevel, levelItr, options);
+   graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, previousLevelPrecisePositions, graphLevel, levelItr, options);
    java.lang.System.gc();
 
    %% Calculate statistics from this graph.
@@ -111,12 +111,12 @@
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
    display('........ Learning sub-part label and position distributions.');
-   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, graphLevel, mainGraph{levelItr-1}, levelItr, options);
+   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, graphLevel, prevRealLabelIds, double(previousLevelPrecisePositions), levelItr, options);
    java.lang.System.gc();
 
    %% Calculate activations for every part realization.
    display('........ Calculating activations..');
-   graphLevel = calculateActivations(vocabLevel, vocabulary, graphLevel, mainGraph, level1Coords, options, levelItr);
+   graphLevel = calculateActivations(vocabLevel, vocabulary, graphLevel, level1Coords, options, levelItr);
    java.lang.System.gc();
 
    %% Remove low-coverage nodes when we're at category layer.
@@ -124,20 +124,6 @@
         graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)'));
    end
    
-   %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
-   % The rules here are explained in the paper. Basically, each node
-   % should introduce a novelty (cover a new area of the image). If it
-   % fails to do so, the one which has a lower mdl ranking is
-   % discarded. *Natural selection*
-   if options.noveltyThr > 0
-       display('........ Applying inhibition..');
-       graphLevel=applyTestInhibition(graphLevel, options);
-       display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) '.']);
-       display(['........ We have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
-   else
-       display('........ No inhibition applied..');
-   end
-
    % Open/close matlabpool to save memory.
 %   matlabpool close;
 %   matlabpool('open', options.numberOfThreads);
@@ -162,8 +148,7 @@
    updatedLabelIds = num2cell(vocabNodeLabels([graphLevel.labelId]));
    [graphLevel.labelId] = deal(updatedLabelIds{:});
    clear updatedLabelIds;
-   mainGraph{levelItr} = graphLevel;
-
+   
    %% As an initial stage of inhibition, we downsample the responses, 
    % and apply max pooling. Please note that turning this off also means no
    % reduction in resolution for higher layers, therefore non-growing
@@ -172,6 +157,20 @@
    graphLevel = applyPooling(graphLevel, options.poolDim, options.poolFlag, ~ismember(levelItr, options.noPoolingLayers));
    java.lang.System.gc();
 
+   %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
+   % The rules here are explained in the paper. Basically, each node
+   % should introduce a novelty (cover a new area of the image). If it
+   % fails to do so, the one which has a lower mdl ranking is
+   % discarded. *Natural selection*
+   if options.noveltyThr > 0
+       display('........ Applying inhibition..');
+       graphLevel=applyTestInhibition(graphLevel, options);
+       display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) '.']);
+       display(['........ We have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
+   else
+       display('........ No inhibition applied..');
+   end
+   
    %% Calculate statistics from this graph.
    display('........ Estimating post-inhibition statistics..');
    [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodeCoords, maxCoverageVals, numberOfImages, options, 'postInhibition', levelItr);
@@ -188,24 +187,16 @@
    display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
 
    %% Step 2.5: Create the parent relationships between current level and previous level.
-   vocabulary = mergeIntoGraph(vocabulary, vocabLevel, leafNodes, levelItr, 0);
-   mainGraph = mergeIntoGraph(mainGraph, graphLevel, leafNodes, levelItr, 1);
+   vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr);
 
    %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
    % Extract the edges between new realizations to form the new object graphs.
-   [mainGraph] = extractEdges(mainGraph, options, levelItr);
-   graphLevel = mainGraph{levelItr};
+   [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, options, levelItr);
    java.lang.System.gc();
    
-   %% We delete unnecessary levels.
-   if levelItr > 3
-      mainGraph(levelItr-2) = {[]}; 
-   end
-
    %% Here, we bring back statistical learning with mean/variance.
    [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
    graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
-   mainGraph{levelItr} = graphLevel;
    allModes{levelItr} = modes;
    modeProbs{levelItr} = modeProbArr;
    java.lang.System.gc();
@@ -224,7 +215,6 @@
        vocabulary = vocabulary(1:(levelItr),:);
        vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
        allModes = allModes(1:(levelItr), :);
-       mainGraph = mainGraph(1:(levelItr),:);
        distanceMatrices = distanceMatrices(1:(levelItr),:);
        modeProbs = modeProbs(1:(levelItr),:);
    end
@@ -242,7 +232,6 @@
    % Print everything to files.
    save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', '-append');
    save([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions', 'options', '-v7');
-   save([options.currentFolder '/output/' options.datasetName '/mainGraph.mat'], 'mainGraph', '-v7'); 
    
    %% Visualize images and vocabulary.
    if ~isempty(vocabLevel) && options.debug
@@ -282,12 +271,11 @@
 %   matlabpool('open', options.numberOfThreads);
 
    %% Step 2.6: If no new edges found, kill program.
-   newEdgesAvailable = ~isempty(cat(1, mainGraph{levelItr}.adjInfo));
+   newEdgesAvailable = ~isempty(cat(1, graphLevel.adjInfo));
    if ~newEdgesAvailable
        vocabulary = vocabulary(1:(levelItr),:);
        vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
        allModes = allModes(1:(levelItr), :);
-       mainGraph = mainGraph(1:(levelItr),:);
        distanceMatrices = distanceMatrices(1:(levelItr),:);
        modeProbs = modeProbs(1:(levelItr),:);
    end

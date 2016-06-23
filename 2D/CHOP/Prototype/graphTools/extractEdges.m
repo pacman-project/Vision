@@ -20,11 +20,11 @@
 %> Updates
 %> Ver 1.0 on 06.12.2013
 %> Addition of inter-image edges on 28.01.2014
-function [mainGraph] = extractEdges(mainGraph, options, currentLevelId)
+function [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, options, currentLevelId)
     %% Create within-object-graph edges.
     edgeNoveltyThr = max(options.minEdgeNoveltyThr, options.edgeNoveltyThr - options.edgeNoveltyThrRate * max(0, (currentLevelId-2)));
     display('Extracting edges...');
-    if ~isempty(mainGraph{currentLevelId})
-        [mainGraph] = createEdgesWithLabels(mainGraph, options, currentLevelId, edgeNoveltyThr);
+    if ~isempty(graphLevel)
+        [graphLevel] = createEdgesWithLabels(graphLevel, firstLevelAdjNodes, options, currentLevelId, edgeNoveltyThr);
     end
 end

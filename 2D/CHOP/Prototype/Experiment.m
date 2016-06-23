@@ -18,11 +18,10 @@ function [] = Experiment(datasetName, fileType)
     end
     diary([pwd '/logs/' datasetName '_log.txt']);
     addpath([pwd '/utilities']);
-    addpath(genpath('../../../utilities'));
-    generateAutoFilters(datasetName, fileType);
+%    addpath(genpath('../../../utilities'));
+%    generateAutoFilters(datasetName, fileType);
     runVocabularyLearning(datasetName, fileType, '.png');
     MarkCategoryLabels(datasetName);
-    runTestInference(datasetName, fileType);
-    projectImages(datasetName);
+%    runTestInference(datasetName, fileType);
     diary off;
 end

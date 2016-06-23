@@ -96,7 +96,6 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
             end
         end
         
-        
         % Before we move on, we post-process the class information. We do
         % not want singular classes. 
         newClassLabel = max(classes) + 1;
@@ -118,8 +117,6 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
            end
         end
         
-        
-
         %% Calculate statistics (mu, sigma)
         numberOfClusters = max(classes);
         numberOfSamplesPerCluster = zeros(numberOfClusters,1);
@@ -310,20 +307,20 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
               samplesInd = sub2ind(size(distributionImg), samplesToWrite(:,1), samplesToWrite(:,2));
               distributionImg(samplesInd) = classes;
 
-               if ~exist([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/'], 'dir')
-                    mkdir([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/']);
+               if ~exist([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/' num2str(edgeType(1))], 'dir')
+                    mkdir([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/' num2str(edgeType(1))]);
                end
                sampleImg = label2rgb(distributionImg, 'jet', 'k', 'shuffle');
                imwrite(sampleImg, ...
                     [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-                    '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_Samples.png']);
+                    '/pairwise/' num2str(edgeType(1)) '/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_Samples.png']);
                imwrite(gaussImg, ...
                     [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-                    '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_GaussMap.png']);
+                    '/pairwise/' num2str(edgeType(1)) '/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_GaussMap.png']);
                areaImg = label2rgb(clusterAreas, 'jet', 'k', 'shuffle');
                imwrite(areaImg, ...
                     [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
-                    '/pairwise/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_ClusterAreas.png']);
+                    '/pairwise/' num2str(edgeType(1)) '/' num2str(edgeType(1)) '_' num2str(edgeType(2)) '_ClusterAreas.png']);
         end
         %% Save stats and move on.
         modes(uniqueEdgeItr) = {statistics};

@@ -16,14 +16,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.02.2014
-function graphLevel = fillBasicInfo(previousLevel, graphLevel, levelItr, options)
+function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, previousLevelPrecisePositions, graphLevel, levelItr, options)
     numberOfNodes = numel(graphLevel);
-    
-    % Save variables to fast-access data structures for previous layer.
-    previousLevelImageIds = cat(1, previousLevel.imageId);
-    previousLevelLeafNodes = {previousLevel.leafNodes};
-    previousLevelPrecisePositions = cat(1, previousLevel.precisePosition);
-    clear previousLevel;
     
     % Learn stride.
     if strcmp(options.filterType, 'gabor')

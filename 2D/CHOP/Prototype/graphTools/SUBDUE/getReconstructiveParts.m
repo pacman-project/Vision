@@ -62,7 +62,7 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
         coveredNodes = fastsortedunique(sort(cat(2, allLeafNodes{allNodes})));
         subCoveredNodes{subItr} = coveredNodes;
    end
-%   childrenCounts = cellfun(@(x) numel(x), subCoveredNodes).^(1/3);
+ %  childrenCounts = cellfun(@(x) numel(x), subCoveredNodes);
    
      %% Finally, we implement an algorithm for part selection. 
      % This step is done to perform an initial pass to reduce the number of
@@ -83,6 +83,7 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
      valueArr(invalidArr == 0) = 0;
      subLimit = numberOfFinalSubs;
      cumVal = 0;
+     displayThr = 0;
      while subCounter < subLimit
        maxLocVal = -inf;
        maxLoc = 0;
@@ -90,8 +91,8 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
        maxLocMarkedNodes = [];
        prevVal = nnz(markedNodes(validNodeArr));
 
-      for subItr = 1:numberOfBestSubs
- %      for subItr = numberOfBestSubs:-1:1
+ %     for subItr = 1:numberOfBestSubs
+       for subItr = numberOfBestSubs:-1:1
            if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal >= valueArr(subItr)
                 continue;
            end
@@ -152,11 +153,10 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
       end
 
       % Print output.
-      if rem(subCounter, 10) == 1 && subCounter > 1
-%           display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
-%               num2str(maxLoc) ', and coverage %' num2str(coverage*100) ', with current coverage:' num2str(nnz(markedNodes)) '.']);
+      if nnz(achievedImages)/numberOfRemainingImages >= displayThr
             display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
                num2str(maxLoc) ', and ' num2str(nnz(achievedImages)) ' out of ' num2str(numberOfRemainingImages) ' images have been covered at least %' num2str(coverageStoppingVal*100) '.']);
+         displayThr = displayThr + 0.2;
       end
      end
         

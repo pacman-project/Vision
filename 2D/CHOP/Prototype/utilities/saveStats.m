@@ -73,7 +73,7 @@ function [avgShareability, avgCoverage, maxCoverageVals] = saveStats(vocabLevel,
     end
     
     %% After obtaining coverage array, we calculate actual coverage in terms of image pixels.
-    avgCoverage = sum(imageCoverageArr) / sum(maxCoverageVals);
+    avgCoverage = mean(imageCoverageArr(imageCoverageArr > 0) ./ maxCoverageVals(imageCoverageArr > 0));
     
     %% Save info.
     statFile = [options.currentFolder '/output/' options.datasetName '/' state '_' num2str(levelItr) '.mat'];

@@ -12,7 +12,6 @@
 %> @param fileList input image name list.
 %>
 %> @retval vocabulary The hierarchic vocabulary learnt from the data.
-%> @retval mainGraph The hierarchic object graphs.
 %> @retval distanceMatrices Distance matrix of compositions.
 %> 
 %> Author: Rusen
@@ -30,7 +29,6 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     vocabulary = cell(options.maxLevels,1);
     vocabularyDistributions = cell(options.maxLevels,1);
     allModes = cell(options.maxLevels,1);
-    mainGraph = cell(options.maxLevels,1);
     distanceMatrices = cell(options.maxLevels,1);
     modeProbs = cell(options.maxLevels,1);
     
@@ -38,7 +36,6 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
     vocabulary(1) = {vocabLevel};
     vocabularyDistributions(1) = {vocabLevelDistributions};
-    mainGraph(1) = {graphLevel};
     allModes(1) = {modes};
     modeProbs(1) = {modeProbArr};
     
@@ -89,7 +86,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     
     %% Load categories. Analyzing categorization properties of the nodes. 
     load([options.currentFolder '/output/' options.datasetName '/export.mat']);
-    firstLevelActivations = cat(1, mainGraph{1}.activation);
+    firstLevelActivations = cat(1, graphLevel.activation);
     
     % Read supervision flag for optimal threshold search.
     supervisedSelectionFlag = options.supervisedSelectionFlag;
@@ -101,7 +98,18 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     previousAccuracy = 0; %#ok<*NASGU>
     
     %% Obtain level 1 coords to subsample them in higher layers.
+    maxFirstLevelNodeDegree = options.maxFirstLevelNodeDegree;
+    dummyArrs = cell(maxFirstLevelNodeDegree,1);
+    for itr = 1:maxFirstLevelNodeDegree
+        dummyArrs(itr) = {zeros(1, maxFirstLevelNodeDegree - itr, 'int32')};
+    end
+    fullDummyArr = zeros(1, maxFirstLevelNodeDegree, 'int32');
     level1Coords = [cat(1, graphLevel.imageId), int32(cat(1, graphLevel.precisePosition))];
+    firstLevelAdjNodes = {graphLevel.adjInfo};
+    nonemptyIdx = cellfun(@(x) ~isempty(x), firstLevelAdjNodes);
+    firstLevelAdjNodes(nonemptyIdx) = cellfun(@(x) [(x(:,2))', dummyArrs{size(x,1)}], firstLevelAdjNodes(nonemptyIdx), 'UniformOutput', false);
+    firstLevelAdjNodes(~nonemptyIdx) = {fullDummyArr};
+    firstLevelAdjNodes = cat(1, firstLevelAdjNodes{:});
     
     %% If we have passed the limit for number of images, we go into a different mode 
     % where we perform matlab restarts for memory optimization.

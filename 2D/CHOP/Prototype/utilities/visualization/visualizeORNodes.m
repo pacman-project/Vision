@@ -53,7 +53,7 @@ function [] = visualizeORNodes( currentLevel, levelId, options)
     end
     
     % A final make up in order to separate masks from each other by 1s.
-    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_ORNodeSets.jpg']);
+    imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_ORNodeSets.png']);
     imwrite(overallImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_ORNodeSets_HQ.png']);
     clearvars
 end

@@ -21,8 +21,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
         options.debug = true;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end
-    options.fastStatLearning = false;
-    options.vis.printTrainRealizations = true;
+    options.fastStatLearning = true;
+    options.vis.printTrainRealizations = false;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
@@ -34,8 +34,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                       % If 2, size of the receptive field
                                       % is halved, as in the previous
                                       % version of the algorithm.
-    options.noPoolingLayers = [3 5 7 9]; % No pooling is performed over the outcome of these layers.
-    options.smallRFLayers = [2 4 6 8];
+    options.noPoolingLayers = [4 6 8]; % No pooling is performed over the outcome of these layers.
+    options.smallRFLayers = [3 5 7];
     options.poolFlag = true; % If true, we apply max pooling to reduce number of 
                                             %  realizations. Otherwise,
                                             %  positions are updated, but

@@ -57,8 +57,14 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     nextGraphLevel = [];
 
     if levelItr < 4
+%         if levelItr == 1
+%            singleInstanceFlag = false; 
+%         else
+%            singleInstanceFlag = true; 
+%         end
         minSize = 2;
-        singleInstanceFlag = false;
+%        singleInstanceFlag = false;
+        singleInstanceFlag = true;
     else
         minSize = options.subdue.minSize;
         singleInstanceFlag = true;
@@ -75,6 +81,11 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     maxTime = options.subdue.maxTime;
     maxSize = options.subdue.maxSize;
     halfRFSize = ceil(options.receptiveFieldSize/2);
+    if ismember(levelItr, options.smallRFLayers)
+        rfRadius = ceil(halfRFSize/2) + 1;
+    else
+        rfRadius = halfRFSize;
+    end
     
     % If this is category level, we change the minimum RF coverage.
     if levelItr+1 == options.categoryLevel
@@ -162,10 +173,10 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                  tempLeafNodeCoords = level1CoordsPooled(tempLeafNodes,:);
                  
                  % Keep only leaf nodes which exist within this RF.
-                 tempLeafNodes = tempLeafNodes(tempLeafNodeCoords(:,1) > nodeCoords(1) - halfRFSize & ...
-                     tempLeafNodeCoords(:,1) < nodeCoords(1) + halfRFSize & ...
-                     tempLeafNodeCoords(:,2) > nodeCoords(2) - halfRFSize & ...
-                     tempLeafNodeCoords(:,2) < nodeCoords(2) + halfRFSize);
+                 tempLeafNodes = tempLeafNodes(tempLeafNodeCoords(:,1) > nodeCoords(1) - rfRadius & ...
+                     tempLeafNodeCoords(:,1) < nodeCoords(1) + rfRadius & ...
+                     tempLeafNodeCoords(:,2) > nodeCoords(2) - rfRadius & ...
+                     tempLeafNodeCoords(:,2) < nodeCoords(2) + rfRadius);
                  
                  % Save the number.
                  possibleLeafNodeCounts(nodeItr) = numel(tempLeafNodes);
@@ -212,7 +223,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                % Evaluate them.
                 singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
                     allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, possibleLeafNodeCounts, avgDegree);
 
                 %% Remove those with no instances. 
                 centerIdxArr = {singleNodeSubsFinal.instanceCenterIdx};
@@ -261,9 +272,10 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             
             %% All good, continue with the main algorithm.
             processedSet = parentSubSets{setItr};
+            display(['[SUBDUE/Parallel] Expanding set ' num2str(setItr) '/' num2str(numel(parentSubSets)) ' of size ' num2str(currentSize-1) ', containing ' num2str(numel(processedSet)) ' images..']);
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
-                display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
+ %               display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
                 childSubs = extendSub(parentSubs(parentItr), allEdges, allEdgeCounts, singleInstanceFlag);
                 if isempty(childSubs) 
                     continue;
@@ -277,7 +289,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 [childSubsFinal, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
                     allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, possibleLeafNodeCounts, avgDegree);
                 
                 % Assign mdl scores of subs chosen for extension as well. 
                 [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
@@ -463,7 +475,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
        % Re-evaluate best subs.
        bestSubs = evaluateSubs(bestSubs, 'mdl', allEdgeCounts, allEdgeNodePairs, ...
            allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, false, ...
-           allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+           allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, possibleLeafNodeCounts, avgDegree);
 
        % Sort bestSubs by their mdl scores.
        mdlScores = [bestSubs.mdlScore];

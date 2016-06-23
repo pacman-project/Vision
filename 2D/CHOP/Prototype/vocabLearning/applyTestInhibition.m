@@ -44,6 +44,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
     imageGraphLevels = cell(numberOfImages,1);
     imageSortIdx = cell(numberOfImages,1);
     imageAllNodeCoords = cell(numberOfImages,1);
+    imageNodeIds = cell(numberOfImages,1);
     for imageId = 1:numberOfImages
         imageNodeIdx = imageIds == imageId;
         imageNodeCoords = nodeCoords(imageNodeIdx,:);
@@ -54,6 +55,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
         
         % Sort nodes based on their activations, and preserve the ordering.
         activationArr = [imageGraphLevel.activation];
+        imageNodeIds(imageId) = {[imageGraphLevel.labelId]'};
         [~, sortIdx] = sort(activationArr, 'descend');
         imageGraphLevels(imageId) = {imageGraphLevel};
         imageSortIdx(imageId) = {sortIdx};
@@ -76,6 +78,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
         imageLeafNodes = {imageGraphLevel.leafNodes}';
         imageLeafNodeCounts = cellfun(@(x) numel(x), imageLeafNodes);
         maxSharedLeafNodes = cellfun(@(x) numel(x) * noveltyThr , imageLeafNodes, 'UniformOutput', false);
+        nodeIds = imageNodeIds{imageId};
         
         for nodeItr = 1:(numberOfNodesInImage-1)
           %% If nobody has erased this node before, it has a right to be in the final graph.
@@ -94,7 +97,8 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
                 edgeCoords(:,1) > -halfMatrixSize & ...
                 edgeCoords(:,1) < halfMatrixSize & ...
                 edgeCoords(:,2) > -halfMatrixSize & ...
-                edgeCoords(:,2) < halfMatrixSize;
+                edgeCoords(:,2) < halfMatrixSize & ...
+                nodeIds == nodeIds(nodeItr);
           adjacentNodes(1:nodeItr) = 0;
               
           % Go over each adjacent node, and apply inhibition if their leaf nodes are 

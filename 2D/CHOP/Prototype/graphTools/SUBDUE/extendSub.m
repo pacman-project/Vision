@@ -53,6 +53,7 @@ function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstance
            uniqueEdgeTypesPart1 = uniqueEdgeTypesPart1(uniqueEdgeTypesPart1(:,2) > maxNode, :);
        end
        uniqueEdgeTypesPart2 = uniqueEdgeTypes(uniqueEdgeTypes(:,1) > max(edges(:,1)), :);
+ %      uniqueEdgeTypesPart2 = uniqueEdgeTypes(uniqueEdgeTypes(:,1) >= max(edges(:,1)), :);
        uniqueEdgeTypes = cat(1, uniqueEdgeTypesPart1, uniqueEdgeTypesPart2);
     end
     

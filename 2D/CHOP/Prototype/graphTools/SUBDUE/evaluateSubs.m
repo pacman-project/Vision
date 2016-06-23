@@ -35,6 +35,7 @@ function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdg
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
     validExtSubs = ones(numberOfSubs,1) > 0;
+    maxCover = 0.8;
     for subItr = 1:numberOfSubs
         
         % Calculate Substructure score.
@@ -69,10 +70,13 @@ function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdg
 
              % If there are full instances that do not extension (cover
              % enough of RF), we delete them.
-             if mean(coverageRatios) >= minRFCoverage
-                 validExtSubs(subItr) = 0;
-              else
+             if mean(coverageRatios) < minRFCoverage
                  validSubs(subItr) = 0;
+             end
+             
+             % If the coverage ratios are too high, no need to extend this.
+             if mean(coverageRatios) >= maxCover
+                 validExtSubs(subItr) = 0;
              end
 
 %              %% If the coverage is too small, we don't consider this sub.

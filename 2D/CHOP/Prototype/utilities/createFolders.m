@@ -15,6 +15,9 @@ function [ ] = createFolders( options )
        if exist(options.outputFolder, 'dir')
            rmdir(options.outputFolder, 's');
        end
+       if exist([options.currentFolder '/workspaces/' options.datasetName], 'dir')
+           rmdir([options.currentFolder '/workspaces/' options.datasetName], 's');
+       end
        if exist(options.debugFolder, 'dir')
            rmdir(options.debugFolder, 's');
        end
