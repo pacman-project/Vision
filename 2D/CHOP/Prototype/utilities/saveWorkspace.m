@@ -23,10 +23,12 @@ save([pwd '/Workspace.mat'], 'varList', 'savedFlag','datasetName','levelItr');
 copyfile([pwd '/Workspace.mat'], [pwd '/workspaces/' options.datasetName '/level' num2str(levelItr) '.mat']);
 for varItr = 1:numel(varList)
    varName = varList(varItr).name;
-   try
-       save([pwd '/workspaces/' options.datasetName '/level' num2str(levelItr) '/' varName '.mat'], varName, '-v7');
-   catch
-       display(['Saving variable ' varName ' in latest format. This may take a while.']);
-       save([pwd '/workspaces/' options.datasetName '/level' num2str(levelItr) '/' varName '.mat'], varName, '-v7.3');
+   if ~strcmp(varName, 'ans')
+       try
+           save([pwd '/workspaces/' options.datasetName '/level' num2str(levelItr) '/' varName '.mat'], varName, '-v7');
+       catch
+           display(['Saving variable ' varName ' in latest format. This may take a while.']);
+           save([pwd '/workspaces/' options.datasetName '/level' num2str(levelItr) '/' varName '.mat'], varName, '-v7.3');
+       end
    end
 end

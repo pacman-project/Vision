@@ -26,6 +26,9 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
     filter1 = options.filters{1};
     filtBandCount = size(filter1,3);
     
+    pixelSize = getRFSize(options, levelItr+1) / options.receptiveFieldSize;
+    pixelSize = pixelSize(1);
+    
     %% Depending on the reconstruction type, we read masks to put on correct positions in images.
     if strcmp(reconstructionType, 'true')
         % Read masks of compositions in current level.
@@ -70,7 +73,6 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
     
     %% Go over the list of images and run reconstruction.
     parfor fileItr = 1:numel(fileList)
-        imageSize = [];
         nodeOffset = numel(find(imageIds<fileItr));
         relevantNodeIds = imageNodeIds{fileItr};
         
@@ -271,7 +273,7 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
             %% Write the reconstructed mask to the output.
             % Add some random colors to make each composition look different, 
             % and overlay the gabors with the original image.
-            rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k');
+            rgbImg = label2rgb(labeledReconstructedMask, 'jet', 'k', 'shuffle');
             
             %% Write the original image to a mask.
             if size(reconstructedMask,3)>1
@@ -291,8 +293,8 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
             
             centerSize = 1;
             for nodeItr = 1:numel(nodes)
-                edgeImg((nodePrecisePositions(nodeItr, 1) - centerSize):(nodePrecisePositions(nodeItr, 1) + centerSize), ...
-                    (nodePrecisePositions(nodeItr, 2) - centerSize):(nodePrecisePositions(nodeItr, 2) + centerSize)) = nodeLabelIds(nodeItr);
+     %           edgeImg((nodePrecisePositions(nodeItr, 1) - centerSize):(nodePrecisePositions(nodeItr, 1) + centerSize), ...
+    %                (nodePrecisePositions(nodeItr, 2) - centerSize):(nodePrecisePositions(nodeItr, 2) + centerSize)) = nodeLabelIds(nodeItr);
                 nodeImg((nodePrecisePositions(nodeItr, 1) - centerSize):(nodePrecisePositions(nodeItr, 1) + centerSize), ...
                     (nodePrecisePositions(nodeItr, 2) - centerSize):(nodePrecisePositions(nodeItr, 2) + centerSize)) = nodeLabelIds(nodeItr);
             end
@@ -326,9 +328,28 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
                 end
             end
             
+            centerSize = 1;
+            for nodeItr = 1:numel(nodes)
+                edgeImg((nodePrecisePositions(nodeItr, 1) - centerSize):(nodePrecisePositions(nodeItr, 1) + centerSize), ...
+                    (nodePrecisePositions(nodeItr, 2) - centerSize):(nodePrecisePositions(nodeItr, 2) + centerSize)) = nodeLabelIds(nodeItr);
+            end
+            
+            edgeMask = edgeImg == 0;
             edgeImg = label2rgb(edgeImg, 'jet', 'k', 'shuffle');
             nodeImg = label2rgb(nodeImg, 'jet', 'k', 'shuffle');
             edgeRgbImg = max(edgeRgbImg, edgeImg);
+            
+            % We mark a grid so it's easier to debug relations.
+            gridImg = checkerboard(pixelSize, ceil(sizeOfImage(1)/(2 * pixelSize)), ceil(sizeOfImage(2)/(2 * pixelSize))) > 0.5;
+            gridImg = gridImg(1:sizeOfImage(1), 1:sizeOfImage(2));
+            gridImg = uint8(gridImg) * 100;
+
+            % process edge image.
+            for bandItr = 1:3
+                edgeBandImg = edgeImg(:,:,bandItr);
+                edgeBandImg(edgeMask) = gridImg(edgeMask);
+                edgeImg(:,:,bandItr) = edgeBandImg;
+            end
 
             % Write images to output.
             if levelItr>1

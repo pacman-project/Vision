@@ -24,7 +24,7 @@
 %> Ver 1.4 on 03.02.2014 Refactoring
    % Reduce memory consumption by writing all stuff to files,
    % clearing all, and then returning back to computation.
-  addpath(genpath([pwd '/utilities']));
+   addpath(genpath([pwd '/utilities']));
   if exist([pwd '/Workspace.mat'], 'file')
        disp('Loading workspace from the previous layer.');
        loadWorkspace();
@@ -52,7 +52,7 @@
    
    % If this is a fresh Matlab, modify paths.
    % ========== PATH FOLDER ADDITION ==========
-   if options.restartFlag
+   if isempty(strfind(path, [options.currentFolder '/demo']))
        w = warning('off', 'all');
        addpath(genpath([options.currentFolder '/demo']));
        addpath(genpath([options.currentFolder '/graphTools']));
@@ -60,10 +60,12 @@
        addpath(genpath([options.currentFolder '/inference']));
        addpath(genpath([options.currentFolder '/categorization']));
        warning(w);
-       
+   end
+   
+   if options.restartFlag
         % Try to restore break points.
         try %#ok<TRYNC>
-        dbstop(bInfo);
+            dbstop(bInfo);
         end
    end
    
@@ -72,6 +74,7 @@
     previousLevelLeafNodes = {graphLevel.leafNodes};
     previousLevelPrecisePositions = cat(1, graphLevel.precisePosition);
     prevRealLabelIds = [graphLevel.realLabelId]';
+    prevActivations = [graphLevel.activation]';
    
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
    [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, level1Coords,...
@@ -94,7 +97,7 @@
    end
 
    %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
-   graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, previousLevelPrecisePositions, graphLevel, levelItr, options);
+   graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, firstLevelPrecisePositions, graphLevel, levelItr, options);
    java.lang.System.gc();
 
    %% Calculate statistics from this graph.
@@ -103,11 +106,9 @@
    display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
 
    %% If category level is reached, we reduce the number of desired nodes substantially. 
-   if levelItr > 6
-       display('........ Checking for image coverages for category level..');
-       imageIds = [graphLevel.imageId];
-       [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel, level1Coords, levelItr, avgCoverage, options);
-   end
+   display('........ Checking for image coverages for category level..');
+   imageIds = [graphLevel.imageId];
+   [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel, level1Coords, avgCoverage, levelItr, options);
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
    display('........ Learning sub-part label and position distributions.');
@@ -116,7 +117,7 @@
 
    %% Calculate activations for every part realization.
    display('........ Calculating activations..');
-   graphLevel = calculateActivations(vocabLevel, vocabulary, graphLevel, level1Coords, options, levelItr);
+   [vocabLevel, graphLevel] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, double(previousLevelPrecisePositions), levelItr, options);
    java.lang.System.gc();
 
    %% Remove low-coverage nodes when we're at category layer.
@@ -154,7 +155,8 @@
    % reduction in resolution for higher layers, therefore non-growing
    % receptive fields.
    display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
-   graphLevel = applyPooling(graphLevel, options.poolDim, options.poolFlag, ~ismember(levelItr, options.noPoolingLayers));
+   graphLevel = applyPooling(graphLevel, options.poolFlag);
+   display(['........ After pooling, we have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
    java.lang.System.gc();
 
    %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
@@ -166,10 +168,14 @@
        display('........ Applying inhibition..');
        graphLevel=applyTestInhibition(graphLevel, options);
        display(['........ Inhibition applied with novelty thr: ' num2str(options.noveltyThr) '.']);
-       display(['........ We have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
+       display(['........ Inhibition finished. We have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
    else
        display('........ No inhibition applied..');
    end
+   
+   %% Post-inhibition check: If all realizations of a vocabulary node are missing, we can move on.
+   % Assign new labels of the remaining realizations.
+   [graphLevel, vocabLevel, vocabularyDistributions] = updateDataStructures(graphLevel, vocabLevel, vocabularyDistributions, levelItr, options);
    
    %% Calculate statistics from this graph.
    display('........ Estimating post-inhibition statistics..');
@@ -196,7 +202,7 @@
    
    %% Here, we bring back statistical learning with mean/variance.
    [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
-   graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords);
+   graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords, levelItr, options.debugFolder);
    allModes{levelItr} = modes;
    modeProbs{levelItr} = modeProbArr;
    java.lang.System.gc();
@@ -226,6 +232,7 @@
    exportArr = cat(1, preExportArr, exportArr);
    preExportArr = exportArr;
    activationArr = cat(1, preActivationArr, activationArr);
+   preActivationArr = activationArr;
    save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', '-append'); 
    clear activationArr precisePositions;
 
@@ -256,7 +263,7 @@
           end
 %          matlabpool('open', options.numberOfThreads);
      end
-     printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
+%     printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
      clear allNodeInstances representativeNodes;
      java.lang.System.gc();
    end

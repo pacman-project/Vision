@@ -221,7 +221,9 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
          % of resources when selecting parts.
          % First, we check for the necessity.
          % All good, group the nodes here.
-         Z = linkage(newDistanceMatrixVect, 'ward');
+         if nnz(largeSubIdx) > 1
+            Z = linkage(newDistanceMatrixVect, 'ward');
+         end
          
          % If stop flag is not up, we find an optimal number of clusters.
 %          if ~stopFlag
@@ -366,7 +368,7 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
 %          end
          
          if ~stopFlag
-             clusterCount = numberOfORNodes;
+             clusterCount = min(numberOfNodes, numberOfORNodes);
          else
              clusterCount = numberOfNodes;
          end
@@ -376,7 +378,11 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
 %          clusterCount = sampleCounts(maxIdx);
 
          display(['........ Obtained ' num2str(clusterCount) ' clusters! Finishing clustering.']);
-         clusters = cluster(Z, 'maxclust', clusterCount);
+         if nnz(largeSubIdx) > 1
+            clusters = cluster(Z, 'maxclust', clusterCount);
+         else
+            clusters = 1; 
+         end
          
          % Finally, add single node subs.
          finalClusters = zeros(numberOfNodes, 1);

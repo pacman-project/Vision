@@ -16,7 +16,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.02.2014
-function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, previousLevelPrecisePositions, graphLevel, levelItr, options)
+function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, firstLevelPrecisePositions, graphLevel, levelItr, options)
     numberOfNodes = numel(graphLevel);
     
     % Learn stride.
@@ -28,11 +28,7 @@ function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNode
     poolDim = options.poolDim;
     
     % Calculate pool factor.
-    if levelItr> 2 && ~isempty(options.noPoolingLayers)
-        poolFactor = nnz(~ismembc(2:(levelItr-1), options.noPoolingLayers));
-    else
-        poolFactor = 0;
-    end
+    poolFactor = nnz(~ismembc(2:levelItr, options.noPoolingLayers));
     clear options;
     
     childrenArr = {graphLevel.children};
@@ -51,8 +47,13 @@ function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNode
 
         % Calculate both positions. For precise position, we obtain the
         % mean of the bounding box that is spanned by the leaf nodes.
-        childrenPos = previousLevelPrecisePositions(nodeChildren, :);
-        precisePosition = round((min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2);
+  %      childrenPos = firstLevelPrecisePositions(nodeChildren, :);
+  %      precisePosition = round((min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2);
+  
+        % We calculate new position based on leaf nodes.
+        precisePosition = round(mean(firstLevelPrecisePositions(nodeLeafNodes,:), 1));
+  
+        % Assign positions.
         newPrecisePositions{newNodeItr} = precisePosition;
         newPositions{newNodeItr} = int32(calculatePooledPositions(precisePosition, poolFactor, poolDim, stride));
         newLeafNodes{newNodeItr} = nodeLeafNodes;

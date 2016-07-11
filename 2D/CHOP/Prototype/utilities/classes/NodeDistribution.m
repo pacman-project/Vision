@@ -13,7 +13,8 @@ classdef NodeDistribution
                                                                  % and their probabilities.
         childrenPosDistributions@gmdistribution; % Cell array of multi-modal gaussian distributions 
                                                                  % modelling joint space of children positions. 
-                                                                 % One for every discrete combination.
+                                                                 % One for every discrete combination.      
+        minPosActivationLog@single; % Min position activation.
         childrenPosDistributionModes@uint8 % Vector that has as many elements as the number of rows in 
                                                                     % childrenLabelDistributions. Each element shows which mode of the
                                                                     % distribution in childrenPosDistributions is used for
@@ -57,8 +58,8 @@ classdef NodeDistribution
                   partialLabels(instanceItr, invalidChildCols) = obj.childrenLabelDistributions(assignedRow, ~validCols);
                   
                   % Now, we find closest locations for the nodes.
-                  jointPos = zeros(1, (numberOfChildren-1) * 2);
-                  secChildren = partialChildren(instanceItr, 2:end);
+                  jointPos = zeros(1, numberOfChildren * 2);
+                  secChildren = partialChildren(instanceItr, :);
                   for childItr = 1:numel(secChildren)
                        % Missing children will be Inf!
                        if isinf(secChildren(childItr))

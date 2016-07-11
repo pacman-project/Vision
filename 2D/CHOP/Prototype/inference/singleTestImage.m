@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryName, options)
+function [categoryLabel, predictedCategory] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryName, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -48,25 +48,34 @@ function [] = singleTestImage(testFileName, vocabulary, vocabularyDistributions,
     [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
     maxLevel = max(exportArr(:,4));
     
-    %% Project stuff from top layer.    % Create data structures required for optimization.
-    if ~exist([pwd '/filters/optimizationFilters.mat'], 'file')
-         [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
-         save([pwd '/filters/optimizationFilters.mat'], 'rfSizes', 'visFilters', 'optimizedFilters', 'likelihoodLookupTable');
-    else
-         load([pwd '/filters/optimizationFilters.mat'], 'visFilters');
-    end
-    validIdx = exportArr(:,4) == maxLevel;
-    maxLevelNodes = exportArr(validIdx,:);
-    maxLevelActivations = activationArr(validIdx);
-    [~, maxIdx] = max(maxLevelActivations);
-    experts = projectNode(maxLevelNodes(maxIdx, 1:4), vocabularyDistributions, 'modal', options);
-    filterIds = round(((180/numel(options.filters)) * (0:(numel(options.filters)-1))) / (180/size(visFilters,3)))' + 1;
-    experts(:,1) = filterIds(experts(:,1));
-    modalImg = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
+%     %% Project stuff from top layer.    % Create data structures required for optimization.
+%     if ~exist([pwd '/filters/optimizationFilters.mat'], 'file')
+%          [rfSizes, visFilters, optimizedFilters, likelihoodLookupTable] = createOptimizationStructures(options, levelItr, true);
+%          save([pwd '/filters/optimizationFilters.mat'], 'rfSizes', 'visFilters', 'optimizedFilters', 'likelihoodLookupTable');
+%     else
+%          load([pwd '/filters/optimizationFilters.mat'], 'visFilters');
+%     end
+%     validIdx = exportArr(:,4) == maxLevel;
+%     maxLevelNodes = exportArr(validIdx,:);
+%     maxLevelActivations = activationArr(validIdx);
+%     [~, maxIdx] = max(maxLevelActivations);
+%     experts = projectNode(maxLevelNodes(maxIdx, 1:4), vocabularyDistributions, 'modal', options);
+%     filterIds = round(((180/numel(options.filters)) * (0:(numel(options.filters)-1))) / (180/size(visFilters,3)))' + 1;
+%     experts(:,1) = filterIds(experts(:,1));
+%     modalImg = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
+%     
+    %% Predict a category!
+    idx = exportArr(:,4) == maxLevel;
+    topLabels = exportArr(idx,1);
+    topLabelActivations = activationArr(idx);
+    [~, maxIdx] = max(topLabelActivations);
+    topLabel = topLabels(maxIdx);
+    load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat']);
+    [~, predictedCategory] = max(vocabulary{maxLevel}(topLabel).categoryArr); %#ok<ASGLU>
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', '-append');
+        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', 'predictedCategory', '-append');
     else
         save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize');
     end

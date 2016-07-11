@@ -14,14 +14,15 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.07.2015
-function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLevel, graphLevel, prevRealLabelIds, prevPosition, levelItr, options)
+function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLevel, graphLevel, prevRealLabelIds, prevPrecisePositions, levelItr, options)
     numberOfNodes = numel(vocabLevel);
-    labelIds = [graphLevel.labelId];
+    labelIds = [graphLevel.realLabelId];
     noiseSigma = 0.0001;
     dummySigma = 0.001;
-    posDim = size(prevPosition,2);
+    posDim = size(prevPrecisePositions,2);
     rfSize = getRFSize(options, levelItr);
     halfRFSize = round(rfSize(1)/2);
+    maxPosProb = 0.1;
     
     %% Distribution parameters.
     sampleCountPerCluster = 50;
@@ -45,23 +46,24 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     vocabInstances = cell(numberOfNodes,1);
     for vocabItr = 1:numberOfNodes
          vocabInstances{vocabItr} = graphLevel(labelIds == vocabItr);
-    end                       
+    end   
     
     % Second, we go through each node, and collect statistics.
     parfor vocabItr = 1:numberOfNodes
-         
+        
         minX = -1; maxX = -1; minY = -1; maxY = -1; meanArr = []; scores=[]; coeff=[];
         w = warning('off', 'all');
         
         % Get data. 
         % TODO: Consider mapping here!
         instances = vocabInstances{vocabItr};
+        instancePositions = cat(1, instances.precisePosition);
         instanceChildren = cat(1, instances.children);
         instanceChildrenCombinedLabels = double(prevRealLabelIds(instanceChildren)); %#ok<PFBNS>
         if size(instanceChildren,1) == 1 && size(instanceChildren,2) > 1
              instanceChildrenCombinedLabels = instanceChildrenCombinedLabels';
         end
-        instanceChildrenCombinedPos = zeros(size(instanceChildren,1), (size(instanceChildren,2)-1) * posDim);
+        instanceChildrenCombinedPos = zeros(size(instanceChildren,1), size(instanceChildren,2) * posDim);
         
         % Find real-valued combinations. We learn a discrete distribution
         % of label combinations by simply counting the number of times each
@@ -76,12 +78,10 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              
              % If we're working with peripheral sub-parts, we calculate
              % position distributions as well.
-             if instanceItr > 1
-                  samples = prevPosition(relevantChildren, :) - prevPosition(instanceChildren(:, 1), :); %#ok<PFBNS>
-                  
-                  % Save samples (positions and labels).
-                  instanceChildrenCombinedPos(:, ((instanceItr-2)*posDim+1):((instanceItr-1)*posDim)) = samples;
-             end
+             samples = prevPrecisePositions(relevantChildren, :) - instancePositions; %#ok<PFBNS>
+
+             % Save samples (positions and labels).
+             instanceChildrenCombinedPos(:, ((instanceItr-1)*posDim+1):((instanceItr)*posDim)) = samples;
         end
         
         %% Finally, we learn a joint distibution of children for every combination of real id labels. 
@@ -132,6 +132,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              parsave([debugFolder '/part' num2str(vocabItr) '_.mat'], relevantSamples, 'relevantSamples');
         end
 
+        minPosActivationLog = single(0);
         if ~isempty(relevantSamples)
              %% Now, we try to fit multiple gaussians to the sample points. 
              % First, we learn the number of clusters.
@@ -150,7 +151,9 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
                        covMat = eye(size(relevantSamples,2)) * dummySigma;
                   else
                        covMat = cov(relevantSamples);
-                       diagMatrix = eye(size(relevantSamples,2)) > 0 ;
+                       diagMatrix = eye(size(relevantSamples,2)) > 0;
+                       % Remove non-diagonal elements to simplify assumptions.
+                       covMat(~diagMatrix) = 0;
                        covMat(diagMatrix) =  max(covMat(diagMatrix), dummySigma);
                   end
                   mu = mean(relevantSamples,1);
@@ -162,7 +165,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
                   catch %#ok<CTCH>
                        covMat = covMat .* eye(size(covMat,1)) * noiseSigma;
                   end
-               
+                  
                   % If there's a very limited number of samples ( 1 or
                   % 2), we reduce number of generated samples.
                   % There's an intermediate number of samples,
@@ -183,15 +186,15 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
                        clusteredSamples = relevantSamples;
                   end
 
-                  % Here, we perform proper statistical learning.
-                  % Number of clusters are found, and clusters are
-                  % given as initializers to the gaussian fitting
-                  % process.
-                  curMaxClusters = max(1, min(maxClusters, round(size(clusteredSamples,1)/minSampleCountPerCluster)));
-                  ids = mec(clusteredSamples, 'c', curMaxClusters);
+                 % Here, we perform proper statistical learning.
+                 % Number of clusters are found, and clusters are
+                 % given as initializers to the gaussian fitting
+                 % process.
+                 curMaxClusters = max(1, min(maxClusters, round(size(clusteredSamples,1)/minSampleCountPerCluster)));
+                 ids = mec(clusteredSamples, 'c', curMaxClusters);
                   
-                  % Once we obtain the number of clusters, cluster points
-                  % using k-means.
+                 % Once we obtain the number of clusters, cluster points
+                 % using k-means.
                  tempNumberOfClusters = max(ids);
                  if tempNumberOfClusters > 1
                       ids = kmeans(clusteredSamples, tempNumberOfClusters, 'EmptyAction', 'singleton');
@@ -215,6 +218,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
                             covMat(diagMatrix) =  max(covMat(diagMatrix), dummySigma);
                       end
                        
+                      
                       % Make covMat valid.
                       try
                            dummyProb = mvnpdf(muArr(clusterItr,:), muArr(clusterItr,:), covMat); %#ok<NASGU>
@@ -222,6 +226,8 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
                            covMat = covMat .* eye(size(covMat,1)) * noiseSigma;
                       end
                        
+%                      covMat(~diagMatrix) = 0;
+                      
                       % Finally, save covariance matrix.
                       covArr(:,:,clusterItr) = covMat;
                  end
@@ -232,23 +238,37 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
                   p = p/sum(p);
                   
                   % Obtain the final gaussian mixture.
-                  obj = gmdistribution(muArr, covArr, p);
+ %                 obj = gmdistribution(muArr, covArr, p);
                   
                   % Finally, fit a multi=dimensional gaussian given the
                   % parameters.
- %                 options = statset('MaxIter', 1);
- %                 obj = gmdistribution.fit(clusteredSamples, numberOfClusters, 'Regularize', regularizeTerm, 'Start', ids, 'Options', options);
+                  options = statset('MaxIter', 100);
+                  obj = gmdistribution.fit(clusteredSamples, numberOfClusters, 'CovType', 'diagonal', 'Regularize', dummySigma, 'Start', ids, 'Options', options);
              end
 
              % Generate random samples for density estimation.
              y = random(obj, sampleCount);
+             
+             % Finally, we choose a pdf threshold for this sub, based on
+             % the values of individual instances.
+             posActivations = pdf(obj, relevantSamples);
+             
+             % Calculate maximum possible position activation.
+             activationDenom = max(pdf(obj, obj.mu)) * 1/maxPosProb;
+             posActivations = posActivations / activationDenom;
+             
+             % Normalize activations for visualization.
+             normPosActivations = posActivations/max(posActivations);
+             
+             % Finally, take log of the minimum value and save it.
+             minPosActivationLog = single(log(min(posActivations)));
 
              if debugFlag
                   % Visualize clusters.
-                  subplot(1,3,2), hold on 
-                  for clusterItr = 1:numberOfClusters
-                        plot(scores(ids == clusterItr,1), scores(ids == clusterItr,2), pointSymbols{clusterItr}); %#ok<PFBNS>
-                  end
+%                   for clusterItr = 1:numberOfClusters
+%                         plot(scores(ids == clusterItr,1), scores(ids == clusterItr,2), pointSymbols{clusterItr}); %#ok<PFBNS>
+%                   end
+                  subplot(1,3,2), scatter(scores(:,1), scores(:,2), [], normPosActivations);
                   xlim([minX, maxX]);
                   ylim([minY, maxY]);
                   hold off
@@ -290,7 +310,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
                             sigmaMatrix = eye(numel(mixtureSigmas)) * mixtureSigmas(1);
                        end
 %                      try
-                            pdfVals(mixItr) = mvnpdf(meanCombSamples, mixtureMus(mixItr,:), sigmaMatrix) * pdfVals(mixItr);
+                       pdfVals(mixItr) = mvnpdf(meanCombSamples, mixtureMus(mixItr,:), sigmaMatrix) * pdfVals(mixItr);
 %                        catch %#ok<CTCH>
 %                             sigmaMatrix = sigmaMatrix .* eye(size(sigmaMatrix,1)) * noiseSigma;
 %                             pdfVals(mixItr) = mvnpdf(meanCombSamples, mixtureMus(mixItr,:), sigmaMatrix) * pdfVals(mixItr);
@@ -314,6 +334,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
         % Assign distributions.
         nodeDistributionLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
         nodeDistributionLevel(vocabItr).childrenPosDistributions = obj;
+        nodeDistributionLevel(vocabItr).minPosActivationLog = minPosActivationLog;
         nodeDistributionLevel(vocabItr).childrenPosDistributionModes = childrenPosDistributionModes;
         
         % Re-open warnings.

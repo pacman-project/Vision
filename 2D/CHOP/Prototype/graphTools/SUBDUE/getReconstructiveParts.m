@@ -30,7 +30,7 @@
 %> Ver 1.0 on 08.10.2015
 function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level1Coords, uniqueChildren, allLeafNodes)
 
-   coverageStoppingVal = 0.95;
+   coverageStoppingVal = 0.97;
    numberOfBestSubs = numel(bestSubs);
    remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
 %   numberOfChildren = {bestSubs.edges};

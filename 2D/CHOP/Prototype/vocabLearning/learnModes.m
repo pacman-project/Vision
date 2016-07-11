@@ -37,9 +37,15 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     c_mask=((x.^2+y.^2)<r^2);
     
     % Set initial data structures for processing 
-    edges = cat(1, currentLevel.adjInfo);
     nodeIds = [currentLevel.labelId];
     nodeCoords = cat(1, currentLevel.precisePosition);
+    leafNodes = {currentLevel.leafNodes};
+    
+    %% We obtain edge data here.
+    edges = cat(1, currentLevel.adjInfo);
+    
+    % Set threshold bins.
+    nbins = 20;
     
     % If no edges exist, return.
     if isempty(edges)
@@ -50,6 +56,15 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     
     % Anonymize edges, we're interested in labels, not ids.
     allEdges = [nodeIds(edges(:,1:2)), int32(edgeCoords(edges(:,3), :))];
+    noveltyRatios = zeros(size(edges,1),1, 'single');
+    for itr = 1:size(edges,1)
+        secChildren = leafNodes{edges(itr,2)};
+        noveltyRatios(itr) = nnz(~ismembc(secChildren, leafNodes{edges(itr,1)})) / numel(secChildren);
+    end
+    
+    if ~exist([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/'], 'dir')
+        mkdir([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/']);
+    end
     
     %% Learn unique edge types and put them in cells for fast processing using parfor.
     [uniqueEdgeTypes, ~, IA] = unique(allEdges(:,1:2), 'rows');
@@ -62,6 +77,16 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         samplesForEdge = allEdges(tempIdx,3:4); %#ok<PFBNS>
         sampleIds = edges(tempIdx,1:2); %#ok<PFBNS>
         sampleEdgeCoords = nodeCoords(sampleIds(:,2),:) - nodeCoords(sampleIds(:,1),:); %#ok<PFBNS>
+%        sampleNoveltyRatios = noveltyRatios(tempIdx);
+%        
+%         %% Obtain novelty statistics.
+%         figure('Visible', 'off'), hist(sampleNoveltyRatios, min(nbins, numel(unique(sampleNoveltyRatios))));
+%         saveas(gcf, [currentFolder '/debug/' datasetName '/level' num2str(levelItr) ...
+%                     '/pairwise/' num2str(uniqueEdgeTypes(uniqueEdgeItr, 1)) '_' num2str(uniqueEdgeTypes(uniqueEdgeItr, 2)) '_noveltyHist.png']);
+%         close all;
+
+        %% We simply remove repetitions from learned modes. They create problems.
+        samplesForEdge = unique(samplesForEdge, 'rows');
         
         %% If there are too many samples, get random samples.
         if size(samplesForEdge,1)>maxSamples

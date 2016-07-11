@@ -102,15 +102,15 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
                  posVect = posVect * halfRFSize;
                  
                  % Assign positions.
-                 for childItr = 2:numel(nodeCombination)
-                    newNodeSet(childItr,2:3) = posVect(:,((childItr-2) * posDim + 1):((childItr-1)*posDim));
+                 for childItr = 1:numel(nodeCombination)
+                    newNodeSet(childItr,2:3) = posVect(:,((childItr-1) * posDim + 1):((childItr)*posDim));
                  end
-                 
-                 % Shift nodes by an offset (mid of RF).
-                 mins = min(newNodeSet(:, 2:3), [], 1);
-                 maxs = max(newNodeSet(:,2:3), [], 1);
-                 midPoint = round((mins+maxs)/2);
-                 newNodeSet(:,2:3) = round(newNodeSet(:,2:3) - repmat(midPoint, size(newNodeSet,1),1));
+%                  
+%                  % Shift nodes by an offset (mid of RF).
+%                  mins = min(newNodeSet(:, 2:3), [], 1);
+%                  maxs = max(newNodeSet(:,2:3), [], 1);
+%                  midPoint = round((mins+maxs)/2);
+%                  newNodeSet(:,2:3) = round(newNodeSet(:,2:3) - repmat(midPoint, size(newNodeSet,1),1));
             end
             
             % Finally, we update the positions by adding previous

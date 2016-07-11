@@ -38,80 +38,80 @@ function [] = plotDiscriminativeAnalysis(datasetName)
     %% PLOT Precision of parts across all layers.
     numberOfCategories = size(precisionArr, 2) - 2;
     numberOfLevels = max(precisionArr(:,1));
-%     levelPrecisionArr = zeros(1, numberOfLevels);
-%     for levelItr = 1:numberOfLevels
-%         plotArr = cell(numberOfCategories * 3,1);
-%         levelArr = precisionArr(precisionArr(:,1) == levelItr,3:end);
-%         levelArr(levelArr == 0) = NaN;
-%         levelPrecisionArr(levelItr) = mean(levelArr(~isnan(levelArr)));
-%         plotArr(1:3:size(plotArr,1)) = repmat({(1:size(levelArr,1))}, numberOfCategories, 1);
-%         plotArr(2:3:size(plotArr,1)) = mat2cell(levelArr', ones(numberOfCategories,1), size(levelArr,1));
-%         plotArr(3:3:size(plotArr,1)) = plotShapeArr(1:numberOfCategories);
-%         figure, hold on;
-%         plot(plotArr{:}, 'MarkerSize', markerSize);
-%         
-%         % Now, we fit 2nd order polynomials to the data for better
-%         % visualization.
-%         for categoryItr = 1:numberOfCategories
-%             x = plotArr{1 + 3 * (categoryItr-1)};
-%             y = plotArr{2 + 3 * (categoryItr-1)};
-%             idx = ~isnan(y);
-%             y = y(idx);
-%             x = x(idx);
-%             if numel(x) > 2
-%                 P = polyfit(x, y, 2);
-%                 yfit = polyval(P, x);
-%                 plot(x, yfit, [colorArr{orgPlotShapeArr(categoryItr,1)} '-.']);
-%             end
-%         end
-%         
-%         axis([0, size(levelArr,1), 0, 100]);
-%         title('Precision of parts as classifiers.');
-%         xlabel('Part ids (ordered by MDL scores after inhibition)');
-%         ylabel('Precision %');
-%         legend(categoryNames{:});
-%         hold off;
-%         saveas(gcf, [pwd '/categorization/analysis/' datasetName  '/plots/level' num2str(levelItr) '_precision.png']);
-%         close all;
-%     end
+    levelPrecisionArr = zeros(1, numberOfLevels);
+    for levelItr = 1:numberOfLevels
+        plotArr = cell(numberOfCategories * 3,1);
+        levelArr = precisionArr(precisionArr(:,1) == levelItr,3:end);
+        levelArr(levelArr == 0) = NaN;
+        levelPrecisionArr(levelItr) = mean(levelArr(~isnan(levelArr)));
+        plotArr(1:3:size(plotArr,1)) = repmat({(1:size(levelArr,1))}, numberOfCategories, 1);
+        plotArr(2:3:size(plotArr,1)) = mat2cell(levelArr', ones(numberOfCategories,1), size(levelArr,1));
+        plotArr(3:3:size(plotArr,1)) = plotShapeArr(1:numberOfCategories);
+        figure, hold on;
+  %      plot(plotArr{:}, 'MarkerSize', markerSize);
+        
+        % Now, we fit 2nd order polynomials to the data for better
+        % visualization.
+        for categoryItr = 1:numberOfCategories
+            x = plotArr{1 + 3 * (categoryItr-1)};
+            y = plotArr{2 + 3 * (categoryItr-1)};
+            idx = ~isnan(y);
+            y = y(idx);
+            x = x(idx);
+            if numel(x) > 2
+                P = polyfit(x, y, 3);
+                yfit = polyval(P, x);
+                plot(x, yfit, [colorArr{orgPlotShapeArr(categoryItr,1)} '-.']);
+            end
+        end
+        
+        axis([0, size(levelArr,1), 0, 100]);
+        title('Precision of parts as classifiers.');
+        xlabel('Part ids (ordered by MDL scores after inhibition)');
+        ylabel('Precision %');
+        legend(categoryNames{:});
+        hold off;
+        saveas(gcf, [pwd '/categorization/analysis/' datasetName  '/plots/level' num2str(levelItr) '_precision.png']);
+        close all;
+    end
     
-%     %% PLOT Recall of parts across all layers.
-%     levelRecallArr = zeros(1, numberOfLevels);
-%     for levelItr = 1:numberOfLevels
-%         plotArr = cell(numberOfCategories * 3,1);
-%         levelArr = recallArr(recallArr(:,1) == levelItr,3:end);
-%         levelArr(levelArr == 0) = NaN;
-%         levelRecallArr(levelItr) = mean(levelArr(~isnan(levelArr)));
-%         plotArr(1:3:size(plotArr,1)) = repmat({(1:size(levelArr,1))}, numberOfCategories, 1);
-%         plotArr(2:3:size(plotArr,1)) = mat2cell(levelArr', ones(numberOfCategories,1), size(levelArr,1));
-%         plotArr(3:3:size(plotArr,1)) = plotShapeArr(1:numberOfCategories);
-%         figure, hold on;
-%         plot(plotArr{:}, 'MarkerSize', markerSize);
-%         
-%         % Now, we fit 2nd order polynomials to the data for better
-%         % visualization.
-%         for categoryItr = 1:numberOfCategories
-%             x = plotArr{1 + 3 * (categoryItr-1)};
-%             y = plotArr{2 + 3 * (categoryItr-1)};
-%             idx = ~isnan(y);
-%             y = y(idx);
-%             x = x(idx);
-%             if numel(x) > 2
-%                 P = polyfit(x, y, 2);
-%                 yfit = polyval(P, x);
-%                 plot(x, yfit, [colorArr{orgPlotShapeArr(categoryItr,1)} '-.']);
-%             end
-%         end
-%         
-%         axis([0, size(levelArr,1), 0, 100]);
-%         title('Recall of parts as classifiers.');
-%         xlabel('Part ids (ordered by MDL scores after inhibition)');
-%         ylabel('Recall %');
-%         legend(categoryNames{:});
-%         hold off;
-%         saveas(gcf, [pwd '/categorization/analysis/' datasetName  '/plots/level' num2str(levelItr) '_recall.png']);
-%         close all;
-%     end
+    %% PLOT Recall of parts across all layers.
+    levelRecallArr = zeros(1, numberOfLevels);
+    for levelItr = 1:numberOfLevels
+        plotArr = cell(numberOfCategories * 3,1);
+        levelArr = recallArr(recallArr(:,1) == levelItr,3:end);
+        levelArr(levelArr == 0) = NaN;
+        levelRecallArr(levelItr) = mean(levelArr(~isnan(levelArr)));
+        plotArr(1:3:size(plotArr,1)) = repmat({(1:size(levelArr,1))}, numberOfCategories, 1);
+        plotArr(2:3:size(plotArr,1)) = mat2cell(levelArr', ones(numberOfCategories,1), size(levelArr,1));
+        plotArr(3:3:size(plotArr,1)) = plotShapeArr(1:numberOfCategories);
+        figure, hold on;
+  %      plot(plotArr{:}, 'MarkerSize', markerSize);
+        
+        % Now, we fit 2nd order polynomials to the data for better
+        % visualization.
+        for categoryItr = 1:numberOfCategories
+            x = plotArr{1 + 3 * (categoryItr-1)};
+            y = plotArr{2 + 3 * (categoryItr-1)};
+            idx = ~isnan(y);
+            y = y(idx);
+            x = x(idx);
+            if numel(x) > 2
+                P = polyfit(x, y, 3);
+                yfit = polyval(P, x);
+                plot(x, yfit, [colorArr{orgPlotShapeArr(categoryItr,1)} '-.']);
+            end
+        end
+        
+        axis([0, size(levelArr,1), 0, 100]);
+        title('Recall of parts as classifiers.');
+        xlabel('Part ids (ordered by MDL scores after inhibition)');
+        ylabel('Recall %');
+        legend(categoryNames{:});
+        hold off;
+        saveas(gcf, [pwd '/categorization/analysis/' datasetName  '/plots/level' num2str(levelItr) '_recall.png']);
+        close all;
+    end
     
      instanceCounts = hist(categoryArrIdx, unique(categoryArrIdx));
      maxInstanceCountPerClass = max(instanceCounts);
@@ -129,25 +129,41 @@ function [] = plotDiscriminativeAnalysis(datasetName)
     for levelItr = 1:numberOfLevels
         levelArr = fscoreArr(fscoreArr(:,1) == levelItr,3:end);
         levelArr(levelArr == 0) = NaN;
-        [partFscores, partCategories] = max(levelArr, [], 2);
-        levelFscoreArr(levelItr) = mean(partFscores);
-        partLabels = 1:size(levelArr,1);
+        levelArr(levelArr == 0) = NaN;
+        levelFscoreArr(levelItr) = mean(levelArr(~isnan(levelArr)));
+        plotArr(1:3:size(plotArr,1)) = repmat({(1:size(levelArr,1))}, numberOfCategories, 1);
+        plotArr(2:3:size(plotArr,1)) = mat2cell(levelArr', ones(numberOfCategories,1), size(levelArr,1));
+        plotArr(3:3:size(plotArr,1)) = plotShapeArr(1:numberOfCategories);
         figure, hold on;
+        
+        for categoryItr = 1:numberOfCategories
+            x = plotArr{1 + 3 * (categoryItr-1)};
+            y = plotArr{2 + 3 * (categoryItr-1)};
+            idx = ~isnan(y);
+            y = y(idx);
+            x = x(idx);
+            if numel(x) > 2
+                P = polyfit(x, y, 3);
+                yfit = polyval(P, x);
+                plot(x, yfit, [colorArr{orgPlotShapeArr(categoryItr,1)} '-.']);
+            end
+        end
+ %       partLabels = 1:size(levelArr,1);
         
         % Now, we fit 2nd order polynomials to the data for better
         % visualization.
-        for categoryItr = 1:numberOfCategories
-            validPartIdx = partCategories == categoryItr;
-            if nnz(validPartIdx) == 0
-                 continue;
-            end
-             
-            y = partFscores(validPartIdx);
-            x = partLabels(validPartIdx);
-            z = plotShapeArr{categoryItr};
-             
-            plot(x,y,z, 'MarkerSize', markerSize);
-        end
+%         for categoryItr = 1:numberOfCategories
+%             validPartIdx = partCategories == categoryItr;
+%             if nnz(validPartIdx) == 0
+%                  continue;
+%             end
+%              
+%             y = partFscores(validPartIdx);
+%             x = partLabels(validPartIdx);
+%             z = plotShapeArr{categoryItr};
+%              
+%             plot(x,y,z, 'MarkerSize', markerSize);
+%         end
         
         axis([0, size(levelArr,1), 0, 100]);
         title('Fscore of parts as classifiers.');
@@ -189,7 +205,7 @@ function [] = plotDiscriminativeAnalysis(datasetName)
         plotArr(2) = {levelArr'};
         plotArr(3) = plotShapeArr(1);
         figure, hold on;
-        plot(plotArr{:}, 'MarkerSize', markerSize);
+%        plot(plotArr{:}, 'MarkerSize', markerSize);
         
         % Now, we fit 2nd order polynomials to the data for better
         % visualization.
@@ -199,7 +215,7 @@ function [] = plotDiscriminativeAnalysis(datasetName)
         y = y(idx);
         x = x(idx);
         if numel(x) > 2
-            P = polyfit(x, y, 2);
+            P = polyfit(x, y, 3);
             yfit = polyval(P, x);
             plot(x, yfit, [colorArr{orgPlotShapeArr(1)} '-.']);
         end
@@ -217,23 +233,23 @@ function [] = plotDiscriminativeAnalysis(datasetName)
     %% Finally, we create a single plot where we show change of average measurements across layers. 
     % Average precision, recall, fscore and shareability of the parts
     % across all layers will be in this plot.
-    allDataArr = [levelFscoreArr; levelShareabilityArr];
-    plotArr = cell(6,1);
+    allDataArr = [levelFscoreArr; levelPrecisionArr; levelRecallArr; levelShareabilityArr];
+    plotArr = cell(12,1);
     
-    plotArr(1:3:size(plotArr,1)) = repmat({(1:numberOfLevels)}, 2, 1);
-    plotArr(2:3:size(plotArr,1)) = mat2cell(allDataArr, ones(2,1), numberOfLevels);
-    plotArr(3:3:size(plotArr,1)) = plotShapeArr(1:2);
+    plotArr(1:3:size(plotArr,1)) = repmat({(1:numberOfLevels)}, 4, 1);
+    plotArr(2:3:size(plotArr,1)) = mat2cell(allDataArr, ones(4,1), numberOfLevels);
+    plotArr(3:3:size(plotArr,1)) = plotShapeArr(1:4);
     figure, hold on;
     plot(plotArr{:}, 'MarkerSize', markerSize);
     
-    for itr = 1:2
+    for itr = 1:4
         x = plotArr{(itr-1)*3 + 1};
         y = plotArr{(itr-1)*3 + 2};
         idx = ~isnan(y);
         y = y(idx);
         x = x(idx);
         if numel(x) > 2
-            P = polyfit(x, y, 2);
+            P = polyfit(x, y, 3);
             yfit = polyval(P, x);
             plot(x, yfit, [colorArr{orgPlotShapeArr(itr)} '-.']);
         end
@@ -242,7 +258,7 @@ function [] = plotDiscriminativeAnalysis(datasetName)
     title('Vocabulary properties across layers.');
     xlabel('Layer ids');
     ylabel('Percentage (%)');
-    legend({'Fscore', 'Shareability'});
+    legend({'Fscore', 'Precision', 'Recall', 'Shareability'});
 
     hold off;
     saveas(gcf, [pwd '/categorization/analysis/' datasetName  '/plots/allMetrics.png']);

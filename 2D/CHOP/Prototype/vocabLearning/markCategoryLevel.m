@@ -1,4 +1,4 @@
-function [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel, level1Coords, levelItr, avgCoverage, options)
+function [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel, level1Coords, avgCoverage, levelItr, options)
    % Allocate space for data structures.
    imageIds = [graphLevel.imageId];
    leafNodeCounts = cellfun(@(x) numel(x), {graphLevel.leafNodes});
@@ -6,7 +6,6 @@ function [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel
    maxRemImg = double(max(imageIds));
    imageRemainingLeafCounts = hist(level1Coords(:,1), 1:maxRemImg);
    imageCoverages = zeros(maxRemImg, 1);
-   
    nodeCoverages = (leafNodeCounts ./ imageRemainingLeafCounts(imageIds))/avgCoverage;
    
    % Find max coverage for every image.
@@ -18,8 +17,7 @@ function [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel
    end
 
    % If conditions are met, move on.
-   if levelItr == options.categoryLevel || mean(imageCoverages(remainingImages)) >= options.categoryLevelCoverage
+   if nnz(imageCoverages(remainingImages) >= options.categoryLevelCoverage) == nnz(imageCoverages) || levelItr == options.categoryLevel
         options.stopFlag = true;
-        options.categoryLevel = levelItr;
    end
 end

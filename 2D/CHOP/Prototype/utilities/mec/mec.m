@@ -101,7 +101,12 @@ data_submean = data - repmat(col_mean,size(data,1),1);
 col_sqsum_mean = sum(data_submean .^ 2) / (size(data,1) - 1);
 col_sqrootsum = (col_sqsum_mean) .^ 0.5;
 
-h = width * col_sqrootsum;
+if numel(col_sqrootsum) == 2
+    h = [0.5, 0.5];
+ %   h = min([0.5, 0.5], max([0.3, 0.3], width * col_sqrootsum));
+else
+    h = width * col_sqrootsum;
+end
 
 % init neighbor
 if gaussian

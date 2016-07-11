@@ -193,9 +193,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                          projectedNodes(:,4) = firstActivations(instanceLeafNodes,:);
                          
                          % Update coordinates.
-                         mins = min(projectedNodes(:,2:3), [], 1);
-                         maxs = max(projectedNodes(:,2:3), [], 1);
-                         meanCoordOffset = (mins + maxs) / 2;
+                         meanCoordOffset = round(mean(projectedNodes(:,2:3), 1));
                          coordOffset = repmat(imgSize/2  - meanCoordOffset, size(projectedNodes,1), 1);
                          projectedNodes(:,2:3) = round(projectedNodes(:,2:3) + coordOffset);
                          bounds = [1,1,imgSize] - [round(coordOffset(1,1:2)), round(coordOffset(1,1:2))];
@@ -244,6 +242,12 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     else
          visRepresentativeNodes = representativeNodes;
     end
+    
+    % If there are no nodes to show, exit.
+    if isempty(visRepresentativeNodes)
+        return;
+    end
+        
     % Learn number of rows/columns, use only representative nodes.
     numberOfNodes = numel(visRepresentativeNodes);
     colImgCount = ceil(sqrt(numberOfNodes));
@@ -307,6 +311,3 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     imwrite(overallInstanceImage, [currentFolder '/debug/' datasetName '/level' num2str(levelId) '_vb_variations.jpg']);
     clearvars -except allNodeInstances representativeNodes
 end
-
-
-

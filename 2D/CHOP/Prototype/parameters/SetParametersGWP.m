@@ -17,7 +17,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
-    options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
+    options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
     options.matlabRestartImageCount = 2500; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
     
@@ -98,19 +98,19 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0.5;           % The novelty threshold used in the 
+    options.noveltyThr = 0;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.9;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.minEdgeNoveltyThr = 0.5;    % Minimum edge novelty threshold.
-    options.edgeNoveltyThrRate = 0.1;   % The edge novelty threshold 
+    options.minEdgeNoveltyThr = 0;    % Minimum edge novelty threshold.
+    options.edgeNoveltyThrRate = 0;   % The edge novelty threshold 
                                        % is supposed to reduce each level by 
                                        % this amount.
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
@@ -126,9 +126,9 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.94; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0.6; % Each node should cover this percentage of the nodes in its RF.
+    options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
     options.categoryLevelMissingNodeThr = 0.9; %In category level, missing node threshold is treated differently.
     options.edgeChangeLevel = -1; % Going to be updated in the code later.
     options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
@@ -150,8 +150,10 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
+                                         
+    options.smallReceptiveFieldSize = 9; % Small receptive field size that is used in some levels.
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
-    options.maxNodeDegree = 20;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 30;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxFirstLevelNodeDegree = 4;  % (N) closest N nodes are linked for 
                                        % every node in the object graphs (layer 1).
@@ -179,7 +181,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 9; % The level where we switch from 
+    options.categoryLevel = 10; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -188,7 +190,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
                                                   % drastically. Set to an
                                                   % unlikely value (100)
                                                   % for no category nodes.
-    options.categoryLevelCoverage = 0.95; % If each node is covering this percent 
+    options.categoryLevelCoverage = 0.8; % If each node is covering this percent 
                                                                   % of its associated image, we switch to 
                                                                   % category node grouping.
     options.articulationsPerCategory = 30; % Number of top level nodes 
@@ -200,7 +202,7 @@ function [ options ] = SetParametersGWP( datasetName, options )
     options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = [100 120 800 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
+    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
     options.reconstruction.maxNumberOfORNodes = 2000; % Ideal number of OR 

@@ -57,14 +57,8 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     nextGraphLevel = [];
 
     if levelItr < 4
-%         if levelItr == 1
-%            singleInstanceFlag = false; 
-%         else
-%            singleInstanceFlag = true; 
-%         end
+        singleInstanceFlag = false; 
         minSize = 2;
-%        singleInstanceFlag = false;
-        singleInstanceFlag = true;
     else
         minSize = options.subdue.minSize;
         singleInstanceFlag = true;
@@ -81,17 +75,18 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     maxTime = options.subdue.maxTime;
     maxSize = options.subdue.maxSize;
     halfRFSize = ceil(options.receptiveFieldSize/2);
+    smallHalfMatrixSize = (options.smallReceptiveFieldSize+1)/2;
     if ismember(levelItr, options.smallRFLayers)
-        rfRadius = ceil(halfRFSize/2) + 1;
+        rfRadius = smallHalfMatrixSize;
     else
         rfRadius = halfRFSize;
     end
     
     % If this is category level, we change the minimum RF coverage.
-    if levelItr+1 == options.categoryLevel
-         minRFCoverage = options.categoryLevelMissingNodeThr;
+    if levelItr + 1 == options.categoryLevel
+        minRFCoverage = options.categoryLevelCoverage;
     else
-         minRFCoverage = options.missingNodeThr;
+        minRFCoverage = options.missingNodeThr;
     end
     parentsPerSet = 2000;
     
@@ -147,7 +142,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     poolDim = options.poolDim;
     
     % Calculate pool factor.
-    if levelItr> 1 && ~isempty(options.noPoolingLayers)
+    if levelItr> 1
         poolFactor = nnz(~ismembc(2:levelItr, options.noPoolingLayers));
     else
         poolFactor = 0;
@@ -272,7 +267,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             
             %% All good, continue with the main algorithm.
             processedSet = parentSubSets{setItr};
-            display(['[SUBDUE/Parallel] Expanding set ' num2str(setItr) '/' num2str(numel(parentSubSets)) ' of size ' num2str(currentSize-1) ', containing ' num2str(numel(processedSet)) ' images..']);
+            display(['[SUBDUE/Parallel] Expanding set ' num2str(setItr) '/' num2str(numel(parentSubSets)) ' of size ' num2str(currentSize-1) ', containing ' num2str(numel(processedSet)) ' subs..']);
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
  %               display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);

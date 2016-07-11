@@ -29,8 +29,12 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
     mdlScoreArr = zeros(totalNumberOfParts, 4);
     partOffset = 1;
     for levelItr = 1:numel(vocabulary)
-        
         vocabLevel = vocabulary{levelItr};
+        
+        if isempty(vocabLevel)
+            break;
+        end
+        
         vocabLevelLabels = cat(1, vocabLevel.label);
         [~, IA, ~] = unique(vocabLevelLabels, 'stable');
         

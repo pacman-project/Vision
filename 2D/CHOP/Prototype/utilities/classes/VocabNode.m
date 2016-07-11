@@ -22,5 +22,6 @@ classdef VocabNode
         categoryArr@single % 1 x numberOfCategories array. Sums up to 1. 
                     % Determines how much this node has been found in each
                     % category.
+        minActivationLog@single; % Log of minimum activition in the training set.
     end
 end

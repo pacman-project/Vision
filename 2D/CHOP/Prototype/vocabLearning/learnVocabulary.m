@@ -98,18 +98,31 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     previousAccuracy = 0; %#ok<*NASGU>
     
     %% Obtain level 1 coords to subsample them in higher layers.
-    maxFirstLevelNodeDegree = options.maxFirstLevelNodeDegree;
+    display('........ Finding immediate, 1-step and 2-step neighbors..');
+    firstLevelAdjNodes = {graphLevel.adjInfo};
+    maxFirstLevelNodeDegree = max(cellfun(@(x) size(x,1), firstLevelAdjNodes));
     dummyArrs = cell(maxFirstLevelNodeDegree,1);
     for itr = 1:maxFirstLevelNodeDegree
         dummyArrs(itr) = {zeros(1, maxFirstLevelNodeDegree - itr, 'int32')};
     end
     fullDummyArr = zeros(1, maxFirstLevelNodeDegree, 'int32');
     level1Coords = [cat(1, graphLevel.imageId), int32(cat(1, graphLevel.precisePosition))];
-    firstLevelAdjNodes = {graphLevel.adjInfo};
     nonemptyIdx = cellfun(@(x) ~isempty(x), firstLevelAdjNodes);
     firstLevelAdjNodes(nonemptyIdx) = cellfun(@(x) [(x(:,2))', dummyArrs{size(x,1)}], firstLevelAdjNodes(nonemptyIdx), 'UniformOutput', false);
     firstLevelAdjNodes(~nonemptyIdx) = {fullDummyArr};
     firstLevelAdjNodes = cat(1, firstLevelAdjNodes{:});
+    firstLevelAdjNodes = cat(2, int32(1:size(firstLevelAdjNodes,1))', firstLevelAdjNodes);
+    firstLevelPrecisePositions = cat(1, graphLevel.precisePosition);
+    
+    %% We create 1-neighbors and 2-neighbors too, since we tend to lose nodes here and there in higher layers.
+    [firstLevelAdjNodes1, firstLevelAdjNodes2] = findNeighbors(firstLevelAdjNodes);
+    
+    % Sort first level adjacency nodes (row by row).
+    firstLevelAdjNodes(firstLevelAdjNodes == 0) = size(firstLevelAdjNodes,1) + 1;
+    firstLevelAdjNodes = sort(firstLevelAdjNodes,2);
+    firstLevelAdjNodes(firstLevelAdjNodes == (size(firstLevelAdjNodes,1) + 1)) = 0;
+    firstLevelAdjNodes = {firstLevelAdjNodes, firstLevelAdjNodes1, firstLevelAdjNodes2};
+    clear firstLevelAdjNodes1 firstLevelAdjNodes2;
     
     %% If we have passed the limit for number of images, we go into a different mode 
     % where we perform matlab restarts for memory optimization.
@@ -124,6 +137,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     
     %% Export first level realizations.
     levelItr = 1;
+    disp('Exporting first level realizations.');
     [preExportArr, preActivationArr] = exportRealizations(graphLevel, levelItr); %#ok<ASGLU>
       
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========

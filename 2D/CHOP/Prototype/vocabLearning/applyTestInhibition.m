@@ -55,17 +55,19 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
         
         % Sort nodes based on their activations, and preserve the ordering.
         activationArr = [imageGraphLevel.activation];
-        imageNodeIds(imageId) = {[imageGraphLevel.labelId]'};
         [~, sortIdx] = sort(activationArr, 'descend');
         imageGraphLevels(imageId) = {imageGraphLevel};
         imageSortIdx(imageId) = {sortIdx};
         
         % Save image coords.
         imageAllNodeCoords(imageId) = {imageNodeCoords(sortIdx,:)}; 
+        tempArr = [imageGraphLevel.labelId]';
+        tempArr = tempArr(sortIdx);
+        imageNodeIds(imageId) = {tempArr};
     end
     
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
-    for imageId = 1:numberOfImages
+    parfor imageId = 1:numberOfImages
         sortIdx = imageSortIdx{imageId};
         orgImageGraphLevel = imageGraphLevels{imageId};
         imageGraphLevel = orgImageGraphLevel(sortIdx);
@@ -99,6 +101,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
                 edgeCoords(:,2) > -halfMatrixSize & ...
                 edgeCoords(:,2) < halfMatrixSize & ...
                 nodeIds == nodeIds(nodeItr);
+ 
           adjacentNodes(1:nodeItr) = 0;
               
           % Go over each adjacent node, and apply inhibition if their leaf nodes are 

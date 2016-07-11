@@ -43,7 +43,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
          rmdir(options.testInferenceFolder, 's');
     end
     mkdir(options.testInferenceFolder);
-    
+%     
     % Open threads for parallel processing.
     if options.parallelProcessing
         if options.parpoolFlag
@@ -102,16 +102,21 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         % read from the file. They have to be used in the code. Here's my
         % workaround: 
         vocabulary = vocabulary; %#ok<ASGSL,NODEF>
+        vocabularyDistributions = vocabularyDistributions; %#ok<ASGSL,NODEF>
         allModes = allModes; %#ok<ASGSL,NODEF>
         modeProbs = modeProbs; %#ok<ASGSL,NODEF>
         categoryNames = categoryNames; %#ok<ASGSL>
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
+        confMatrix = zeros(20,20);
+        categoryInfo = cell(size(testFileNames,1) ,1);
         for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options); 
+            [categoryLabel, predictedCategory] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options); 
+   %         confMatrix(categoryLabel, predictedCategory) = confMatrix(categoryLabel, predictedCategory) + 1;
+            categoryInfo(testImgItr) = {[categoryLabel, predictedCategory]};
         end
         totalInferenceTime = toc(startTime);
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
