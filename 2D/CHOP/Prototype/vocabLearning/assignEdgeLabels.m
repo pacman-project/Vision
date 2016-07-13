@@ -128,10 +128,8 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
     display(['A further ' num2str(secEdgeCount - finalEdgeCount) ' (%' num2str(100 * (secEdgeCount - finalEdgeCount)/orgEdgeCount) ') edges have been removed to ensure double linking.']);
     
     edgeCounts = cellfun(@(x) size(x,1), assignedEdges);
-    if usejava('jvm')
-        figure('Visible', 'off'), hist(edgeCounts, 0:max(edgeCounts));
-        saveas(gcf, [debugFolder '/level' num2str(levelItr) 'EdgHist_AfterRemoval.png']); 
-    end
+    figure('Visible', 'off'), hist(edgeCounts, 0:max(edgeCounts));
+    saveas(gcf, [debugFolder '/level' num2str(levelItr) 'EdgHist_AfterRemoval.png']); 
     
     % Assign final edges.
     [graphLevel.adjInfo] = deal(assignedEdges{:});

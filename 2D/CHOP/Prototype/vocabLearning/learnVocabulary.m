@@ -48,7 +48,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     numberOfImages = numel(unique([graphLevel.imageId]));
     
     % Open threads for parallel processing.
-    if options.parallelProcessing && usejava('jvm')
+    if options.parallelProcessing
         if options.parpoolFlag
             p = gcp('nocreate');
             if ~isempty(p)
@@ -166,15 +166,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
          else
               matlabString = [];
          end
-         
-         % If no jvm is requested, move on.
-         if ~usejava('jvm')
-             argString = '-nosplash -nojvm -nodisplay';
-         else
-             argString = [];
-         end
-         
-         fileString = fprintf(fid, '#!/bin/bash\n%s\nscreen -d -m matlab -r %s "learnVocabularyLevel()"', matlabString, argString);
+         fileString = fprintf(fid, '#!/bin/bash\n%s\nscreen -d -m matlab -r "learnVocabularyLevel()"', matlabString);
          system(['chmod 755 ' scriptName]);
          fclose(fid);
          system(scriptName);

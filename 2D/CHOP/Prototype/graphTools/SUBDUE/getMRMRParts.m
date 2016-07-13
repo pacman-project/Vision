@@ -102,10 +102,9 @@ function [validSubs, overallCoverage, overallMatchCost] = getMRMRParts(bestSubs,
             end
         end
     end
-   
    figure, plot(20:20:numel(validSubs), accArr), hold on;
    axis([20 numel(validSubs) 0 1]);
-   hold off;
+%    hold off;
     validSubs = validSubs(1:maxAccItr);
     [trueAccuracy, truePrecision] = calculateCategorizationAccuracy(bestSubs(validSubs(1:maxAccItr)), ...
        categoryArrIdx, imageIdx, validationIdx, valItr, midThr, singlePrecision, 1, true);
