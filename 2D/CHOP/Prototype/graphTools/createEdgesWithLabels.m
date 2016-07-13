@@ -532,8 +532,10 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
     %% Collect statistics about number of edges per node and print the stuff.
     edgeCounts = {currentLevel.adjInfo};
     edgeCounts = cellfun(@(x) size(x,1), edgeCounts);
-    figure('Visible', 'off'), hist(edgeCounts, 0:max(edgeCounts));
-    saveas(gcf, [options.debugFolder '/level' num2str(currentLevelId) 'EdgHist.png']); 
+    if usejava('jvm')
+        figure('Visible', 'off'), hist(edgeCounts, 0:max(edgeCounts));
+        saveas(gcf, [options.debugFolder '/level' num2str(currentLevelId) 'EdgHist.png']); 
+    end
     display([num2str(nnz(edgeCounts == 0)) ' (%' num2str(100*nnz(edgeDiagnostics>0)/numel(edgeDiagnostics)) ') nodes have no edges.']);
     display([num2str(nnz(edgeDiagnostics == 1)) ' (%' num2str(100 * nnz(edgeDiagnostics == 1)/numel(edgeDiagnostics)) ') nodes are the only representatives in their images.']);
     display([num2str(nnz(edgeDiagnostics == 2)) ' (%' num2str(100 * nnz(edgeDiagnostics == 2)/numel(edgeDiagnostics)) ') nodes do not have edges cause there are no nodes in their RF.']);

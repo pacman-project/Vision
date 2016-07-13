@@ -30,7 +30,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     maxClusters = 5;
     maxPointsToCluster = maxClusters * sampleCountPerCluster;
     smallSampleCount = 5;
-    debugFlag = ~options.fastStatLearning;
+    debugFlag = ~options.fastStatLearning && usejava('jvm');
     
     % Allocate space for distribution data.
     nodeDistributionLevel(numberOfNodes) = NodeDistribution();
