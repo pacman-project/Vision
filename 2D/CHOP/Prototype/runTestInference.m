@@ -43,9 +43,9 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
          rmdir(options.testInferenceFolder, 's');
     end
     mkdir(options.testInferenceFolder);
-% %     
+%     
     % Open threads for parallel processing.
-    if options.parallelProcessing && usejava('jvm')
+    if options.parallelProcessing
         if options.parpoolFlag
             p = gcp('nocreate');
             if ~isempty(p)
@@ -81,7 +81,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             categoryLabel = 1;
             fullName = testFileNames{fileItr};
             [~, fileName, ext] = fileparts(testFileNames{fileItr});
-            strLength = numel([options.currentFolder '/input/' datasetName '/test/']);
+            strLength = numel([options.currentFolder '/input/' options.datasetName '/test/']);
             fileNameLength = numel(ext) + numel(fileName) + 1; % 1 for '/' (folder delimiter)
             if numel(fullName) >= strLength + fileNameLength
                 categoryStr = fullName(1, (strLength+1):(end-fileNameLength));
@@ -109,10 +109,9 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         
         %% Step 1.2: Run inference on each test image.
         startTime = tic;
-        confMatrix = zeros(numel(categoryNames),numel(categoryNames));
+        confMatrix = zeros(20,20);
         categoryInfo = cell(size(testFileNames,1) ,1);
-    %    for testImgItr = 1:size(testFileNames,1) 
-        for testImgItr = 1:5
+        for testImgItr = 1:size(testFileNames,1) 
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             [categoryLabel, predictedCategory] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options); 
@@ -120,12 +119,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             categoryInfo(testImgItr) = {[categoryLabel, predictedCategory]};
         end
         totalInferenceTime = toc(startTime);
-        categoryInfo = cat(1, categoryInfo{:});
-        for itr = 1:size(categoryInfo,1)
-            confMatrix(categoryInfo(itr,1), categoryInfo(itr,2)) = confMatrix(categoryInfo(itr,1), categoryInfo(itr,2)) + 1;
-        end
-        perf = sum(confMatrix(1:(size(confMatrix,1)+1):(size(confMatrix,1))^2)) / size(confMatrix,1); %#ok<NASGU>
-        save([options.currentFolder '/output/' datasetName '/classification.mat'], 'confMatrix', 'perf');
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
     end
     
@@ -135,9 +128,4 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             matlabpool close;
         end
     end
-end
-
-function [predictedCategory] = parload(pathFile, varName)
-    predictedCategory = -1;
-    load(pathFile,varName);
 end

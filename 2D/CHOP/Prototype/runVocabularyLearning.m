@@ -37,7 +37,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     processedGTFolder = options.processedGTFolder;
     
     % Open threads for parallel processing.
-    if options.parallelProcessing && usejava('jvm')
+    if options.parallelProcessing
         if options.parpoolFlag
             p = gcp('nocreate');
             if ~isempty(p)
