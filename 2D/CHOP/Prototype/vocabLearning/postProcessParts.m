@@ -392,8 +392,10 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
 
          % Visualize dendogram.
           try %#ok<TRYNC>
-               figure, dendrogram(Z, min(clusterCount, 50));
-               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_dendogram.png']);
+              if usejava('jvm')
+                  figure, dendrogram(Z, min(clusterCount, 50));
+                  saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_dendogram.png']);
+              end
           end
           close all;
     end
