@@ -31,7 +31,7 @@
   end
    
     % Open threads for parallel processing.
-    if options.parallelProcessing
+    if options.parallelProcessing && usejava('jvm')
         if options.parpoolFlag
             p = gcp('nocreate');
             if ~isempty(p)
@@ -79,7 +79,9 @@
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
    [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, level1Coords,...
        options, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy); %#ok<*ASGLU,*NODEF>
-   java.lang.System.gc();
+   if usejava('jvm')
+     java.lang.System.gc();
+   end
 
    % Open/close matlabpool to save memory.
 %   matlabpool close;
@@ -98,7 +100,9 @@
 
    %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
    graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, firstLevelPrecisePositions, graphLevel, levelItr, options);
-   java.lang.System.gc();
+   if usejava('jvm')
+     java.lang.System.gc();
+   end
 
    %% Calculate statistics from this graph.
    display('........ Before we apply inhibition, estimating statistics..');
@@ -113,15 +117,19 @@
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
    display('........ Learning sub-part label and position distributions.');
    [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, graphLevel, prevRealLabelIds, double(previousLevelPrecisePositions), levelItr, options);
-   java.lang.System.gc();
+   if usejava('jvm')
+     java.lang.System.gc();
+   end
 
    %% Calculate activations for every part realization.
    display('........ Calculating activations..');
    [vocabLevel, graphLevel] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, double(previousLevelPrecisePositions), levelItr, options);
-   java.lang.System.gc();
+   if usejava('jvm')
+     java.lang.System.gc();
+   end
 
    %% Remove low-coverage nodes when we're at category layer.
-   if options.stopFlag
+    if options.stopFlag
         graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)'));
    end
    
@@ -142,7 +150,9 @@
   newDistanceMatrix = inf(size(eucDistanceMatrix,1), size(eucDistanceMatrix,1), 'single');
   newDistanceMatrix(1:(size(eucDistanceMatrix,1)+1):size(eucDistanceMatrix,1)*size(eucDistanceMatrix,1)) = 0;
   distanceMatrices{levelItr} = newDistanceMatrix;
-   java.lang.System.gc();
+  if usejava('jvm')
+     java.lang.System.gc();
+  end
 
    %% We process graphLevel's labelIds to reflect updated labels (OR Node Labels).
    vocabNodeLabels = [vocabLevel.label];
@@ -157,7 +167,9 @@
    display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
    graphLevel = applyPooling(graphLevel, options.poolFlag);
    display(['........ After pooling, we have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
-   java.lang.System.gc();
+   if usejava('jvm')
+     java.lang.System.gc();
+   end
 
    %% Inhibition! We process the current level to eliminate some of the nodes in the final graph.
    % The rules here are explained in the paper. Basically, each node
@@ -198,14 +210,17 @@
    %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
    % Extract the edges between new realizations to form the new object graphs.
    [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, options, levelItr);
-   java.lang.System.gc();
-   
+   if usejava('jvm')
+     java.lang.System.gc();
+   end
    %% Here, we bring back statistical learning with mean/variance.
    [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
    graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords, levelItr, options.debugFolder);
    allModes{levelItr} = modes;
    modeProbs{levelItr} = modeProbArr;
-   java.lang.System.gc();
+   if usejava('jvm')
+     java.lang.System.gc();
+   end
 
    %% Print distance matrices.
    if ~isempty(newDistanceMatrix)
@@ -265,7 +280,9 @@
      end
 %     printCloseFilters(eucDistanceMatrix, representativeNodes, levelItr, options); 
      clear allNodeInstances representativeNodes;
-     java.lang.System.gc();
+     if usejava('jvm')
+        java.lang.System.gc();
+     end
    end
    
    %% If we've reached max number of layers, don't keep going forward.

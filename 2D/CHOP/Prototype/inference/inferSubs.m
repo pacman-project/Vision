@@ -200,9 +200,9 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                instanceCombinations = cat(1, instanceCombinations{:});
                
                % Remove rows having inf, if prediction is not needed.
-              if ~missingPartAllowed
+               if ~missingPartAllowed
                    instanceCombinations = instanceCombinations(~any(isinf(instanceCombinations),2),:);
-              end
+               end
                
                numberOfCombinations = size(instanceCombinations,1);
                numberOfChildren = size(instanceCombinations,2);
@@ -211,14 +211,13 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                     continue;
                end
                
-               
-             %% Save leaf nodes.
-             instanceLeafNodes = cell(numberOfCombinations, 1);
-             for instanceItr = 1:numberOfCombinations
+              %% Save leaf nodes.
+              instanceLeafNodes = cell(numberOfCombinations, 1);
+              for instanceItr = 1:numberOfCombinations
                    tempCombinations = instanceCombinations(instanceItr,:);
                    tempLeafNodes = fastsortedunique(sort(cat(1, leafNodes{tempCombinations(~isinf(tempCombinations))})));
                    instanceLeafNodes{instanceItr} = tempLeafNodes;
-             end
+              end
                
               %% Combinations are discovered. Now, we calculate an activation value for every combination.
               % First, we have to pick relevant distributions for each node. We
@@ -249,7 +248,6 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                        instanceChildrenCombinedPos(:, ((instanceItr-1)*2+1):((instanceItr)*2)) = samples;
                   end
 %                  [~, instanceJointPos] = vocabNodeDistributions.predictMissingInfo(instanceCombinationLabels, instanceCombinations, precisePositions);
-
                   validCombinations = ones(numberOfCombinations,1) > 0;
                   
                   %% Calculate activations!
