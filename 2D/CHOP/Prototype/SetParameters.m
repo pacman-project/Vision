@@ -14,6 +14,12 @@
 %> Ver 1.0 on 10.01.2014
 function [ options ] = SetParameters( datasetName, isTraining )
     options.isTraining = isTraining;
+    
+    if ispc
+        fs = '\';
+    else
+        fs = '/';
+    end
     %% ========== DEBUG PARAMETER ==========
     if ~isTraining
         options.debug = true;
@@ -22,7 +28,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                  % generated to aid debugging process.
     end
     options.fastStatLearning = true;
-    options.vis.printTrainRealizations = false;
+    options.vis.printTrainRealizations = true;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
@@ -99,14 +105,15 @@ function [ options ] = SetParameters( datasetName, isTraining )
     %% ========== FOLDER STRUCTURE INITIALIZATION ==========
     % Set folder parameters.
     options.currentFolder = currentPath;
-    options.debugFolder = [currentPath '/debug/' datasetName];
-    options.processedFolder = [currentPath '/output/' datasetName '/original'];
-    options.processedGTFolder = [currentPath '/output/' datasetName '/gt'];
-    options.outputFolder = [currentPath '/output/' datasetName];
-    options.testOutputFolder = [options.outputFolder '/test'];
-    options.testInferenceFolder = [options.outputFolder '/test/inference'];
-    options.smoothedFolder = [currentPath '/output/' datasetName '/smoothed'];
-    options.CNNFolder = [currentPath '/CNN/' datasetName];
+    options.debugFolder = [currentPath fs 'debug' fs datasetName];
+    options.processedFolder = [currentPath fs 'output' fs datasetName fs 'original'];
+    options.processedGTFolder = [currentPath fs 'output' fs datasetName fs 'gt'];
+    options.outputFolder = [currentPath fs 'output' fs datasetName];
+    options.testOutputFolder = [options.outputFolder fs 'test'];
+    options.testInferenceFolder = [options.outputFolder fs 'test' fs 'inference'];
+    options.smoothedFolder = [currentPath fs 'output' fs datasetName fs 'smoothed'];
+    options.workspaceFolder = [options.currentFolder fs 'workspaces' fs options.datasetName];
+    options.CNNFolder = [currentPath fs 'CNN' fs datasetName];
     
     %% ========== PATH FOLDER ADDITION ==========
     w = warning('off', 'all');

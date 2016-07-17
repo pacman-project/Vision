@@ -197,7 +197,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             fileNameLength = numel(ext) + numel(fileName) + 1; % 1 for '/' (folder delimiter)
             if numel(fullName) >= strLength + fileNameLength
                 categoryStr = fullName(1, (strLength+1):(end-fileNameLength));
-                categoryStrSepIdx = strfind(categoryStr, '/');
+                categoryStrSepIdx = union(strfind(categoryStr, '/'), strfind(categoryStr, '\'));
                 if ~isempty(categoryStrSepIdx)
                     categoryStr = categoryStr(:, 1:(categoryStrSepIdx(1)-1));
                 end

@@ -12,17 +12,27 @@ function [ ] = createFolders( options )
     isTraining = options.isTraining;
     try
     if isTraining 
+       tempFolder = tempname;
+       mkdir(tempFolder);
        if exist(options.outputFolder, 'dir')
-           rmdir(options.outputFolder, 's');
+           if ispc
+               system(['move ' options.outputFolder tempFolder]);
+           else
+              rmdir(options.outputFolder, 's');
+           end
        end
-       if exist([options.currentFolder '/workspaces/' options.datasetName], 'dir')
-           rmdir([options.currentFolder '/workspaces/' options.datasetName], 's');
+       if exist(options.workspaceFolder, 'dir')
+           rmdir(options.workspaceFolder, 's');
        end
-       if exist(options.debugFolder, 'dir')
-           rmdir(options.debugFolder, 's');
+       if exist(options.debugFolder, 'dir')           
+           if ispc
+               system(['move ' options.debugFolder tempFolder]);
+           else
+              rmdir(options.debugFolder, 's');
+           end
        end
-       if exist(options.CNNFolder, 'dir')
-         rmdir(options.CNNFolder);
+       if exist(options.CNNFolder, 'dir')         
+           rmdir(options.CNNFolder, 's');
        end
     end
     catch %#ok<CTCH>

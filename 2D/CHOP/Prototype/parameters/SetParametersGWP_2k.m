@@ -153,7 +153,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                          
     options.smallReceptiveFieldSize = 9; % Small receptive field size that is used in some levels.
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
-    options.maxNodeDegree = 30;        % (N) closest N nodes are linked for 
+    options.maxNodeDegree = 20;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
     options.maxFirstLevelNodeDegree = 4;  % (N) closest N nodes are linked for 
                                        % every node in the object graphs (layer 1).

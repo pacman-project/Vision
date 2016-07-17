@@ -85,7 +85,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             fileNameLength = numel(ext) + numel(fileName) + 1; % 1 for '/' (folder delimiter)
             if numel(fullName) >= strLength + fileNameLength
                 categoryStr = fullName(1, (strLength+1):(end-fileNameLength));
-                categoryStrSepIdx = strfind(categoryStr, '/');
+                categoryStrSepIdx = union(strfind(categoryStr, '/'), strfind(categoryStr, '\'));
                 if ~isempty(categoryStrSepIdx)
                     categoryStr = categoryStr(:, 1:(categoryStrSepIdx(1)-1));
                 end
@@ -111,8 +111,8 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         startTime = tic;
         confMatrix = zeros(numel(categoryNames),numel(categoryNames));
         categoryInfo = cell(size(testFileNames,1) ,1);
-    %    for testImgItr = 1:size(testFileNames,1) 
-        for testImgItr = 1:5
+        for testImgItr = 1:size(testFileNames,1) 
+    %    for testImgItr = 1:5
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             [categoryLabel, predictedCategory] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options); 
