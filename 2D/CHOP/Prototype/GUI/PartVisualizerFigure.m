@@ -22,7 +22,7 @@ function varargout = PartVisualizerFigure(varargin)
 
 % Edit the above text to modify the response to help PartVisualizer
 
-% Last Modified by GUIDE v2.5 27-Jul-2016 17:34:27
+% Last Modified by GUIDE v2.5 04-Aug-2016 12:15:03
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -163,8 +163,10 @@ function upButton_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 if handles.visualizerData.instanceOffset > 1
-   handles.visualizerData.instanceOffset = handles.visualizerData.instanceOffset - 2; 
+   handles.visualizerData.instanceOffset = max(int32(1), handles.visualizerData.instanceOffset - 6); 
    handles = handles.visualizerData.VisualizeInstances(handles);
+   handles.pageText.String = ['Page ' num2str(floor(double(handles.visualizerData.instanceOffset - 1)/6) + 1) ...
+       '/' num2str(floor(double(handles.visualizerData.numberOfInstances - 1)/6) + 1)];
 end
 
 
@@ -173,10 +175,12 @@ function downButton_Callback(hObject, eventdata, handles)
 % hObject    handle to downButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-maxOffset = max(1, (round(handles.visualizerData.numberOfInstances/2) * 2 - 5));
+maxOffset = int32(floor(double(handles.visualizerData.numberOfInstances - 1)/6) * 6 + 1);
 if handles.visualizerData.instanceOffset < maxOffset
-   handles.visualizerData.instanceOffset = handles.visualizerData.instanceOffset + 2; 
+   handles.visualizerData.instanceOffset = handles.visualizerData.instanceOffset + 6; 
    handles = handles.visualizerData.VisualizeInstances(handles);
+   handles.pageText.String = ['Page ' num2str(floor(double(handles.visualizerData.instanceOffset - 1)/6) + 1) ...
+       '/' num2str(floor(double(handles.visualizerData.numberOfInstances - 1)/6) + 1)];
 end
 
 
@@ -188,6 +192,8 @@ function beginButton_Callback(hObject, eventdata, handles)
 if handles.visualizerData.instanceOffset ~= 1
    handles.visualizerData.instanceOffset = int32(1);
    handles = handles.visualizerData.VisualizeInstances(handles);
+   handles.pageText.String = ['Page ' num2str(floor(double(handles.visualizerData.instanceOffset - 1)/6) + 1) ...
+       '/' num2str(floor(double(handles.visualizerData.numberOfInstances - 1)/6) + 1)];
 end
 
 
@@ -196,8 +202,18 @@ function endButton_Callback(hObject, eventdata, handles)
 % hObject    handle to endButton (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-maxOffset = max(1, (round(handles.visualizerData.numberOfInstances/2) * 2 - 5));
+maxOffset = int32(floor(double(handles.visualizerData.numberOfInstances - 1)/6) * 6 + 1);
 if handles.visualizerData.instanceOffset ~= maxOffset
    handles.visualizerData.instanceOffset = maxOffset; 
    handles = handles.visualizerData.VisualizeInstances(handles);
+   handles.pageText.String = ['Page ' num2str(floor(double(handles.visualizerData.instanceOffset - 1)/6) + 1) ...
+       '/' num2str(floor(double(handles.visualizerData.numberOfInstances - 1)/6) + 1)];
 end
+
+
+% --- Executes on button press in varButton.
+function varButton_Callback(hObject, eventdata, handles)
+% hObject    handle to varButton (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+handles = handles.visualizerData.ToggleVariation(handles);

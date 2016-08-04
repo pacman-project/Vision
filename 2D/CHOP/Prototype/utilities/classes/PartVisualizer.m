@@ -7,6 +7,8 @@ classdef PartVisualizer < handle
         layerID@uint8 %layer id of the part.
         partID@int32 % part id.
         partDescription@uint8; % The modal part description image.
+        partVariation@uint8; % The variation image.
+        shownImg@uint8; % if 0, partDescription is shown. Otherwise, partVariation takes over.
         minActivation@single; % Min instance activation (log probability).
         maxActivation@single; % Max instance activation (log probability).
         activationThreshold@single; % Current activation threshold.
@@ -110,6 +112,8 @@ classdef PartVisualizer < handle
         function obj = FillPartInfo(obj, layerID, partID)
             obj.layerID = uint8(layerID);
             obj.partID = int32(partID);
+            obj.shownImg = uint8(0);
+            obj.partVariation = uint8([]);
             
             vocabNode = obj.vocabulary{layerID}(partID);
             if layerID == 1
@@ -201,6 +205,8 @@ classdef PartVisualizer < handle
             %% Show part description.
             axes(handles.description);
             imshow(obj.partDescription);
+            handles.varButton.String = 'Show Variation';
+            obj.shownImg = uint8(0);
             
             %% Create bar graph for class contributions. 
             curClassNames = obj.classNames;
@@ -222,8 +228,44 @@ classdef PartVisualizer < handle
             handles.highActivation.String = num2str(obj.maxActivation);
             handles.actSlider.Value = obj.activationThreshold;
             
+            % Add page info.
+            handles.pageText.String = ['Page ' num2str(floor(double(obj.instanceOffset - 1)/6) + 1) ...
+               '/' num2str(floor(double(obj.numberOfInstances - 1)/6) + 1)];
+           
             %% Visualize instances.
             handles = obj.VisualizeInstances(handles);
+        end
+        
+        function handles = ToggleVariation(obj, handles)
+            if obj.shownImg
+                obj.shownImg = uint8(0);
+                %% Show part description.
+                axes(handles.description);
+                imshow(obj.partDescription);
+                handles.varButton.String = 'Show Variation';
+            else
+                obj.shownImg = uint8(1);
+                if obj.layerID > 1
+                    if isempty(obj.partVariation) 
+                        sampleCount = 20;
+                        allNodes = cell(sampleCount,1);
+                        for sampleItr = 1:sampleCount
+                            tempArr = [obj.partID, round([size(obj.partDescription,1), size(obj.partDescription,2)]/2), obj.layerID];
+                            [ nodes ] = projectNode( tempArr, obj.vocabularyDistributions, 'sample', obj.options, [] );
+                            allNodes{sampleItr} = nodes;
+                        end
+                        allNodes = cat(1, allNodes{:});
+                        [muImg, ~, ~] = obtainPoE(allNodes, [], [], [size(obj.partDescription,1), size(obj.partDescription,2)], obj.visFilters, []);
+                        obj.partVariation = muImg;
+                    end
+                else
+                    obj.partVariation = obj.partDescription;
+                end
+                
+                axes(handles.description);
+                imshow(obj.partVariation);
+                handles.varButton.String = 'Show Description';
+            end
         end
         
         function handles = VisualizeInstances(obj, handles)
