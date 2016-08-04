@@ -186,8 +186,8 @@ classdef PartVisualizer < handle
             set(gca,'xticklabelrotation', 90);
             xlim([0.4, obj.numberOfClasses+0.6]);
             
-            
             %% Visualize instances.
+            obj.instanceOffset = int32(1);
             handles = obj.VisualizeInstances(handles);
         end
         
