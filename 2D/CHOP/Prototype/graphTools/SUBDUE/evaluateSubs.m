@@ -31,11 +31,11 @@
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdgeCounts, allEdgeNodePairs, allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-     allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, maxLeafCounts, avgDegree)
+     allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, maxShareability, maxLeafCounts, avgDegree)
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
     validExtSubs = ones(numberOfSubs,1) > 0;
-    maxCover = 0.8;
+    maxCover = 0.9;
     for subItr = 1:numberOfSubs
         
         % Calculate Substructure score.
@@ -45,49 +45,80 @@ function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdg
        % If this sub has multiple children, we process the instances to
        % make sure those instances which cover a large portion of their
        % receptive field survives.
-        if size(subs(subItr).instanceChildren,2) > 1 && minRFCoverage > 0
+        if size(subs(subItr).instanceChildren,2) > 1 && (minRFCoverage > 0 || maxShareability < 1)
               allChildren = subs(subItr).instanceChildren;
               % Here, we check if we're actually covering enough of every
               % receptive field out there.
               numberOfInstances = size(allChildren,1);
+              numberOfChildren = size(allChildren,2);
               coveredLeafNodes = cell(numberOfInstances,1);
+              shareabilityArr = zeros(numberOfInstances,1);
               for childItr = 1:numberOfInstances
-                   tempLeafNodes = fastsortedunique(sort(cat(2, allLeafNodes{allChildren(childItr,:)})));
-                   tempLeafNodeCoords = level1CoordsPooled(tempLeafNodes,:);
-                   nodeCoords = allCoords(allChildren(childItr,1),:);
-                   tempLeafNodes = tempLeafNodes(tempLeafNodeCoords(:,1) > nodeCoords(1) - halfRFSize & ...
+                   %% Calculate support, and determine if we should eliminate this instance.
+                   tempArr = sort(cat(2, allLeafNodes{allChildren(childItr,:)}));
+                   tempLeafNodes = fastsortedunique(tempArr);
+                   if maxShareability < 1
+                        numberOfUniqueLeafNodes = numel(tempLeafNodes);
+                        numberOfRepetitions = numel(tempArr) - numel(tempLeafNodes);
+
+                        % Determine if this instance is any good.
+                        repetitionRatio = numberOfRepetitions / numberOfUniqueLeafNodes;
+                        if repetitionRatio > maxShareability * (numberOfChildren-1)
+                             shareabilityArr(childItr) = 1;
+                        elseif repetitionRatio > maxShareability
+                             tempArr = [false, diff(tempArr)== 0];
+                             tempArr = find(tempArr);
+                             repeatedNodes = numel(tempArr);
+                             for itr = 2:numel(tempArr)
+                                   if tempArr(itr) == tempArr(itr-1)+1
+                                        repeatedNodes = repeatedNodes - 1;
+                                   end
+                             end
+                             shareabilityArr(childItr) = repeatedNodes / numberOfUniqueLeafNodes;
+                         end
+                    end
+                   
+                     tempLeafNodeCoords = level1CoordsPooled(tempLeafNodes,:);
+                     nodeCoords = allCoords(allChildren(childItr,1),:);
+ %                    tempLeafNodes2 = tempLeafNodes(pdist2(single(tempLeafNodeCoords), single(nodeCoords)) < halfRFSize);
+                     tempLeafNodes = tempLeafNodes(tempLeafNodeCoords(:,1) > nodeCoords(1) - halfRFSize & ...
                      tempLeafNodeCoords(:,1) < nodeCoords(1) + halfRFSize & ...
                      tempLeafNodeCoords(:,2) > nodeCoords(2) - halfRFSize & ...
                      tempLeafNodeCoords(:,2) < nodeCoords(2) + halfRFSize);
                    coveredLeafNodes{childItr} = int32(tempLeafNodes);
               end
-
-             % Find the intersection of two sets, to assess coverage.
-             coveredLeafNodeCount = cellfun(@(x) numel(x), coveredLeafNodes);
-             maxCoverLeafNodeCount = maxLeafCounts(allChildren(:,1)); %#ok<PFBNS>
-             coverageRatios =  coveredLeafNodeCount ./ maxCoverLeafNodeCount;
-             validInstances = coverageRatios >= minRFCoverage;
-
-             % If there are full instances that do not extension (cover
-             % enough of RF), we delete them.
-             if mean(coverageRatios) < minRFCoverage
-                 validSubs(subItr) = 0;
+              
+              %% Mark valid instances.
+             if minRFCoverage > 0
+                  % Find the intersection of two sets, to assess coverage.
+                  coveredLeafNodeCount = cellfun(@(x) numel(x), coveredLeafNodes);
+                  maxCoverLeafNodeCount = maxLeafCounts(allChildren(:,1)); %#ok<PFBNS>
+                  coverageRatios =  coveredLeafNodeCount ./ maxCoverLeafNodeCount;
+                  validInstances = coverageRatios >= minRFCoverage & shareabilityArr <= maxShareability;
+                  
+                   % If the coverage ratios are too high, no need to extend this.
+                  if mean(coverageRatios) >= maxCover
+                       validExtSubs(subItr) = 0;
+                  end
+             else
+                  validInstances = shareabilityArr <= maxShareability;
              end
+
+ %            % If there are full instances that do not extension (cover
+ %            % enough of RF), we delete them.
+ %            if mean(coverageRatios) < minRFCoverage
+ %                validSubs(subItr) = 0;
+ %            end
              
-             % If the coverage ratios are too high, no need to extend this.
-             if mean(coverageRatios) >= maxCover
-                 validExtSubs(subItr) = 0;
-             end
-
-%              %% If the coverage is too small, we don't consider this sub.
+             %% If the coverage is too small, we don't consider this sub.
              if nnz(validInstances) == 0
                  validSubs(subItr) = 0;
              end
-
-%              %% Update instances to keep only valid ones (which cover most of RF).
-%              sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
-%              sub.instanceChildren = sub.instanceChildren(validInstances,:);
-%              sub.instanceSigns = sub.instanceSigns(validInstances,:);
+             
+              %% Update instances to keep only valid ones (which cover most of RF).
+              sub.instanceCenterIdx = sub.instanceCenterIdx(validInstances,:);
+              sub.instanceChildren = sub.instanceChildren(validInstances,:);
+              sub.instanceSigns = sub.instanceSigns(validInstances,:);
         end
         
         % We compress the object graph using the children, and the

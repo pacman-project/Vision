@@ -5,6 +5,6 @@ function [ rfSize ] = getRFSize( options, levelItr )
         stride = options.auto.stride;
     end
    poolFactor = numel(setdiff(2:(levelItr-1), options.noPoolingLayers));
-   rfSize = options.receptiveFieldSize * stride * (options.poolDim ^ poolFactor);
+   rfSize = options.receptiveFieldSize * stride * round(options.poolDim ^ poolFactor);
    rfSize = [rfSize, rfSize];
 end

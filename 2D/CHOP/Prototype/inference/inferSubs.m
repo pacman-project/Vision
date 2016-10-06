@@ -22,12 +22,8 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
     missingPartLog = log(0.00001);
     missingPartAllowed = false;
     poolFlag = true;
- %   activationThr = log(0.001);
-    activationThr = -10;
-    dummyPosSigma = 0.001;
     maxPosProb = 0.1;
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
-    maxLevel = 10;
     load([pwd '/filters/optimizationFilters.mat'], 'visFilters');
     outputImgFolder  = [options.currentFolder '/output/' options.datasetName '/reconstruction/test/' fileName];
     filterIds = round(((180/numel(options.filters)) * (0:(numel(options.filters)-1))) / (180/size(visFilters,3)))' + 1;

@@ -49,7 +49,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     
     % Open threads for parallel processing.
     if options.parallelProcessing && usejava('jvm')
-        if options.parpoolFlag
+        if exist('parpool', 'file')
             p = gcp('nocreate');
             if ~isempty(p)
                 delete(p);

@@ -74,6 +74,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     nsubs = options.subdue.nsubs;
     maxTime = options.subdue.maxTime;
     maxSize = options.subdue.maxSize;
+    maxShareability = options.maxShareability;
     halfRFSize = ceil(options.receptiveFieldSize/2);
     smallHalfMatrixSize = (options.smallReceptiveFieldSize+1)/2;
     if ismember(levelItr, options.smallRFLayers)
@@ -97,6 +98,12 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     % optimize based on the number of subs.
     numberOfReconstructiveSubs = options.reconstruction.numberOfReconstructiveSubs;
     
+    %% Create folder for visualizations.
+    folderName = [options.debugFolder '/level' num2str(levelItr+1) '/discovery'];
+    if ~exist(folderName, 'dir')
+         mkdir(folderName);
+    end
+    
     %% Initialize data structures.
     display('[SUBDUE] Initializing data structures for internal use..');
     % Helper data structures.
@@ -114,8 +121,6 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     allLabels = cat(1, graphLevel.labelId);
     allEdges(nonemptyEdgeIdx) = cellfun(@(x) [x(:,1:3), allLabels(x(:,2))], ...
         allEdges(nonemptyEdgeIdx), 'UniformOutput', false);
- %   allEdges(numel(graphLevel)) = AdjInfo();
- %   [allEdges.adjInfo] = deal(assignedEdges{:});
     allEdgeNodePairs = cat(1,allEdges{:});
     allEdgeNodePairs = allEdgeNodePairs(:,1:2);
     allEdgeCounts = hist(double(allEdgeNodePairs(:,1)), 1:numel(graphLevel))';
@@ -218,7 +223,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                % Evaluate them.
                 singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
                     allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree);
 
                 %% Remove those with no instances. 
                 centerIdxArr = {singleNodeSubsFinal.instanceCenterIdx};
@@ -284,7 +289,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 [childSubsFinal, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
                     allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree);
                 
                 % Assign mdl scores of subs chosen for extension as well. 
                 [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
@@ -450,7 +455,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
        display(['[SUBDUE] We have found ' num2str(numberOfBestSubs) ' subs with ' num2str(numberOfInstances) ' instances.']);
        [selectedSubs, optimalAccuracy] = selectParts(bestSubs, ...
            numberOfReconstructiveSubs, categoryArrIdx, imageIdx, allSigns, allLeafNodes, level1Coords,...
-           isSupervisedSelectionRunning);
+           isSupervisedSelectionRunning, folderName);
 
        % If supervision flag is set, and the performance has dropped
        % since the previous iteration, we switch to supervision.
@@ -461,7 +466,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
            display('[SUBDUE] We switch to supervised learning from now on.');
            isSupervisedSelectionRunning = true;
            [selectedSubs, previousAccuracy] = selectParts(bestSubs, ...
-           numberOfReconstructiveSubs, categoryArrIdx, imageIdx, allSigns, allLeafNodes, isSupervisedSelectionRunning);
+           numberOfReconstructiveSubs, categoryArrIdx, imageIdx, allSigns, allLeafNodes, isSupervisedSelectionRunning, folderName);
        else
            previousAccuracy = optimalAccuracy;
        end
@@ -470,7 +475,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
        % Re-evaluate best subs.
        bestSubs = evaluateSubs(bestSubs, 'mdl', allEdgeCounts, allEdgeNodePairs, ...
            allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, false, ...
-           allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, possibleLeafNodeCounts, avgDegree);
+           allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree);
 
        % Sort bestSubs by their mdl scores.
        mdlScores = [bestSubs.mdlScore];

@@ -217,7 +217,9 @@ classdef PartVisualizer < handle
             bar(1:obj.numberOfClasses, obj.classMembershipArr);
             set(gca,'xticklabel',curClassNames);
             set(gca,'xtick', 1:obj.numberOfClasses);
-            set(gca,'xticklabelrotation', 90);
+            try
+                   set(gca,'xticklabelrotation', 90);
+            end
             xlim([0.4, obj.numberOfClasses+0.6]);
             
             %% Update key info.

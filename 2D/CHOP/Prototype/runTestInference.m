@@ -46,7 +46,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
 % %     
     % Open threads for parallel processing.
     if options.parallelProcessing && usejava('jvm')
-        if options.parpoolFlag
+        if exist('parpool', 'file')
             p = gcp('nocreate');
             if ~isempty(p)
                 delete(p);
@@ -131,7 +131,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     
     % Close thread pool if opened.
     if options.parallelProcessing
-        if ~options.parpoolFlag
+        if ~exist('parpool', 'file')
             matlabpool close;
         end
     end

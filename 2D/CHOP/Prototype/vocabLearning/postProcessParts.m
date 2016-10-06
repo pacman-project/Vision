@@ -35,7 +35,13 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
     smallImageSize = 50;
     
     % Get number of OR nodes.
-    numberOfORNodes = options.reconstruction.numberOfORNodes(levelItr);
+    if numel(options.reconstruction.numberOfORNodes) < levelItr
+%        numberOfORNodes = options.reconstruction.maxNumberOfORNodes;
+          numberOfORNodes = min(3000, max(200, round(numel(vocabLevel)/2)));
+    else
+        numberOfORNodes = options.reconstruction.numberOfORNodes(levelItr);
+    end
+    
     % Get filter size.
     filterSize = size(options.filters{1});
     halfFilterSize = floor(filterSize(1)/2);
@@ -187,6 +193,23 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
         end
         newDistanceMatrixVect = pdist(descriptors);
         newDistanceMatrix = squareform(newDistanceMatrixVect);
+   elseif strcmp(distType, 'sift')
+        descriptors = zeros(numel(vocabLevel), 128);
+        tempSize = size(muImgs);
+        firstSide = floor(tempSize(end-1) / 4);
+        secSide = floor(tempSize(end)/4);
+        imScale = min(firstSide, secSide);
+        centerPoint = round([tempSize(end-1); tempSize(end)]/2);
+        for vocabNodeItr = 1:numel(vocabLevel)
+               [Ix, Iy] = vl_grad(im2double(squeeze(muImgs(vocabNodeItr,:,:))));
+               mod      = sqrt(Ix.^2 + Iy.^2) ;
+               ang      = atan2(Iy,Ix) ;
+               grd      = shiftdim(cat(3,mod,ang),2) ;
+               grd      = single(grd) ;
+               descriptors(vocabNodeItr,:) = single(vl_siftdescriptor(grd, [centerPoint; 1; 0], 'Magnif', imScale)')/255;
+        end
+        newDistanceMatrixVect = pdist(descriptors);
+        newDistanceMatrix = squareform(newDistanceMatrixVect);
    elseif strcmp(distType, 'hu')
         % Distance by hu moments + euclidean distance.
         descriptors = zeros(numel(vocabLevel), 7);
@@ -225,12 +248,30 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
             Z = linkage(newDistanceMatrixVect, 'ward');
          end
          
-         % If stop flag is not up, we find an optimal number of clusters.
+         % Assign a fix value for the class count.
+         if ~stopFlag
+             clusterCount = max(options.reconstruction.minNumberOfORNodes, round(numberOfNodes/2));
+  %           clusterCount = min(numberOfNodes, numberOfORNodes);
+         else
+             clusterCount = numberOfNodes;
+         end
+%          
+%          % A new way to find number of centers! 
+%          if numberOfNodes > 10
+%               diffArr = diff(diff(Z(:,3)));
+%               interval = round(size(diffArr,1)/10):size(diffArr,1);
+%               newPoint = find(diffArr(interval) > 0.03,1,'first');
+%               if ~isempty(newPoint)
+%                    clusterCount = newPoint + min(interval);
+%               end
+%          end
+%          
+ %        If stop flag is not up, we find an optimal number of clusters.
 %          if ~stopFlag
-%               clusterStep = 20;
+%               clusterStep = 10;
 %               maxNumberOfORNodes = options.reconstruction.maxNumberOfORNodes;
-%               sampleCounts = min([round(maxNumberOfORNodes/10), round(size(newDistanceMatrixValid,1)/2)]):...
-%                    clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrixValid,1))-round((size(newDistanceMatrixValid,1))/5))]);
+%               sampleCounts = min([round(size(newDistanceMatrixValid,1)/10), round(size(newDistanceMatrixValid,1)/2)]):...
+%                    clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrixValid,1))-round((size(newDistanceMatrixValid,1))/10))]);
 %               dunnVals = zeros(numel(sampleCounts),1);
 %               valIndices =  zeros(numel(sampleCounts),1);
 %               cutoffRatios =  zeros(numel(sampleCounts),1);
@@ -366,16 +407,10 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
 %          else
 %               clusterCount = numberOfNodes;
 %          end
-         
-         if ~stopFlag
-             clusterCount = min(numberOfNodes, numberOfORNodes);
-         else
-             clusterCount = numberOfNodes;
-         end
-
-         % Find optimal number of clusters.
-%          [~, maxIdx] = max(dunnVals);
-%          clusterCount = sampleCounts(maxIdx);
+%  
+%  %        Find optimal number of clusters.
+% %          [~, maxIdx] = max(dunnVals);
+% %          clusterCount = sampleCounts(maxIdx);
 
          display(['........ Obtained ' num2str(clusterCount) ' clusters! Finishing clustering.']);
          if nnz(largeSubIdx) > 1

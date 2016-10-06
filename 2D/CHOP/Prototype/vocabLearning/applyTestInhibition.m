@@ -23,7 +23,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
     % Calculate edge radius.
     noveltyThr = 1 - options.noveltyThr;
     fullOverlapThr = 0.99;
-    halfMatrixSize = (options.receptiveFieldSize-1)/2 - 2;
+    radiusRF = 2;
     
     if numel(graphLevel) == 0
         return;
@@ -82,25 +82,24 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
         maxSharedLeafNodes = cellfun(@(x) numel(x) * noveltyThr , imageLeafNodes, 'UniformOutput', false);
         nodeIds = imageNodeIds{imageId};
         
+        if numberOfNodesInImage > 1
+            distances = squareform(pdist(single(imageNodeCoords)));
+        else
+            distances = 0;
+        end
+        
         for nodeItr = 1:(numberOfNodesInImage-1)
           %% If nobody has erased this node before, it has a right to be in the final graph.
           if imagePreservedNodes(nodeItr) == 0
               continue;
           end
           
-          %% Get each neighboring node's relative coords.
-          thisNodeCoords = imageNodeCoords(nodeItr,:);
-          centerArr = repmat(thisNodeCoords, numberOfNodesInImage, 1);
-          edgeCoords = imageNodeCoords - centerArr;
-          
           % Find distances relative to the center node, and then obtain
           % leaf node supports.
           adjacentNodes = imagePreservedNodes & ... 
-                edgeCoords(:,1) > -halfMatrixSize & ...
-                edgeCoords(:,1) < halfMatrixSize & ...
-                edgeCoords(:,2) > -halfMatrixSize & ...
-                edgeCoords(:,2) < halfMatrixSize & ...
+                distances(:, nodeItr) <= radiusRF & ...
                 nodeIds == nodeIds(nodeItr);
+     %         distances(:, nodeItr) <= radiusRF;
  
           adjacentNodes(1:nodeItr) = 0;
               

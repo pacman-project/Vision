@@ -32,7 +32,7 @@
    
     % Open threads for parallel processing.
     if options.parallelProcessing && usejava('jvm')
-        if options.parpoolFlag
+        if exist('parpool', 'file')
             p = gcp('nocreate');
             if ~isempty(p)
                 delete(p);
@@ -73,6 +73,7 @@
     previousLevelImageIds = cat(1, graphLevel.imageId);
     previousLevelLeafNodes = {graphLevel.leafNodes};
     previousLevelPrecisePositions = cat(1, graphLevel.precisePosition);
+    previousLevelPositions = cat(1, graphLevel.position);
     prevRealLabelIds = [graphLevel.realLabelId]';
     prevActivations = [graphLevel.activation]';
    
@@ -116,7 +117,7 @@
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
    display('........ Learning sub-part label and position distributions.');
-   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, graphLevel, prevRealLabelIds, double(previousLevelPrecisePositions), levelItr, options);
+   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, graphLevel, prevRealLabelIds, double(previousLevelPrecisePositions), single(previousLevelPositions), levelItr, options);
    if usejava('jvm')
      java.lang.System.gc();
    end
@@ -127,6 +128,9 @@
    if usejava('jvm')
      java.lang.System.gc();
    end
+   
+   %% Calculate some limits for the parts, as a form of inhibition.
+   [vocabLevel, graphLevel] = calculateActivationLimits(vocabLevel, graphLevel, size(level1Coords,1));
 
    %% Remove low-coverage nodes when we're at category layer.
     if options.stopFlag
@@ -209,7 +213,7 @@
 
    %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
    % Extract the edges between new realizations to form the new object graphs.
-   [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, options, levelItr);
+   [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, options, levelItr);
    if usejava('jvm')
      java.lang.System.gc();
    end

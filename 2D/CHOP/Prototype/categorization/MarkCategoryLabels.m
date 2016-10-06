@@ -35,14 +35,14 @@ function [ ] = MarkCategoryLabels( datasetName )
         realArr = cell(numberOfParts,1);
         
         for partItr = 1:numberOfParts
-            realArr{partItr} = categoryArrIdx(realizations(realizations(:,1) == partItr, 5));
+            realArr{partItr} = categoryArrIdx(unique(realizations(realizations(:,1) == partItr, 5)));
         end
         
-        % Find normalization constants for each category.
-        realCategoryArr = categoryArrIdx(realizations(:, 5));
-        normConstants = hist(realCategoryArr, 1:numberOfCategories);
-        normConstants = normConstants/sum(normConstants);
-        normConstants = 1./normConstants;
+%         % Find normalization constants for each category.
+%         realCategoryArr = categoryArrIdx(realizations(:, 5));
+%         normConstants = hist(realCategoryArr, 1:numberOfCategories);
+%         normConstants = normConstants/sum(normConstants);
+%         normConstants = 1./normConstants;
         
         % Process each node in the vocabulary.
         probArr = cell(numberOfParts,1);
@@ -52,7 +52,7 @@ function [ ] = MarkCategoryLabels( datasetName )
             else
                 assgnArr = zeros(1, numberOfCategories, 'single');
             end
-            assgnArr = assgnArr .* normConstants;
+%            assgnArr = assgnArr .* normConstants;
             assgnArr(isnan(assgnArr)) = 0;
             assgnArr = assgnArr / sum(assgnArr);
             assgnArr(isnan(assgnArr)) = 0;

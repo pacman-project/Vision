@@ -38,7 +38,7 @@ function [ bounds ] = calculateRFBounds( positions, levelItr, options, isPrecise
      if levelItr == 1
           bounds = [positions-halfRFSize, positions+halfRFSize];
      else
-          downsampleFactor = poolDim ^ (levelItr-1);
+          downsampleFactor = round(poolDim ^ (levelItr-1));
           minStart = ((positions-1)-(2*halfRFSize));
           minStartPrecise = minStart * downsampleFactor + 1 + halfRFSize;
           maxEnd =  (positions+(2*halfRFSize));

@@ -40,5 +40,11 @@ function [graphLevel, vocabLevel, vocabularyDistributions] = updateDataStructure
    newGraphLabels = num2cell(int32(newGraphLabels));
    [graphLevel.labelId] = deal(newGraphLabels{:});
    
+   % Update minimum activation thresholds to reflect these changes.
+   activations = [graphLevel.activation];
+   for vocabLevelItr = 1:numel(vocabLevel)
+       vocabLevel(vocabLevelItr).minActivationLog = min(activations(graphRealLabels == vocabLevelItr));
+   end
+   
    clear graphRealLabels IC remainingComps newGraphLabels vocabLabels;
 end

@@ -30,7 +30,7 @@
 %> Ver 1.0 on 08.10.2015
 function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level1Coords, uniqueChildren, allLeafNodes)
 
-   coverageStoppingVal = 0.97;
+   coverageStoppingVal = 0.95;
    numberOfBestSubs = numel(bestSubs);
    remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
 %   numberOfChildren = {bestSubs.edges};
@@ -91,8 +91,8 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
        maxLocMarkedNodes = [];
        prevVal = nnz(markedNodes(validNodeArr));
 
- %     for subItr = 1:numberOfBestSubs
-       for subItr = numberOfBestSubs:-1:1
+      for subItr = 1:numberOfBestSubs
+  %     for subItr = numberOfBestSubs:-1:1
            if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal >= valueArr(subItr)
                 continue;
            end
@@ -102,7 +102,7 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
            children = subCoveredNodes{subItr};
            
            % Remove already defined children!
-           children = children(~markedNodes(children));
+           children = children(~markedNodes(children) & validNodeArr(children));
            subCoveredNodes{subItr} = children;
 
            % Calculate value of a sub.
@@ -156,7 +156,7 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
       if nnz(achievedImages)/numberOfRemainingImages >= displayThr
             display(['Selected  sub # ' num2str(subCounter) ' with id ' ...
                num2str(maxLoc) ', and ' num2str(nnz(achievedImages)) ' out of ' num2str(numberOfRemainingImages) ' images have been covered at least %' num2str(coverageStoppingVal*100) '.']);
-         displayThr = displayThr + 0.2;
+         displayThr = displayThr + 0.1;
       end
      end
         

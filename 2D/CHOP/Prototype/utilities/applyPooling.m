@@ -28,8 +28,8 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolFlag )
 %     vocabRealizationsChildren = cat(1, vocabRealizationsChildren{:});
      
      % Get unique nodes for each label, image, coord triplet.
-%     combinedArr = double([imageIds, labelIds, coords]);
      combinedArr = double([imageIds, labelIds, coords]);
+%     combinedArr = double([imageIds, coords]);
      
 %      % First, we order the nodes by labelIds and coords.
 %      arrayToSort = [combinedArr, double(vocabRealizationsChildren)];

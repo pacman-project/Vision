@@ -31,8 +31,8 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           return;
      end
      
-     [~, edgeOffsets] = ismember(1:numel(graphLevel), allEdges(:,1));
-     edgeOffsets = edgeOffsets - 1;
+     [~, edgeOffsets] = ismember(1:numel(graphLevel), allEdges(:,1), 'legacy');
+     edgeOffsets = cat(2, 0, edgeOffsets(1:end-1));
      
      % Create mode index array.
      [uniqueModes, IA, ~] = unique(modes(:,1:2), 'stable', 'rows');
@@ -43,8 +43,8 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
      allEdges = {graphLevel.adjInfo};
      orgEdgeCount = size(cat(1, allEdges{:}),1);
      
-%     totalEdgeCount = 0;
-%     validEdgeCount = 0;
+  %   totalEdgeCount = 0;
+  %   validEdgeCount = 0;
      
      % Get node ids of edges.
      zeroEdges = zeros(0, 'int32');
@@ -90,10 +90,10 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
                % Assign new label.
                edges(edgeItr,3) = newLabel;
           end
-          % Collect statistics about what percentage of edges are rendered
-          % useless.
-%          totalEdgeCount = totalEdgeCount + size(edges,1);
-%          validEdgeCount = validEdgeCount + nnz(edges(:,3) > 0);
+%           % Collect statistics about what percentage of edges are rendered
+%           % useless.
+%           totalEdgeCount = totalEdgeCount + size(edges,1);
+%           validEdgeCount = validEdgeCount + nnz(edges(:,3) > 0);
           
           % Save edges.
           assignedEdges{graphLevelItr} = edges(edges(:,3) > 0, :);
@@ -109,7 +109,7 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
     adjacentNodes = assignedEdges;
     validIdx = cellfun(@(x) ~isempty(x), adjacentNodes);
     adjacentNodes(validIdx) = cellfun(@(x) x(:,2), adjacentNodes(validIdx), 'UniformOutput', false);
-    parfor graphLevelItr = 1:numel(graphLevel)
+    for graphLevelItr = 1:numel(graphLevel)
         curEdges = assignedEdges{graphLevelItr};
         curAdjacentNodes = adjacentNodes{graphLevelItr};
         if ~isempty(curAdjacentNodes)

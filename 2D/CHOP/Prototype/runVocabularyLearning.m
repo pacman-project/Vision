@@ -38,7 +38,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     
     % Open threads for parallel processing.
     if options.parallelProcessing && usejava('jvm')
-        if options.parpoolFlag
+        if exist('parpool', 'file')
             p = gcp('nocreate');
             if ~isempty(p)
                 delete(p);
@@ -250,6 +250,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         options.numberOfCategories = numel(categoryNames);
         clear categoryArr;
         
+        %% Change! We convert all activations to 1, thus regarding all of the nodes equal.
+        allNodeActivations = zeros(size(allNodeActivations),'single');
+        
         %% ========== Step 2: Create first-level object graphs, and print them to a file. ==========
         [vocabLevel, vocabLevelDistributions, graphLevel] = generateLevels(leafNodes, leafNodeCoords, allNodeActivations, leafNodeSigns, options);
         clear allNodeActivations;
@@ -264,7 +267,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         clear edgeIdMatrix edgeDistanceMatrix edgeCoords edgeLogMin edgeLogRange;
         
         %% Step 2.1: Get first-level object graph edges.
-        [graphLevel] = extractEdges(graphLevel, [], options, 1);
+        [graphLevel] = extractEdges(graphLevel, [], [], options, 1);
         
         %% Here, we bring back statistical learning with mean/variance.
         [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder, ~options.fastStatLearning && options.debug);
@@ -284,7 +287,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     
     % Close thread pool if opened.
     if options.parallelProcessing
-        if ~options.parpoolFlag
+        if ~exist('parpool', 'file')
             matlabpool close;
         end
     end

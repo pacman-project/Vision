@@ -58,7 +58,7 @@ fea = zeros(min(K, nd),1);
 if K < nd
     fea(1) = idxs(1);
 
-    KMAX = min(10000,nd); %500 %20000
+    KMAX = min(50000,nd); %500 %20000
     
     if KMAX <= K
         fea = idxs((1:K));
@@ -81,11 +81,10 @@ if K < nd
        ncand = length(idxleft);
        curlastfea = nnz(fea);
        t_mi = t(idxleft);
-       c_mi = zeros(ncand, 1);
        for i=1:ncand,
           mi_array(idxleft(i),curlastfea) = getmultimi(d(:,fea(curlastfea)), d(:,idxleft(i)));
-          c_mi(i) = mean(mi_array(idxleft(i), 1:(k-1))); 
        end;
+       c_mi = sum(mi_array(idxleft, 1:(k-1)), 2) / (k-1);
        
        [valArr(k-1), fea(k)] = max(t_mi(1:ncand) ./ (c_mi(1:ncand) + 0.01));
        tmpidx = fea(k); fea(k) = idxleft(tmpidx); idxleft(tmpidx) = [];
@@ -96,7 +95,7 @@ if K < nd
        end
     end
     
-    %% Depending on valArr, we determine a cutoff point.
+%     %% Depending on valArr, we determine a cutoff point.
 %     figure, plot(1:numel(valArr), valArr);
 %     smoothingMask = makeGauss1D(5);
 %     valArrSmooth = convolve1D(valArr, smoothingMask);

@@ -22,7 +22,7 @@
 %> Updates
 %> Ver 1.0 on 04.12.2013
 %> Separate mode learning from this function on 28.01.2014
-function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes, options, currentLevelId, edgeNoveltyThr)
+function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes, level1Coords, options, currentLevelId, edgeNoveltyThr)
     %% Function initializations, reading data from main graph.
     % Calculate edge radius.
     nodeIds = [currentLevel.labelId]';
@@ -48,13 +48,38 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
         firstLevelAdjNodes2 = [];
     end
     
+    %% Find pooled positions for layer 1 nodes.
+    if strcmp(options.filterType, 'gabor')
+         stride = options.gabor.stride;
+    else
+         stride = options.auto.stride;
+    end
+    poolDim = options.poolDim;
+    
+    % Calculate pool factor.
+    if currentLevelId> 1
+        poolFactor = nnz(~ismembc(2:currentLevelId, options.noPoolingLayers));
+    else
+        poolFactor = 0;
+    end
+    
+    % Allocate space for counts for every center, and find number of
+    % accessible leaf nodes for each receptive field.
+    if ~isempty(level1Coords)
+         level1CoordsPooled = calculatePooledPositions(level1Coords(:,2:3), poolFactor, poolDim, stride);
+    else
+         level1CoordsPooled = [];
+    end
+    
+    %% Determine radius and other params.
     % If no pooling has been performed at this layer, and previous layer
     % has small RF, we have a minimum RF limit. 
     if ismember(currentLevelId, options.noPoolingLayers) && ismember(currentLevelId - 1, options.smallRFLayers) && currentLevelId < 7
-        minRFRadius = floor(halfMatrixSize/2);
-  %      minRFRadius = 1;
-    else
+%        minRFRadius = ceil(halfMatrixSize/2);
         minRFRadius = 1;
+    else
+        minRFRadius = max(1, min(3, 4-currentLevelId));
+%        minRFRadius = 1;
     end
     
     circularRF = options.circularRF;
@@ -178,6 +203,7 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
          imageNodePreciseCoordArr = setNodePreciseCoordArr{setItr};
          edgeDiagnostics = cell(numel(imageIdx),1);
  %        disp(['Processing set ' num2str(setItr) ', which has ' num2str(numel(imageIdx)) ' images.']);
+         removedEdgeCounts = 0;
          
          % For every image in this set, find edges and save them.
          for imageItr = 1:numel(imageIdx)
@@ -229,7 +255,7 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
                     continue;
                 end
                 
-                %% If the RF is circular, we need to eliminate adjacent nodes further.
+                %% 1. First, we find all the adjacent nodes in our receptive field.
                 if circularRF
                      adjacentNodes = distances < rfRadius & distances >= minRFRadius;
                 else
@@ -250,7 +276,7 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
                     imageEdgeDiagnostics(nodeItr) = 2;
                     continue;
                 end
-                
+                 
                 %% A further check is done to ensure boundary/surface continuity.
                 adjacentNodeNeigh = ones(numel(adjacentNodes),1,'uint8') * 255;
                 if strcmp(edgeType, 'continuity') 
@@ -281,6 +307,7 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
                             
                             % If we've collected enough nodes, exit.
                             if nnz(validAdjacentNodes) == numel(validAdjacentNodes) || nnz(adjacentNodeNeigh == 255) > maxNodeDegree
+  %                          if nnz(validAdjacentNodes) == numel(validAdjacentNodes)
                                break; 
                             end
                         end
@@ -327,33 +354,27 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
                         end
                     end
                 end
-                
+%                 
                 if numel(adjacentNodes) == 0
                     imageEdgeDiagnostics(nodeItr) = 3;
                     continue;
                 end
                 
                 %% Check for edge novelty.
-                if currentLevelId > 1 
-                    % Eliminate links between nodes originating from the
-                    % same structure.
-%                     if currentLevelId < 3
-%                         adjacentNodes = adjacentNodes(cellfun(@(x) ~ismembc(curCenterNodes(nodeItr), x), curChildrenSorted(adjacentNodes)) & ...
-%                             cellfun(@(x) ~ismembc(x(1), curChildrenSorted{nodeItr}), curChildren(adjacentNodes)));
-%                     end
-                    
+                if currentLevelId > 1
                     % If edge novelty is enforced, act accordingly.
                     if edgeShareabilityThr < 1
                         commonLeafCounts = cellfun(@(x) sum(ismembc(x, curLeafNodes{nodeItr})), curLeafNodes(adjacentNodes));
                         novelNodes = (commonLeafCounts <= allowedSharedLeafNodes(adjacentNodes))' & ...
                             (commonLeafCounts <= allowedSharedLeafNodes(nodeItr))';
-       %                 if nnz(novelNodes) > 1
-                        adjacentNodes = adjacentNodes(novelNodes);
-                        adjacentNodeNeigh = adjacentNodeNeigh(novelNodes);
-        %                else
-         %                   novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
-         %                   adjacentNodes = adjacentNodes(novelNodes);
-         %               end
+ %                       if nnz(novelNodes) > 1
+                            adjacentNodes = adjacentNodes(novelNodes);
+                            adjacentNodeNeigh = adjacentNodeNeigh(novelNodes);
+ %                       else
+ %                           novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
+ %                           adjacentNodes = adjacentNodes(novelNodes);
+ %                           adjacentNodeNeigh = adjacentNodeNeigh(novelNodes);
+ %                       end
                     end
                 end
                 
@@ -363,78 +384,90 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
                     imageEdgeDiagnostics(nodeItr) = 4;
                     continue;
                 end
-
-                %% Now, we'll find a canonical edge representation for this node. 
-                % We'll pick adjacent nodes one by one, based on their
-                % contribution (addition of novel nodes), and their
-                % distance. Ideally, we want to pick closer nodes with high
-                % contributions.
-                if currentLevelId > 1
-                     curNodeList = curLeafNodes{nodeItr};
-                     
-%                     if numel(adjacentNodes) > maxNodeDegree || minimalEdgeCount
-                     if numel(adjacentNodes) > maxNodeDegree
-                         % Alternative 1.
-                         novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(adjacentNodes))';
-                         if nnz(novelNodeCounts) > 0
-                             sortArr = [-novelNodeCounts, single(adjacentNodeNeigh), -distances(adjacentNodes),  single(curNodeIds(adjacentNodes))];
-                             [~, idx] = sortrows(sortArr);
-                             adjacentNodes = adjacentNodes(sort(idx(1:maxNodeDegree)));
-                         else
-                             adjacentNodes = [];
-                         end
-                         
-                         % Alternative 2.
-%                            selectedNodeCount = 0;
-%                           pickedAdjacentNodes = [];
-%                           while selectedNodeCount < maxNodeDegree && ~isempty(adjacentNodes)
-%                               % Count the number of novel nodes for every adjacent
-%                               % node (which wasn't picked).
-%                               novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(adjacentNodes))';
-%                               if nnz(novelNodeCounts) == 0
-%                                    break;
-%                               end
-%                               
-%                               % Eliminate instances that have already been
-%                               % used for coverage.
-%                               validArr = novelNodeCounts > 0;
 % 
-%                               % Now, we pick next best adjacent node.
-%                       %        sortArr = [-novelNodeCounts, distances(adjacentNodes)];
-%                               sortArr = [-novelNodeCounts, curNodeIds(adjacentNodes)];
-%                               [~, idx] = sortrows(sortArr);
-%                               pickedAdjacentNodes = cat(1, pickedAdjacentNodes, adjacentNodes(idx(1)));
-%                               validArr(idx(1)) = 0;
-%                               curNodeList = fastsortedunique(sort(cat(2, curNodeList, curLeafNodes{adjacentNodes(idx(1))})));
-%                               selectedNodeCount = selectedNodeCount + 1;
-%                               
-%                               % Update lists.
-%                               adjacentNodes = adjacentNodes(validArr);
-%                           end
-%                           adjacentNodes = pickedAdjacentNodes;
-                     end
-                else
-                   %% Eliminate far away nodes if this one has too many neighbors
-                   % Calculate scores (distances).
-                   scores = distances(adjacentNodes);
-
-                   % Eliminate nodes having lower scores.
-                  if numel(adjacentNodes)>maxNodeDegree
-                        [idx] = getLargestNElements(scores, maxNodeDegree);
-                        adjacentNodes = adjacentNodes(idx);
-                  end
-                end
-                
-                %% Finally, fix adjacency discrepancies.
-                adjNodesToTest = adjacentNodes(adjacentNodes < nodeItr);
-                for adjNodeItr = 1:numel(adjNodesToTest)
-                    tempArr = curAdjacentNodes{adjNodesToTest(adjNodeItr)};
-                    if ~ismembc(nodeItr, tempArr) 
-                        tempArr = sort([tempArr; nodeItr]);
-                        numberAdjArr(adjNodesToTest(adjNodeItr)) = numberAdjArr(adjNodesToTest(adjNodeItr)) + 1;
-                        curAdjacentNodes{adjNodesToTest(adjNodeItr)} = tempArr;
-                    end
-                end
+%                 %% Now, we'll find a canonical edge representation for this node. 
+%                 % We'll pick adjacent nodes one by one, based on their
+%                 % contribution (addition of novel nodes), and their
+%                 % distance. Ideally, we want to pick closer nodes with high
+%                 % contributions.
+%                 if currentLevelId > 1
+%                      curNodeList = curLeafNodes{nodeItr};
+%                      
+%                      % Perform elimination of nodes that only has nodes
+%                      % outside the RF.
+% %                      if minimalEdgeCount
+% %                          tempArr = curLeafNodes(adjacentNodes);
+% %                          tempArr2 = cellfun(@(x) level1CoordsPooled(x,:), tempArr, 'UniformOutput', false);
+% %                          tempArr = cellfun(@(x,y) x(y(:,1) > curNodeCoords(nodeItr,1) - rfRadius & ...
+% %                               y(:,1) < curNodeCoords(nodeItr,1) + rfRadius & ...
+% %                               y(:,2) > curNodeCoords(nodeItr,2) - rfRadius & ...
+% %                               y(:,2) < curNodeCoords(nodeItr,2) + rfRadius), tempArr, tempArr2, 'UniformOutput', false);
+% %                      else
+%                           tempArr = curLeafNodes(adjacentNodes);
+% %                     end
+%                      
+%                      if numel(adjacentNodes) > maxNodeDegree || minimalEdgeCount
+% %                     if numel(adjacentNodes) > maxNodeDegree
+%                          % Alternative 1.
+%                          novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), tempArr)';
+%                          if nnz(novelNodeCounts) > 0
+%                              sortArr = [-novelNodeCounts, single(adjacentNodeNeigh), -distances(adjacentNodes),  single(curNodeIds(adjacentNodes))];
+%                              [sortedArr, idx] = sortrows(sortArr);
+%                              if nnz(~sortedArr(:,1)) == 0
+%                                   limitVal = min([maxNodeDegree, size(sortedArr,1)]);
+%                              else
+%                                   limitVal = min([maxNodeDegree, size(sortedArr,1), find(~sortedArr(:,1), 1, 'first') - 1]);
+%                              end
+%                              adjacentNodes = adjacentNodes(sort(idx(1:limitVal)));
+%                          else
+%                              adjacentNodes = [];
+%                          end
+%                          
+%                          if numel(adjacentNodes) == 0
+%                               imageEdgeDiagnostics(nodeItr) = 5;
+%                               continue;
+%                          end
+%                          
+%                          % Alternative 2.
+% %                            selectedNodeCount = 0;
+% %                           pickedAdjacentNodes = [];
+% %                           while selectedNodeCount < maxNodeDegree && ~isempty(adjacentNodes)
+% %                               % Count the number of novel nodes for every adjacent
+% %                               % node (which wasn't picked).
+% %                               novelNodeCounts = cellfun(@(x) nnz(~ismembc(x, curNodeList)), curLeafNodes(adjacentNodes))';
+% %                               if nnz(novelNodeCounts) == 0
+% %                                    break;
+% %                               end
+% %                               
+% %                               % Eliminate instances that have already been
+% %                               % used for coverage.
+% %                               validArr = novelNodeCounts > 0;
+% % 
+% %                               % Now, we pick next best adjacent node.
+% %                       %        sortArr = [-novelNodeCounts, distances(adjacentNodes)];
+% %                               sortArr = [-novelNodeCounts, curNodeIds(adjacentNodes)];
+% %                               [~, idx] = sortrows(sortArr);
+% %                               pickedAdjacentNodes = cat(1, pickedAdjacentNodes, adjacentNodes(idx(1)));
+% %                               validArr(idx(1)) = 0;
+% %                               curNodeList = fastsortedunique(sort(cat(2, curNodeList, curLeafNodes{adjacentNodes(idx(1))})));
+% %                               selectedNodeCount = selectedNodeCount + 1;
+% %                               
+% %                               % Update lists.
+% %                               adjacentNodes = adjacentNodes(validArr);
+% %                           end
+% %                           adjacentNodes = pickedAdjacentNodes;
+%                      end
+%                 else
+%                    %% Eliminate far away nodes if this one has too many neighbors
+%                    % Calculate scores (distances).
+%                    scores = distances(adjacentNodes);
+% 
+%                    % Eliminate nodes having lower scores.
+%                   if numel(adjacentNodes)>maxNodeDegree
+%                         [idx] = getLargestNElements(scores, maxNodeDegree);
+%                         adjacentNodes = adjacentNodes(idx);
+%                   end
+%                 end
                 
                 %% Assign final adjacent nodes.
                 numberOfAdjacentNodes = numel(adjacentNodes);
@@ -518,6 +551,7 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
             end
             imageGraphNodeSets(imageItr) = {curGraphNodes};
             edgeDiagnostics(imageItr) = {imageEdgeDiagnostics};
+            removedEdgeCounts = removedEdgeCounts + nnz(edgeIds == 0);
          end
          setGraphNodeSets{setItr} = imageGraphNodeSets;
          setEdgeDiagnostics{setItr} = edgeDiagnostics;
@@ -541,4 +575,5 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
     display([num2str(nnz(edgeDiagnostics == 2)) ' (%' num2str(100 * nnz(edgeDiagnostics == 2)/numel(edgeDiagnostics)) ') nodes do not have edges cause there are no nodes in their RF.']);
     display([num2str(nnz(edgeDiagnostics == 3)) ' (%' num2str(100 * nnz(edgeDiagnostics == 3)/numel(edgeDiagnostics)) ') nodes do not have edges because of connectivity constraints.']);
     display([num2str(nnz(edgeDiagnostics == 4)) ' (%' num2str(100 * nnz(edgeDiagnostics == 4)/numel(edgeDiagnostics)) ') nodes do not have edges because of edge novelty constraint.']);
+    display([num2str(nnz(edgeDiagnostics == 5)) ' (%' num2str(100 * nnz(edgeDiagnostics == 5)/numel(edgeDiagnostics)) ') nodes do not have edges because of enforcing RF limits in connections.']);
 end

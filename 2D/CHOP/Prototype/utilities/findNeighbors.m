@@ -19,10 +19,10 @@ function [firstLevelAdjNodes1, firstLevelAdjNodes2] = findNeighbors(firstLevelAd
     max1 = 0; max2 = 0;
     for nodeItr = 1:size(firstLevelAdjNodes,1)
         % Obtain immediate neighbors.
-        curNeighbors = firstLevelAdjNodes(nodeItr,:);
+        curNeighbors = firstLevelAdjNodes(nodeItr,2:end);
         curNeighbors = sort(curNeighbors(curNeighbors>0));
-        neighbors = curNeighbors(2:end);
-        neighbors = neighbors(neighbors>0);
+        neighbors = curNeighbors;
+        curNeighbors = sort([nodeItr, curNeighbors]);
         
         % No neighbors? Move on.
         if nnz(neighbors) == 0

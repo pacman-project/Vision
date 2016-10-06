@@ -45,7 +45,7 @@
 %> Ver 1.0 on 13.04.2015
 function [bestSubs, currentAccuracy] = selectParts(bestSubs, ...
     numberOfFinalSubs, categoryArrIdx, imageIdx, ...
-    allSigns, allLeafNodes, level1Coords, supervisionFlag)
+    allSigns, allLeafNodes, level1Coords, supervisionFlag, folderName)
 
     % Keep a list of positive children, if required.
     posNodes = find(allSigns);
@@ -89,13 +89,30 @@ function [bestSubs, currentAccuracy] = selectParts(bestSubs, ...
         remainingChildren = intersect(remainingChildren, posNodes);
     end
 
-    % Select subs.
+    %% We analyse the parts from multiple viewpoints and generate a report.
+    % Fscore.
+    % Precision
+    % Recall
+    % Reconstructability
+    % Coverage
+    % Number of Instances
+    % Number of Leaf nodes
+    % Shareability
+    partStats = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, allLeafNodes);
+    
+    %% Select subs.
+    display('[SUBDUE] 1/2. Reconstructive part selection running...');
+    [reconstructiveSubs] = getReconstructiveParts(bestSubs, optimalCount, level1Coords, remainingChildren, allLeafNodes);
+    display('[SUBDUE] 2/2. Discriminative part selection running...');
+    [discriminativeSubs, fscoreSubs] = getMRMRParts(bestSubs, numel(reconstructiveSubs), categoryArrIdx, imageIdx);
     if supervisionFlag
-        [validSubs, ~, ~] = getMRMRParts(bestSubs, optimalCount, ...
-            categoryArrIdx, imageIdx);
+        validSubs = discriminativeSubs;
     else
-        [validSubs] = getReconstructiveParts(bestSubs, optimalCount, level1Coords, remainingChildren, allLeafNodes);
+        validSubs = reconstructiveSubs;
     end
+    
+    % Visualize all part statistics.
+    visualizePartStats(partStats, reconstructiveSubs, discriminativeSubs, fscoreSubs, folderName);
     
     % Update instance information.
     bestSubs = bestSubs(validSubs);

@@ -56,24 +56,28 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     
     % Anonymize edges, we're interested in labels, not ids.
     allEdges = [nodeIds(edges(:,1:2)), int32(edgeCoords(edges(:,3), :))];
-    noveltyRatios = zeros(size(edges,1),1, 'single');
-    for itr = 1:size(edges,1)
-        secChildren = leafNodes{edges(itr,2)};
-        noveltyRatios(itr) = nnz(~ismembc(secChildren, leafNodes{edges(itr,1)})) / numel(secChildren);
-    end
+%     noveltyRatios = zeros(size(edges,1),1, 'single');
+%     for itr = 1:size(edges,1)
+%         secChildren = leafNodes{edges(itr,2)};
+%         noveltyRatios(itr) = nnz(~ismembc(secChildren, leafNodes{edges(itr,1)})) / numel(secChildren);
+%     end
     
     if ~exist([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/'], 'dir')
         mkdir([currentFolder '/debug/' datasetName '/level' num2str(levelItr) '/pairwise/']);
     end
     
+    %% Remove duplicate relationships.
+    allEdges = unique(allEdges, 'rows');
+    
     %% Learn unique edge types and put them in cells for fast processing using parfor.
-    [uniqueEdgeTypes, ~, IA] = unique(allEdges(:,1:2), 'rows');
+    [uniqueEdgeTypes, IC, ~] = unique(allEdges(:,1:2), 'rows', 'legacy');
+    IC = cat(1, 0, IC);
     numberOfUniqueEdges = size(uniqueEdgeTypes,1);
     modes = cell(numberOfUniqueEdges,1);
     uniqueEdgeSamples = cell(numberOfUniqueEdges,1);
     uniqueEdgeCoords = cell(numberOfUniqueEdges,1);
     parfor uniqueEdgeItr = 1:numberOfUniqueEdges
-        tempIdx = IA==uniqueEdgeItr;
+        tempIdx = (IC(uniqueEdgeItr)+1):IC(uniqueEdgeItr+1);
         samplesForEdge = allEdges(tempIdx,3:4); %#ok<PFBNS>
         sampleIds = edges(tempIdx,1:2); %#ok<PFBNS>
         sampleEdgeCoords = nodeCoords(sampleIds(:,2),:) - nodeCoords(sampleIds(:,1),:); %#ok<PFBNS>
@@ -85,14 +89,11 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
 %                     '/pairwise/' num2str(uniqueEdgeTypes(uniqueEdgeItr, 1)) '_' num2str(uniqueEdgeTypes(uniqueEdgeItr, 2)) '_noveltyHist.png']);
 %         close all;
 
-        %% We simply remove repetitions from learned modes. They create problems.
-        samplesForEdge = unique(samplesForEdge, 'rows');
-        
         %% If there are too many samples, get random samples.
-        if size(samplesForEdge,1)>maxSamples
-            [samplesForEdge, idx] = datasample(samplesForEdge, maxSamples, 'Replace', false);
-            sampleEdgeCoords = sampleEdgeCoords(idx,:);
-        end
+%         if size(samplesForEdge,1)>maxSamples
+%             [samplesForEdge, idx] = datasample(samplesForEdge, maxSamples, 'Replace', false);
+%             sampleEdgeCoords = sampleEdgeCoords(idx,:);
+%         end
         
         %Downsample samplesForEdge and save them.
         samplesForEdge = (double(samplesForEdge + halfSize) / edgeQuantize);
@@ -203,16 +204,23 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
         
         %% Here, we create probabilities of each entry based on each mode of the distribution.
         % First, we obtain all possible points in the receptive field.
-        yArr = repmat(1:edgeQuantize, edgeQuantize, 1);
-        xArr = repmat((1:edgeQuantize)', 1, edgeQuantize);
+        yArr = repmat(1:(edgeQuantize+1), (edgeQuantize+1), 1);
+        xArr = repmat((1:(edgeQuantize+1))', 1, (edgeQuantize+1));
         points = [xArr(:), yArr(:)];
+        
+        halfPixelSize = 1/(2*edgeQuantize);
+        
+        yArr2 = repmat(1:edgeQuantize, edgeQuantize, 1);
+        xArr2 = repmat((1:edgeQuantize)', 1, edgeQuantize);
+        points2 = [xArr2(:), yArr2(:)];
+        points2= points2 / edgeQuantize;
+        halfPixelArr2 = ones(size(points2,1),1) * halfPixelSize;
         
         % In order to calculate probabilities, we define an area for each
         % point. 
-        points = points / edgeQuantize;
         numberOfPoints = size(points,1);
-        halfPixelSize = 1/(2*edgeQuantize);
         halfPixelArr = ones(numberOfPoints,1) * halfPixelSize;
+        points = points / edgeQuantize - [halfPixelArr, halfPixelArr];
         
         % Obtain probabilities based on each mode.
         allProbs = zeros(numberOfClusters, edgeQuantize, edgeQuantize, 'single');
@@ -220,10 +228,16 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
             % We use PDFs to calculate pseudo-statistics (faster, accurate
             % enough).
 %            try
-            lowProbs = mvncdf(points + [-halfPixelArr, -halfPixelArr], statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            leftProbs = mvncdf(points + [halfPixelArr, -halfPixelArr], statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            rightProbs = mvncdf(points + [-halfPixelArr, halfPixelArr], statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            highProbs = mvncdf(points + [halfPixelArr, halfPixelArr], statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            tempProbs = mvncdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            tempProbs = reshape(tempProbs, [(edgeQuantize+1), (edgeQuantize+1)]);
+            lowProbs = tempProbs(1:(end-1), 1:(end-1));
+            lowProbs = lowProbs(:);
+            leftProbs = tempProbs(2:end, 1:(end-1));
+            leftProbs = leftProbs(:);
+            rightProbs = tempProbs(1:(end-1), 2:end);
+            rightProbs = rightProbs(:);
+            highProbs = tempProbs(2:end, 2:end);
+            highProbs = highProbs(:);
             pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
 %            pointProbs = mvnpdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
 %            catch %#ok<CTCH>
@@ -356,6 +370,6 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
     modes = cat(1, modes{:});
 
     % Sort array.
-    modes = sortrows(modes);
+ %   modes = sortrows(modes);
     clearvars -except modes modeProbArr
 end
