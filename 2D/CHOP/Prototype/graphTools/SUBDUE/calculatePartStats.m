@@ -17,7 +17,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 22.09.2016
-function [ partStats ] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, allLeafNodes)
+function [ partStats, allFeatures, assignedClassArr ] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, allLeafNodes, numberOfRemainingLeafNodes)
      %% Pre-processing.
     % Initialize data structures.
     categoryArrIdx = categoryArrIdx';
@@ -25,33 +25,34 @@ function [ partStats ] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, 
     numberOfImages = numel(categoryArrIdx);
     numberOfCategories = numel(unique(categoryArrIdx));
     
-    % Put the instances ([imageId, labelId] duplet) into an array.
-    allInstances = cell(numberOfBestSubs,1);
-    for bestSubItr = 1:numberOfBestSubs
-       allInstances{bestSubItr} = [imageIdx(bestSubs(bestSubItr).instanceCenterIdx),...
-           repmat(bestSubItr, numel(bestSubs(bestSubItr).instanceCenterIdx), 1)];
+    % Put the instances ([labelId, imageId] triple) into an array.
+    allInstances = cell(numel(bestSubs),1);
+    centerIdxArr = {bestSubs.instanceCenterIdx};
+    parfor bestSubItr = 1:numel(bestSubs)
+         relevantCenters = centerIdxArr{bestSubItr};
+         allInstances{bestSubItr} = cat(2, imageIdx(relevantCenters),...
+           bestSubItr * ones(numel(relevantCenters), 1));
     end
     allInstances = cat(1, allInstances{:});
     allInstances = sortrows(allInstances);
     
     % Create the feature vectors to be classified.
-    allFeatures = zeros(numberOfImages, numberOfBestSubs);
-    imageIds = unique(allInstances(:,1));
+    [imageIds, orderIdx, ~] = unique(allInstances(:,1), 'R2012a');
+    allFeatures = sparse(numel(imageIds), numberOfBestSubs) > 0;
+    orderIdx = cat(1, orderIdx, (size(allInstances,1)+1));
     
-    [~, IA, ~] = unique(allInstances(:,1), 'legacy');
-    IA = [0; IA];
     % Learn train/validation features, and assign labels.
     for imageItr = 1:numel(imageIds)
-        instanceImageIdx = allInstances((IA(imageItr)+1):IA(imageItr+1), 2);
-        featureArr = hist(instanceImageIdx, 1:numberOfBestSubs);
-        allFeatures(imageIds(imageItr), :) = featureArr;
-    end 
+        instanceImageIdx = allInstances(orderIdx(imageItr):(orderIdx(imageItr+1)-1), 2);
+        allFeatures(imageItr, fastsortedunique(instanceImageIdx)) = 1;
+    end
+    newFeatures = sparse(numberOfImages, numberOfBestSubs) > 0;
+    newFeatures(imageIds, :) = allFeatures;
+    allFeatures = newFeatures;
+    clear newFeatures;
     
     % Assign train/test features and normalize them (converting them to
     % unit vectors).
-    validRows = sum(allFeatures,2) ~= 0;
-    allFeatures(validRows,:) = normr(allFeatures(validRows,:));
-    allFeatures = uint8(round(allFeatures * 255));
     allLabels = categoryArrIdx;
     
     %% Calculate discriminative features.
@@ -59,10 +60,10 @@ function [ partStats ] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, 
     precisionArr = zeros(numberOfBestSubs,1, 'single');
     recallArr = zeros(numberOfBestSubs,1, 'single');
     assignedClassArr = zeros(numberOfBestSubs,1);
-    for bestSubItr = 1:numberOfBestSubs
-         features = allFeatures(:,bestSubItr) > 0;
+    parfor bestSubItr = 1:numberOfBestSubs
+         features = full(allFeatures(:,bestSubItr));
          assignedLabels = allLabels(features);
-         assignedClass = mode(assignedLabels);
+         assignedClass = mode(double(assignedLabels));
          assignedClassArr(bestSubItr) = assignedClass;
          precision = nnz(assignedLabels == assignedClass) / numel(assignedLabels);
          recall = nnz(assignedLabels == assignedClass) / nnz(allLabels == assignedClass);
@@ -82,9 +83,9 @@ function [ partStats ] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, 
     orderedInstances = sortrows(allInstances(:,[2,1])); 
     [~, IA, ~] = unique(orderedInstances(:,1), 'legacy');
     IA = [0; IA];
-    for bestSubItr = 1:numberOfBestSubs
+    parfor bestSubItr = 1:numberOfBestSubs
          instanceImageIds = allInstances((IA(bestSubItr)+1):IA(bestSubItr+1),1);
-         uniquenessArr(bestSubItr) = numel(unique(instanceImageIds)) / numel(instanceImageIds);
+         uniquenessArr(bestSubItr) = numel(fastsortedunique(sort(instanceImageIds))) / numel(instanceImageIds);
     end
     partStats.uniquenessArr = uniquenessArr;
     
@@ -97,9 +98,9 @@ function [ partStats ] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, 
     IA = [0; IA];
     shareabilityArr = zeros(numberOfBestSubs,1, 'single');
     sampleShareabilityArr = zeros(numberOfBestSubs,1, 'single');
-    for bestSubItr = 1:numberOfBestSubs
+    parfor bestSubItr = 1:numberOfBestSubs
          relevantInstances = uniqueInstances((IA(bestSubItr)+1):IA(bestSubItr+1),:);
-         shareabilityArr(bestSubItr) = single(numel(unique(categoryArrIdx(relevantInstances(:,2)))) / numberOfCategories);
+         shareabilityArr(bestSubItr) = single(numel(fastsortedunique(sort(categoryArrIdx(relevantInstances(:,2))))) / numberOfCategories);
          sampleShareabilityArr(bestSubItr) = single(numel(relevantInstances(:,1)) / numberOfImages);
     end
     partStats.shareabilityArr = shareabilityArr;
@@ -110,15 +111,15 @@ function [ partStats ] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, 
    subCoveredNodes = cell(numberOfBestSubs,1);
    
    % Go over all possible part-subpart pairs, and calculate probabilities.
-   for subItr = 1:numberOfBestSubs
+   parfor subItr = 1:numberOfBestSubs
        instanceChildren = bestSubs(subItr).instanceChildren;
+       instanceChildren = instanceChildren(:);
        
         % Save child probabilities.
         allNodes = fastsortedunique(sort(instanceChildren));
-        allNodes = (allNodes(:))';
-        coveredNodes = fastsortedunique(sort(cat(2, allLeafNodes{allNodes})));
+        coveredNodes = fastsortedunique(sort(cat(2, allLeafNodes{allNodes}))); %#ok<PFBNS>
         subCoveredNodes{subItr} = coveredNodes;
    end
-   partStats.coverageArr = single(cellfun(@(x) numel(x), subCoveredNodes));
+   partStats.coverageArr = single(cellfun(@(x) numel(x)/numberOfRemainingLeafNodes, subCoveredNodes));
 end
 

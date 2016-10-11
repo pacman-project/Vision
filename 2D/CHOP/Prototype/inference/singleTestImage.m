@@ -67,11 +67,15 @@ function [categoryLabel, predictedCategory] = singleTestImage(testFileName, voca
     %% Predict a category!
     idx = exportArr(:,4) == maxLevel;
     topLabels = exportArr(idx,1);
-    topLabelActivations = activationArr(idx);
-    [~, maxIdx] = max(topLabelActivations);
-    topLabel = topLabels(maxIdx);
+    uniqueTopLabels = unique(topLabels);
+    combinedArr = cat(1, vocabulary{maxLevel}(uniqueTopLabels).categoryArr);
+    combinedArr = mean(combinedArr, 1);
+    [maxVal, predictedCategory] = max(combinedArr);
+    % In case of more than 1 values, move on.
+    if nnz(combinedArr == maxVal) > 1
+         predictedCategory = datasample(find(combinedArr == maxVal), 1);
+    end
     load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat']);
-    [~, predictedCategory] = max(vocabulary{maxLevel}(topLabel).categoryArr); %#ok<ASGLU>
     
     %% Print realizations in the desired format for inte2D/3D integration.
     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')

@@ -27,6 +27,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
         options.debug = true;           % If debug = 1, additional output will be 
                                  % generated to aid debugging process.
     end
+    options.testDebug = false;
     options.fastStatLearning = false;
     options.vis.printTrainRealizations = false;
     options.backgroundClass = 'Background'; % The string that identifies 

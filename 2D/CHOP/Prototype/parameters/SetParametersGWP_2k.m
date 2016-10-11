@@ -109,7 +109,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.maxShareability = 0.2;       % If more than this percent of a nodes' 
+    options.maxShareability = 0.5;       % If more than this percent of a nodes' 
                                              % leaf nodes are shared, this node is discarded.
     options.minEdgeNoveltyThr = 0.0;    % Minimum edge novelty threshold.
     options.edgeNoveltyThrRate = 0.05;   % The edge novelty threshold 
@@ -171,7 +171,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 3;    % The maximum level count for training.
+    options.maxLevels = 5;    % The maximum level count for training.
     options.maxInferenceLevels = 20; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========

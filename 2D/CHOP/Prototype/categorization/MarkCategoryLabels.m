@@ -33,10 +33,14 @@ function [ ] = MarkCategoryLabels( datasetName )
         numberOfParts = numel(vocabLevel);
         numberOfCategories = numel(categoryNames);
         realArr = cell(numberOfParts,1);
+        accHist = zeros(1, numberOfCategories);
         
         for partItr = 1:numberOfParts
             realArr{partItr} = categoryArrIdx(unique(realizations(realizations(:,1) == partItr, 5)));
+            accHist = accHist + hist(realArr{partItr}, 1:numberOfCategories);
         end
+        normConstants = 1./accHist;
+        normConstants = normConstants / sum(normConstants);
         
 %         % Find normalization constants for each category.
 %         realCategoryArr = categoryArrIdx(realizations(:, 5));
@@ -52,7 +56,7 @@ function [ ] = MarkCategoryLabels( datasetName )
             else
                 assgnArr = zeros(1, numberOfCategories, 'single');
             end
-%            assgnArr = assgnArr .* normConstants;
+            assgnArr = assgnArr .* normConstants;
             assgnArr(isnan(assgnArr)) = 0;
             assgnArr = assgnArr / sum(assgnArr);
             assgnArr(isnan(assgnArr)) = 0;

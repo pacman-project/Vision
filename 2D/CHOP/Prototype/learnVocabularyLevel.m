@@ -289,11 +289,6 @@
      end
    end
    
-   %% If we've reached max number of layers, don't keep going forward.
-   if levelItr == options.maxLevels || options.stopFlag
-       return;
-   end
-
    % Open/close matlabpool to save memory.
 %   matlabpool close;
 %   matlabpool('open', options.numberOfThreads);
@@ -315,6 +310,12 @@
    % Save workspace for later operation.
    disp(['Saving layer ' num2str(levelItr) ' workspace.']);
    saveWorkspace();
+   
+   %% If we've reached max number of layers, don't keep going forward.
+   if levelItr == options.maxLevels || options.stopFlag
+       return;
+   end
+   
    % Restart program.
    if restartFlag
         bInfo = dbstatus;

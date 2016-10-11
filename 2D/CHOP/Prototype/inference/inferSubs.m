@@ -20,6 +20,7 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
     RFSize = options.receptiveFieldSize;
     smallHalfMatrixSize = (options.smallReceptiveFieldSize+1)/2;
     missingPartLog = log(0.00001);
+    maxShareability = options.maxShareability;
     missingPartAllowed = false;
     poolFlag = true;
     maxPosProb = 0.1;
@@ -64,7 +65,8 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
         
          modes = allModes{vocabLevelItr-1};
          curModeProbs = modeProbs{vocabLevelItr-1};
-         rankModes = int32(unique(modes(:,1:2), 'rows'));
+         [rankModes, ~, ~] = unique(modes(:,1:2), 'rows', 'R2012a');
+         rankModeIds = sparse(double(rankModes(:,1)), double(rankModes(:,2)), 1:size(rankModes,1));
          
          if ismember(vocabLevelItr-1, options.smallRFLayers)
              rfRadius = smallHalfMatrixSize;
@@ -77,7 +79,8 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
         if ismember(vocabLevelItr-1, options.noPoolingLayers) && ismember(vocabLevelItr - 2, options.smallRFLayers) && vocabLevelItr < 8
             minRFRadius = floor(halfMatrixSize/2);
         else
-            minRFRadius = 1;
+%            minRFRadius = 1;
+            minRFRadius = max(1, min(3, 5-vocabLevelItr));
         end
          
         % Calculate pool factor.
@@ -110,96 +113,130 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
         
         %% Starting inference from layer 2. 
          for vocabItr = 1:numel(vocabLevel)
-             % Match the center first.
-             vocabNode = vocabLevel(vocabItr);
-             vocabNodeChildren = vocabNode.children;
-             vocabNodeDistributions = vocabLevelDistributions(vocabItr);
-             centerId = vocabNodeChildren(1);
-             validInstances = nodeORLabels == centerId;
-             
-             % Obtain activation thresholds.
-             minActivationLog = vocabNode.minActivationLog;
-             minPosActivationLog = vocabNodeDistributions.minPosActivationLog;
-             
-             if numel(vocabNodeChildren) == 1
+               % Match the center first.
+               vocabNode = vocabLevel(vocabItr);
+               vocabNodeChildren = vocabNode.children;
+               vocabNodeDistributions = vocabLevelDistributions(vocabItr);
+               centerId = vocabNodeChildren(1);
+               validInstances = nodeORLabels == centerId;
+
+               % Obtain activation thresholds.
+               minActivationLog = vocabNode.minActivationLog;
+               minPosActivationLog = vocabNodeDistributions.minPosActivationLog;
+               if isempty(minPosActivationLog)
+                  minPosActivationLog = -inf;
+               end
+
+               if numel(vocabNodeChildren) == 1
                   continue;
-             end
-             
-             % Obtain edge matrices.
-             if numel(vocabNodeChildren) > 1
+               end
+
+               % Obtain edge matrices.
+               if numel(vocabNodeChildren) > 1
                    secChildren = vocabNodeChildren(2:end)';
                    matrixIdx = zeros(numel(secChildren),1);
                    for itr = 1:numel(matrixIdx)
-                      matrixIdx(itr) = find(rankModes(:,1) == vocabNodeChildren(1) & rankModes(:,2) == secChildren(itr));
+                        matrixIdx(itr) = rankModeIds(vocabNodeChildren(1), secChildren(itr));
                    end
                    edgeMatrices = curModeProbs(:,:,matrixIdx);
-             end
-             
-             % If no centers have matched, continue.
-             if nnz(validInstances) == 0
-                 continue;
-             end
+               end
 
-            % Allocate space to hold the instances and their activations.
-             centerNodes = find(validInstances);
-             numberOfCenterNodes = numel(centerNodes);
-             instanceChildren = cell(numberOfCenterNodes,numel(vocabNodeChildren));
-             instanceCombinations = cell(numberOfCenterNodes,1);
+               % If no centers have matched, continue.
+               if nnz(validInstances) == 0
+                 continue;
+               end
+
+               % Allocate space to hold the instances and their activations.
+               centerNodes = find(validInstances);
+               numberOfCenterNodes = numel(centerNodes);
+               instanceChildren = cell(numberOfCenterNodes,numel(vocabNodeChildren));
 
                %% Iteratively match instances and get all node combinations.
+               validCombinations = ones(numberOfCenterNodes,1) > 0;
                for centerItr = 1:numberOfCenterNodes
-                       instanceChildren(centerItr, 1) = {centerNodes(centerItr)};
+                  curCenterNode = centerNodes(centerItr);
+                  instanceChildren(centerItr, 1) = {curCenterNode};
+                  validCols = ones(numel(vocabNodeChildren),1) > 0;
+                  
+                  % Search for secondary nodes.
+                  for childItr = 2:numel(vocabNodeChildren)
+                        tempNodes = find(nodeORLabels == vocabNodeChildren(childItr) & distances(:, curCenterNode) < rfRadius & distances(:, curCenterNode) >= minRFRadius);
+                        
+                        % Remove repetitions.
+                        tempNodes = tempNodes(tempNodes ~= curCenterNode);
 
-                       validCols = ones(numel(vocabNodeChildren),1) > 0;
-                       for childItr = 2:numel(vocabNodeChildren)
-                             tempNodes = find(nodeORLabels == vocabNodeChildren(childItr) & distances(:, centerNodes(centerItr)) < rfRadius & distances(:, centerNodes(centerItr)) >= minRFRadius);
-                             
-                             if ~isempty(tempNodes)
-                                  % Fine-tune the system by filtering temp nodes
-                                  % more.
-                                  curEdgeType = vocabNode.adjInfo(childItr-1, 3);
-                                  curModes = modes(modes(:,1) == vocabNodeChildren(1) & modes(:,2) == vocabNodeChildren(childItr), :);
-                                  relativeCoords = nodes(tempNodes,2:3) - repmat(nodes(centerNodes(centerItr), 2:3), numel(tempNodes),1) + halfRFSize;
-                                  linIdx = relativeCoords(:,1) + (relativeCoords(:,2)-1)*RFSize;
-                                  curEdgeMatrix = edgeMatrices(:,:,childItr-1);
-                                  
-                                  % Save edge types.
-                                  edgeMatrixIndices = curEdgeMatrix(linIdx);
-                                  edgeTypes = zeros(size(edgeMatrixIndices),'single');
-                                  if find(edgeMatrixIndices) > 0
-                                       edgeTypes(edgeMatrixIndices>0) = curModes(edgeMatrixIndices(edgeMatrixIndices > 0), 3);
-                                  end
-                                  tempNodes = tempNodes(edgeTypes == curEdgeType);
-                             end
-                             
-                             % If tempNodes is not empty, save it.
-                             if isempty(tempNodes)
+                        if ~isempty(tempNodes)
+                             % Fine-tune the system by filtering temp nodes
+                             % more.
+                             curEdgeType = vocabNode.adjInfo(childItr-1, 3);
+                             relativeCoords = nodes(tempNodes,2:3) + halfRFSize;
+                             relativeCoords(:,1) = relativeCoords(:,1) - nodes(curCenterNode, 2);
+                             relativeCoords(:,2) = relativeCoords(:,2) - nodes(curCenterNode, 3);
+                             linIdx = relativeCoords(:,1) + (relativeCoords(:,2)-1)*RFSize;
+                             curEdgeMatrix = edgeMatrices(:,:,childItr-1);
+
+                             % Save edge types.
+                             edgeTypes = curEdgeMatrix(linIdx);
+                             tempNodes = tempNodes(edgeTypes == curEdgeType);
+                        end
+
+                        % If tempNodes is not empty, save it.
+                        if isempty(tempNodes)
+                             if missingPartAllowed
                                   tempNodes = Inf;
                                   validCols(childItr) = 0;
+                             else
+                                  validCombinations(centerItr) = 0;
+                                  break;
                              end
-                             instanceChildren(centerItr, childItr) = {tempNodes};
-                       end
-
-                       % Find all node combinations (not containing node
-                       % repetitions).
-                       curInstanceCombinations = allcomb(instanceChildren{centerItr,validCols});
-                       sortedmatrix = sort(curInstanceCombinations,2);
-                       validInstanceIdx = all(diff(sortedmatrix,[],2)~=0,2);
-                       if nnz(validCols) ~= numel(validCols)
-                            curInstanceCombinations = allcomb(instanceChildren{centerItr,:});
-                       end
-                       curInstanceCombinations = curInstanceCombinations(validInstanceIdx,:);
-                       instanceCombinations{centerItr} = curInstanceCombinations;
+                        end
+                        instanceChildren(centerItr, childItr) = {tempNodes};
+                  end
                end
-
+               
+               % Create node combinations. We have different solutions
+               % based on the number of repetitions.
+               instanceChildren = instanceChildren(validCombinations, :);
+               cellCounts = cellfun(@(x) numel(x), instanceChildren);
+               instanceCombinations = cell(size(instanceChildren,1),1);
+               for instanceItr = 1:size(instanceChildren,1)
+                    multipleVals = find(cellCounts(instanceItr,:) > 1);
+                    numberOfMultipleVals = numel(multipleVals);
+                    % No repetitions? Add them side by side.
+                    if numberOfMultipleVals == 0
+                         curInstanceCombinations = cat(2, instanceChildren{instanceItr, :});
+                    elseif numberOfMultipleVals == 1
+                         % One repetition is a simple case where one column
+                         % has multiple choices, and others are repeated.
+                         curInstanceCombinations = zeros(cellCounts(instanceItr, multipleVals), size(instanceChildren,2));
+                         curInstanceCombinations(:, multipleVals) = instanceChildren{instanceItr, multipleVals};
+                         otherCols = 1:size(instanceChildren,2);
+                         otherCols = otherCols(otherCols ~= multipleVals);
+                         for itr = otherCols
+                              curInstanceCombinations(:,itr) = instanceChildren{instanceItr, itr};
+                         end
+                    else
+                         % Tricky case with multiple columns with multiple
+                         % choices. Use allcomb.
+                         curInstanceCombinations = allcomb(instanceChildren{instanceItr, :});
+                    end
+                    instanceCombinations{instanceItr} = curInstanceCombinations;
+               end
+               
+               % Find all node combinations (not containing node
+               % repetitions). Stale, will be used when missing nodes are
+               % introduced.
+%                curInstanceCombinations = allcomb(instanceChildren{centerItr,validCols});
+%                sortedmatrix = sort(curInstanceCombinations,2);
+%                validInstanceIdx = all(diff(sortedmatrix,[],2)~=0,2);
+%                if nnz(validCols) ~= numel(validCols)
+%                   curInstanceCombinations = allcomb(instanceChildren{centerItr,:});
+%                end
+%                curInstanceCombinations = curInstanceCombinations(validInstanceIdx,:);
+%                instanceCombinations{centerItr} = curInstanceCombinations;
+               
                % We have the instances for this sub. Save the info.
                instanceCombinations = cat(1, instanceCombinations{:});
-               
-               % Remove rows having inf, if prediction is not needed.
-               if ~missingPartAllowed
-                   instanceCombinations = instanceCombinations(~any(isinf(instanceCombinations),2),:);
-               end
-               
                numberOfCombinations = size(instanceCombinations,1);
                numberOfChildren = size(instanceCombinations,2);
                
@@ -207,18 +244,52 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                     continue;
                end
                
-              %% Save leaf nodes.
+              %% Check leaf node shareability, and save leaf nodes for every instance.
               instanceLeafNodes = cell(numberOfCombinations, 1);
+              shareabilityArr = zeros(numberOfCombinations,1);
               for instanceItr = 1:numberOfCombinations
                    tempCombinations = instanceCombinations(instanceItr,:);
+                   
+                   tempArr = sort(cat(1, leafNodes{tempCombinations(~isinf(tempCombinations))}));
+                   tempLeafNodes = fastsortedunique(tempArr);
+                   if maxShareability < 1
+                        numberOfUniqueLeafNodes = numel(tempLeafNodes);
+                        numberOfRepetitions = numel(tempArr) - numel(tempLeafNodes);
+
+                        % Determine if this instance is any good.
+                        repetitionRatio = numberOfRepetitions / numberOfUniqueLeafNodes;
+                        if repetitionRatio > maxShareability * (numberOfChildren-1)
+                             shareabilityArr(instanceItr) = 1;
+                        elseif repetitionRatio > maxShareability
+                             tempArr = [false; diff(tempArr)== 0];
+                             tempArr = find(tempArr);
+                             repeatedNodes = numel(tempArr);
+                             for itr = 2:numel(tempArr)
+                                   if tempArr(itr) == tempArr(itr-1)+1
+                                        repeatedNodes = repeatedNodes - 1;
+                                   end
+                             end
+                             shareabilityArr(instanceItr) = repeatedNodes / numberOfUniqueLeafNodes;
+                         end
+                    end
+                   
                    tempLeafNodes = fastsortedunique(sort(cat(1, leafNodes{tempCombinations(~isinf(tempCombinations))})));
                    instanceLeafNodes{instanceItr} = tempLeafNodes;
               end
+              
+              % Filter invalid instances by shareability threshold.
+              validInstances = shareabilityArr <= maxShareability;
+              if nnz(validInstances) == 0
+                   continue;
+              end
+              instanceCombinations = instanceCombinations(validInstances,:);
+              instanceLeafNodes = instanceLeafNodes(validInstances,:);
+              numberOfCombinations = size(instanceCombinations,1);
+              numberOfChildren = size(instanceCombinations,2);
                
               %% Combinations are discovered. Now, we calculate an activation value for every combination.
               % First, we have to pick relevant distributions for each node. We
               % need combined relative positions first.
-              
               % Calculate instance positions.
               instancePrecisePositions = zeros(numberOfCombinations,2, 'single');
               for instanceItr = 1:numberOfCombinations
@@ -230,7 +301,6 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
 %                  instanceCombinationLabels = instanceCombinations;
 %                   validChildIdx = ~isinf(instanceCombinationLabels);
 %                  instanceCombinationLabels(validChildIdx) = nodes(instanceCombinationLabels(validChildIdx),1);
-                  
                   instanceChildrenCombinedPos = zeros(size(instanceCombinations,1), size(instanceCombinations,2) * 2);
                   % Put children positions in an array.
                   for instanceItr = 1:size(instanceCombinations,2)
@@ -248,8 +318,7 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                   
                   %% Calculate activations!
                   % Calculate position likelihood.
-                  % TODO: Encapsulate with try/catch.
-%                  try
+                  
                    posProbs = pdf(vocabNodeDistributions.childrenPosDistributions, instanceChildrenCombinedPos / halfRealRFSize); 
                    activationDenom = max(pdf(vocabNodeDistributions.childrenPosDistributions, vocabNodeDistributions.childrenPosDistributions.mu)) * 1/maxPosProb;
                    posActivations = posProbs / activationDenom;
@@ -329,13 +398,14 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
          nodes(:,2:3) = calculatePooledPositions(precisePositions, poolFactor, poolDim, stride );
          
          %% For debugging purposes, we visualize the nodes.
-         experts = projectNode([nodes(:,1), precisePositions, ones(size(nodes,1),1)*vocabLevelItr], vocabularyDistributions, 'modal', options);
-         experts(:,1) = filterIds(experts(:,1));
-         modalImg = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
-         combinedImg = uint8((modalImg + img) / 2);
-  %       figure, imshow(combinedImg);
-         imwrite(modalImg, [outputImgFolder '/' fileName '_layer' num2str(vocabLevelItr) '_modal.png']);
-         imwrite(combinedImg, [outputImgFolder '/' fileName '_layer' num2str(vocabLevelItr) '_combined.png']);
+         if options.testDebug
+              experts = projectNode([nodes(:,1), precisePositions, ones(size(nodes,1),1)*vocabLevelItr], vocabularyDistributions, 'modal', options);
+              experts(:,1) = filterIds(experts(:,1));
+              modalImg = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
+              combinedImg = uint8((modalImg + img) / 2);
+              imwrite(modalImg, [outputImgFolder '/' fileName '_layer' num2str(vocabLevelItr) '_modal.png']);
+              imwrite(combinedImg, [outputImgFolder '/' fileName '_layer' num2str(vocabLevelItr) '_combined.png']);
+         end
          
          % Finally, save data structures.
          allNodes{vocabLevelItr} = nodes;

@@ -42,12 +42,13 @@ function [fea] = mrmr_miq_d(d, f, K)
 
 bdisp=1;
 
+d = double(d);
 nd = size(d,2);
 
 t1=cputime;
 t = zeros(nd, 1);
-for i=1:nd, 
-   t(i) = mutualinfo(d(:,i), f);
+parfor i=1:nd, 
+   t(i) = mutualinfo(full(d(:,i)), f);
 end; 
 fprintf('calculate the marginal dmi costs %5.1fs.\n', cputime-t1);
 
@@ -81,9 +82,11 @@ if K < nd
        ncand = length(idxleft);
        curlastfea = nnz(fea);
        t_mi = t(idxleft);
-       for i=1:ncand,
-          mi_array(idxleft(i),curlastfea) = getmultimi(d(:,fea(curlastfea)), d(:,idxleft(i)));
-       end;
+       temp_array = zeros(ncand, 1);
+       parfor i=1:ncand,
+            temp_array(i) = getmultimi(full(d(:,fea(curlastfea))), full(d(:,idxleft(i))));
+       end
+       mi_array(idxleft, curlastfea) = temp_array;
        c_mi = sum(mi_array(idxleft, 1:(k-1)), 2) / (k-1);
        
        [valArr(k-1), fea(k)] = max(t_mi(1:ncand) ./ (c_mi(1:ncand) + 0.01));
