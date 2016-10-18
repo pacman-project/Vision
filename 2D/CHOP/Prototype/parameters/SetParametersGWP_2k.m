@@ -115,7 +115,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
     options.edgeNoveltyThrRate = 0.0;   % The edge novelty threshold 
                                        % is supposed to reduce each level by 
                                        % this amount.
-    options.edgeType = 'centroid';     % If 'centroid', downsampling is
+    options.edgeType = 'continuity';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
