@@ -475,7 +475,7 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
                 if numberOfAdjacentNodes > 0
                     curAdjacentNodes(nodeItr) = {adjacentNodes}; 
                 else
-                    curAdjacentNodes(nodeItr) = {emptyArr};
+                    curAdjacentNodes(nodeItr) = {double(emptyArr)};
                 end
              end
              
