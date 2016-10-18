@@ -31,6 +31,7 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
     orNodeChoices = zeros(size(nodes,1), 1);
     orNodeChoiceCounts = zeros(size(nodes,1), 1);
     topLevel = levelItr;
+    activation = 0;
     
     %% First, we recursively backproject the nodes. 
     startNodeOffset = 0;
