@@ -16,7 +16,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.10.2016
-function [ vocabLevel, graphLevel ] = calculateActivationLimits( vocabLevel, graphLevel, numberOfLeafNodes )
+function [ vocabLevel, graphLevel, validNodeArr ] = calculateActivationLimits( vocabLevel, graphLevel, numberOfLeafNodes )
      activations = cat(1, graphLevel.activation);
      labelIds = cat(1, graphLevel.realLabelId);
      leafNodes = {graphLevel.leafNodes};
@@ -40,9 +40,16 @@ function [ vocabLevel, graphLevel ] = calculateActivationLimits( vocabLevel, gra
      end
      
      %% At this step, we fit a gaussian to the data, and try to contain %99 of the samples by putting a new limit.
+     numelArr = zeros(numel(vocabLevel),1);
      for vocabNodeItr = 1:numel(vocabLevel)
           % Obtain data.
           dataToFit = activations(labelIds == vocabNodeItr);
+          
+          % If there's not enough data, leave thresholds as they area.
+          numelArr(vocabNodeItr) = numel(dataToFit);
+          if numelArr(vocabNodeItr) < 2
+               continue;
+          end
           
           % Replicate the data by taking a mirror image (Make it a bell,
           % rather than half bell).
@@ -54,12 +61,27 @@ function [ vocabLevel, graphLevel ] = calculateActivationLimits( vocabLevel, gra
           % Fit gaussian, take %99.7 interval.
           mu = mean(dataToFit);
           var = std(dataToFit);
-          vocabLevel(vocabNodeItr).minActivationLog = max(vocabLevel(vocabNodeItr).minActivationLog, mu - var * 2.5);
+          oldThr = vocabLevel(vocabNodeItr).minActivationLog;
+          vocabLevel(vocabNodeItr).minActivationLog = max(oldThr, mu - var * 2.5);
      end
      
      %% Go through the list and record activation threshold.
      validNodeArr = ones(numberOfInstances,1) > 0;
      for vocabNodeItr = 1:numel(vocabLevel)
+          % Calculate threshold.
+          minThr = max(vocabLevel(vocabNodeItr).minActivationLog, min(leafNodeActivationArr(leafNodeLabelArr == vocabNodeItr)));
+          if isempty(minThr)
+               minThr = 0;
+          end
+          
+          % Check if number of remaining instances is larger than 1. If
+          % not, we do not update thresholds.
+          if numelArr(vocabNodeItr) < 2 || nnz(activations(labelIds == vocabNodeItr) >= single(minThr)) < 2
+               continue;
+          end
+          
+          % If there are enough samples, and there are changes in
+          % threshold, move on.
           minThr = max(vocabLevel(vocabNodeItr).minActivationLog, min(leafNodeActivationArr(leafNodeLabelArr == vocabNodeItr)));
           if isempty(minThr)
                minThr = 0;

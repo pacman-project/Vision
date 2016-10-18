@@ -124,16 +124,18 @@
 
    %% Calculate activations for every part realization.
    display('........ Calculating activations..');
-   [vocabLevel, graphLevel] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, double(previousLevelPrecisePositions), levelItr, options);
+   [vocabLevel, vocabLevelDistributions, graphLevel] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, double(previousLevelPrecisePositions), levelItr, options);
    if usejava('jvm')
      java.lang.System.gc();
    end
    
    %% Calculate some limits for the parts, as a form of inhibition.
-   [vocabLevel, graphLevel] = calculateActivationLimits(vocabLevel, graphLevel, size(level1Coords,1));
+   [vocabLevel, graphLevel, validNodeArr] = calculateActivationLimits(vocabLevel, graphLevel, size(level1Coords,1));
 
    %% Remove low-coverage nodes when we're at category layer.
     if options.stopFlag
+        imageIds = imageIds(validNodeArr);
+        nodeCoverages = nodeCoverages(validNodeArr);
         graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)'));
    end
    

@@ -22,7 +22,11 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     posDim = size(prevPrecisePositions,2);
     tempSize = getRFSize(options, levelItr);
     halfRFSize = round(tempSize(1)/2);
+    halfPixel = 1/(2*halfRFSize);
+    lowRFSize = options.receptiveFieldSize;
     maxPosProb = 0.1;
+    minPDFVal = exp(-20);
+    minProb = exp(-20);
     
     % Get Receptive field size (reduced). 
     if ismembc(levelItr, options.smallRFLayers)
@@ -32,7 +36,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     end
     
     colormap('hot');
-                  
+
     %% Distribution parameters.
     sampleCountPerCluster = 50;
     minSampleCountPerCluster = 3;
@@ -58,7 +62,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     end   
     
     % Second, we go through each node, and collect statistics.
-    for vocabItr = 1:numberOfNodes
+    parfor vocabItr = 1:numberOfNodes
         
         minX = -1; maxX = -1; minY = -1; maxY = -1; meanArr = []; scores=[]; coeff=[];
         w = warning('off', 'all');
@@ -431,10 +435,103 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              obj = gmdistribution([], []);
         end
         
-        % Assign distributions.
+        %% After we have learned the distributions, now let us calculate precise sub-children 
+        % probabilities. This will be used when we are calculating
+        % probabilities for each sub-location.
+        % Start by creating real-sized receptive fields.
+        realRFSize = halfRFSize * 2 + 1;
+        childrenProbs = cell(size(instanceChildren,2),1);
+        childImgs = zeros(realRFSize, size(instanceChildren,2) * realRFSize, 3, 'uint8');
+        
+        % Next, we enumerate all possible (Really!) points.
+        oneSideVals = -halfRFSize:1:halfRFSize;
+        combs = allcomb(oneSideVals, oneSideVals);
+        
+        % We calculate pdf values. For locations with significiant pdf
+        % values, we will evaluate cdf (since it is too costly!).
+        mu = obj.mu;
+        Sigma = obj.Sigma;
+        for childItr = 1:size(instanceChildren,2)
+             % Get relevant distribution, and calculate pdf values for
+             % early filtering.
+             curMu = mu(:,((childItr-1)*2+1):(childItr*2));
+             curSigma = Sigma(((childItr-1)*2+1):(childItr*2),((childItr-1)*2+1):(childItr*2));
+             combPDFVals = mvnpdf(combs / halfRFSize, curMu, curSigma);
+             
+             % Determine the value of minimum pdf to check.
+             relevantPos = unique(instanceChildrenCombinedPos(:,((childItr-1)*2 + 1):(childItr * 2)), 'rows');
+             relevantPos = relevantPos(relevantPos(:,1) >= -halfRFSize & relevantPos(:,1) <= halfRFSize & ...
+                  relevantPos(:,2) >= -halfRFSize & relevantPos(:,2) <= halfRFSize, :);
+             relevantInd = sub2ind([realRFSize, realRFSize], relevantPos(:,1) + halfRFSize + 1, relevantPos(:,2) + halfRFSize + 1);
+             sampleImg = zeros(realRFSize) > 0;
+             sampleImg(relevantInd) = 1;
+             
+             % Based on the number of instances, we add a buffer zone in
+             % probability distribution to add flexibility.
+             bufferWidth = max(1, round(halfRFSize / (lowRFSize * sqrt(size(relevantPos,1)))));
+             sampleImg = imdilate(sampleImg, strel('disk', bufferWidth));
+             relevantInd = find(sampleImg);
+             [relevantX, relevantY] = ind2sub([realRFSize, realRFSize], relevantInd);
+             extendedPos = cat(2, relevantX, relevantY) - (halfRFSize + 1);
+             samplePDFVals = mvnpdf(extendedPos / halfRFSize, curMu, curSigma);
+             minPDFVal = min(samplePDFVals);
+             validCombs = combPDFVals > minPDFVal;
+             
+             % For valid combinations, we should calculate CDF values!
+             % We create a square area around every pixel that has the size
+             % of a pixel. Then, we calculate cdf values at every corner to
+             % calculate probability falling in this area.
+             samples = combs(validCombs, :);
+             halfPixelArr = ones(size(samples,1),1) * 0.5;
+             lowSamples = samples + [-halfPixelArr, -halfPixelArr]; 
+             leftSamples = samples + [halfPixelArr, -halfPixelArr];
+             rightSamples = samples + [-halfPixelArr, halfPixelArr];
+             highSamples = samples + [halfPixelArr, halfPixelArr];
+             [uniqueSamples, ~, IA] = unique([lowSamples; leftSamples; rightSamples; highSamples], 'rows', 'R2012a');
+             numberOfSamples = size(lowSamples,1);
+           
+             % Calculate point probabilities.
+             combProbs = mvncdf(uniqueSamples / halfRFSize, curMu, curSigma);
+             lowProbs = combProbs(IA(1:numberOfSamples));
+             leftProbs = combProbs(IA((numberOfSamples+1):(2*numberOfSamples)));
+             rightProbs = combProbs(IA((2*numberOfSamples+1):(3*numberOfSamples)));
+             highProbs = combProbs(IA((3*numberOfSamples+1):(4*numberOfSamples)));
+             pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
+             pointProbs(pointProbs < minProb) = minProb;
+             
+             % Finally, assign the calculated probabilities to the correct
+             % positions.
+             samples = samples + halfRFSize + 1;
+             sampleInd = sub2ind([realRFSize, realRFSize], samples(:,1), samples(:,2));
+             dummyArr = sparse(realRFSize,realRFSize);
+             dummyArr(sampleInd) = pointProbs; %#ok<SPRIX>
+             childrenProbs{childItr} = dummyArr;
+             
+             % Finally, create a visualization.
+             dummyArr = full(dummyArr);
+             maxVal = max(max(dummyArr));
+             if maxVal < 0.1
+                   dummyArr = dummyArr * 0.1 / maxVal;
+             end
+             dummyArr([1, end], :) = 1;
+             dummyArr(:, [1, end]) = 1;
+             relevantPos = relevantPos + halfRFSize + 1;
+             ind = sub2ind([realRFSize, realRFSize], relevantPos(:,1), relevantPos(:,2));
+             dummyArr(ind) = 1;
+             dummyArr(dummyArr>0) = max(1/255, dummyArr(dummyArr>0));
+             img = label2rgb(uint8(255 * dummyArr), 'jet', 'k');
+             img(halfRFSize:(halfRFSize+2),halfRFSize:(halfRFSize+2), :) = 255;
+             childImgs(:, ((childItr-1)*realRFSize+1):childItr*realRFSize, :) = img;
+        end
+        if realRFSize < 100
+              childImgs = imresize(childImgs, 2);
+        end
+        imwrite(childImgs, [debugFolder '/part' num2str(vocabItr) '.png']);
+        
+        %% Assign distributions.
         nodeDistributionLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
         nodeDistributionLevel(vocabItr).childrenPosDistributions = obj;
- %       nodeDistributionLevel(vocabItr).minPosActivationLog = minPosActivationLog;
+        nodeDistributionLevel(vocabItr).childrenPosDistributionProbs = childrenProbs;
         nodeDistributionLevel(vocabItr).childrenPosDistributionModes = childrenPosDistributionModes;
         
         % Re-open warnings.

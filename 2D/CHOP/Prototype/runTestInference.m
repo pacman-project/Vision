@@ -97,7 +97,11 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             if ~isempty(categoryLabel)
                 categoryArrIdx(fileItr) = categoryLabel;
             end
-            save([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'categoryLabel');
+            if ~exist([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'file')
+                 save([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'categoryLabel');
+            else
+                 save([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'categoryLabel', '-append');
+            end
         end
         
         % Get separation. 
@@ -110,6 +114,11 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         %% Finally, we modify edge info so we can match nodes faster.
         for vocabLevelItr = 2:numel(vocabulary)
              vocabLevel = vocabulary{vocabLevelItr};
+             
+             if isempty(vocabLevel)
+                  break;
+             end
+             
              modes = allModes{vocabLevelItr-1};
              [uniqueModes, IC, ~] = unique(modes(:,1:2), 'rows', 'R2012a');
              IC = cat(1, IC, size(modes,1)+1);
@@ -121,7 +130,11 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
                         relevantModeId = find(uniqueModes(:,1) == curChildren(1) & uniqueModes(:,2) == curChildren(1+edgeItr));
                         subModeIds = modes(IC(relevantModeId):(IC(relevantModeId+1)-1), 3);
                         subModeId = find(subModeIds == curAdjInfo(edgeItr,3));
-                        curAdjInfo(edgeItr,3) = subModeId;
+                        if ~isempty(subModeId)
+                             curAdjInfo(edgeItr,3) = subModeId;
+                        else
+                             display('Error in edge assignment!');
+                        end
                   end
                   vocabNode.adjInfo = curAdjInfo;
                   vocabLevel(nodeItr) = vocabNode;
@@ -144,19 +157,32 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         startTime = tic;
         confMatrix = zeros(numel(categoryNames),numel(categoryNames));
         categoryInfo = cell(size(testFileNames,1) ,1);
-        for testImgItr = 1:size(testFileNames,1) 
+        parfor testImgItr = 1:size(testFileNames,1) 
     %    for testImgItr = 1:5
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             [categoryLabel, predictedCategory] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options);
-            imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
-            if ~isempty(imageId)
-                 imageExportArr = exportArr(exportArr(:,5) == imageId,:);
-                 imageActivationArr = activationArr(exportArr(:,5) == imageId, :);
-            end
-            load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(testImgItr)} '_' testFileName '_test.mat'], 'exportArr', 'activationArr');
-            testExportArr = exportArr;
-            testActivationArr = activationArr;
+           
+%             imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
+%             if ~isempty(imageId)
+%                  imageExportArr = exportArr(exportArr(:,5) == imageId,:);
+%                  imageActivationArr = activationArr(exportArr(:,5) == imageId, :);
+%             end
+%            load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(testImgItr)} '_' testFileName '_test.mat'], 'exportArr', 'activationArr');
+%            testExportArr = exportArr;
+%            testActivationArr = activationArr;
+%            if ~isempty(imageExportArr)
+%                 [sortedImageExportArr, idx1] = sortrows(imageExportArr);
+%                 idx1 = idx1(sortedImageExportArr(:,4) > 1);
+%                 [sortedTestExportArr, idx2] = sortrows(testExportArr);
+%                 idx2 = idx2(sortedTestExportArr(:,4) > 1);
+%                 if ~isequal(sortedImageExportArr(:,1:4), sortedTestExportArr(:,1:4))
+%                      display(['Image ' num2str(testImgItr) ' failed.']);
+%                 elseif ~isequal(imageActivationArr(idx1), testActivationArr(idx2))
+%                      display(['Image ' num2str(testImgItr) ' failed.']);
+%                 end
+%            end
+           
             categoryInfo(testImgItr) = {[categoryLabel, predictedCategory]};
         end
         totalInferenceTime = toc(startTime);

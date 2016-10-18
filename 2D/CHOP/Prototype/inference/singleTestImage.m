@@ -31,21 +31,31 @@ function [categoryLabel, predictedCategory] = singleTestImage(testFileName, voca
     end
 
     %% Form the first level nodes.
-    [ nodes, ~, nodeActivations, ~, ~, ~ ] = getNodes( img, [], options );
-    if isempty(nodes)
-        return;
+    if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
+         w = warning ('off','all');
+         load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr');
+         warning(w);
     end
     
-    % Create output folder for images.
-    outputImgFolder = [options.currentFolder '/output/' options.datasetName '/reconstruction/test/' fileName];
-    if ~exist(outputImgFolder, 'dir')
-         mkdir(outputImgFolder);
+    if ~exist('exportAr', 'var')
+         [ nodes, ~, nodeActivations, ~, ~, ~ ] = getNodes( img, [], options );
+         if isempty(nodes)
+             return;
+         end
+
+         % Create output folder for images.
+         outputImgFolder = [options.currentFolder '/output/' options.datasetName '/reconstruction/test/' fileName];
+         if ~exist(outputImgFolder, 'dir')
+              mkdir(outputImgFolder);
+         end
+
+         % Save smoothed image.
+         % Assign nodes their image ids.
+         nodes = int32(cell2mat(nodes));
+         [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
+    else
+         load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr');
     end
-    
-    % Save smoothed image.
-    % Assign nodes their image ids.
-    nodes = int32(cell2mat(nodes));
-    [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
     maxLevel = max(exportArr(:,4));
     
 %     %% Project stuff from top layer.    % Create data structures required for optimization.

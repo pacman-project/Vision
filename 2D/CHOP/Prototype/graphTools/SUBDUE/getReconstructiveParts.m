@@ -91,8 +91,8 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
        maxLocMarkedNodes = [];
        prevVal = nnz(markedNodes(validNodeArr));
 
-      for subItr = 1:numberOfBestSubs
-  %     for subItr = numberOfBestSubs:-1:1
+%      for subItr = 1:numberOfBestSubs
+       for subItr = numberOfBestSubs:-1:1
            if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal >= valueArr(subItr)
                 continue;
            end

@@ -25,7 +25,12 @@ function [ ] = MarkCategoryLabels( datasetName )
     % single node sum up to 1. categoryArr of a node is 1xN array, where N
     % is the number of categories.
     for levelItr = 1:numel(vocabulary)
+         
         vocabLevel = vocabulary{levelItr};
+        
+        if isempty(vocabLevel)
+             break;
+        end
         
         % Put exported realizations in different cells in a cell array 
         % (for fast parallel processing).

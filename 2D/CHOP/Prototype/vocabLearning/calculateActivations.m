@@ -13,10 +13,10 @@
 %>
 %> Updates
 %> Ver 1.0 on 18.01.2016
-function [ vocabLevel, graphLevel ] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, prevPosition, levelItr, options)
+function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, prevPosition, levelItr, options)
     rfSize = getRFSize(options, levelItr);
-    halfRFSize = round(rfSize(1)/2);   
-    halfPixel = 1/(2*halfRFSize);
+    halfRFSize = round(rfSize(1)/2);
+    realRFSize = halfRFSize * 2 + 1;
     minLogProb = single(-20);
     minProb = single(exp(-20));
 
@@ -28,49 +28,30 @@ function [ vocabLevel, graphLevel ] = calculateActivations(vocabLevel, vocabLeve
     newActivationArr = cell(numel(vocabLevel),1);
     idxArr = cell(numel(vocabLevel),1);
     
-    parfor vocabLevelItr = 1:numel(vocabLevel)
+    for vocabLevelItr = 1:numel(vocabLevel)
         %% First, we start by calculating position likelihood.
         idx = graphLabels == vocabLevelItr;
         instanceChildren = cat(1, graphLevelChildren{idx});
         instancePositions = graphLevelPrecisePositions(idx, :);
-        relevantSamples = zeros(size(instanceChildren,1), size(instanceChildren,2) * 2);
-        obj = vocabLevelDistributions(vocabLevelItr).childrenPosDistributions;
-        mu = obj.mu;
-        Sigma = obj.Sigma;
+        childrenProbs = vocabLevelDistributions(vocabLevelItr).childrenPosDistributionProbs;
         childrenPosActivations = zeros(size(instanceChildren), 'single');
         
         % Put children positions in an array.
+        minPosProbs = zeros(size(instanceChildren,2),1);
         for instanceItr = 1:size(instanceChildren,2)
              relevantChildren = instanceChildren(:, instanceItr);
+             relevantProbs = childrenProbs{instanceItr};
+             minPosProbs(instanceItr) = log(min(min(relevantProbs(relevantProbs > 0))));
              
-             % If we're working with peripheral sub-parts, we calculate
-             % position distributions as well.
-             samples = (prevPosition(relevantChildren, :) - instancePositions) / halfRFSize;
-             [uniqueSamples, ~, IC] = unique(samples, 'rows');
-             halfPixelArr = ones(size(uniqueSamples,1),1, 'single') * halfPixel;
-             
-             curRange = ((instanceItr-1)*2+1):((instanceItr)*2);
-             lowProbs = mvncdf(uniqueSamples + [-halfPixelArr, -halfPixelArr], mu(:,curRange), Sigma(curRange, curRange));
-             leftProbs = mvncdf(uniqueSamples + [halfPixelArr, -halfPixelArr], mu(:,curRange), Sigma(curRange, curRange));
-             rightProbs = mvncdf(uniqueSamples + [-halfPixelArr, halfPixelArr], mu(:,curRange), Sigma(curRange, curRange));
-             highProbs = mvncdf(uniqueSamples + [halfPixelArr, halfPixelArr], mu(:,curRange), Sigma(curRange, curRange));
-             pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
-             pointProbs(pointProbs < minProb) = minProb;
-             pointProbs = pointProbs(IC);
+             % Calculate position probabilities.
+             samples = (prevPosition(relevantChildren, :) - instancePositions) + halfRFSize + 1;
+             validIdx = samples > 0 & samples < realRFSize + 1;
+             validIdx = validIdx(:,1) & validIdx(:,2);
+             pointProbs = ones(size(samples,1),1, 'single') * minProb;
+             samplesIdx = samples(validIdx,1) + (samples(validIdx,2)-1)*realRFSize;
+             pointProbs(validIdx) = full(relevantProbs(samplesIdx));
              childrenPosActivations(:, instanceItr) = log(pointProbs);
-             
-             % Save samples (positions and labels).
-             relevantSamples(:, ((instanceItr-1)*2+1):((instanceItr)*2)) = samples;
         end
-        
-%         % Finally, we choose a pdf threshold for this sub, based on
-%         % the values of individual instances.
-%         posActivations = pdf(obj, relevantSamples);
-% 
-%         % Convert to log probabilities
-%         activationDenom = max(pdf(obj, obj.mu)) * 1/maxPosProb;
-%         posActivations = posActivations / activationDenom;
-%         posActivations = single(log(posActivations));
         
         %% Second, we take the children's activations into account as well.
         prevChildrenActivations = prevActivations(instanceChildren);
@@ -83,11 +64,21 @@ function [ vocabLevel, graphLevel ] = calculateActivations(vocabLevel, vocabLeve
               avgActivations = mean(childrenPosActivations,2);
         end
         avgActivations(avgActivations < minLogProb) = minLogProb;
+        
+        % Calculate minimum possible probabilities.
+        minPosLog = max(minLogProb, mean(minPosProbs));
+        if size(childrenPosActivations,1) < 3
+             minLog = mean([min(mean(prevChildrenActivations,2)), minPosLog]);
+        else
+             minLog = min(avgActivations);
+        end
+        
+        vocabLevelDistributions(vocabLevelItr).minPosActivationLog = minPosLog;
         newActivationArr{vocabLevelItr} = avgActivations;
         idxArr{vocabLevelItr} = idx;
         
         % Save the minimum log value for further filtering.
-        vocabLevel(vocabLevelItr).minActivationLog = min(avgActivations);
+        vocabLevel(vocabLevelItr).minActivationLog = minLog;
     end
     
     % Finally, assign activations back.

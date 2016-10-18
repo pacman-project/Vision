@@ -14,6 +14,8 @@ classdef NodeDistribution
         childrenPosDistributions@gmdistribution; % Cell array of multi-modal gaussian distributions 
                                                                  % modelling joint space of children positions. 
                                                                  % One for every discrete combination.  
+        childrenPosDistributionProbs@cell; % numberOfChildren x {N x N} array, where N is the size of the 
+                                                                     % receptive field.
         childrenLowResPosDistributions@gmdistribution; % Cell array of multi-modal gaussian distributions 
                                                                  % modelling joint space of children positions. 
                                                                  % One for every discrete combination.         

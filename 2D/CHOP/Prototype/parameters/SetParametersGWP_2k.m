@@ -109,13 +109,13 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.maxShareability = 0.5;       % If more than this percent of a nodes' 
+    options.maxShareability = 0.2;       % If more than this percent of a nodes' 
                                              % leaf nodes are shared, this node is discarded.
     options.minEdgeNoveltyThr = 0.0;    % Minimum edge novelty threshold.
-    options.edgeNoveltyThrRate = 0.05;   % The edge novelty threshold 
+    options.edgeNoveltyThrRate = 0.0;   % The edge novelty threshold 
                                        % is supposed to reduce each level by 
                                        % this amount.
-    options.edgeType = 'continuity';     % If 'centroid', downsampling is
+    options.edgeType = 'centroid';     % If 'centroid', downsampling is
                                        % applied at each layer, and edges
                                        % link spatially adjacent (within
                                        % its neighborhood) nodes.
@@ -128,10 +128,10 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.94; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
-    options.categoryLevelMissingNodeThr = 0.9; %In category level, missing node threshold is treated differently.
+    options.categoryLevelMissingNodeThr = 0; %In category level, missing node threshold is treated differently.
     options.edgeChangeLevel = -1; % Going to be updated in the code later.
     options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
@@ -157,7 +157,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
     options.maxNodeDegree = 20;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxFirstLevelNodeDegree = 4;  % (N) closest N nodes are linked for 
+    options.maxFirstLevelNodeDegree = 10;  % (N) closest N nodes are linked for 
                                        % every node in the object graphs (layer 1).
     options.minimalEdgeCount = true; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
@@ -171,8 +171,8 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 5;    % The maximum level count for training.
-    options.maxInferenceLevels = 20; % The maximum level count for testing.
+    options.maxLevels = 10;    % The maximum level count for training.
+    options.maxInferenceLevels = 10; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -199,7 +199,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                % for each category. Category nodes will be formed by
                % grouping top level parts.
                % Hint: A good number is the number of poses per object.
-                                 
+
     %% ========== RECONSTRUCTION PARAMETERS ==========
     options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
                                            % number of reconstructive parts
@@ -263,7 +263,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
+    options.subdue.maxSize = min(3, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
     options.subdue.nsubs = 300000;  % Maximum number of nodes allowed in a level.
     options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 

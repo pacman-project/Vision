@@ -52,6 +52,15 @@ function [discriminativeSubs, fscoreSubs] = getMRMRParts(bestSubs, numberOfFinal
     fscoreSubs = sort(fscoreSubs);
     
     %% Here, we apply MR-MR based feature selection.
+%     opt = statset('display','iter');
+%     cvp = cvpartition(allLabels','k',5);
+%     [fs, history] = sequentialfs(@classf,allFeatures,allLabels','cv',cvp,'options',opt);
+    
     discriminativeSubs = mrmr_miq_d(allFeatures, allLabels, numberOfFinalSubs);
     discriminativeSubs = sort(discriminativeSubs)';
+end
+
+function err = classf(xtrain,ytrain,xtest,ytest)
+         yfit = classify(xtest,xtrain,ytrain,'diagQuadratic');
+         err = sum(~strcmp(ytest,yfit));
 end

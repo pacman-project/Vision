@@ -89,7 +89,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     else
         minRFCoverage = options.missingNodeThr;
     end
-    parentsPerSet = 2000;
+    parentsPerSet = 1000;
     
 %     % On lower levels, we do not need to extend too much.
 %     maxSize = min(maxSize, levelItr + 1);
@@ -470,7 +470,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
        else
            previousAccuracy = optimalAccuracy;
        end
-       bestSubs = selectedSubs;
+      bestSubs = selectedSubs;
 
        % Re-evaluate best subs.
        bestSubs = evaluateSubs(bestSubs, 'mdl', allEdgeCounts, allEdgeNodePairs, ...

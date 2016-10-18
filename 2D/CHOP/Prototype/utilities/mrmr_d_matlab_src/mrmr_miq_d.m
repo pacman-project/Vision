@@ -41,6 +41,7 @@ function [fea] = mrmr_miq_d(d, f, K)
 %
 
 bdisp=1;
+subsetCount = 2000;
 
 d = double(d);
 nd = size(d,2);
@@ -59,7 +60,7 @@ fea = zeros(min(K, nd),1);
 if K < nd
     fea(1) = idxs(1);
 
-    KMAX = min(50000,nd); %500 %20000
+    KMAX = min(100000,nd); %500 %20000
     
     if KMAX <= K
         fea = idxs((1:K));
@@ -83,14 +84,20 @@ if K < nd
        curlastfea = nnz(fea);
        t_mi = t(idxleft);
        temp_array = zeros(ncand, 1);
+       
+       % We do not have time to calculate mutual information among all
+       % features. We randomly pick a subset and work with that.
+       comparedFeature = full(d(:,fea(curlastfea)));
        parfor i=1:ncand,
-            temp_array(i) = getmultimi(full(d(:,fea(curlastfea))), full(d(:,idxleft(i))));
+            temp_array(i) = getmultimi(comparedFeature, full(d(:,idxleft(i))));
        end
        mi_array(idxleft, curlastfea) = temp_array;
        c_mi = sum(mi_array(idxleft, 1:(k-1)), 2) / (k-1);
        
        [valArr(k-1), fea(k)] = max(t_mi(1:ncand) ./ (c_mi(1:ncand) + 0.01));
-       tmpidx = fea(k); fea(k) = idxleft(tmpidx); idxleft(tmpidx) = [];
+       tmpidx = fea(k); 
+       fea(k) = idxleft(tmpidx); 
+       idxleft(tmpidx) = [];
 
        if bdisp==1 && rem(k, 100) == 0
        fprintf('k=%d cost_time=%5.4f cur_fea=%d #left_cand=%d\n', ...
