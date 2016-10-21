@@ -105,12 +105,12 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.75;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.maxShareability = 0.25;       % If more than this percent of a nodes' 
+    options.maxShareability = 0.2;       % If more than this percent of a nodes' 
                                              % leaf nodes are shared, this node is discarded.
     options.minEdgeNoveltyThr = 0.0;    % Minimum edge novelty threshold.
     options.edgeNoveltyThrRate = 0.0;   % The edge novelty threshold 
