@@ -194,10 +194,10 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     %% Step 2: Main loop
     startTime = tic;
     currentSize = 2;
-    minMdlScoreFinal = -inf; % This two will increase as more and more subs are discovered.
     bestMdlScoresFinal = [];
     
     while ~isempty(parentSubs)
+        minMdlScoreFinal = -inf; % This two will increase as more and more subs are discovered.
         minMdlScoreExtend = -inf;   
         if ~isempty(bestSubs)
             bestMdlScoresFinal = [bestSubs.mdlScore];
@@ -375,9 +375,6 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             % Check for minSize to put to final sub array.
             if currentSize >= minSize
                 bestSubs = addToQueue(childSubArrFinal, bestSubs, nsubs * (currentSize - 1));
-                if numel(bestSubs) == nsubs
-                    minMdlScoreFinal = min([bestSubs.mdlScore]);
-                end
             end
         end
         

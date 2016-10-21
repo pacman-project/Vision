@@ -13,6 +13,7 @@
 %> Updates
 %> Ver 1.0 on 26.08.2014
 function [ options ] = SetParametersGWP_10k( datasetName, options )
+
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -104,7 +105,7 @@ function [ options ] = SetParametersGWP_10k( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
@@ -171,8 +172,8 @@ function [ options ] = SetParametersGWP_10k( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 10;    % The maximum level count for training.
-    options.maxInferenceLevels = 10; % The maximum level count for testing.
+    options.maxLevels = 8;    % The maximum level count for training.
+    options.maxInferenceLevels = 8; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -183,7 +184,7 @@ function [ options ] = SetParametersGWP_10k( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 10; % The level where we switch from 
+    options.categoryLevel = 8; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -256,15 +257,15 @@ function [ options ] = SetParametersGWP_10k( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 2400;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1800;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = min(3, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 300000;  % Maximum number of nodes allowed in a level.
+    options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
     options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = false;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
