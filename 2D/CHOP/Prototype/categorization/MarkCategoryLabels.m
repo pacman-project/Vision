@@ -17,7 +17,19 @@ function [ ] = MarkCategoryLabels( datasetName )
     options = SetParameters(datasetName, 'train');
     % Read the vocabulary and the exported realizations. 
     load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
-    load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx');
+    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'exportArr');
+%     load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
+%     numberOfImages = numel(categoryArrIdx);
+%     
+%     % Obtain categoryArrIdx and exportArr from the data.
+%      allExportArr = cell(numberOfImages,1);
+%     for imageItr = 1:numberOfImages
+%          [~, fileName, ~] = fileparts(trainingFileNames{imageItr});
+%          load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(imageItr)} '_' fileName '_test.mat'], 'exportArr');
+%          exportArr(:,5) = imageItr;
+%          allExportArr{imageItr} = exportArr;
+%     end
+%     exportArr = cat(1, allExportArr{:});
     
     % We go through each layer of the vocabulary, and update categoryArr of
     % every node in the vocabulary with the probabilities that this node

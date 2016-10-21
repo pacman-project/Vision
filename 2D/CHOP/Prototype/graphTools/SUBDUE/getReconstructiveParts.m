@@ -30,7 +30,8 @@
 %> Ver 1.0 on 08.10.2015
 function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level1Coords, uniqueChildren, allLeafNodes)
 
-   coverageStoppingVal = 0.95;
+   coverageStoppingVal = 0.97;
+   minLimit = 0.01;
    numberOfBestSubs = numel(bestSubs);
    remainingFirstLevelNodes = unique(cat(2, allLeafNodes{uniqueChildren}));
 %   numberOfChildren = {bestSubs.edges};
@@ -62,7 +63,8 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
         coveredNodes = fastsortedunique(sort(cat(2, allLeafNodes{allNodes})));
         subCoveredNodes{subItr} = coveredNodes;
    end
- %  childrenCounts = cellfun(@(x) numel(x), subCoveredNodes);
+   childrenCounts = cellfun(@(x) numel(x), subCoveredNodes);
+   childrenCountLimits = minLimit * childrenCounts;
    
      %% Finally, we implement an algorithm for part selection. 
      % This step is done to perform an initial pass to reduce the number of
@@ -89,13 +91,12 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
        maxLoc = 0;
        maxSubIdx = [];
        maxLocMarkedNodes = [];
-       prevVal = nnz(markedNodes(validNodeArr));
 
-%      for subItr = 1:numberOfBestSubs
-       for subItr = numberOfBestSubs:-1:1
-           if valueArr(subItr) == 0 || selectedSubIdx(subItr) == 1 || maxLocVal >= valueArr(subItr)
-                continue;
-           end
+       % Choose eligible subs to choose from, and loop over them.
+       eligibleSubs = find(valueArr);
+       curSubItr = 1;
+       while curSubItr <= numel(eligibleSubs)
+           subItr = eligibleSubs(curSubItr);
            tempMarkedNodes = markedNodes;
            tempSubIdx = selectedSubIdx;
            tempSubIdx(subItr) = 1;
@@ -110,19 +111,30 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
  %          diffVal = (nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr);
  %          diffVal = (nnz(tempMarkedNodes) - prevVal) / childrenCounts(subItr);
  %          diffVal = ((nnz(tempMarkedNodes) - prevVal) * numberOfChildren(subItr))/ childrenCounts(subItr);
-           diffVal = (nnz(tempMarkedNodes(validNodeArr)) - prevVal);
+           diffVal = numel(children);
  
            % Save diffVal.
            if diffVal < valueArr(subItr)
-                valueArr(subItr) = diffVal;
+                if diffVal < childrenCountLimits(subItr)
+                     valueArr(subItr) = 0;
+      %               valueArr(subItr) = diffVal;
+                else
+                     valueArr(subItr) = diffVal;
+                end
            end
 
            % Save value if this part has maximum value.
            if diffVal > 0 && diffVal > maxLocVal
+                if maxLocVal > -inf && subCounter > 0
+                    curSubItr = 1;
+                    eligibleSubs = find(valueArr > maxLocVal);
+                end
                 maxLocVal = diffVal;
                 maxLocMarkedNodes = tempMarkedNodes;
                 maxLoc = subItr;
                 maxSubIdx = tempSubIdx;
+           else
+                curSubItr = curSubItr + 1;
            end
       end
       if isempty(maxSubIdx)

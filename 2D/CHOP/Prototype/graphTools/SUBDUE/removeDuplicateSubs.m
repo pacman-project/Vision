@@ -14,18 +14,17 @@
 %>
 %> Updates
 %> Ver 1.0 on 01.03.2015 (Converted to a standalone function, added instance augmentation)
-function [childSubArr] = removeDuplicateSubs(childSubArr)
+function [childSubArr] = removeDuplicateSubs(childSubArr, numberOfPrevSubs)
  %   overlapThr = 0.9;
 
-    if size(childSubArr(1).edges,1) > 0
+    if size(childSubArr(1).edges,1) > 1
         % Eliminate duplicate subs in final array.
-        childSubEdges = cell(1, numel(childSubArr));
-        for subItr = 1:numel(childSubArr)
-            childSubEdges(subItr) = {sortrows(childSubArr(subItr).edges)};
-        end
-        subCenters = {childSubArr.centerId};
-        vocabDescriptors = cellfun(@(x,y) num2str([x; y(:)]'), subCenters, childSubEdges, 'UniformOutput', false);
-        [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'stable');
+        childSubEdges = {childSubArr.edges};
+        childSubEdges = cellfun(@(x) (x(:,1)*numberOfPrevSubs + x(:,2))', childSubEdges, 'UniformOutput', false);
+        childSubEdges = cat(1, childSubEdges{:});
+        subCenters = cat(1, childSubArr.centerId);
+        vocabDescriptors = cat(2, subCenters, childSubEdges);
+        [~, validChildrenIdx, ~] = unique(vocabDescriptors, 'rows', 'stable');
         childSubArr = childSubArr(validChildrenIdx);
         
 %         % If finalListFlag is on, we perform another set of operations to

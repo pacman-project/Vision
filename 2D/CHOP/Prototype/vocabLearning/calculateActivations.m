@@ -41,7 +41,12 @@ function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivati
         for instanceItr = 1:size(instanceChildren,2)
              relevantChildren = instanceChildren(:, instanceItr);
              relevantProbs = childrenProbs{instanceItr};
-             minPosProbs(instanceItr) = log(min(min(relevantProbs(relevantProbs > 0))));
+             dummyProb = log(min(min(relevantProbs(relevantProbs > 0))));
+             if isempty(dummyProb)
+                  minPosProbs(instanceItr) = 0;
+             else
+                  minPosProbs(instanceItr) = dummyProb;
+             end
              
              % Calculate position probabilities.
              samples = (prevPosition(relevantChildren, :) - instancePositions) + halfRFSize + 1;

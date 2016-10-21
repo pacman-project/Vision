@@ -228,18 +228,35 @@ function [modes, modeProbArr] = learnModes(currentLevel, edgeCoords, edgeIdMatri
             % We use PDFs to calculate pseudo-statistics (faster, accurate
             % enough).
 %            try
-            tempProbs = mvncdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
-            tempProbs = reshape(tempProbs, [(edgeQuantize+1), (edgeQuantize+1)]);
-            lowProbs = tempProbs(1:(end-1), 1:(end-1));
-            lowProbs = lowProbs(:);
-            leftProbs = tempProbs(2:end, 1:(end-1));
-            leftProbs = leftProbs(:);
-            rightProbs = tempProbs(1:(end-1), 2:end);
-            rightProbs = rightProbs(:);
-            highProbs = tempProbs(2:end, 2:end);
-            highProbs = highProbs(:);
-            pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
-%            pointProbs = mvnpdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+%             tempProbs = mvncdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+%             tempProbs = reshape(tempProbs, [(edgeQuantize+1), (edgeQuantize+1)]);
+%             lowProbs = tempProbs(1:(end-1), 1:(end-1));
+%             lowProbs = lowProbs(:);
+%             leftProbs = tempProbs(2:end, 1:(end-1));
+%             leftProbs = leftProbs(:);
+%             rightProbs = tempProbs(1:(end-1), 2:end);
+%             rightProbs = rightProbs(:);
+%             highProbs = tempProbs(2:end, 2:end);
+%             highProbs = highProbs(:);
+%             pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
+            
+            %% Alternatively, calculate pdf-based probabilities, which are more approximate.
+%             tempProbs = mvnpdf(points, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+%             tempProbs = reshape(tempProbs, [(edgeQuantize+1), (edgeQuantize+1)]);
+%             lowProbs = tempProbs(1:(end-1), 1:(end-1));
+%             lowProbs = lowProbs(:);
+%             leftProbs = tempProbs(2:end, 1:(end-1));
+%             leftProbs = leftProbs(:);
+%             rightProbs = tempProbs(1:(end-1), 2:end);
+%             rightProbs = rightProbs(:);
+%             highProbs = tempProbs(2:end, 2:end);
+%             highProbs = highProbs(:);
+%             pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
+            
+            pointProbs = mvnpdf(points2, statistics(centerItr,4:5) , [statistics(centerItr,6:7); statistics(centerItr,8:9)]);
+            pointProbs = pointProbs / sum(pointProbs);
+%            probDiff = sum(abs(pointProbs - pointProbs2));
+%            display(['Total Probability difference: ' num2str(probDiff) '.']);
 %            catch %#ok<CTCH>
 %                pointProbs = mvnpdf(points, statistics(centerItr,4:5) , statistics(centerItr,[6,9]));
 %            end

@@ -63,6 +63,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
         minSize = options.subdue.minSize;
         singleInstanceFlag = true;
     end
+%    numberOfPrevSubs = numel(vocabLevel);
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
@@ -366,11 +367,14 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
         if ~isempty(childSubArrFinal)
             %% A substructure has many different parse trees at this point.
             % We remove duplicate subs from childSubArr.
-            [childSubArrFinal] = removeDuplicateSubs(childSubArrFinal);
+%            [childSubArrFinal] = removeDuplicateSubs(childSubArrFinal, numberOfPrevSubs);
+            
+            % Remove excess subs.
+            childSubArrFinal = addToQueue(childSubArrFinal, [], nsubs);
             
             % Check for minSize to put to final sub array.
             if currentSize >= minSize
-                bestSubs = addToQueue(childSubArrFinal, bestSubs, nsubs);
+                bestSubs = addToQueue(childSubArrFinal, bestSubs, nsubs * (currentSize - 1));
                 if numel(bestSubs) == nsubs
                     minMdlScoreFinal = min([bestSubs.mdlScore]);
                 end
@@ -380,7 +384,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
         if ~isempty(childSubArrExtend)
             %% A substructure has many different parse trees at this point.
             % We remove duplicate subs from childSubArr.
-            [childSubArrExtend] = removeDuplicateSubs(childSubArrExtend);
+%            [childSubArrExtend] = removeDuplicateSubs(childSubArrExtend, numberOfPrevSubs);
             
             % In this step, we take into account where each node has been
             % seen. We don't really want to eliminate subs that encompass
@@ -472,10 +476,10 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
        end
       bestSubs = selectedSubs;
 
-       % Re-evaluate best subs.
-       bestSubs = evaluateSubs(bestSubs, 'mdl', allEdgeCounts, allEdgeNodePairs, ...
-           allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, false, ...
-           allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree);
+%        % Re-evaluate best subs.
+%        bestSubs = evaluateSubs(bestSubs, 'mdl', allEdgeCounts, allEdgeNodePairs, ...
+%            allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, false, ...
+%            allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree);
 
        % Sort bestSubs by their mdl scores.
        mdlScores = [bestSubs.mdlScore];

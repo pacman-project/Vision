@@ -37,18 +37,18 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                             % training.
     %% ========== TO BE MIGRATED TO INDIVIDUAL PARAMETER FILES ==========                    
     options.autoNormalize = 'whiten'; %Or 'normalize'
- %   options.poolDim = 1.7321; % The pooling window size. Could be 1, 2, 3...
-    options.poolDim = 2; % The pooling window size. Could be 1, 2, 3...
+    options.poolDim = 1.7321; % The pooling window size. Could be 1, 2, 3...
+ %   options.poolDim = 2; % The pooling window size. Could be 1, 2, 3...
                                       % If 2, size of the receptive field
                                       % is halved, as in the previous
                                       % version of the algorithm.
 %    options.noPoolingLayers = [3 5 7 9 11 13]; % No pooling is performed over the outcome of these layers.
  %   options.smallRFLayers = [2 4 6 8 10 12];
  %   options.smallRFLayers = [2 3 4 5 6 7 8 9 10 11 12 13];
-    options.noPoolingLayers = [3 5 7 9 10 11 12];
- %   options.noPoolingLayers = [];
- %   options.smallRFLayers = [];
-    options.smallRFLayers = [2 4 6 8];
+%    options.noPoolingLayers = [3 5 7 9 10 11 12];
+    options.noPoolingLayers = [];
+    options.smallRFLayers = [];
+ %   options.smallRFLayers = [2 4 6 8];
     options.poolFlag = true; % If true, we apply max pooling to reduce number of 
                                             %  realizations. Otherwise,
                                             %  positions are updated, but

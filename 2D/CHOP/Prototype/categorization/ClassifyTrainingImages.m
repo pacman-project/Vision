@@ -13,12 +13,25 @@ function [confMat] = ClassifyTrainingImages( datasetName )
     %#ok<*NODEF>
 %    options = SetParameters(datasetName, 'train');
     % Read the vocabulary and the exported realizations. 
-    load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
-    load([pwd '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx');
+    load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'options');
+    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'exportArr');
+    numberOfImages = numel(categoryArrIdx);
+%     load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
+%     numberOfImages = numel(categoryArrIdx);
+%     
+%     % Obtain categoryArrIdx and exportArr from the data.
+%      allExportArr = cell(numberOfImages,1);
+%     for imageItr = 1:numberOfImages
+%          [~, fileName, ~] = fileparts(trainingFileNames{imageItr});
+%          load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(imageItr)} '_' fileName '_test.mat'], 'exportArr');
+%          exportArr(:,5) = imageItr;
+%          allExportArr{imageItr} = exportArr;
+%     end
+%     exportArr = cat(1, allExportArr{:});
     
     % Go through every image in the training set, and classify.
     confMat = zeros(numel(categoryNames));
-    numberOfImages = max(exportArr(:,5));
+    
     top1Mat = zeros(numberOfImages, 1) > 0;
     top3Mat = zeros(numberOfImages, 1) > 0;
     top5Mat = zeros(numberOfImages, 1) > 0;

@@ -101,12 +101,12 @@ function [bestSubs, currentAccuracy] = selectParts(bestSubs, ...
     % Number of Instances
     % Number of Leaf nodes
     % Shareability
-    [partStats, allFeatures, assignedClassArr] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, allLeafNodes, numberOfRemainingLeafNodes);
+%    [partStats, allFeatures, assignedClassArr] = calculatePartStats(bestSubs, categoryArrIdx, imageIdx, allLeafNodes, numberOfRemainingLeafNodes);
     
     %% Select subs.
     display('[SUBDUE] 1/2. Reconstructive part selection running...');
     [reconstructiveSubs] = getReconstructiveParts(bestSubs, optimalCount, level1Coords, remainingChildren, allLeafNodes);
-%    display('[SUBDUE] 2/2. Discriminative part selection running...');
+    display('[SUBDUE] 2/2. Discriminative part selection running...');
 %    [discriminativeSubs, fscoreSubs] = getMRMRParts(bestSubs, numel(reconstructiveSubs), categoryArrIdx, allFeatures, assignedClassArr, partStats.fscoreArr);
     if supervisionFlag
         validSubs = discriminativeSubs;
