@@ -333,7 +333,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             end
             
             %% Based on the best mdl scores, update minMdlScoreFinal and minMdlScoreExtend.
-            newMdlScores = [bestMdlScoresFinal, [mdlScoreArrFinal{:}]];
+            newMdlScores = [mdlScoreArrFinal{:}];
             if numel(newMdlScores) > nsubs
                 newMdlScores = sort(newMdlScores, 'descend');
                 minMdlScoreFinal = newMdlScores(nsubs);
@@ -342,8 +342,6 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             % In addition, remove the subs that have low mdl scores.
             % First, we handle final subs.
             if minMdlScoreFinal ~= -inf
-                validBestSubIdx = bestMdlScoresFinal >= minMdlScoreFinal;
-                bestSubs = bestSubs(validBestSubIdx);
                 nonemptyArrIdx = cellfun(@(x) ~isempty(x), childSubArrFinal);
                 childSubArrFinal(nonemptyArrIdx) = cellfun(@(x, y) x(y >= minMdlScoreFinal), childSubArrFinal(nonemptyArrIdx), mdlScoreArrFinal(nonemptyArrIdx), 'UniformOutput', false);
                 mdlScoreArrFinal(nonemptyArrIdx) = cellfun(@(x) x(x >= minMdlScoreFinal), mdlScoreArrFinal(nonemptyArrIdx), 'UniformOutput', false);
@@ -423,7 +421,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     
     %% At this point, we add single node subs to the list of known subs.
     if ~isempty(singleNodeSubsFinal)
-        bestSubs = addToQueue(singleNodeSubsFinal, bestSubs, nsubs + numel(singleNodeSubsFinal)); 
+        bestSubs = addToQueue(singleNodeSubsFinal, bestSubs, numel(bestSubs) + numel(singleNodeSubsFinal)); 
     end
     %% Step 3: Create nextVocabLevel and nextGraphLevel from bestSubs.
     numberOfBestSubs = numel(bestSubs);
