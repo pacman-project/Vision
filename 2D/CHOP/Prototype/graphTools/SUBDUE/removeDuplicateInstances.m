@@ -12,9 +12,21 @@
 %> Updates
 %> Ver 1.0 on 23.09.2015
 function [ subList ] = removeDuplicateInstances( subList )
+    subCenters = cat(1,subList.centerId);
+    subEdges = {subList.edges};
+    
     parfor bestSubItr = 1:numel(subList)
         instanceChildren = subList(bestSubItr).instanceChildren;
-        [~, validIdx, ~] = unique(sort(instanceChildren,2), 'rows', 'stable');
+        if size(instanceChildren,2) > 2
+             curEdges = subEdges{bestSubItr};
+             if ismember(subCenters(bestSubItr), curEdges(:,2))
+                  [~, validIdx, ~] = unique(sort(instanceChildren,2), 'rows', 'stable');
+             else
+                  validIdx = (1:size(instanceChildren,1))';
+             end
+        else
+             validIdx = (1:size(instanceChildren,1))';
+        end
 
         % Get minimum matching costs and children.
         instanceChildren = instanceChildren(validIdx, :);

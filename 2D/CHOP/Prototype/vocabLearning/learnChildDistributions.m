@@ -62,7 +62,7 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
     end   
     
     % Second, we go through each node, and collect statistics.
-    parfor vocabItr = 1:numberOfNodes
+     parfor vocabItr = 1:numberOfNodes
         
         minX = -1; maxX = -1; minY = -1; maxY = -1; meanArr = []; scores=[]; coeff=[];
         w = warning('off', 'all');
@@ -465,10 +465,15 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              relevantInd = sub2ind([realRFSize, realRFSize], relevantPos(:,1) + halfRFSize + 1, relevantPos(:,2) + halfRFSize + 1);
              sampleImg = zeros(realRFSize) > 0;
              sampleImg(relevantInd) = 1;
+             dummyArr = sparse(realRFSize,realRFSize);
              
              % Based on the number of instances, we add a buffer zone in
              % probability distribution to add flexibility.
              bufferWidth = max(1, round(halfRFSize / (lowRFSize * sqrt(size(relevantPos,1)))));
+             if isempty(relevantPos)
+                  childrenProbs{childItr} = dummyArr;
+                  continue;
+             end
              sampleImg = imdilate(sampleImg, strel('disk', bufferWidth));
              relevantInd = find(sampleImg);
              [relevantX, relevantY] = ind2sub([realRFSize, realRFSize], relevantInd);
@@ -477,33 +482,39 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              minPDFVal = min(samplePDFVals);
              validCombs = combPDFVals > minPDFVal;
              
-             % For valid combinations, we should calculate CDF values!
-             % We create a square area around every pixel that has the size
-             % of a pixel. Then, we calculate cdf values at every corner to
-             % calculate probability falling in this area.
-             samples = combs(validCombs, :);
-             halfPixelArr = ones(size(samples,1),1) * 0.5;
-             lowSamples = samples + [-halfPixelArr, -halfPixelArr]; 
-             leftSamples = samples + [halfPixelArr, -halfPixelArr];
-             rightSamples = samples + [-halfPixelArr, halfPixelArr];
-             highSamples = samples + [halfPixelArr, halfPixelArr];
-             [uniqueSamples, ~, IA] = unique([lowSamples; leftSamples; rightSamples; highSamples], 'rows', 'R2012a');
-             numberOfSamples = size(lowSamples,1);
-           
-             % Calculate point probabilities.
-             combProbs = mvncdf(uniqueSamples / halfRFSize, curMu, curSigma);
-             lowProbs = combProbs(IA(1:numberOfSamples));
-             leftProbs = combProbs(IA((numberOfSamples+1):(2*numberOfSamples)));
-             rightProbs = combProbs(IA((2*numberOfSamples+1):(3*numberOfSamples)));
-             highProbs = combProbs(IA((3*numberOfSamples+1):(4*numberOfSamples)));
-             pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
+             % We calculate pseudo-probabilities here. Simply sum all
+             % valid pdf values, and then calculate probability by dividing them
+             % by their sum.
+             pointProbs = combPDFVals(validCombs);
+             pointProbs = pointProbs / sum(pointProbs);
              pointProbs(pointProbs < minProb) = minProb;
+             samples = combs(validCombs, :);
+             
+             % For valid combinations, we should calculate CDF values!
+%              % We create a square area around every pixel that has the size
+%              % of a pixel. Then, we calculate cdf values at every corner to
+%              % calculate probability falling in this area.
+%              halfPixelArr = ones(size(samples,1),1) * 0.5;
+%              lowSamples = samples + [-halfPixelArr, -halfPixelArr]; 
+%              leftSamples = samples + [halfPixelArr, -halfPixelArr];
+%              rightSamples = samples + [-halfPixelArr, halfPixelArr];
+%              highSamples = samples + [halfPixelArr, halfPixelArr];
+%              [uniqueSamples, ~, IA] = unique([lowSamples; leftSamples; rightSamples; highSamples], 'rows', 'R2012a');
+%              numberOfSamples = size(lowSamples,1);
+%            
+%              % Calculate point probabilities.
+%              combProbs = mvncdf(uniqueSamples / halfRFSize, curMu, curSigma);
+%              lowProbs = combProbs(IA(1:numberOfSamples));
+%              leftProbs = combProbs(IA((numberOfSamples+1):(2*numberOfSamples)));
+%              rightProbs = combProbs(IA((2*numberOfSamples+1):(3*numberOfSamples)));
+%              highProbs = combProbs(IA((3*numberOfSamples+1):(4*numberOfSamples)));
+%              pointProbs = (highProbs - (leftProbs + rightProbs)) + lowProbs;
+%              pointProbs(pointProbs < minProb) = minProb;
              
              % Finally, assign the calculated probabilities to the correct
              % positions.
              samples = samples + halfRFSize + 1;
              sampleInd = sub2ind([realRFSize, realRFSize], samples(:,1), samples(:,2));
-             dummyArr = sparse(realRFSize,realRFSize);
              dummyArr(sampleInd) = pointProbs; %#ok<SPRIX>
              childrenProbs{childItr} = dummyArr;
              
