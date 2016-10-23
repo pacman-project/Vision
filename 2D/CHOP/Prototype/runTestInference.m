@@ -157,6 +157,8 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         startTime = tic;
         confMatrix = zeros(numel(categoryNames),numel(categoryNames));
         categoryInfo = cell(size(testFileNames,1) ,1);
+        allExportArr = exportArr;
+        allActivationArr = activationArr;
         for testImgItr = 1:size(testFileNames,1) 
     %    for testImgItr = 1:5
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
@@ -165,8 +167,8 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
            
             imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
             if ~isempty(imageId)
-                 imageExportArr = exportArr(exportArr(:,5) == imageId,:);
-                 imageActivationArr = activationArr(exportArr(:,5) == imageId, :);
+                 imageExportArr = allExportArr(allExportArr(:,5) == imageId,:);
+                 imageActivationArr = allActivationArr(allExportArr(:,5) == imageId, :);
             end
            load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(testImgItr)} '_' testFileName '_test.mat'], 'exportArr', 'activationArr');
            testExportArr = exportArr;

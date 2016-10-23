@@ -31,8 +31,10 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           return;
      end
      
-     [~, edgeOffsets] = ismember(1:numel(graphLevel), allEdges(:,1), 'legacy');
-     edgeOffsets = cat(2, 0, edgeOffsets(1:end-1));
+     % Mark location of the seed nodes in edge array for fast access.
+     [~, edgeOffsets] = ismember(1:numel(graphLevel), allEdges(:,1), 'R2012a');
+     invalidNodes = edgeOffsets == 0;
+     edgeOffsets = edgeOffsets - 1;
      
      % Create mode index array.
      [uniqueModes, IA, ~] = unique(modes(:,1:2), 'stable', 'rows');
@@ -60,6 +62,10 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
           end
           
           edgeOffset = edgeOffsets(graphLevelItr);
+          
+          if invalidNodes(graphLevelItr)
+               continue;
+          end
           
           % Assign each edge a to a relevant mode.
           numberOfEdges = size(edges,1);
