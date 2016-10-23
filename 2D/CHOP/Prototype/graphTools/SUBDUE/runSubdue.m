@@ -56,7 +56,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     nextVocabLevel = [];
     nextGraphLevel = [];
 
-    if levelItr < 4
+    if levelItr < 3
         singleInstanceFlag = false; 
         minSize = 2;
     else
@@ -135,6 +135,27 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     % If no edges are present, time to return.
     allSigns = uint8(cat(1, graphLevel.sign));
     imageIdx = cat(1, graphLevel.imageId);
+    
+%     % Build a very large (sparse) possible adjacency matrix.
+%     display('[SUBDUE] Creating linkage for nodes to be used in finding cliques.');
+%     maxImageId = max(imageIdx);
+%     tempArr = cell(maxImageId,1);
+%     for imageItr = 1:maxImageId
+%          nodeListIdx = find(imageIdx == imageItr);
+%          if nnz(nodeListIdx) == 0
+%               continue;
+%          end
+%          
+%          % If there are nodes, look for nearby ones.
+%          distances = pdist(allCoords(nodeListIdx, :)) < rfRadius;
+%          for nodeItr = 1:numel(nodeListIdx)
+%               adjNodes = find(distances(nodeItr,:));
+%               
+%          end
+%     end
+    
+    adjMatrix = sparse(double(allEdgeNodePairs(:,1)), double(allEdgeNodePairs(:,2)), ones(size(allEdgeNodePairs,1),1) > 0, numel(graphLevel), numel(graphLevel));
+    
     
     % Learn possible leaf nodes within every RF, and save them for future
     % use. For this one, we consider only the nodes within the receptive
@@ -277,7 +298,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             parfor parentItr = processedSet
                 %% Step 2.2: Extend head in all possible directions into childSubs.
  %               display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
-                childSubs = extendSub(parentSubs(parentItr), allEdges, allEdgeCounts, singleInstanceFlag);
+                childSubs = extendSub(parentSubs(parentItr), allEdges, allEdgeCounts, singleInstanceFlag, adjMatrix);
                 if isempty(childSubs) 
                     continue;
                 end
@@ -333,11 +354,12 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             end
             
             %% Based on the best mdl scores, update minMdlScoreFinal and minMdlScoreExtend.
-            newMdlScores = [mdlScoreArrFinal{:}];
-            if numel(newMdlScores) > nsubs
-                newMdlScores = sort(newMdlScores, 'descend');
-                minMdlScoreFinal = newMdlScores(nsubs);
-            end
+            %% TODO TO BE OPENED ON DISCRIMINATIVE LEARNING>
+%             newMdlScores = [mdlScoreArrFinal{:}];
+%             if numel(newMdlScores) > nsubs
+%                 newMdlScores = sort(newMdlScores, 'descend');
+%                 minMdlScoreFinal = newMdlScores(nsubs);
+%             end
             
             % In addition, remove the subs that have low mdl scores.
             % First, we handle final subs.
@@ -366,6 +388,17 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             %% A substructure has many different parse trees at this point.
             % We remove duplicate subs from childSubArr.
 %            [childSubArrFinal] = removeDuplicateSubs(childSubArrFinal, numberOfPrevSubs);
+
+           % Remove unnecessary subs.
+           encounterArr = inf(numel(graphLevel), 1);
+           for itr = numel(childSubArrFinal):-1:1
+                instanceCenterIdx = childSubArrFinal(itr).instanceCenterIdx;
+                encounterArr(instanceCenterIdx) = itr;
+           end
+           extraSubs = setdiff(unique(encounterArr), Inf);
+%           keptSubs = fastsortedunique(sort([1:min(nsubs, numel(childSubArrFinal)), extraSubs']));
+           keptSubs = extraSubs;
+           childSubArrFinal = childSubArrFinal(keptSubs);
             
             % Remove excess subs.
             childSubArrFinal = addToQueue(childSubArrFinal, [], nsubs);
@@ -391,14 +424,14 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             
             % Write down children-s parents and only keep one parent for
             % each child.
-            if numel(childSubArrExtend) > beam
+ %           if numel(childSubArrExtend) > beam
                 encounterArr = inf(numel(graphLevel), 1);
                 for itr = numel(childSubArrExtend):-1:1
                      instanceCenterIdx = childSubArrExtend(itr).instanceCenterIdx;
                      encounterArr(instanceCenterIdx) = itr;
                 end
                 childSubArrExtend = childSubArrExtend(setdiff(unique(encounterArr), Inf));
-            end
+%            end
             
             % Check for maxSize to put to extendedSubs (parentSubs for next level).
             if currentSize < maxSize

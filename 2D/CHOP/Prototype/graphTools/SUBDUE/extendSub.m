@@ -14,7 +14,7 @@
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstanceFlag)
+function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstanceFlag, adjMatrix)
     % Get center list.
     centerIdx = sub.instanceCenterIdx;
     
@@ -42,6 +42,8 @@ function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstance
     % Get unique rows of [edgeLabel, secondVertexLabel]
     uniqueEdgeTypes = unique(enumeratedEdges, 'rows');
     
+    instanceChildren = sub.instanceChildren;
+    
     % Eliminate roughly half of the unique edge types but lexicographical
     % ordering. If new edge is lexicographically lower, it is not
     % enumerated.
@@ -67,6 +69,7 @@ function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstance
     % In addition, we pick suitable instances, add this edge, and mark used
     % field of relevant instances.
     numberOfEdgeTypes = size(uniqueEdgeTypes,1);
+    nodeCount = size(adjMatrix,1);
     
     % Allocate space for new subs and fill them in.
     validSubs = ones(numberOfEdgeTypes,1) > 0;
@@ -95,11 +98,36 @@ function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstance
         
         % Save instance ids.
         edgeInstanceIds = allEdgeInstanceIds(edgesToExtendIdx);
-        allChildren = [sub.instanceChildren(edgeInstanceIds,:), ...
+        allChildren = [instanceChildren(edgeInstanceIds,:), ...
              subAllEdges(edgesToExtendIdx,2)];
 
         % Finally, order children by rows.
-        [newSub.instanceChildren, idx] = sortrows(allChildren);
+        [sortedChildren, idx] = sortrows(allChildren);
+        
+%         % Go through the children and select only cliques (all nodes
+%         % connected)
+%         edgeCount = size(sortedChildren,2) - 1;
+%         if edgeCount > 1
+%               seedRow = sortedChildren(:,end);
+%               for edgeItr = 1:(edgeCount-1)
+%                    comparedRow = sortedChildren(:,1+edgeItr);
+%                    tempIdx = seedRow + (comparedRow-1) * nodeCount;
+%                    if edgeItr == 1
+%                         validIdx = full(adjMatrix(tempIdx));
+%                    else
+%                         validIdx = validIdx & full(adjMatrix(tempIdx));
+%                    end
+%               end
+%               idx = idx(validIdx);
+%         end
+%         
+%         if isempty(idx)
+%              validSubs(edgeTypeItr) = 0;
+%              continue;
+%         end
+        
+        % Keep valid instances.
+        newSub.instanceChildren= sortedChildren;
         edgeInstanceIds = edgeInstanceIds(idx, :);
         
         %% Assign all relevant instance-related fields of the sub.

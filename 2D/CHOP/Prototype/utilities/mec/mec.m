@@ -122,7 +122,7 @@ plim = length(neighbor);
 psz = uint32(round(((sqrt(1+8*plim)) + 1) / 2)); % size of square form (psz-by-psz)
 
 % init cluster
-kmeans_labels = kmeans( data, c, 'Replicates', kmeans_iter, 'Start', 'sample', 'EmptyAction', 'drop');
+kmeans_labels = kmeans( data, c, 'Start', 'sample', 'EmptyAction', 'drop');
 unique_l = unique(kmeans_labels(:));
 new_labels = zeros(size(kmeans_labels), 'uint32');
 for i = 1:length(unique_l) % ensures that kmeans labels are contiguous

@@ -18,8 +18,8 @@ function [ ] = MarkCategoryLabels( datasetName )
     % Read the vocabulary and the exported realizations. 
     load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
     load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'exportArr');
-%     load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
-%     numberOfImages = numel(categoryArrIdx);
+%    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
+%    numberOfImages = numel(categoryArrIdx);
 %     
 %     % Obtain categoryArrIdx and exportArr from the data.
 %      allExportArr = cell(numberOfImages,1);
@@ -50,7 +50,7 @@ function [ ] = MarkCategoryLabels( datasetName )
         numberOfParts = numel(vocabLevel);
         numberOfCategories = numel(categoryNames);
         realArr = cell(numberOfParts,1);
-        accHist = zeros(1, numberOfCategories);
+        accHist = ones(1, numberOfCategories);
         
         for partItr = 1:numberOfParts
             realArr{partItr} = categoryArrIdx(unique(realizations(realizations(:,1) == partItr, 5)));

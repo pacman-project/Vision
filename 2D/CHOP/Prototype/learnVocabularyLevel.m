@@ -133,12 +133,12 @@
    [vocabLevel, graphLevel, validNodeArr] = calculateActivationLimits(vocabLevel, graphLevel, size(level1Coords,1));
 
    %% Remove low-coverage nodes when we're at category layer.
-    if options.stopFlag
-        imageIds = imageIds(validNodeArr);
-        nodeCoverages = nodeCoverages(validNodeArr);
-        graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)'));
-   end
-   
+%     if options.stopFlag
+%         imageIds = imageIds(validNodeArr);
+%         nodeCoverages = nodeCoverages(validNodeArr);
+%         graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)'));
+%    end
+%    
    % Open/close matlabpool to save memory.
 %   matlabpool close;
 %   matlabpool('open', options.numberOfThreads);
@@ -215,13 +215,24 @@
 
    %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
    % Extract the edges between new realizations to form the new object graphs.
+   if strcmp(options.edgeType, 'continuity')
+        tempOptions = options;
+        tempOptions.edgeType = 'centroid';
+        realGraphLevel = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, tempOptions, levelItr);
+        clear tempOptions;
+   end
    [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, options, levelItr);
+   if ~strcmp(options.edgeType, 'continuity')
+        realGraphLevel = graphLevel;
+   end
+   
    if usejava('jvm')
      java.lang.System.gc();
    end
    %% Here, we bring back statistical learning with mean/variance.
    [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
-   graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords, levelItr, options.debugFolder);
+   graphLevel = assignEdgeLabels(realGraphLevel, modes, modeProbArr, options.edgeCoords, levelItr, options.debugFolder);
+   clear realGraphLevel;
    allModes{levelItr} = modes;
    modeProbs{levelItr} = modeProbArr;
    if usejava('jvm')

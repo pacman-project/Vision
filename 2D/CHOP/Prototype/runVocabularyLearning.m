@@ -267,11 +267,21 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         clear edgeIdMatrix edgeDistanceMatrix edgeCoords edgeLogMin edgeLogRange;
         
         %% Step 2.1: Get first-level object graph edges.
+        if strcmp(options.edgeType, 'continuity')
+             tempOptions = options;
+             tempOptions.edgeType = 'centroid';
+             realGraphLevel = extractEdges(graphLevel, [], [], tempOptions, 1);
+             clear tempOptions;
+        end
         [graphLevel] = extractEdges(graphLevel, [], [], options, 1);
+        if ~strcmp(options.edgeType, 'continuity')
+             realGraphLevel = graphLevel;
+        end
         
         %% Here, we bring back statistical learning with mean/variance.
         [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder, ~options.fastStatLearning && options.debug);
-        graphLevel = assignEdgeLabels(graphLevel, modes, modeProbArr, options.edgeCoords, 1, options.debugFolder);
+        graphLevel = assignEdgeLabels(realGraphLevel, modes, modeProbArr, options.edgeCoords, 1, options.debugFolder);
+        clear realGraphLevel;
         
         %% ========== Step 3: Create compositional vocabulary (Main loop in algorithm 1 of ECCV 2014 paper). ==========
         tr_s_time=tic;  

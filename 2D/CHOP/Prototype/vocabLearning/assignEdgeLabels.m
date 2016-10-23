@@ -50,7 +50,7 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
      zeroEdges = zeros(0, 'int32');
      modes = modes(:,3);
      assignedEdges = cell(numel(graphLevel),1);
-     parfor graphLevelItr = 1:numel(graphLevel)
+     for graphLevelItr = 1:numel(graphLevel)
           edges = allEdges{graphLevelItr};
 
           % Edges empty, do nothing.
@@ -68,6 +68,7 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
                modeRow = modeMapIds(edgeOffset + edgeItr);
                
                if modeRow == 0
+                  edges(edgeItr,3) = 0;
                   continue; 
                end
                
@@ -103,29 +104,29 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
     secEdgeCount = size(cat(1, assignedEdges{:}),1);
      
     display([num2str(orgEdgeCount - secEdgeCount) ' (%' num2str(100 * (secEdgeCount - orgEdgeCount)/orgEdgeCount) ') edges have been removed since collected statistics are too tight.']);
-    display('Balancing edges further so only doubly-linked edges remain.');
+ %   display('Balancing edges further so only doubly-linked edges remain.');
     
     %% Remove single-link edges.
-    adjacentNodes = assignedEdges;
-    validIdx = cellfun(@(x) ~isempty(x), adjacentNodes);
-    adjacentNodes(validIdx) = cellfun(@(x) x(:,2), adjacentNodes(validIdx), 'UniformOutput', false);
-    for graphLevelItr = 1:numel(graphLevel)
-        curEdges = assignedEdges{graphLevelItr};
-        curAdjacentNodes = adjacentNodes{graphLevelItr};
-        if ~isempty(curAdjacentNodes)
-            validEdgeIdx = ones(numel(curAdjacentNodes),1) > 0;
-            for secItr = 1:numel(validEdgeIdx)
-                if ~ismembc(int32(graphLevelItr), adjacentNodes{curAdjacentNodes(secItr)})
-                    validEdgeIdx(secItr) = 0;
-                end
-            end
-            if nnz(validEdgeIdx) ~= numel(validEdgeIdx)
-                assignedEdges(graphLevelItr) = {curEdges(validEdgeIdx, :)};
-            end
-        end
-    end
-    finalEdgeCount = size(cat(1, assignedEdges{:}),1);
-    display(['A further ' num2str(secEdgeCount - finalEdgeCount) ' (%' num2str(100 * (secEdgeCount - finalEdgeCount)/orgEdgeCount) ') edges have been removed to ensure double linking.']);
+%     adjacentNodes = assignedEdges;
+%     validIdx = cellfun(@(x) ~isempty(x), adjacentNodes);
+%     adjacentNodes(validIdx) = cellfun(@(x) x(:,2), adjacentNodes(validIdx), 'UniformOutput', false);
+%     for graphLevelItr = 1:numel(graphLevel)
+%         curEdges = assignedEdges{graphLevelItr};
+%         curAdjacentNodes = adjacentNodes{graphLevelItr};
+%         if ~isempty(curAdjacentNodes)
+%             validEdgeIdx = ones(numel(curAdjacentNodes),1) > 0;
+%             for secItr = 1:numel(validEdgeIdx)
+%                 if ~ismembc(int32(graphLevelItr), adjacentNodes{curAdjacentNodes(secItr)})
+%                     validEdgeIdx(secItr) = 0;
+%                 end
+%             end
+%             if nnz(validEdgeIdx) ~= numel(validEdgeIdx)
+%                 assignedEdges(graphLevelItr) = {curEdges(validEdgeIdx, :)};
+%             end
+%         end
+%     end
+%     finalEdgeCount = size(cat(1, assignedEdges{:}),1);
+%     display(['A further ' num2str(secEdgeCount - finalEdgeCount) ' (%' num2str(100 * (secEdgeCount - finalEdgeCount)/orgEdgeCount) ') edges have been removed to ensure double linking.']);
     
     edgeCounts = cellfun(@(x) size(x,1), assignedEdges);
     if usejava('jvm')

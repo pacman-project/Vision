@@ -14,20 +14,24 @@ function [confMat] = ClassifyTrainingImages( datasetName )
 %    options = SetParameters(datasetName, 'train');
     % Read the vocabulary and the exported realizations. 
     load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'options');
-    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'exportArr');
-    numberOfImages = numel(categoryArrIdx);
+    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'exportArr', 'activationArr');
+
 %     load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
 %     numberOfImages = numel(categoryArrIdx);
 %     
 %     % Obtain categoryArrIdx and exportArr from the data.
 %      allExportArr = cell(numberOfImages,1);
+%      allActivationArr = cell(numberOfImages,1);
 %     for imageItr = 1:numberOfImages
 %          [~, fileName, ~] = fileparts(trainingFileNames{imageItr});
-%          load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(imageItr)} '_' fileName '_test.mat'], 'exportArr');
+%          load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(imageItr)} '_' fileName '_test.mat'], 'exportArr', 'activationArr');
 %          exportArr(:,5) = imageItr;
 %          allExportArr{imageItr} = exportArr;
+%          allActivationArr{imageItr} = activationArr;
 %     end
 %     exportArr = cat(1, allExportArr{:});
+%     activationArr = cat(1, allActivationArr{:});
+    numberOfImages = numel(categoryArrIdx);
     
     % Go through every image in the training set, and classify.
     confMat = zeros(numel(categoryNames));
@@ -37,15 +41,29 @@ function [confMat] = ClassifyTrainingImages( datasetName )
     top5Mat = zeros(numberOfImages, 1) > 0;
     for imageItr = 1:numberOfImages
          % Obtain top-level realizations for this image.
-         realizations = exportArr(exportArr(:,5) == imageItr,:);
+         idx = exportArr(:,5) == imageItr;
+         realizations = exportArr(idx,:);
+         activations = activationArr(idx);
          maxLevel = max(realizations(:,4));
-         relevantRealizations = realizations(realizations(:,4) == maxLevel,:);
+         idx2=realizations(:,4) == maxLevel;
+         relevantRealizations = realizations(idx2,:);
+         relevantActivations = activations(idx2);
+         
+         % Order realizations wrt activations.
+         [relevantActivations, sortOrder] = sort(relevantActivations, 'descend');
+         relevantRealizations = relevantRealizations(sortOrder, :);
          
          % Obtain contributing subs.
-         contributingSubs = unique(relevantRealizations(:,1));
+         [contributingSubs, IC, ~] = unique(relevantRealizations(:,1));
+         contributingSubActivations = relevantActivations(IC);
          combinedArr = cat(1, vocabulary{maxLevel}(contributingSubs).categoryArr);
-         combinedArr = mean(combinedArr, 1);
-         [maxVal, predictedCategory] = max(combinedArr);
+         if size(combinedArr,1) > 1
+              for combItr = 1:size(combinedArr,1)
+                   combinedArr(combItr, :) = combinedArr(combItr, :) * (1/-contributingSubActivations(combItr));
+              end
+              combinedArr = mean(combinedArr, 1);
+         end
+              [maxVal, predictedCategory] = max(combinedArr);
          
          % In case of more than 1 values, move on.
          if nnz(combinedArr == maxVal) > 1

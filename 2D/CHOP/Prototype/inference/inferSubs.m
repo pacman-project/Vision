@@ -58,7 +58,20 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
     poolDim = options.poolDim;
     halfRFSize = ceil(RFSize/2);
     w = warning('off', 'all');
+    
+%     rfRadius = halfRFSize;
+%     minRFRadius = 3;
+%     %% Create a network of first layer nodes, and their links for upper layers.
+%     firstLayerDistances = squareform(pdist(single(nodes(:,2:3))));
+%     allAdjacentNodes = cell(size(nodes,1), 1);
+%     for nodeItr = 1:size(nodes,1)
+%          distances = firstLayerDistances(nodeItr, :);
+%          adjacentNodes = distances < halfRFSize & distances >= minRFRadius;
+%          adjacentNodes(nodeItr) = 0;
+%          adjacentNodes = find(adjacentNodes);
+%     end
      
+    %% Start discovery process.
     for vocabLevelItr = 2:min(numel(vocabulary), 10)    
          rfSize = getRFSize(options, vocabLevelItr);
          halfRealRFSize = round(rfSize(1)/2);
@@ -73,6 +86,11 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
          else
              rfRadius = halfRFSize;
          end
+         
+         % Obtain edge novelty threshold.
+         edgeNoveltyThr = max(options.minEdgeNoveltyThr, options.edgeNoveltyThr - options.edgeNoveltyThrRate * max(0, (vocabLevelItr-3)));
+         edgeShareabilityThr = 1 - edgeNoveltyThr;
+         allowedSharedLeafNodes = cellfun(@(x) numel(x), leafNodes) * edgeShareabilityThr;
          
         % If no pooling has been performed at this layer, and previous layer
         % has small RF, we have a minimum RF limit. 
@@ -176,6 +194,16 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                              edgeTypes = curEdgeMatrix(linIdx);
                              tempNodes = tempNodes(edgeTypes == curEdgeType);
                         end
+                        
+                        % Edge novelty threshold applied here.
+                        if ~isempty(tempNodes) && vocabLevelItr > 2
+                             if edgeShareabilityThr < 1
+                                  commonLeafCounts = cellfun(@(x) sum(ismembc(x, leafNodes{curCenterNode})), leafNodes(tempNodes));
+                                  novelNodes = (commonLeafCounts <= allowedSharedLeafNodes(tempNodes)) & ...
+                                      (commonLeafCounts <= allowedSharedLeafNodes(curCenterNode));
+                                  tempNodes = tempNodes(novelNodes);
+                             end
+                        end
 
                         % If tempNodes is not empty, save it.
                         if isempty(tempNodes)
@@ -249,26 +277,27 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                    
                    tempArr = sort(cat(1, leafNodes{tempCombinations(~isinf(tempCombinations))}));
                    tempLeafNodes = fastsortedunique(tempArr);
-                   if maxShareability < 1
-                        numberOfUniqueLeafNodes = numel(tempLeafNodes);
-                        numberOfRepetitions = numel(tempArr) - numel(tempLeafNodes);
-
-                        % Determine if this instance is any good.
-                        repetitionRatio = numberOfRepetitions / numberOfUniqueLeafNodes;
-                        if repetitionRatio > maxShareability * (numberOfChildren-1)
-                             shareabilityArr(instanceItr) = 1;
-                        elseif repetitionRatio > maxShareability
-                             tempArr = [false; diff(tempArr)== 0];
-                             tempArr = find(tempArr);
-                             repeatedNodes = numel(tempArr);
-                             for itr = 2:numel(tempArr)
-                                   if tempArr(itr) == tempArr(itr-1)+1
-                                        repeatedNodes = repeatedNodes - 1;
-                                   end
-                             end
-                             shareabilityArr(instanceItr) = repeatedNodes / numberOfUniqueLeafNodes;
-                         end
-                   end
+%                    
+%                    if maxShareability < 1
+%                         numberOfUniqueLeafNodes = numel(tempLeafNodes);
+%                         numberOfRepetitions = numel(tempArr) - numel(tempLeafNodes);
+% 
+%                         % Determine if this instance is any good.
+%                         repetitionRatio = numberOfRepetitions / numberOfUniqueLeafNodes;
+%                         if repetitionRatio > maxShareability * (numberOfChildren-1)
+%                              shareabilityArr(instanceItr) = 1;
+%                         elseif repetitionRatio > maxShareability
+%                              tempArr = [false; diff(tempArr)== 0];
+%                              tempArr = find(tempArr);
+%                              repeatedNodes = numel(tempArr);
+%                              for itr = 2:numel(tempArr)
+%                                    if tempArr(itr) == tempArr(itr-1)+1
+%                                         repeatedNodes = repeatedNodes - 1;
+%                                    end
+%                              end
+%                              shareabilityArr(instanceItr) = repeatedNodes / numberOfUniqueLeafNodes;
+%                          end
+%                    end
                    instanceLeafNodes{instanceItr} = tempLeafNodes;
               end
               
