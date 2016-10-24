@@ -12,7 +12,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersGWP_15k( datasetName, options )
+function [ options ] = SetParametersGWP_20k( datasetName, options )
+
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -77,7 +78,7 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'hog'; % Either 'modal', 'hog' or 'hu'.
+    options.distType = 'sift'; % Either 'modal', 'hog' or 'hu', or 'sift'.
     if strcmp(options.filterType, 'gabor')
          options.stride = options.gabor.stride;
     else
@@ -104,13 +105,15 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.minEdgeNoveltyThr = 0;    % Minimum edge novelty threshold.
-    options.edgeNoveltyThrRate = 0;   % The edge novelty threshold 
+    options.maxShareability = 0.2;       % If more than this percent of a nodes' 
+                                             % leaf nodes are shared, this node is discarded.
+    options.minEdgeNoveltyThr = 0.0;    % Minimum edge novelty threshold.
+    options.edgeNoveltyThrRate = 0.0;   % The edge novelty threshold 
                                        % is supposed to reduce each level by 
                                        % this amount.
     options.edgeType = 'continuity';     % If 'centroid', downsampling is
@@ -126,10 +129,10 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
                                        % order to ensure continuity (e.g.
                                        % smooth boundaries/surfaces) in upper 
                                        % layers. 
-    options.minContinuityCoverage = 0.9; % If data coverage drops below this,
+    options.minContinuityCoverage = 0.94; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
-    options.categoryLevelMissingNodeThr = 0.9; %In category level, missing node threshold is treated differently.
+    options.categoryLevelMissingNodeThr = 0; %In category level, missing node threshold is treated differently.
     options.edgeChangeLevel = -1; % Going to be updated in the code later.
     options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
@@ -155,9 +158,9 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
     options.maxNodeDegree = 20;        % (N) closest N nodes are linked for 
                                        % every node in the object graphs.
-    options.maxFirstLevelNodeDegree = 4;  % (N) closest N nodes are linked for 
+    options.maxFirstLevelNodeDegree = 10;  % (N) closest N nodes are linked for 
                                        % every node in the object graphs (layer 1).
-    options.minimalEdgeCount = false; % If true, coverage-based edge creation 
+    options.minimalEdgeCount = true; % If true, coverage-based edge creation 
                                                             % is performed. If an edge is not contributing to 
                                                             % coverage, it's not generated.
     options.maxImageDim = 2000; %Max dimension of the 
@@ -169,8 +172,8 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
                                        % maxImageDim x maxImageDim. Aspect ratio
                                        % will be preserved. Set to a large
                                        % value to avoid rescaling.
-    options.maxLevels = 20;    % The maximum level count for training.
-    options.maxInferenceLevels = 20; % The maximum level count for testing.
+    options.maxLevels = 8;    % The maximum level count for training.
+    options.maxInferenceLevels = 8; % The maximum level count for testing.
     
     %% ========== INFERENCE PARAMETERS ==========
     options.fastInference = true; % If set, faster inference (involves 
@@ -181,7 +184,7 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
                                  % with relatively uniform distribution.
                                  % Used in determining the category of a node.
                                  
-    options.categoryLevel = 10; % The level where we switch from 
+    options.categoryLevel = 8; % The level where we switch from 
                                                   % geometry-based grouping
                                                   % to category nodes.
                                                   % In effect, the number
@@ -197,20 +200,23 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
                % for each category. Category nodes will be formed by
                % grouping top level parts.
                % Hint: A good number is the number of poses per object.
-                                 
+
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 20000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1500 1500 1500 1500 1500 1500 1500 1500 1500]; % The maximum 
+%    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-    options.reconstruction.maxNumberOfORNodes = 2000; % Ideal number of OR 
+    options.reconstruction.numberOfORNodes = []; % The maximum 
+                                           % number of reconstructive parts
+                                           % that can be selected.
+    options.reconstruction.maxNumberOfORNodes = 3000; % Ideal number of OR 
     % nodes is searched in the range of
     % minNumberOfOrNodes-maxNumberOfOrNodes. If cannot be found,
     % numberOfORNodes (set above) is used.
     
-    options.reconstruction.minNumberOfORNodes = 300; % If the number of 
+    options.reconstruction.minNumberOfORNodes = 50; % If the number of 
                                    % nodes is less than this value, we don't need compression.
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========
@@ -251,7 +257,7 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
                                            % edgeLabelId (int, 4 byte) + 
                                            % destinationNode (int,4 byte) + 
                                            % isDirected (byte, 1 byte) = 9.
-    options.subdue.maxTime = 3600;          % Max. number of seconds subdue is
+    options.subdue.maxTime = 1800;          % Max. number of seconds subdue is
                                             % allowed to run. Typically
                                             % around 100 (secs) for toy data. 
                                             % You can set to higher values
@@ -259,13 +265,16 @@ function [ options ] = SetParametersGWP_15k( datasetName, options )
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 300000;  % Maximum number of nodes allowed in a level.
-    options.subdue.beam = 3000;   % Beam length in SUBDUE' search mechanism.
-    options.subdue.overlap = false;   % If true, overlaps between a substructure's 
+    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
+    options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.overlap = true;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
                                      % unique (in terms of node sets) instances 
-                                     % are taken into account (DEFAULT).
+                                     % are taken into account (DEFAULT true, it's faster).
+     options.subdue.singleNodeSubThreshold = 0.4; % If a sub has this pct of its members as lone wolves, or 
+                                                                      % nodes without edges, it qualifies to move on to the next layer. 
+                                                                      % Not used anymore, please remove.
      options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 

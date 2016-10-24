@@ -20,6 +20,7 @@ function [] = Experiment(datasetName, fileType)
     addpath([pwd '/utilities']);
     runVocabularyLearning(datasetName, fileType, '.png');
     MarkCategoryLabels(datasetName);
+    [confMat] = ClassifyTrainingImages(datasetName);
     runTestInference(datasetName, fileType);
     diary off;
 end

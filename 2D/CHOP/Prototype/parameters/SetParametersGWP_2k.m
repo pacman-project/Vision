@@ -202,7 +202,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                % Hint: A good number is the number of poses per object.
 
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 10000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 20000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 %    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
@@ -272,8 +272,9 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                      % evaluation of the sub. Otherwise,
                                      % unique (in terms of node sets) instances 
                                      % are taken into account (DEFAULT true, it's faster).
-     options.subdue.singleNodeSubThreshold = 0.7; % If a sub has this pct of its members as lone wolves, or 
-                                                                      % nodes without edges, it qualifies to move on to the next layer.
+     options.subdue.singleNodeSubThreshold = 0.4; % If a sub has this pct of its members as lone wolves, or 
+                                                                      % nodes without edges, it qualifies to move on to the next layer. 
+                                                                      % Not used anymore, please remove.
      options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 

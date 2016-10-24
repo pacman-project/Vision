@@ -132,52 +132,53 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
         end
         
         %% Filter out single node subs here. We use them in single node parts as evidence.
-        loneNodeArr = zeros(size(nodes,1),1) > 0;
+        loneNodeArr = ones(size(nodes,1),1) > 0;
+%        loneNodeArr = zeros(size(nodes,1),1) > 0;
         
-        for nodeItr = 1:size(nodes,1)
-             % Check distance.
-             adjacentNodes = find(distances(:, nodeItr) < rfRadius & distances(:, nodeItr) >= minRFRadius);
-             
-             % Check edge matrices for filtering.
-              if ~isempty(adjacentNodes)
-                   if edgeShareabilityThr < 1
-                        commonLeafCounts = cellfun(@(x) sum(ismembc(x, leafNodes{nodeItr})), leafNodes(adjacentNodes));
-                        novelNodes = (commonLeafCounts <= allowedSharedLeafNodes(adjacentNodes)) & ...
-                            (commonLeafCounts <= allowedSharedLeafNodes(nodeItr));
-                        adjacentNodes = adjacentNodes(novelNodes);
-                   end
-              else
-                   loneNodeArr(nodeItr) = true;
-                   continue;
-              end
-             
-              % If all adjacent nodes eliminated, move on.
-              if isempty(adjacentNodes)
-                   loneNodeArr(nodeItr) = true;
-                   continue;
-              end
-              
-              % Finally, we check against tight distribution boundaries in
-              % modes.
-              validAdjNodes = ones(numel(adjacentNodes),1) > 0;
-              for adjNodeItr =1:numel(adjacentNodes)
-                   matrixId = full(rankModeIds(nodeORLabels(nodeItr), nodeORLabels(adjacentNodes(adjNodeItr))));
-                   if matrixId == 0
-                        validAdjNodes(adjNodeItr) = 0;
-                        continue;
-                   end
-                   
-                   % Check if we're within the covered areas.
-                   curMatrix = curModeProbs(:,:,matrixId);
-                   relativeCoords = nodes(adjacentNodes(adjNodeItr),2:3) + halfRFSize;
-                   relativeCoords(:,1) = relativeCoords(:,1) - nodes(nodeItr, 2);
-                   relativeCoords(:,2) = relativeCoords(:,2) - nodes(nodeItr, 3);
-                   linIdx = relativeCoords(:,1) + (relativeCoords(:,2)-1)*RFSize;
-                   validAdjNodes(adjNodeItr) = curMatrix(linIdx) > 0;
-              end
-              loneNodeArr(nodeItr) = nnz(validAdjNodes) == 0;
-        end
-        
+%         for nodeItr = 1:size(nodes,1)
+%              % Check distance.
+%              adjacentNodes = find(distances(:, nodeItr) < rfRadius & distances(:, nodeItr) >= minRFRadius);
+%              
+%              % Check edge matrices for filtering.
+%               if ~isempty(adjacentNodes)
+%                    if edgeShareabilityThr < 1
+%                         commonLeafCounts = cellfun(@(x) sum(ismembc(x, leafNodes{nodeItr})), leafNodes(adjacentNodes));
+%                         novelNodes = (commonLeafCounts <= allowedSharedLeafNodes(adjacentNodes)) & ...
+%                             (commonLeafCounts <= allowedSharedLeafNodes(nodeItr));
+%                         adjacentNodes = adjacentNodes(novelNodes);
+%                    end
+%               else
+%                    loneNodeArr(nodeItr) = true;
+%                    continue;
+%               end
+%              
+%               % If all adjacent nodes eliminated, move on.
+%               if isempty(adjacentNodes)
+%                    loneNodeArr(nodeItr) = true;
+%                    continue;
+%               end
+%               
+%               % Finally, we check against tight distribution boundaries in
+%               % modes.
+%               validAdjNodes = ones(numel(adjacentNodes),1) > 0;
+%               for adjNodeItr =1:numel(adjacentNodes)
+%                    matrixId = full(rankModeIds(nodeORLabels(nodeItr), nodeORLabels(adjacentNodes(adjNodeItr))));
+%                    if matrixId == 0
+%                         validAdjNodes(adjNodeItr) = 0;
+%                         continue;
+%                    end
+%                    
+%                    % Check if we're within the covered areas.
+%                    curMatrix = curModeProbs(:,:,matrixId);
+%                    relativeCoords = nodes(adjacentNodes(adjNodeItr),2:3) + halfRFSize;
+%                    relativeCoords(:,1) = relativeCoords(:,1) - nodes(nodeItr, 2);
+%                    relativeCoords(:,2) = relativeCoords(:,2) - nodes(nodeItr, 3);
+%                    linIdx = relativeCoords(:,1) + (relativeCoords(:,2)-1)*RFSize;
+%                    validAdjNodes(adjNodeItr) = curMatrix(linIdx) > 0;
+%               end
+%               loneNodeArr(nodeItr) = nnz(validAdjNodes) == 0;
+%         end
+%         
         %% Put statistics in cell arrays for faster reference.
          posArr = {vocabLevelDistributions.childrenPosDistributionProbs};
          minPosLogProbs = cat(1, vocabLevelDistributions.minPosActivationLog);

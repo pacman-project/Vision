@@ -170,8 +170,8 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
 %                  imageExportArr = allExportArr(allExportArr(:,5) == imageId,:);
 %                  imageActivationArr = allActivationArr(allExportArr(:,5) == imageId, :);
 %             end
-%            load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(testImgItr)} '_' testFileName '_test.mat'], 'exportArr', 'activationArr');
-%            testExportArr = exportArr;
+    %        load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(testImgItr)} '_' testFileName '_test.mat'], 'exportArr', 'activationArr');
+    %        testExportArr = exportArr;
 %            testActivationArr = activationArr;
 %            if ~isempty(imageExportArr)
 %                 [sortedImageExportArr, ~] = sortrows(imageExportArr);
@@ -185,6 +185,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
 %                 end
 %            end
 %            
+    %        maxLevel = max(testExportArr(:,4));
             categoryInfo(testImgItr) = {[categoryLabel, predictedCategory]};
         end
         totalInferenceTime = toc(startTime);

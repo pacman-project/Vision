@@ -202,7 +202,7 @@ function [ options ] = SetParametersGWP_10k( datasetName, options )
                % Hint: A good number is the number of poses per object.
 
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 5000; % The maximum 
+    options.reconstruction.numberOfReconstructiveSubs = 20000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 %    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
@@ -265,13 +265,16 @@ function [ options ] = SetParametersGWP_10k( datasetName, options )
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 50000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
+    options.subdue.nsubs = 30000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
     options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
-    options.subdue.overlap = false;   % If true, overlaps between a substructure's 
+    options.subdue.overlap = true;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,
                                      % unique (in terms of node sets) instances 
-                                     % are taken into account (DEFAULT).
+                                     % are taken into account (DEFAULT true, it's faster).
+     options.subdue.singleNodeSubThreshold = 0.4; % If a sub has this pct of its members as lone wolves, or 
+                                                                      % nodes without edges, it qualifies to move on to the next layer. 
+                                                                      % Not used anymore, please remove.
      options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 
 			                  % are searched, and the vocabularies are then 
