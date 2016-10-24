@@ -159,31 +159,31 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         categoryInfo = cell(size(testFileNames,1) ,1);
         allExportArr = exportArr;
         allActivationArr = activationArr;
-        for testImgItr = 1:size(testFileNames,1) 
+        parfor testImgItr = 1:size(testFileNames,1) 
     %    for testImgItr = 1:5
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
             [categoryLabel, predictedCategory] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options);
            
-            imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
-            if ~isempty(imageId)
-                 imageExportArr = allExportArr(allExportArr(:,5) == imageId,:);
-                 imageActivationArr = allActivationArr(allExportArr(:,5) == imageId, :);
-            end
-           load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(testImgItr)} '_' testFileName '_test.mat'], 'exportArr', 'activationArr');
-           testExportArr = exportArr;
-           testActivationArr = activationArr;
-           if ~isempty(imageExportArr)
-                [sortedImageExportArr, idx1] = sortrows(imageExportArr);
-                idx1 = idx1(sortedImageExportArr(:,4) > 1);
-                [sortedTestExportArr, idx2] = sortrows(testExportArr);
-                idx2 = idx2(sortedTestExportArr(:,4) > 1);
-                if ~isequal(sortedImageExportArr(:,1:4), sortedTestExportArr(:,1:4))
-                     display(['Image ' num2str(testImgItr) ' failed.']);
-                elseif ~isequal(imageActivationArr(idx1), testActivationArr(idx2))
-                     display(['Image ' num2str(testImgItr) ' failed.']);
-                end
-           end
+%             imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
+%             if ~isempty(imageId)
+%                  imageExportArr = allExportArr(allExportArr(:,5) == imageId,:);
+%                  imageActivationArr = allActivationArr(allExportArr(:,5) == imageId, :);
+%             end
+%            load([options.testInferenceFolder '/' categoryNames{categoryArrIdx(testImgItr)} '_' testFileName '_test.mat'], 'exportArr', 'activationArr');
+%            testExportArr = exportArr;
+%            testActivationArr = activationArr;
+%            if ~isempty(imageExportArr)
+%                 [sortedImageExportArr, ~] = sortrows(imageExportArr);
+%                 sortedImageExportArr = sortedImageExportArr(:, 1:4);
+%                 [sortedTestExportArr, ~] = sortrows(testExportArr);
+%                 sortedTestExportArr = sortedTestExportArr(:, 1:4);
+%                 if ~isequal(sortedImageExportArr, sortedTestExportArr)
+%                      display(['Image ' num2str(testImgItr) ' failed.']);
+%  %               elseif ~isequal(imageActivationArr(idx1), testActivationArr(idx2))
+%    %                  display(['Image ' num2str(testImgItr) ' failed.']);
+%                 end
+%            end
 %            
             categoryInfo(testImgItr) = {[categoryLabel, predictedCategory]};
         end

@@ -27,7 +27,7 @@
 %> Updates
 %> Ver 1.0 on 18.09.2014
 function [subScore, sub] = getSubScore(sub, allEdgeCounts, allEdgeNodePairs, evalMetric, ...
-                allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact, avgDegree)
+                allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact, avgDegree, singleNodeSubThreshold)
     isMultiNodeSub = ~isempty(sub.edges);
     % Read signs and edges of the instances.
     instanceSigns = allSigns(sub.instanceCenterIdx);
@@ -52,8 +52,13 @@ function [subScore, sub] = getSubScore(sub, allEdgeCounts, allEdgeNodePairs, eva
         % top spots in bestSubs as they usually cover a lot more area than
         % their children.
         if ~isMultiNodeSub
-            % Obtain valid instances and reserve certain data structures.
-            validInstances = instanceEdgeCounts == 0;
+            % Check if this sub qualifies as a single node sub.
+            tempIdx = instanceEdgeCounts == 0;
+            if nnz(tempIdx) >= numberOfInstances * singleNodeSubThreshold
+                 validInstances = ones(numberOfInstances,1) > 0;
+            else
+                 validInstances = zeros(numberOfInstances,1) > 0;
+            end
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances);
             

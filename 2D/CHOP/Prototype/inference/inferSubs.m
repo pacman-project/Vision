@@ -45,7 +45,7 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
     leafNodes = num2cell((1:size(nodes,1))');
     
     allNodes(1) = {nodes(:,1:3)};
-    allActivations(1) = {nodeActivations};
+    allActivations(1) = {zeros(size(nodes,1),1,'single')};
     allLeafNodes{1} = leafNodes;
     allPrecisePositions{1} = precisePositions;
     prevVocabORLabels = cat(1, vocabulary{1}.label);
@@ -142,9 +142,9 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                centerId = vocabNodeChildren(1);
                validInstances = nodeORLabels == centerId;
 
-               if numel(vocabNodeChildren) == 1
-                  continue;
-               end
+%                if numel(vocabNodeChildren) == 1
+%                   continue;
+%                end
 
                % Obtain edge matrices.
                if numel(vocabNodeChildren) > 1

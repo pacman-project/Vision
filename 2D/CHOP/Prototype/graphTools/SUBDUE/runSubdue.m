@@ -63,7 +63,10 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
         minSize = options.subdue.minSize;
         singleInstanceFlag = true;
     end
-%    numberOfPrevSubs = numel(vocabLevel);
+     %    numberOfPrevSubs = numel(vocabLevel);
+
+     % Obtain initial coverage.
+     initialCoverage = numel(fastsortedunique(sort(cat(2, graphLevel.leafNodes))));
     
     %% Get the parameters.
     evalMetric = options.subdue.evalMetric;
@@ -75,6 +78,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     nsubs = options.subdue.nsubs;
     maxTime = options.subdue.maxTime;
     maxSize = options.subdue.maxSize;
+    singleNodeSubThreshold = options.subdue.singleNodeSubThreshold;
     maxShareability = options.maxShareability;
     halfRFSize = ceil(options.receptiveFieldSize/2);
     smallHalfMatrixSize = (options.smallReceptiveFieldSize+1)/2;
@@ -245,7 +249,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                % Evaluate them.
                 singleNodeSubsFinal = evaluateSubs(singleNodeSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
                     allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree);
+                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree, singleNodeSubThreshold);
 
                 %% Remove those with no instances. 
                 centerIdxArr = {singleNodeSubsFinal.instanceCenterIdx};
@@ -311,7 +315,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                 %% Step 2.4: Evaluate childSubs, find their instances.
                 [childSubsFinal, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
                     allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree);
+                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree, singleNodeSubThreshold);
                 
                 % Assign mdl scores of subs chosen for extension as well. 
                 [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
@@ -478,7 +482,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     allRemainingChildren = {bestSubs.instanceChildren};
     allRemainingChildren = cellfun(@(x) x(:), allRemainingChildren, 'UniformOutput', false);
     allRemainingChildren = fastsortedunique(sort(cat(1, allRemainingChildren{:})));
-    maxCoverage = numel(allRemainingChildren) / numel(graphLevel);
+    maxCoverage = numel(fastsortedunique(sort(cat(2, allLeafNodes{allRemainingChildren})))) / initialCoverage;
     display(['[SUBDUE] Maximal coverage possible: %' num2str(maxCoverage * 100) '.']);
     clear vocabLevel graphLevel
     
@@ -507,7 +511,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
 %        % Re-evaluate best subs.
 %        bestSubs = evaluateSubs(bestSubs, 'mdl', allEdgeCounts, allEdgeNodePairs, ...
 %            allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, false, ...
-%            allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree);
+%            allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree, singleNodeSubThreshold);
 
        % Sort bestSubs by their mdl scores.
        mdlScores = [bestSubs.mdlScore];

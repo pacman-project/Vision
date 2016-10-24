@@ -31,7 +31,7 @@
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
 function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdgeCounts, allEdgeNodePairs, allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-     allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, maxShareability, maxLeafCounts, avgDegree)
+     allLeafNodes, level1CoordsPooled, halfRFSize, minRFCoverage, maxShareability, maxLeafCounts, avgDegree, singleNodeSubThreshold)
     numberOfSubs = numel(subs);
     validSubs = ones(numberOfSubs,1) > 0;
     validExtSubs = ones(numberOfSubs,1) > 0;
@@ -40,7 +40,7 @@ function [subs, validSubs, validExtSubs] = evaluateSubs(subs, evalMetric, allEdg
         
         % Calculate Substructure score.
         [subScore, sub] = getSubScore(subs(subItr), allEdgeCounts, allEdgeNodePairs, evalMetric, ...
-           allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact, avgDegree);
+           allSigns, mdlNodeWeight, mdlEdgeWeight, overlap, isMDLExact, avgDegree, singleNodeSubThreshold);
        
        % If this sub has multiple children, we process the instances to
        % make sure those instances which cover a large portion of their

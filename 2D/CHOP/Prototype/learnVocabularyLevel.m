@@ -171,6 +171,7 @@
    % reduction in resolution for higher layers, therefore non-growing
    % receptive fields.
    display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
+   graphLevelNoPooled = graphLevel;
    graphLevel = applyPooling(graphLevel, options.poolFlag);
    display(['........ After pooling, we have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
    if usejava('jvm')

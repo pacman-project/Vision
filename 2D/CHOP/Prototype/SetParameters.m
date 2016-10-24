@@ -28,8 +28,8 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                  % generated to aid debugging process.
     end
     options.testDebug = false;
-    options.fastStatLearning = false;
-    options.vis.printTrainRealizations = true;
+    options.fastStatLearning = true;
+    options.vis.printTrainRealizations = false;
     options.backgroundClass = 'Background'; % The string that identifies 
                                             % background class. Images from
                                             % this set will be used as
@@ -38,7 +38,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                             
     %% ========== TO BE MIGRATED TO INDIVIDUAL PARAMETER FILES ==========                    
     options.autoNormalize = 'whiten'; %Or 'normalize'
-    options.poolDim = 1.54; % The pooling window size. Could be 1, 2, 3...
+    options.poolDim = 1.6; % The pooling window size. Could be 1, 2, 3...
  %   options.poolDim = 2; % The pooling window size. Could be 1, 2, 3...
                                       % If 2, size of the receptive field
                                       % is halved, as in the previous

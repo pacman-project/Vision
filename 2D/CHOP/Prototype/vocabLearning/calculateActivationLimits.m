@@ -65,8 +65,7 @@ function [ vocabLevel, graphLevel, validNodeArr ] = calculateActivationLimits( v
           vocabLevel(vocabNodeItr).minActivationLog = max(oldThr, mu - var * 2.5);
      end
      
-     %% Go through the list and record activation threshold.
-     validNodeArr = ones(numberOfInstances,1) > 0;
+     %% Update activation threshold here.
      for vocabNodeItr = 1:numel(vocabLevel)
           % Calculate threshold.
           minThr = max(vocabLevel(vocabNodeItr).minActivationLog, min(leafNodeActivationArr(leafNodeLabelArr == vocabNodeItr)));
@@ -87,7 +86,12 @@ function [ vocabLevel, graphLevel, validNodeArr ] = calculateActivationLimits( v
                minThr = 0;
           end
           vocabLevel(vocabNodeItr).minActivationLog = single(minThr);
-          validNodeArr(labelIds == vocabNodeItr) = validNodeArr(labelIds == vocabNodeItr) & activations(labelIds == vocabNodeItr) >= single(minThr);
+     end
+     
+     %% Go through the list and adjust thresholds.
+     validNodeArr = ones(numberOfInstances,1) > 0;
+     for vocabNodeItr = 1:numel(vocabLevel)
+          validNodeArr(labelIds == vocabNodeItr) = validNodeArr(labelIds == vocabNodeItr) & activations(labelIds == vocabNodeItr) >= vocabLevel(vocabNodeItr).minActivationLog;
      end
      
      %% Remove activations that do not pass the threshold values.
