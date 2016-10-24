@@ -79,7 +79,7 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
          modes = allModes{vocabLevelItr-1};
          curModeProbs = modeProbs{vocabLevelItr-1};
          [rankModes, ~, ~] = unique(modes(:,1:2), 'rows', 'R2012a');
-         rankModeIds = sparse(double(rankModes(:,1)), double(rankModes(:,2)), 1:size(rankModes,1));
+         rankModeIds = sparse(double(rankModes(:,1)), double(rankModes(:,2)), 1:size(rankModes,1), double(max(prevVocabORLabels)), double(max(prevVocabORLabels)));
          
          if ismember(vocabLevelItr-1, options.smallRFLayers)
              rfRadius = smallHalfMatrixSize;
@@ -117,6 +117,8 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
         layerActivations = layerNodes;
         layerLeafNodes  = layerNodes;
         layerPrecisePositions = layerNodes;
+        layerCombinations = layerNodes;
+        layerChildren = layerNodes;
         
         % Obtain OR node labels.
         nodeORLabels = prevVocabORLabels(nodes(:,1));
@@ -129,10 +131,59 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
              distances(1:(size(distances,1)+1):size(distances,1)^2) = Inf;
         end
         
+        %% Filter out single node subs here. We use them in single node parts as evidence.
+        loneNodeArr = zeros(size(nodes,1),1) > 0;
+        
+        for nodeItr = 1:size(nodes,1)
+             % Check distance.
+             adjacentNodes = find(distances(:, nodeItr) < rfRadius & distances(:, nodeItr) >= minRFRadius);
+             
+             % Check edge matrices for filtering.
+              if ~isempty(adjacentNodes)
+                   if edgeShareabilityThr < 1
+                        commonLeafCounts = cellfun(@(x) sum(ismembc(x, leafNodes{nodeItr})), leafNodes(adjacentNodes));
+                        novelNodes = (commonLeafCounts <= allowedSharedLeafNodes(adjacentNodes)) & ...
+                            (commonLeafCounts <= allowedSharedLeafNodes(nodeItr));
+                        adjacentNodes = adjacentNodes(novelNodes);
+                   end
+              else
+                   loneNodeArr(nodeItr) = true;
+                   continue;
+              end
+             
+              % If all adjacent nodes eliminated, move on.
+              if isempty(adjacentNodes)
+                   loneNodeArr(nodeItr) = true;
+                   continue;
+              end
+              
+              % Finally, we check against tight distribution boundaries in
+              % modes.
+              validAdjNodes = ones(numel(adjacentNodes),1) > 0;
+              for adjNodeItr =1:numel(adjacentNodes)
+                   matrixId = full(rankModeIds(nodeORLabels(nodeItr), nodeORLabels(adjacentNodes(adjNodeItr))));
+                   if matrixId == 0
+                        validAdjNodes(adjNodeItr) = 0;
+                        continue;
+                   end
+                   
+                   % Check if we're within the covered areas.
+                   curMatrix = curModeProbs(:,:,matrixId);
+                   relativeCoords = nodes(adjacentNodes(adjNodeItr),2:3) + halfRFSize;
+                   relativeCoords(:,1) = relativeCoords(:,1) - nodes(nodeItr, 2);
+                   relativeCoords(:,2) = relativeCoords(:,2) - nodes(nodeItr, 3);
+                   linIdx = relativeCoords(:,1) + (relativeCoords(:,2)-1)*RFSize;
+                   validAdjNodes(adjNodeItr) = curMatrix(linIdx) > 0;
+              end
+              loneNodeArr(nodeItr) = nnz(validAdjNodes) == 0;
+        end
+        
         %% Put statistics in cell arrays for faster reference.
          posArr = {vocabLevelDistributions.childrenPosDistributionProbs};
          minPosLogProbs = cat(1, vocabLevelDistributions.minPosActivationLog);
          minLogProbs = cat(1, vocabLevel.minActivationLog);
+         childrenCounts = {vocabLevel.children};
+         childrenCounts = cellfun(@(x) numel(x), childrenCounts);
          
         %% Starting inference from layer 2. 
          for vocabItr = 1:numel(vocabLevel)
@@ -141,10 +192,11 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                vocabNodeChildren = vocabNode.children;
                centerId = vocabNodeChildren(1);
                validInstances = nodeORLabels == centerId;
-
-%                if numel(vocabNodeChildren) == 1
-%                   continue;
-%                end
+               
+               % Single node elimination.
+               if numel(vocabNodeChildren) == 1
+                    validInstances = loneNodeArr & validInstances;
+               end
 
                % Obtain edge matrices.
                if numel(vocabNodeChildren) > 1
@@ -171,7 +223,6 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                for centerItr = 1:numberOfCenterNodes
                   curCenterNode = centerNodes(centerItr);
                   instanceChildren(centerItr, 1) = {curCenterNode};
-                  validCols = ones(numel(vocabNodeChildren),1) > 0;
                   
                   % Search for secondary nodes.
                   for childItr = 2:numel(vocabNodeChildren)
@@ -367,7 +418,27 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
              layerActivations{vocabItr} = instanceActivations;
              layerLeafNodes{vocabItr}  = instanceLeafNodes;
              layerPrecisePositions{vocabItr} = instancePrecisePositions;
+             if childrenCounts(vocabItr) == 1
+                   layerChildren{vocabItr} = instanceCombinations(validCombinations,:);
+             else
+                   layerCombinations{vocabItr} = instanceCombinations(validCombinations,:);
+             end
          end
+         
+%          %% Here, we select lone wolves (nodes with no edges) and make single layer nodes to represent them, and them only.
+%          layerCombinations = cellfun(@(x) x(:), layerCombinations, 'UniformOutput', false);
+%          uniqueChildren = unique(cat(1, layerCombinations{:}));
+%          loneNodeArr(uniqueChildren) = 0;
+%          singleNodeSubs = find(childrenCounts == 1);
+%          for itr = 1:numel(singleNodeSubs)
+%               vocabItr = singleNodeSubs(itr);
+%               tempIdx = layerChildren{vocabItr};
+%               validIdx = loneNodeArr(tempIdx);
+%               layerNodes{vocabItr} = layerNodes{vocabItr}(validIdx,:);
+%               layerActivations{vocabItr} = layerActivations{vocabItr}(validIdx,:);
+%               layerLeafNodes{vocabItr} = layerLeafNodes{vocabItr}(validIdx,:);
+%               layerPrecisePositions{vocabItr} = layerPrecisePositions{vocabItr}(validIdx,:);
+%          end
          
          %% Processing of a layer is finished. We have to move on to the next layer here.
          % First, pooling.

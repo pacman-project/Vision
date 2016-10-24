@@ -272,7 +272,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
                                      % evaluation of the sub. Otherwise,
                                      % unique (in terms of node sets) instances 
                                      % are taken into account (DEFAULT true, it's faster).
-     options.subdue.singleNodeSubThreshold = 0.5; % If a sub has this pct of its members as lone wolves, or 
+     options.subdue.singleNodeSubThreshold = 0.7; % If a sub has this pct of its members as lone wolves, or 
                                                                       % nodes without edges, it qualifies to move on to the next layer.
      options.subdue.supervised = false; % If true, graph search is performed over
 				          % the whole data. If not, individual categories 

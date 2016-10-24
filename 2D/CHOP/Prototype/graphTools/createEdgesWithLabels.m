@@ -369,7 +369,7 @@ function [currentLevel] = createEdgesWithLabels(currentLevel, firstLevelAdjNodes
                             (commonLeafCounts <= allowedSharedLeafNodes(nodeItr))';
  %                       if nnz(novelNodes) > 1
                             adjacentNodes = adjacentNodes(novelNodes);
-                            adjacentNodeNeigh = adjacentNodeNeigh(novelNodes);
+ %                           adjacentNodeNeigh = adjacentNodeNeigh(novelNodes);
  %                       else
  %                           novelNodes = (commonLeafCounts <= maxSharedLeafNodes(adjacentNodes))';
  %                           adjacentNodes = adjacentNodes(novelNodes);
