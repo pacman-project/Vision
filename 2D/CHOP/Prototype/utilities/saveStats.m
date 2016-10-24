@@ -51,7 +51,7 @@ function [avgShareability, avgCoverage, maxCoverageVals] = saveStats(vocabLevel,
     
     %% Calculate coverage of each image's leaf nodes in detected realizations.
     imageCoverageArr = zeros(numberOfImages,1);
-    parfor imageItr = 1:numberOfImages
+    for imageItr = 1:numberOfImages
        catLeafNodes = [leafNodes{imageIds == imageItr}];
        if ~isempty(catLeafNodes)
            detectedLeafNodes = int32(fastsortedunique(sort([leafNodes{imageIds == imageItr}])));

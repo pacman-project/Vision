@@ -19,7 +19,7 @@ function [ options ] = SetParametersGWP_20k( datasetName, options )
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
     options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
-    options.matlabRestartImageCount = 100000; % If we have more than this number 
+    options.matlabRestartImageCount = 10000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
