@@ -266,7 +266,7 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
     options.subdue.nsubs = 30000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
-    options.subdue.beam = 5000;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.beam = 4000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = true;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

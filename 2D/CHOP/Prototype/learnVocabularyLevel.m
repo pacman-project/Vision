@@ -136,7 +136,7 @@
 %     if options.stopFlag
 %         imageIds = imageIds(validNodeArr);
 %         nodeCoverages = nodeCoverages(validNodeArr);
-%         graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage, imageCoverages(imageIds)'));
+%         graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage * mean(imageCoverages(imageIds)), imageCoverages(imageIds)'));
 %    end
 %    
    % Open/close matlabpool to save memory.

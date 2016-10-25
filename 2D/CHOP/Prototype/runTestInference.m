@@ -159,11 +159,14 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         categoryInfo = cell(size(testFileNames,1) ,1);
         allExportArr = exportArr;
         allActivationArr = activationArr;
+        top1CorrectArr = zeros(size(testFileNames,1),1) > 0;
+        top3CorrectArr = zeros(size(testFileNames,1),1) > 0;
+        top5CorrectArr = zeros(size(testFileNames,1),1) > 0;
         parfor testImgItr = 1:size(testFileNames,1) 
     %    for testImgItr = 1:5
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            [categoryLabel, predictedCategory] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options);
+            [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options);
            
 %             imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
 %             if ~isempty(imageId)
@@ -187,6 +190,9 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
 %            
     %        maxLevel = max(testExportArr(:,4));
             categoryInfo(testImgItr) = {[categoryLabel, predictedCategory]};
+            top1CorrectArr(testImgItr) = categoryLabel == predictedCategory;
+            top3CorrectArr(testImgItr) = top3Correct;
+            top5CorrectArr(testImgItr) = top5Correct;
         end
         totalInferenceTime = toc(startTime);
         categoryInfo = cat(1, categoryInfo{:});
@@ -194,7 +200,10 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             confMatrix(categoryInfo(itr,1), categoryInfo(itr,2)) = confMatrix(categoryInfo(itr,1), categoryInfo(itr,2)) + 1;
         end
         perf = sum(confMatrix(1:(size(confMatrix,1)+1):(size(confMatrix,1))^2)) / size(testFileNames,1); %#ok<NASGU>
-        save([options.currentFolder '/output/' datasetName '/classification.mat'], 'confMatrix', 'perf');
+        top1Accuracy = nnz(top1CorrectArr) / numel(top1CorrectArr);
+        top3Accuracy = nnz(top3CorrectArr) / numel(top3CorrectArr);
+        top5Accuracy = nnz(top5CorrectArr) / numel(top5CorrectArr);
+        save([options.currentFolder '/output/' datasetName '/classification.mat'], 'confMatrix', 'perf', 'top1CorrectArr', 'top1Accuracy', 'top3CorrectArr', 'top3Accuracy', 'top5CorrectArr', 'top5Accuracy');
         save([options.currentFolder '/output/' datasetName '/tetime.mat'], 'totalInferenceTime');
     end
     

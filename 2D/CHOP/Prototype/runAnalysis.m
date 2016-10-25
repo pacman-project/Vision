@@ -2,10 +2,6 @@ function [] = runAnalysis(datasetName, experimentStr)
 
     % First, we run the experiment.
     Experiment(datasetName, '.png');
-
-    % Run node analysis.
-    runDiscriminativeAnalysis(datasetName);
-    plotDiscriminativeAnalysis(datasetName);
     
     % Copy all relevant plots and data to experiments folder.
      expFolder = [pwd '/experiments/' datasetName '/' experimentStr];

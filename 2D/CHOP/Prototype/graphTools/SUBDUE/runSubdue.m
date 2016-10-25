@@ -94,7 +94,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     else
         minRFCoverage = options.missingNodeThr;
     end
-    parentsPerSet = 1000;
+    parentsPerSet = 400;
     
 %     % On lower levels, we do not need to extend too much.
 %     maxSize = min(maxSize, levelItr + 1);
@@ -399,9 +399,11 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                 instanceCenterIdx = childSubArrFinal(itr).instanceCenterIdx;
                 encounterArr(instanceCenterIdx) = itr;
            end
-           extraSubs = setdiff(unique(encounterArr), Inf);
-           keptSubs = fastsortedunique(sort([1:min(nsubs, numel(childSubArrFinal)), extraSubs']));
-%           keptSubs = extraSubs;
+           keptSubs = setdiff(unique(encounterArr), Inf)';
+           if nsubs > numel(keptSubs)
+                extraSubs = setdiff(1:numel(childSubArrFinal), keptSubs);
+                keptSubs = fastsortedunique(sort([keptSubs, extraSubs(1:(nsubs - numel(keptSubs)))]));
+           end
            childSubArrFinal = childSubArrFinal(keptSubs);
             
             % Remove excess subs.
