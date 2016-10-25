@@ -94,7 +94,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
     else
         minRFCoverage = options.missingNodeThr;
     end
-    parentsPerSet = 1000;
+    parentsPerSet = 400;
     
 %     % On lower levels, we do not need to extend too much.
 %     maxSize = min(maxSize, levelItr + 1);
