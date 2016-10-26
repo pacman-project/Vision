@@ -285,6 +285,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             setDistributions = numberOfParentSubs;
         end
         parentSubSets = cell(mat2cell(1:numel(parentSubs), 1, setDistributions));
+        preservedSubs = [];
         for setItr = 1:numel(parentSubSets)
             %% Step 2.1: If it has been too long, we need to finish execution.
             elapsedTime = toc(startTime);
@@ -364,14 +365,34 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
 %                 newMdlScores = sort(newMdlScores, 'descend');
 %                 minMdlScoreFinal = newMdlScores(nsubs);
 %             end
-            
+          
+%            encounterArr = inf(numel(graphLevel), 1);
+%            for itr = numel(childSubArrFinal):-1:1
+%                 instanceCenterIdx = childSubArrFinal(itr).instanceCenterIdx;
+%                 encounterArr(instanceCenterIdx) = itr;
+%            end
+%            keptSubs = setdiff(unique(encounterArr), Inf)';
+%            childSubArrFinal = childSubArrFinal(keptSubs);
+
             % In addition, remove the subs that have low mdl scores.
             % First, we handle final subs.
-            if minMdlScoreFinal ~= -inf
-                nonemptyArrIdx = cellfun(@(x) ~isempty(x), childSubArrFinal);
-                childSubArrFinal(nonemptyArrIdx) = cellfun(@(x, y) x(y >= minMdlScoreFinal), childSubArrFinal(nonemptyArrIdx), mdlScoreArrFinal(nonemptyArrIdx), 'UniformOutput', false);
-                mdlScoreArrFinal(nonemptyArrIdx) = cellfun(@(x) x(x >= minMdlScoreFinal), mdlScoreArrFinal(nonemptyArrIdx), 'UniformOutput', false);
+            preservedSubs = cat(2, preservedSubs, childSubArrFinal{processedSet});
+            childSubArrFinal(processedSet) = {[]};
+            
+            % Remove unnecessary subs.
+            encounterArr = inf(numel(graphLevel), 1);
+            for itr = numel(preservedSubs):-1:1
+                instanceCenterIdx = preservedSubs(itr).instanceCenterIdx;
+                encounterArr(instanceCenterIdx) = itr;
             end
+            keptSubs = setdiff(unique(encounterArr), Inf)';
+            preservedSubs = preservedSubs(keptSubs);
+            
+%             if minMdlScoreFinal ~= -inf
+%                 nonemptyArrIdx = cellfun(@(x) ~isempty(x), childSubArrFinal);
+%                 childSubArrFinal(nonemptyArrIdx) = cellfun(@(x, y) x(y >= minMdlScoreFinal), childSubArrFinal(nonemptyArrIdx), mdlScoreArrFinal(nonemptyArrIdx), 'UniformOutput', false);
+%                 mdlScoreArrFinal(nonemptyArrIdx) = cellfun(@(x) x(x >= minMdlScoreFinal), mdlScoreArrFinal(nonemptyArrIdx), 'UniformOutput', false);
+%             end
             
             % Then, we handle extended subs.
             if minMdlScoreExtend ~= -inf
@@ -388,7 +409,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
         childSubArrFinal = cat(2,childSubArrFinal{:});
         childSubArrExtend = cat(2, childSubArrExtend{:});
         % Add children to both queues.
-        if ~isempty(childSubArrFinal)
+        if ~isempty(preservedSubs)
             %% A substructure has many different parse trees at this point.
             % We remove duplicate subs from childSubArr.
 %            [childSubArrFinal] = removeDuplicateSubs(childSubArrFinal, numberOfPrevSubs);
@@ -400,18 +421,14 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                 encounterArr(instanceCenterIdx) = itr;
            end
            keptSubs = setdiff(unique(encounterArr), Inf)';
-           if nsubs > numel(keptSubs)
-                extraSubs = setdiff(1:numel(childSubArrFinal), keptSubs);
-                keptSubs = fastsortedunique(sort([keptSubs, extraSubs(1:(nsubs - numel(keptSubs)))]));
-           end
            childSubArrFinal = childSubArrFinal(keptSubs);
             
             % Remove excess subs.
-            childSubArrFinal = addToQueue(childSubArrFinal, [], nsubs);
+            preservedSubs = addToQueue(preservedSubs, [], nsubs);
             
             % Check for minSize to put to final sub array.
             if currentSize >= minSize
-                bestSubs = addToQueue(childSubArrFinal, bestSubs, nsubs * (currentSize - 1));
+                bestSubs = addToQueue(preservedSubs, bestSubs, nsubs * (currentSize - 1));
             end
         end
         
