@@ -24,7 +24,11 @@ function [] = Experiment(datasetName, fileType)
     runTestInference(datasetName, fileType);
     
     % Run node analysis.
-    runDiscriminativeAnalysis(datasetName);
-    plotDiscriminativeAnalysis(datasetName);
+    try
+         runDiscriminativeAnalysis(datasetName);
+         plotDiscriminativeAnalysis(datasetName);
+    catch
+         display('Discriminative analysis failed');
+    end
     diary off;
 end

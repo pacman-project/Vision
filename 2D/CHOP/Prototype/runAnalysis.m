@@ -5,39 +5,41 @@ function [] = runAnalysis(datasetName, experimentStr)
     
     % Copy all relevant plots and data to experiments folder.
      expFolder = [pwd '/experiments/' datasetName '/' experimentStr];
-    if ~exist(expFolder, 'dir')
-       mkdir(expFolder); 
+    if exist(expFolder, 'dir')
+       rmdir(expFolder, 's'); 
     end
-
+     mkdir(expFolder);
+    
     % First, copy plots to this folder. 
-    copyfile([pwd '/categorization/analysis/' datasetName '/plots'], [expFolder '/plots']);
+    try
+          copyfile([pwd '/categorization/analysis/' datasetName '/plots'], [expFolder '/plots']);
+    end
     
-    % Get likelihood calculations.
-    copyfile([pwd '/output/' datasetName '/logLikelihood.mat'], [expFolder '/logLikelihood.mat']); 
+    try
+          copyfile([pwd '/output/' datasetName], [expFolder '/output']);
+    end
     
-    % Next, get image reconstructions.
-    copyfile([pwd '/output/' datasetName '/reconstruction'], [expFolder '/reconstruction']);
+    try
+         copyfile([pwd '/debug/' datasetName '/*.png'], [expFolder '/debug/']);
+    end
     
-    % Finally, change the name of the three output folders in order to
-    % preserve the results. 
-    if exist([pwd '/output/' datasetName '_' experimentStr], 'dir')
-       rmdir([pwd '/output/' datasetName '_' experimentStr], 's');
+    try
+         copyfile([pwd '/parameters/SetParameters' datasetName '.m'], expFolder);
+    catch
+         copyfile([pwd '/parameters/SetParametersCommon.m'], expFolder);
     end
-    if exist([pwd '/output/' datasetName], 'dir')
-        movefile([pwd '/output/' datasetName], [pwd '/output/' datasetName '_' experimentStr]);
+    
+    try
+          copyfile([pwd '/outputNodes/' datasetName '/nodes.mat'], [expFolder '/nodes.mat']);
     end
-    if exist([pwd '/debug/' datasetName '_' experimentStr], 'dir')
-       rmdir([pwd '/debug/' datasetName '_' experimentStr], 's');
+    
+    try
+         copyfile([pwd '/workspaces/' datasetName], [expFolder '/workspaces']);
     end
-    if exist([pwd '/debug/' datasetName], 'dir')
-        movefile([pwd '/debug/' datasetName], [pwd '/debug/' datasetName '_' experimentStr]);
+         
+    try
+         copyfile([pwd '/logs/' datasetName '.txt'], [expFolder '/' datasetName '.txt']);
     end
-    copyfile([pwd '/parameters/SetParameters' datasetName '.m'], expFolder);
+    
     copyfile([pwd '/SetParameters.m'], expFolder);
-    if exist([pwd '/categorization/analysis/' datasetName '_' experimentStr], 'dir')
-       rmdir([pwd '/categorization/analysis/' datasetName '_' experimentStr], 's'); 
-    end
-    if exist([pwd '/categorization/analysis/' datasetName], 'dir')
-        movefile([pwd '/categorization/analysis/' datasetName], [pwd '/categorization/analysis/' datasetName '_' experimentStr]);
-    end
 end
