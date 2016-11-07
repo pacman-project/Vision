@@ -420,13 +420,7 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
                 instanceCenterIdx = childSubArrFinal(itr).instanceCenterIdx;
                 encounterArr(instanceCenterIdx) = itr;
            end
-<<<<<<< HEAD
-           extraSubs = setdiff(unique(encounterArr), Inf);
-%           keptSubs = fastsortedunique(sort([1:min(nsubs, numel(childSubArrFinal)), extraSubs']));
-           keptSubs = extraSubs;
-=======
            keptSubs = setdiff(unique(encounterArr), Inf)';
->>>>>>> b0e524c563da78a1aaf4d03105763ca472b5e6e3
            childSubArrFinal = childSubArrFinal(keptSubs);
             
             % Remove excess subs.
