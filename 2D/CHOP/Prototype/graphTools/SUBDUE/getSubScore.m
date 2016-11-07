@@ -54,12 +54,12 @@ function [subScore, sub] = getSubScore(sub, allEdgeCounts, allEdgeNodePairs, eva
         if ~isMultiNodeSub
             % Check if this sub qualifies as a single node sub.
             tempIdx = instanceEdgeCounts == 0;
-  %          validInstances = tempIdx;
-            if nnz(tempIdx) >= numberOfInstances * singleNodeSubThreshold
-                 validInstances = ones(numberOfInstances,1) > 0;
-            else
-                 validInstances = zeros(numberOfInstances,1) > 0;
-            end
+%             if nnz(tempIdx) >= numberOfInstances * singleNodeSubThreshold
+%                  validInstances = ones(numberOfInstances,1) > 0;
+%             else
+%                  validInstances = zeros(numberOfInstances,1) > 0;
+%             end
+            validInstances = tempIdx;
             instanceSigns = instanceSigns(validInstances);
             instanceChildren = instanceChildren(validInstances);
             

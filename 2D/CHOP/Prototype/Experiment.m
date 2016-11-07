@@ -20,7 +20,15 @@ function [] = Experiment(datasetName, fileType)
     addpath([pwd '/utilities']);
     runVocabularyLearning(datasetName, fileType, '.png');
     MarkCategoryLabels(datasetName);
-    [confMat] = ClassifyTrainingImages(datasetName);
+    ClassifyTrainingImages(datasetName);
     runTestInference(datasetName, fileType);
+    
+    % Run node analysis.
+    try
+         runDiscriminativeAnalysis(datasetName);
+         plotDiscriminativeAnalysis(datasetName);
+    catch
+         display('Discriminative analysis failed');
+    end
     diary off;
 end

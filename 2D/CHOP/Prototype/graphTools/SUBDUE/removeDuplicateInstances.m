@@ -15,7 +15,7 @@ function [ subList ] = removeDuplicateInstances( subList )
     subCenters = cat(1,subList.centerId);
     subEdges = {subList.edges};
     
-    parfor bestSubItr = 1:numel(subList)
+    for bestSubItr = 1:numel(subList)
         instanceChildren = subList(bestSubItr).instanceChildren;
         if size(instanceChildren,2) > 2
              curEdges = subEdges{bestSubItr};

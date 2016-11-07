@@ -54,7 +54,7 @@ function [confMat] = ClassifyTrainingImages( datasetName )
          relevantRealizations = relevantRealizations(sortOrder, :);
          
          % Obtain contributing subs.
-         [contributingSubs, IC, ~] = unique(relevantRealizations(:,1));
+         [contributingSubs, IC, ~] = unique(relevantRealizations(:,1), 'stable');
          contributingSubActivations = relevantActivations(IC);
          combinedArr = cat(1, vocabulary{maxLevel}(contributingSubs).categoryArr);
          if size(combinedArr,1) > 1
@@ -78,8 +78,12 @@ function [confMat] = ClassifyTrainingImages( datasetName )
          top3Mat(imageItr) =ismember(realCategory, categoryOrder(1:3));
          top5Mat(imageItr) =ismember(realCategory, categoryOrder(1:5));
     end
-    display(['Top 1 classification performance: %' num2str(100 * nnz(top1Mat) / numel(top1Mat)) '.']);
-    display(['Top 3 classification performance: %' num2str(100 * nnz(top3Mat) / numel(top3Mat)) '.']);
-    display(['Top 5 classification performance: %' num2str(100 * nnz(top5Mat) / numel(top5Mat)) '.']);
+    top1Accuracy = nnz(top1Mat) / numel(top1Mat);
+    top3Accuracy = nnz(top3Mat) / numel(top3Mat);
+    top5Accuracy = nnz(top5Mat) / numel(top5Mat);
+    save([pwd '/output/' datasetName '/trainingClassification.mat'], 'confMat', 'top1Accuracy', 'top3Accuracy', 'top5Accuracy');
+    display(['Top 1 classification performance: %' num2str(100 * top1Accuracy) '.']);
+    display(['Top 3 classification performance: %' num2str(100 * top3Accuracy) '.']);
+    display(['Top 5 classification performance: %' num2str(100 * top5Accuracy) '.']);
 end
 

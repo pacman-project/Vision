@@ -54,7 +54,7 @@ function [validSubs] = getReconstructiveParts(bestSubs, numberOfFinalSubs, level
    subCoveredNodes = cell(numberOfBestSubs,1);
    
    % Go over all possible part-subpart pairs, and calculate probabilities.
-   parfor subItr = 1:numberOfBestSubs
+   for subItr = 1:numberOfBestSubs
        instanceChildren = bestSubs(subItr).instanceChildren;
        
         % Save child probabilities.

@@ -86,7 +86,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                    
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;
-    options.numberOfThreads = min(feature('NumCores')*2-1,12);
+    options.numberOfThreads = min(feature('NumCores'),12);
 %    options.numberOfThreads = 12;
     if exist('parpool', 'file')
         options.parpoolFlag = true;
@@ -94,7 +94,6 @@ function [ options ] = SetParameters( datasetName, isTraining )
         options.parpoolFlag = false;
     end
         
-    
     %% ========== DATASET-SPECIFIC PROGRAM PARAMETERS ==========
     % Learn dataset path relative to this m file
     currentFileName = mfilename('fullpath');
