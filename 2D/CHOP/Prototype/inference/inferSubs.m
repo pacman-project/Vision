@@ -376,7 +376,7 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
              %% Calculate activations!
              childrenProbs = posArr{vocabItr};
              
-             childrenPosActivations = zeros(size(instanceCombinations),1, 'single');
+             childrenPosActivations = zeros(size(instanceCombinations), 'single');
              for childItr = 1:size(instanceCombinations,2)
                   relevantChildren = instanceCombinations(:, childItr);
                   relevantProbs = childrenProbs{childItr};
