@@ -78,7 +78,7 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'sift'; % Either 'modal', 'hog' or 'hu', or 'sift'.
+    options.distType = 'context'; % Either 'modal', 'hog' or 'hu', or 'sift'.
     if strcmp(options.filterType, 'gabor')
          options.stride = options.gabor.stride;
     else

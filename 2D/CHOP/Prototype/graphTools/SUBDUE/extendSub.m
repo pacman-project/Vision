@@ -14,7 +14,7 @@
 %> Updates
 %> Ver 1.0 on 24.02.2014
 %> Ver 1.1 on 01.09.2014 Removal of global parameters.
-function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstanceFlag, adjMatrix)
+function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstanceFlag)
     % Get center list.
     centerIdx = sub.instanceCenterIdx;
     
@@ -69,7 +69,6 @@ function [extendedSubs] = extendSub(sub, allEdges, allEdgeCounts, singleInstance
     % In addition, we pick suitable instances, add this edge, and mark used
     % field of relevant instances.
     numberOfEdgeTypes = size(uniqueEdgeTypes,1);
-    nodeCount = size(adjMatrix,1);
     
     % Allocate space for new subs and fill them in.
     validSubs = ones(numberOfEdgeTypes,1) > 0;

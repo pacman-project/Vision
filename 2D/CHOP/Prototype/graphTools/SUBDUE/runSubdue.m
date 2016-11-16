@@ -300,63 +300,124 @@ function [nextVocabLevel, nextGraphLevel, isSupervisedSelectionRunning, previous
             %% All good, continue with the main algorithm.
             processedSet = parentSubSets{setItr};
             display(['[SUBDUE/Parallel] Expanding set ' num2str(setItr) '/' num2str(numel(parentSubSets)) ' of size ' num2str(currentSize-1) ', containing ' num2str(numel(processedSet)) ' subs..']);
-            parfor parentItr = processedSet
-                %% Step 2.2: Extend head in all possible directions into childSubs.
- %               display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
-                childSubs = extendSub(parentSubs(parentItr), allEdges, allEdgeCounts, singleInstanceFlag, adjMatrix);
-                if isempty(childSubs) 
-                    continue;
-                end
+            try
+                 parfor parentItr = processedSet
+                     %% Step 2.2: Extend head in all possible directions into childSubs.
+      %               display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
+                     childSubs = extendSub(parentSubs(parentItr), allEdges, allEdgeCounts, singleInstanceFlag);
+                     if isempty(childSubs) 
+                         continue;
+                     end
 
-                 % Get the list of final subs and indices of subs chosen
-                 % for extension. 
-                childSubsFinal = childSubs;
-                childSubsExtend = childSubs;
+                      % Get the list of final subs and indices of subs chosen
+                      % for extension. 
+                     childSubsFinal = childSubs;
+                     childSubsExtend = childSubs;
+
+                     %% Step 2.4: Evaluate childSubs, find their instances.
+                     [childSubsFinal, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
+                         allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
+                         allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree, singleNodeSubThreshold);
+
+                     % Assign mdl scores of subs chosen for extension as well. 
+                     [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
+                     childSubsFinal = childSubsFinal(validSubs);
+                     childSubsExtend = childSubsExtend(validExtSubs);
+
+                     %% Eliminate childSubs which will render useless to preserve memory.
+                     if ~isempty(childSubsFinal)
+                          finalMdlScores = [childSubsFinal.mdlScore];
+                          validMdlScoreIdxFinal = finalMdlScores > minMdlScoreFinal;
+                          childSubsFinal = childSubsFinal(validMdlScoreIdxFinal);
+                     end
+                     if ~isempty(childSubsExtend)
+                          mdlScores = [childSubsExtend.mdlScore];
+                          validMdlScoreIdxExtend = mdlScores > minMdlScoreExtend;
+                          childSubsExtend = childSubsExtend(validMdlScoreIdxExtend);
+                     end
+
+                     %% Sort childSubs by the mdl scores.
+                     if ~isempty(childSubsFinal)
+                          mdlScores = [childSubsFinal.mdlScore];
+                          [sortedMdlScoresFinal, sortIdx] = sort(mdlScores, 'descend');
+                          childSubsFinal = childSubsFinal(sortIdx);
+                     else
+                          sortedMdlScoresFinal = [];
+                     end
+                     if ~isempty(childSubsExtend)
+                          mdlScores = [childSubsExtend.mdlScore];
+                          [sortedMdlScoresExtend, sortIdx] = sort(mdlScores, 'descend');
+                          childSubsExtend = childSubsExtend(sortIdx);
+                     else
+                          sortedMdlScoresExtend = [];
+                     end
+
+                     %% Save childSubs and extended subs.
+                     childSubArrFinal(parentItr) = {childSubsFinal};
+                     childSubArrExtend(parentItr) = {childSubsExtend};
+                     mdlScoreArrFinal(parentItr) = {sortedMdlScoresFinal};
+                     mdlScoreArrExtend(parentItr) = {sortedMdlScoresExtend};
+                 end
+            catch
+                 for parentItr = processedSet
+                     %% Step 2.2: Extend head in all possible directions into childSubs.
+      %               display(['[SUBDUE/Parallel] Expanding sub ' num2str(parentItr) ' of size ' num2str(currentSize-1) '..']);
+                     childSubs = extendSub(parentSubs(parentItr), allEdges, allEdgeCounts, singleInstanceFlag);
+                     if isempty(childSubs) 
+                         continue;
+                     end
+
+                      % Get the list of final subs and indices of subs chosen
+                      % for extension. 
+                     childSubsFinal = childSubs;
+                     childSubsExtend = childSubs;
+
+                     %% Step 2.4: Evaluate childSubs, find their instances.
+                     [childSubsFinal, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
+                         allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
+                         allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree, singleNodeSubThreshold);
+
+                     % Assign mdl scores of subs chosen for extension as well. 
+                     [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
+                     childSubsFinal = childSubsFinal(validSubs);
+                     childSubsExtend = childSubsExtend(validExtSubs);
+
+                     %% Eliminate childSubs which will render useless to preserve memory.
+                     if ~isempty(childSubsFinal)
+                          finalMdlScores = [childSubsFinal.mdlScore];
+                          validMdlScoreIdxFinal = finalMdlScores > minMdlScoreFinal;
+                          childSubsFinal = childSubsFinal(validMdlScoreIdxFinal);
+                     end
+                     if ~isempty(childSubsExtend)
+                          mdlScores = [childSubsExtend.mdlScore];
+                          validMdlScoreIdxExtend = mdlScores > minMdlScoreExtend;
+                          childSubsExtend = childSubsExtend(validMdlScoreIdxExtend);
+                     end
+
+                     %% Sort childSubs by the mdl scores.
+                     if ~isempty(childSubsFinal)
+                          mdlScores = [childSubsFinal.mdlScore];
+                          [sortedMdlScoresFinal, sortIdx] = sort(mdlScores, 'descend');
+                          childSubsFinal = childSubsFinal(sortIdx);
+                     else
+                          sortedMdlScoresFinal = [];
+                     end
+                     if ~isempty(childSubsExtend)
+                          mdlScores = [childSubsExtend.mdlScore];
+                          [sortedMdlScoresExtend, sortIdx] = sort(mdlScores, 'descend');
+                          childSubsExtend = childSubsExtend(sortIdx);
+                     else
+                          sortedMdlScoresExtend = [];
+                     end
+
+                     %% Save childSubs and extended subs.
+                     childSubArrFinal(parentItr) = {childSubsFinal};
+                     childSubArrExtend(parentItr) = {childSubsExtend};
+                     mdlScoreArrFinal(parentItr) = {sortedMdlScoresFinal};
+                     mdlScoreArrExtend(parentItr) = {sortedMdlScoresExtend};
+                 end
+           end
                  
-                %% Step 2.4: Evaluate childSubs, find their instances.
-                [childSubsFinal, validSubs, validExtSubs] = evaluateSubs(childSubsFinal, evalMetric, allEdgeCounts, allEdgeNodePairs, ...
-                    allSigns, allCoords, overlap, mdlNodeWeight, mdlEdgeWeight, isMDLExact, ...
-                    allLeafNodes, level1CoordsPooled, rfRadius, minRFCoverage, maxShareability, possibleLeafNodeCounts, avgDegree, singleNodeSubThreshold);
-                
-                % Assign mdl scores of subs chosen for extension as well. 
-                [childSubsFinal, childSubsExtend] = copyMdlScores(childSubsFinal, childSubsExtend);
-                childSubsFinal = childSubsFinal(validSubs);
-                childSubsExtend = childSubsExtend(validExtSubs);
-                
-                %% Eliminate childSubs which will render useless to preserve memory.
-                if ~isempty(childSubsFinal)
-                     finalMdlScores = [childSubsFinal.mdlScore];
-                     validMdlScoreIdxFinal = finalMdlScores > minMdlScoreFinal;
-                     childSubsFinal = childSubsFinal(validMdlScoreIdxFinal);
-                end
-                if ~isempty(childSubsExtend)
-                     mdlScores = [childSubsExtend.mdlScore];
-                     validMdlScoreIdxExtend = mdlScores > minMdlScoreExtend;
-                     childSubsExtend = childSubsExtend(validMdlScoreIdxExtend);
-                end
-                
-                %% Sort childSubs by the mdl scores.
-                if ~isempty(childSubsFinal)
-                     mdlScores = [childSubsFinal.mdlScore];
-                     [sortedMdlScoresFinal, sortIdx] = sort(mdlScores, 'descend');
-                     childSubsFinal = childSubsFinal(sortIdx);
-                else
-                     sortedMdlScoresFinal = [];
-                end
-                if ~isempty(childSubsExtend)
-                     mdlScores = [childSubsExtend.mdlScore];
-                     [sortedMdlScoresExtend, sortIdx] = sort(mdlScores, 'descend');
-                     childSubsExtend = childSubsExtend(sortIdx);
-                else
-                     sortedMdlScoresExtend = [];
-                end
-                
-                %% Save childSubs and extended subs.
-                childSubArrFinal(parentItr) = {childSubsFinal};
-                childSubArrExtend(parentItr) = {childSubsExtend};
-                mdlScoreArrFinal(parentItr) = {sortedMdlScoresFinal};
-                mdlScoreArrExtend(parentItr) = {sortedMdlScoresExtend};
-            end
             
             %% Based on the best mdl scores, update minMdlScoreFinal and minMdlScoreExtend.
             %% TODO TO BE OPENED ON DISCRIMINATIVE LEARNING>

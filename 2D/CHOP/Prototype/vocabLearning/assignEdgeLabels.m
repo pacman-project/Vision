@@ -27,7 +27,7 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
      edgeCoords = edgeCoords + halfSize;
      
      % If there are no edges, return.
-     if isempty(allEdges)
+     if isempty(allEdges) || isempty(modes)
           return;
      end
      
@@ -136,8 +136,8 @@ function [ graphLevel ] = assignEdgeLabels(graphLevel, modes, modeProbArr, edgeC
     
     edgeCounts = cellfun(@(x) size(x,1), assignedEdges);
     if usejava('jvm')
-        figure('Visible', 'off'), hist(edgeCounts, 0:max(edgeCounts));
-        saveas(gcf, [debugFolder '/level' num2str(levelItr) 'EdgHist_AfterRemoval.png']); 
+%        figure('Visible', 'off'), hist(edgeCounts, 0:max(edgeCounts));
+%        saveas(gcf, [debugFolder '/level' num2str(levelItr) 'EdgHist_AfterRemoval.png']); 
     end
     
     % Assign final edges.

@@ -141,7 +141,7 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
    newDistanceMatrix = zeros(numel(vocabLevel), 'single');
 
    % Create a blurring filter.
-   H = fspecial('gaussian', 5, 1);
+   H = fspecial('gaussian', 3, 1);
    
    % Get product of expert predictions.
    display('........ Visualizing parts using Product of Experts..');
@@ -219,6 +219,28 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
         end
         newDistanceMatrixVect = pdist(descriptors);
         newDistanceMatrix = squareform(newDistanceMatrixVect);
+   elseif strcmp(distType, 'context')
+        % Shape context matching.
+        % We extract a number of points (50) from every object contour, and then
+        % match them. 
+        defaultoptions=struct('r_max',4,'r_min',1e-3,'r_bins',15,'a_bins',15,'rotate',0,'method',1,'maxdist',5);
+        descriptors = zeros(numel(vocabLevel), defaultoptions.r_bins * defaultoptions.a_bins);
+        for vocabNodeItr = 1:numel(vocabLevel)
+             img = squeeze(muImgs(vocabNodeItr,:,:));
+             binaryImg = img > max(max(img))/2;
+             points = find(binaryImg);
+             if numel(points) > 100
+                  points = points(randperm(size(points,1), 100));
+             end
+             [pointsX, pointsY] = ind2sub(size(img), points);
+             allPoints = [pointsX, pointsY; 0.5+size(img)/2];
+             
+             % Create a shape context descriptor for this part.
+             [Points1,~]=NormalizePoints(allPoints,allPoints,defaultoptions);
+             F1=getHistogramFeatures(Points1(end,:),Points1(1:(end-1),:),[],defaultoptions);
+             descriptors(vocabNodeItr,:) = F1';
+        end
+        newDistanceMatrix = pdist3(descriptors, descriptors, 'chisq');
    end
    
    % Renormalize distance matrix.
@@ -250,7 +272,8 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
          
          % Assign a fix value for the class count.
          if ~stopFlag
-             clusterCount = max(options.reconstruction.minNumberOfORNodes, round(numberOfNodes/2));
+             clusterCount = max(options.reconstruction.minNumberOfORNodes, round(nnz(largeSubIdx)/2));
+   %          clusterCount = max(options.reconstruction.minNumberOfORNodes, numberOfNodes);
   %           clusterCount = min(numberOfNodes, numberOfORNodes);
          else
              clusterCount = numberOfNodes;
