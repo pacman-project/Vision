@@ -35,10 +35,11 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                             % this set will be used as
                                             % negative examples in
                                             % training.
+    options.realGaborFlag = false; % CAN BE OVERRIDDEN BY DATASET SPECIFIC PARAMS)
                                             
     %% ========== TO BE MIGRATED TO INDIVIDUAL PARAMETER FILES ==========                    
     options.autoNormalize = 'whiten'; %Or 'normalize'
-    options.poolDim = 1.6; % The pooling window size. Could be 1, 2, 3...
+    options.poolDim = 2; % The pooling window size. Could be 1, 2, 3... (CAN BE OVERRIDDEN BY DATASET SPECIFIC PARAMS)
  %   options.poolDim = 2; % The pooling window size. Could be 1, 2, 3...
                                       % If 2, size of the receptive field
                                       % is halved, as in the previous
@@ -86,7 +87,7 @@ function [ options ] = SetParameters( datasetName, isTraining )
                                    
     %% ========== PARALLEL PROCESSING PARAMETERS ==========
     options.parallelProcessing = true;
-    options.numberOfThreads = min(feature('NumCores'),12);
+    options.numberOfThreads = min(2*feature('NumCores')-1,12);
 %    options.numberOfThreads = 12;
     if exist('parpool', 'file')
         options.parpoolFlag = true;

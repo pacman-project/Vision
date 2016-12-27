@@ -31,14 +31,13 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
     orNodeChoices = zeros(size(nodes,1), 1);
     orNodeChoiceCounts = zeros(size(nodes,1), 1);
     topLevel = levelItr;
-    activation = 0;
     
     %% First, we recursively backproject the nodes. 
     startNodeOffset = 0;
     while levelItr > 1.001
         % Get receptive field size.
         rfSize = getRFSize(options, levelItr);
-        halfRFSize = round(rfSize(1)/2);
+        centerRF = floor(rfSize(1)/2)+1;
          
         % 
         if levelItr < minOptimizationLayer
@@ -98,9 +97,6 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
                  else
                      posVect = random(posDistributions, 1);
                  end
-                 
-                 % Upsample positions.
-                 posVect = posVect * halfRFSize;
                  
                  % Assign positions.
                  for childItr = 1:numel(nodeCombination)

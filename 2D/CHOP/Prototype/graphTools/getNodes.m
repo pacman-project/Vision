@@ -20,27 +20,35 @@
 %> Ver 1.1 on 03.12.2013 Response inhibition added.
 %> Ver 1.2 on 12.01.2014 Comment changes to create unified code look.
 %> Ver 1.3 on 17.01.2014 GT use implemented.
-function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueResponseImgs, edgeImg ] = getNodes( img, gtFileName, options )
+function [ nodes, activationImg, nodeActivations, smoothActivationImg, returnedResponseImgs, edgeImg ] = getNodes( img, gtFileName, options )
     % Step 0: Obtain background
     if size(img,3)>1
          grayImg = rgb2gray(img(:,:,1:3));
     else
          grayImg = img;
     end
-    backgroundMask = grayImg == 0;
-    backgroundMask = imdilate(backgroundMask, strel('disk',3));
-    edgeMask = edge(img, 'canny', [0.05 0.1], 1);
-    outEdgeMask = backgroundMask & edgeMask;
-    inEdgeMask = ~backgroundMask & edgeMask;
-    edgeImg = double(outEdgeMask) + double(inEdgeMask) * 0.5;
+    filterType = options.filterType;
+    if ~options.realGaborFlag
+         backgroundMask = grayImg == 0;
+         backgroundMask = imdilate(backgroundMask, strel('disk',3));
+         edgeMask = edge(img, 'canny', [0.05 0.1], 1);
+         outEdgeMask = backgroundMask & edgeMask;
+         inEdgeMask = ~backgroundMask & edgeMask;
+         edgeImg = double(outEdgeMask) + double(inEdgeMask) * 0.5;
+    else
+         backgroundMask = grayImg < max(max(grayImg)) * 0.5;
+         edgeMask = bwmorph(~backgroundMask, 'thin', Inf);
+         outEdgeMask = edgeMask;
+         inEdgeMask = edgeMask;
+         inEdgeMask(inEdgeMask > 0) = 0;
+         edgeImg = double(edgeMask);
+    end
+    
 %     edgeMask = imdilate(edgeMask,strel('disk', 2));
 %     edgeMask(backgroundMask) = 0;
-%     
-    % In addition, we filter out weak responses for outside borders of the
-    % object.
 
     %% Step 1: Get grayscaled image and assign method parameters.
-    if strcmp(options.filterType, 'gabor')
+    if strcmp(filterType, 'gabor')
         stride = options.gabor.stride;
         if size(img,3)>1
             img = rgb2gray(img(:,:,1:3));
@@ -53,7 +61,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
 %             img(:,:,bandItr)=medfilt2(img(:,:,bandItr), [3,3]);
 %         end
         deadFeatures = [];
-    elseif strcmp(options.filterType, 'auto')
+    elseif strcmp(filterType, 'auto')
         stride = options.auto.stride;
         whMat = options.auto.whMat;
         mu = options.auto.mu;
@@ -83,7 +91,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
     
     %% In case of auto-learned features, get each patch (using stride) as a separate column of data.
     newImgSize = floor([(size(img,1)-1)/stride, (size(img,2)-1)/stride]) + 1;
-    if strcmp(options.filterType, 'auto')
+    if strcmp(filterType, 'auto')
         dim1 = (size(img,1)-filterSize(1)+1);
         dim2 = (size(img,2)-filterSize(2)+1);
 
@@ -114,12 +122,14 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
     halfSize = ceil(filterSize(1)/2);
     
     %% Low-level feature extraction.
-    if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'lhop')
+    if strcmp(filterType, 'gabor') || strcmp(filterType, 'lhop')
         realCoordIdx = zeros(filterCount, prod(newImgSize));
         
         % We're using steerable filters here. Mimicking gabor filters.
 %        [res, theta, nms, rotations] = steerableDetector(img, 5, 0.3, filterCount * 2);
-          [~, ~, ~, rotations] = steerableDetector(img, 5, 1, filterCount * 2);
+          if ~options.realGaborFlag
+               [~, ~, ~, rotations] = steerableDetector(img, 5, 1, filterCount * 2);
+          end
  %       filterOrder = [1,4,3,2,5,8,7,6,9,12,11,10,13,16,15,14];
 %        rotations = rotations(:,:,filterOrder);
 
@@ -133,7 +143,12 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
 %              end
  %           currentFilter = double(options.filters{filtItr});
  %           responseImg = conv2(img, rot90(currentFilter,2), 'same');
-            responseImg = max(rotations(:,:,filtItr), rotations(:,:,filtItr+filterCount));
+            if options.realGaborFlag
+                  currentFilter = double(options.filters{filtItr});
+                  responseImg = conv2(img, rot90(currentFilter,2), 'same');
+            else
+                  responseImg = max(rotations(:,:,filtItr), rotations(:,:,filtItr+filterCount));
+            end
 %            
 %            figure, imshow(responseImg);
             % Process response image so it only exists under edges.
@@ -150,6 +165,8 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
        filterThr = options.gaborFilterThr * outMaxVal;
        inFilterThr = options.innerGaborFilterThr * outMaxVal;
        
+       returnedResponseImgs = trueResponseImgs;
+       
        [smoothActivationImg, ~] = max(trueResponseImgs, [], 3);
        smoothActivationImg = smoothActivationImg / max(max(smoothActivationImg));
         
@@ -164,14 +181,17 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
             if ~isempty(inFilterThr)
                 responseImg(inEdgeMask) = responseImg(inEdgeMask) / inMaxVal;
             end
+            % Remove non-edge pixels.
+            responseImg(~edgeMask) = 0;
             responseImg(responseImg>1) = 1;
+            
+            % Assign values back.
             trueResponseImgs(:,:,filtItr) = responseImg;
        end
         
        % Eliminate weak responses and perform pooling.
        for filtItr = 1:filterCount
             responseImg = squeeze(trueResponseImgs(:,:,filtItr));
-            responseImg(~edgeMask) = 0;
             
             % Apply filter thresholds.
             if ~isempty(filterThr)
@@ -254,13 +274,13 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
     
     %% We apply a minimum response threshold over response image.
     % We treat background-foreground edges differently.
-%     if strcmp(options.filterType, 'gabor')
+%     if strcmp(filterType, 'gabor')
 %        filterThr = max(options.absGaborFilterThr, options.gaborFilterThr * max(max(max(responseImgs))));
 %        inFilterThr = options.innerGaborFilterThr * max(max(max(responseImgs)));
 %     else
 %        filterThr = max(options.autoFilterThr, options.autoFilterThr * max(max(max(responseImgs))));
 %     end
-%     if strcmp(options.filterType, 'gabor')
+%     if strcmp(filterType, 'gabor')
 %          backgroundMask = imresize(backgroundMask, [size(responseImgs,1), size(responseImgs,2)], 'bilinear');
 %          filterMask = ~backgroundMask & imdilate(backgroundMask, strel('disk', 2));
 %          innerMask = ~filterMask & ~backgroundMask;
@@ -306,7 +326,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
 %     end
     
    %% Inhibit weak responses in vicinity of powerful peaks.
-    if strcmp(options.filterType, 'gabor')
+    if strcmp(filterType, 'gabor')
         inhibitionHalfSize = options.gabor.inhibitionRadius;
     else
         inhibitionHalfSize = options.auto.inhibitionRadius;
@@ -319,7 +339,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
     [activationImg, nodeIdImg] = max(responseImgs, [], 3);
     
     % Process only edges.
-%     if strcmp(options.filterType, 'gabor')
+%     if strcmp(filterType, 'gabor')
 %          edgeMask = imresize(edgeMask, size(activationImg));
 %          activationImg(~edgeMask) = 0;
 %          activationImg(activationImg > 0) = 1;
@@ -373,7 +393,7 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, trueRespo
 %    end
     
     %% Out of this response image, we will create the nodes and output them.
-    if strcmp(options.filterType, 'gabor')
+    if strcmp(filterType, 'gabor')
          idx = sub2ind(size(realCoordIdx), responseImg(finalNodeIdx), finalNodeIdx);
          realCoordLin = realCoordIdx(idx);
          [realCoordX, realCoordY] = ind2sub(size(img), realCoordLin);

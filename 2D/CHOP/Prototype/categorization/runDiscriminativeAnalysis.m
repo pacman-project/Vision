@@ -26,7 +26,6 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
     fscoreArr = nan(totalNumberOfParts, 2 + numel(categoryNames));
     fscoreInstanceArr = nan(totalNumberOfParts, 3);
     shareabilityArr = zeros(totalNumberOfParts, 3);
-    mdlScoreArr = zeros(totalNumberOfParts, 4);
     partOffset = 1;
     for levelItr = 1:numel(vocabulary)
         vocabLevel = vocabulary{levelItr};
@@ -58,13 +57,6 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
             precisionArr(partOffset:(partOffset+numberOfParts-1),1:2);
         shareabilityArr(partOffset:(partOffset+numberOfParts-1),1:2) = ...
             precisionArr(partOffset:(partOffset+numberOfParts-1),1:2);
-        mdlScoreArr(partOffset:(partOffset+numberOfParts-1),1:2) = ...
-            precisionArr(partOffset:(partOffset+numberOfParts-1),1:2);
-        
-        if levelItr>1
-            mdlScores = cat(1, vocabLevel(IA).mdlScore);
-            mdlScoreArr(partOffset:(partOffset+numberOfParts-1),3:4) = [mdlScores, mdlScores];
-        end
         
         %% Calculate the metrics for every part and category pair. 
         for partItr = 1:numberOfParts
@@ -95,13 +87,12 @@ function [ ] = runDiscriminativeAnalysis( datasetName )
     fscoreArr = fscoreArr(1:(partOffset-1),:);
     precisionArr = precisionArr(1:(partOffset-1),:);
     fscoreInstanceArr = fscoreInstanceArr(1:(partOffset-1),:);
-    mdlScoreArr = mdlScoreArr(1:(partOffset-1),:);
     
     % Save the data.
     if ~exist([options.currentFolder '/categorization/analysis/' datasetName], 'dir')
        mkdir([options.currentFolder '/categorization/analysis/' datasetName]);
     end
     save([options.currentFolder '/categorization/analysis/' datasetName '/discriminativeAnalysis.mat'], ...
-        'precisionArr', 'recallArr', 'fscoreArr', 'shareabilityArr', 'mdlScoreArr', 'fscoreInstanceArr');
+        'precisionArr', 'recallArr', 'fscoreArr', 'shareabilityArr', 'fscoreInstanceArr');
 end
 

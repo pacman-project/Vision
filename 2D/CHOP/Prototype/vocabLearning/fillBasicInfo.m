@@ -16,8 +16,9 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.02.2014
-function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, firstLevelPrecisePositions, graphLevel, levelItr, options)
+function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, graphLevel, levelItr, options)
     numberOfNodes = numel(graphLevel);
+    nodePositions = cat(1, graphLevel.precisePosition);
     
     % Learn stride.
     if strcmp(options.filterType, 'gabor')
@@ -39,7 +40,7 @@ function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNode
     newPositions = newImageIds;
     newLeafNodes = newImageIds;
 
-    parfor newNodeItr = 1:numberOfNodes
+    for newNodeItr = 1:numberOfNodes
         nodeChildren = childrenArr{newNodeItr};
         newImageIds{newNodeItr} = previousLevelImageIds(nodeChildren(1));
         nodeLeafNodes = cat(2, previousLevelLeafNodes{nodeChildren});
@@ -51,17 +52,16 @@ function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNode
   %      precisePosition = round((min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2);
   
         % We calculate new position based on leaf nodes.
-        precisePosition = round(mean(firstLevelPrecisePositions(nodeLeafNodes,:), 1));
+%        precisePosition = round(mean(firstLevelPrecisePositions(nodeLeafNodes,:), 1));
   
         % Assign positions.
-        newPrecisePositions{newNodeItr} = precisePosition;
+        precisePosition = nodePositions(newNodeItr, :);
         newPositions{newNodeItr} = int32(calculatePooledPositions(precisePosition, poolFactor, poolDim, stride));
         newLeafNodes{newNodeItr} = nodeLeafNodes;
     end
 
     % Finally, assign everything to the new structure.
     [graphLevel.imageId] = deal(newImageIds{:});
-    [graphLevel.precisePosition] = deal(newPrecisePositions{:});
     [graphLevel.position] = deal(newPositions{:});
     [graphLevel.leafNodes] = deal(newLeafNodes{:});
     

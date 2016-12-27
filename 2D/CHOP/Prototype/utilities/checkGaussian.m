@@ -1,0 +1,10 @@
+function result = checkGaussian(x, ~)
+    numberOfBins = 8;
+    x = (x - mean(x));
+    buffZone = 1/(2*numberOfBins);
+    histCenters = (-1/2+buffZone):2*buffZone:(1/2-buffZone);
+    xHist = hist(x, histCenters);
+%    peakfinder(xHist, (max(xHist)-min(xHist))/numberOfBins, [], 1, true, true);
+    peaks = peakfinder(xHist, (max(xHist)-min(xHist))/numberOfBins, [], 1, true, true);
+    result = numel(peaks) == 1;
+end

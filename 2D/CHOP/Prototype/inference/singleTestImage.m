@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryName, options)
+function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, categoryName, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -52,7 +52,7 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
          % Save smoothed image.
          % Assign nodes their image ids.
          nodes = int32(cell2mat(nodes));
-         [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, allModes, modeProbs, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
+         [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
     else
          load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr');
     end

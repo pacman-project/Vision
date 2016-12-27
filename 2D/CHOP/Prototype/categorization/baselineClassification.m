@@ -6,30 +6,28 @@ function [ ] = baselineClassification(datasetName)
     options = SetParameters(datasetName, true);
     datasetTestFolder = [options.currentFolder '/output/' datasetName '/test/inference/'];
     load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
-    load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr', 'categoryArrIdx', 'trainingFileNames');
+    load([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
+    load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr');
     testFileNames = fuf([datasetTestFolder '*.mat'], 1, 'detail');
     
     %% Step 1.1: Extract a set of features from the input images.
     display('..... Level 1 Feature Extraction started. This may take a while.');
-    categoryArrIdx = zeros(numel(trainingFileNames),1);
-    allFeatures = cell(numel(testFileNames), numel(vocabulary), numel(poolSizes));
+    allFeatures = cell(numel(categoryArrIdx), numel(vocabulary), numel(poolSizes));
     maxLevels = 1;
-    for fileItr = 1:numel(testFileNames)
+    for fileItr = 1:numel(categoryArrIdx)
         
         % Get the size of the image.
-        load(testFileNames{fileItr}, 'imgSize', 'exportArr', 'categoryLabel');
-        categoryArrIdx(fileItr) = categoryLabel;
-        imgArr = exportArr;
+        imgArr = exportArr(exportArr(:,5) == fileItr, :);
         if max(exportArr(:,4)) > maxLevels
            maxLevels = max(exportArr(:,4)); 
         end
 %         
-%         % Get the size of the image.
-%         img = imread(trainingFileNames{fileItr});
-%         imgSize = size(img);
-%         if numel(imgSize) > 2
-%             imgSize = imgSize(1:2);
-%         end
+        % Get the size of the image.
+        img = imread(trainingFileNames{fileItr});
+        imgSize = size(img);
+        if numel(imgSize) > 2
+            imgSize = imgSize(1:2);
+        end
 %         imgArr = exportArr(exportArr(:,5) == fileItr, :);
         
         for levelItr = 1:numel(vocabulary)
@@ -76,7 +74,7 @@ function [ ] = baselineClassification(datasetName)
             validRows = sum(relevantFeatures,2) > 0;
             trainLabels = categoryArrIdx(validRows, :);
             trainFeatures = relevantFeatures(validRows, :);
-            
+
             bestcv = 0;
             bestc = -1;
             for log2c = [1/64, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
@@ -135,6 +133,34 @@ function [ ] = baselineClassification(datasetName)
                 end
                 testFeatures{fileItr, levelItr, poolSizeItr} = imgFeatures;
             end
+        end
+    end
+    
+    %% Calculate training accuracy.
+    for poolSizeItr = 1:numel(poolSizes)
+        existingPredLabels = -1 * ones(numel(categoryArrIdx),1);
+        for levelItr = 1:maxLevels
+            curFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
+            validRows = sum(curFeatures,2) > 0;
+            load([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel');
+            cmd = '-q';
+            [predLabels,~, ~] = svmpredict(categoryArrIdx, curFeatures, learnedModel, cmd);
+            predLabels(~validRows) = -1;
+            
+            % Combine with existing labels.
+            existingPredLabels(predLabels ~= -1) = predLabels(predLabels ~= -1);
+            predLabels(predLabels == -1) = existingPredLabels(predLabels==-1);
+            
+            % Estimate performance, and find confusion matrix.
+            classAcc = zeros(numel(unique(categoryArrIdx)),1);
+            for catItr = 1:numel(unique(categoryArrIdx))
+                classAcc(catItr) = nnz(predLabels == categoryArrIdx & categoryArrIdx == catItr) / nnz(categoryArrIdx == catItr);
+            end
+            trainAccuracy = mean(classAcc);
+            trainConfMat = confusionmat(categoryArrIdx, predLabels);
+            
+            % Mark invalid rows. 
+            save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'trainAccuracy', 'trainConfMat', '-append');
         end
     end
     

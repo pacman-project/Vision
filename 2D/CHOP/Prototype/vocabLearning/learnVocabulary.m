@@ -23,7 +23,7 @@
 %> Ver 1.3 on 28.01.2014 Mode calculation put in a separate file.
 %> Ver 1.4 on 03.02.2014 Refactoring
 function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, leafNodes, leafNodeCoords, ...
-                                                            options, fileList, modes, modeProbArr)
+                                                            options, fileList)
     display('Vocabulary learning has started.');                          
     %% ========== Step 0: Set initial data structures ==========
     vocabulary = cell(options.maxLevels,1);
@@ -36,8 +36,8 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     %% Step 1.1: Prepare intermediate data structures for sequential processing.
     vocabulary(1) = {vocabLevel};
     vocabularyDistributions(1) = {vocabLevelDistributions};
-    allModes(1) = {modes};
-    modeProbs(1) = {modeProbArr};
+ %   allModes(1) = {modes};
+ %   modeProbs(1) = {modeProbArr};
     
     %% Create distance matrices of the first level.
     [eucDistanceMatrix, nodeDistanceMatrix] = createDistanceMatrix(options.filters, options.filterType);
@@ -97,32 +97,9 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     end
     previousAccuracy = 0; %#ok<*NASGU>
     
-    %% Obtain level 1 coords to subsample them in higher layers.
-    display('........ Finding immediate, 1-step and 2-step neighbors..');
-    firstLevelAdjNodes = {graphLevel.adjInfo};
-    maxFirstLevelNodeDegree = max(cellfun(@(x) size(x,1), firstLevelAdjNodes));
-    dummyArrs = cell(maxFirstLevelNodeDegree,1);
-    for itr = 1:maxFirstLevelNodeDegree
-        dummyArrs(itr) = {zeros(1, maxFirstLevelNodeDegree - itr, 'int32')};
-    end
-    fullDummyArr = zeros(1, maxFirstLevelNodeDegree, 'int32');
+    %% Obtain coords.
     level1Coords = [cat(1, graphLevel.imageId), int32(cat(1, graphLevel.precisePosition))];
-    nonemptyIdx = cellfun(@(x) ~isempty(x), firstLevelAdjNodes);
-    firstLevelAdjNodes(nonemptyIdx) = cellfun(@(x) [(x(:,2))', dummyArrs{size(x,1)}], firstLevelAdjNodes(nonemptyIdx), 'UniformOutput', false);
-    firstLevelAdjNodes(~nonemptyIdx) = {fullDummyArr};
-    firstLevelAdjNodes = cat(1, firstLevelAdjNodes{:});
-    firstLevelAdjNodes = cat(2, int32(1:size(firstLevelAdjNodes,1))', firstLevelAdjNodes);
     firstLevelPrecisePositions = cat(1, graphLevel.precisePosition);
-    
-    %% We create 1-neighbors and 2-neighbors too, since we tend to lose nodes here and there in higher layers.
-    [firstLevelAdjNodes1, firstLevelAdjNodes2] = findNeighbors(firstLevelAdjNodes);
-    
-    % Sort first level adjacency nodes (row by row).
-    firstLevelAdjNodes(firstLevelAdjNodes == 0) = size(firstLevelAdjNodes,1) + 1;
-    firstLevelAdjNodes = sort(firstLevelAdjNodes,2);
-    firstLevelAdjNodes(firstLevelAdjNodes == (size(firstLevelAdjNodes,1) + 1)) = 0;
-    firstLevelAdjNodes = {firstLevelAdjNodes, firstLevelAdjNodes1, firstLevelAdjNodes2};
-    clear firstLevelAdjNodes1 firstLevelAdjNodes2;
     
     %% If we have passed the limit for number of images, we go into a different mode 
     % where we perform matlab restarts for memory optimization.

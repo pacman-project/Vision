@@ -22,13 +22,6 @@ classdef GraphNode
                  % mainGraph(object graphs). They link to realization ids,
                  % which are indices of GraphNodes in respective mainGraph
                  % level.
-        adjInfo@int32 % Different than VocabNode, this field encodes relations of 
-                % this graph node with its surroundings. It has nothing to
-                % do with the children or the parent. After learning
-                % statistical relations, the spatial information is stored
-                % in this field which connects this node to other nodes in
-                % its receptive field (thus forming receptive graph).
-                % Is of the form [v1 v2 edgeId isDirected; ...]
         leafNodes@int32 % The leaf node ids (level 1 realizations) this node 
                   % corresponds to. Particularly important in visualization
                   % and calculation of coverage statistics.

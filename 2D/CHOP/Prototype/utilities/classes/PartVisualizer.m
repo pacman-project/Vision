@@ -115,14 +115,12 @@ classdef PartVisualizer < handle
             obj.shownImg = uint8(0);
             obj.partVariation = uint8([]);
             
-            vocabNode = obj.vocabulary{layerID}(partID);
             if layerID == 1
                 obj.partDescription = imread([pwd '/debug/' obj.datasetName '/level' num2str(layerID) '/reconstruction/' num2str(partID) '.png']);
-                obj.MDL = single(0);
             else
                 obj.partDescription = imread([pwd '/debug/' obj.datasetName '/level' num2str(layerID) '/modalProjection/' num2str(partID) '.png']); 
-                obj.MDL = single(vocabNode.mdlScore);
             end
+            obj.MDL = single(0);
             obj.activationThreshold = single(0);
             
             % Fill in general data.

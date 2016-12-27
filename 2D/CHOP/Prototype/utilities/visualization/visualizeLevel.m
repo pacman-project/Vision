@@ -33,8 +33,6 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
          vocabLevelIdx(itr) = find(vocabLevelLabels == itr, 1, 'first');
     end
     allNodeInstances = [];
-    multiNodeInstances = {currentLevel.adjInfo};
-    multiNodeInstances = cellfun(@(x) ~isempty(x), multiNodeInstances);
     
     % For the first level, we only print a single instance.
     if levelId == 1
@@ -57,6 +55,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     if levelId > 1
         leafNodeSets = {graphLevel.leafNodes}';
         nodeLabelIds = double(cat(1, graphLevel.realLabelId));
+        nodePositions = double(cat(1, graphLevel.precisePosition));
         orNodeLabelIds = double(cat(1, graphLevel.labelId));
         nodeImageIds = cat(1, graphLevel.imageId);
         nodeActivations = cat(1, graphLevel.activation);
@@ -70,13 +69,6 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
          orNodeLabelIds = double(cat(1, graphLevel.labelId));
          for nodeItr = 1:numel(representativeNodes)
               representativeNodes(nodeItr) = mode(nodeLabelIds(orNodeLabelIds == nodeItr));
-              if ~multiNodeInstances(representativeNodes(nodeItr))
-                   instances = nodeLabelIds(orNodeLabelIds == nodeItr);
-                   instances = instances(multiNodeInstances(instances));
-                   if ~isempty(instances)
-                        representativeNodes(nodeItr) = mode(instances);
-                   end
-              end
          end
     else
          representativeNodes = (1:numel(currentLevel))';
@@ -147,7 +139,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
             nodeImgs = cell(numel(nodeSet),1);
             
             % Go through each composition in current node set.
-            parfor nodeItr = 1:numel(nodeSet)
+            for nodeItr = 1:numel(nodeSet)
                 %% Get the children (leaf nodes) from all possible instance in the dataset. Keep the info.
                 labelId = vocabNodeSet(nodeItr);
           
@@ -193,7 +185,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
                          projectedNodes(:,4) = firstActivations(instanceLeafNodes,:);
                          
                          % Update coordinates.
-                         meanCoordOffset = round(mean(projectedNodes(:,2:3), 1));
+                         meanCoordOffset = nodePositions(nodeInstance, :);
                          coordOffset = repmat(imgSize/2  - meanCoordOffset, size(projectedNodes,1), 1);
                          projectedNodes(:,2:3) = round(projectedNodes(:,2:3) + coordOffset);
                          bounds = [1,1,imgSize] - [round(coordOffset(1,1:2)), round(coordOffset(1,1:2))];
@@ -237,11 +229,7 @@ function [allNodeInstances, representativeNodes] = visualizeLevel( currentLevel,
     end
     
     %% Combine all compositions and show them within a single image.
-    if levelId > 1
-         visRepresentativeNodes = representativeNodes(multiNodeInstances(representativeNodes));
-    else
-         visRepresentativeNodes = representativeNodes;
-    end
+    visRepresentativeNodes = representativeNodes;
     
     % If there are no nodes to show, exit.
     if isempty(visRepresentativeNodes)

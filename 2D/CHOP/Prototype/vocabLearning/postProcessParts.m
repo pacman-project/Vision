@@ -34,14 +34,6 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
     stopFlag = options.stopFlag;
     smallImageSize = 50;
     
-    % Get number of OR nodes.
-    if numel(options.reconstruction.numberOfORNodes) < levelItr
-%        numberOfORNodes = options.reconstruction.maxNumberOfORNodes;
-          numberOfORNodes = min(3000, max(200, round(numel(vocabLevel)/2)));
-    else
-        numberOfORNodes = options.reconstruction.numberOfORNodes(levelItr);
-    end
-    
     % Get filter size.
     filterSize = size(options.filters{1});
     halfFilterSize = floor(filterSize(1)/2);
@@ -72,70 +64,35 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
     [vocabLevel.label] = deal(newLabelArr{:});
     
     %% Find the distance matrix among the remaining parts in vocabLevel.
-   edgeCoords((size(edgeCoords,1)+1),:) = [0, 0];
    numberOfNodes = numel(vocabLevel);
-   vocabEdges = {vocabLevel.adjInfo};
-   vocabEdges = cellfun(@(x) double(x), vocabEdges, 'UniformOutput', false);
-   newEdge = size(edgeCoords,1);
-   largeSubIdx = cellfun(@(x) ~isempty(x), vocabEdges);
-   numberOfSingleSubs = numel(largeSubIdx) - nnz(largeSubIdx);
-   vocabNeighborModes = num2cell(repmat(newEdge, 1, numel(vocabEdges)));
-   vocabNeighborModes(largeSubIdx) = cellfun(@(x,y) [y; x(:,3)], vocabEdges(largeSubIdx), vocabNeighborModes(largeSubIdx), 'UniformOutput', false);
-   vocabNodePositions = cellfun(@(x) edgeCoords(x,:) - repmat(min(edgeCoords(x,:)), numel(x), 1), vocabNeighborModes, 'UniformOutput', false);
-
-   % Sort the nodes inside each vocabulary description.
-   vocabSortOrder = cell(size(vocabLevel,1),1);
-   for vocabNodeItr = 1:numel(vocabLevel)
-       [~, vocabSortOrder{vocabNodeItr}] = sortrows(vocabNodePositions{vocabNodeItr});
-   end
-   clear vocabNodeLabels vocabEdges vocabNeighborModes vocabNodePositions vocabSortOrder;
-
+   vocabChildren = {vocabLevel.children};
+   largeSubIdx = cellfun(@(x) numel(x) > 1, vocabChildren);
+   
    %% We  are experimenting with different distance functions.
    % Find the correct image size.
    imageSize = getRFSize(options, levelItr);
    imageSize = imageSize + filterSize - 1;
+   imageCenter = floor(imageSize(1)/2)+1;
    
    % For now, we make the image bigger.
 %   imageSize = round(imageSize * 1.5);
    
    %% First, for efficiency, we obtain pixel-level predictions for every part.
    level1Experts = cell(numberOfNodes, 1);
-   parfor vocabNodeItr = 1:numberOfNodes
+   for vocabNodeItr = 1:numberOfNodes
         % Backproject nodes using modal reconstructions.
         nodes = [vocabNodeItr, 0, 0, levelItr];
         experts = projectNode(nodes, vocabularyDistributions, 'modal', options);
 
         % Center the nodes.
         experts = double(experts);
-        minX = min(experts(:,2));
-        maxX = max(experts(:,2));
-        minY = min(experts(:,3));
-        maxY = max(experts(:,3));
-        midPoint = round([(minX+maxX)/2, (minY+maxY)/2]);
-        experts(:,2:3) = experts(:,2:3) - repmat(midPoint, size(experts,1), 1);
+        experts(:,2:3) = experts(:,2:3) + imageCenter;
         level1Experts{vocabNodeItr} = experts;
    end
-   
-   % Normalize positions by placing all in the center.
-   minX = imageSize(1);maxX = 1;minY = minX;maxY = maxX;
-   
-   for vocabNodeItr = 1:numberOfNodes
-        experts = level1Experts{vocabNodeItr};
-        experts(:,2:3) = round(experts(:,2:3) + repmat(imageSize/2, size(experts,1), 1));
-        minX = max(1, min(min(experts(:,2))-halfFilterSize,minX));
-        maxX = min(max(max(experts(:,2))+halfFilterSize,maxX), imageSize(1));
-        minY = max(1, min(min(experts(:,3))-halfFilterSize,minY));
-        maxY = min(max(max(experts(:,3))+halfFilterSize,maxY), imageSize(1));
-        level1Experts{vocabNodeItr} = experts;
-   end
-   
-   % Find minimum&maximum coords of experts, so we can have a smaller
-   % window to operate.
-   blurredImageSize = [(maxX - minX) + 1, (maxY - minY) + 1];
    
    % Comparison of modal reconstructions involves creating a pixel
    % prediction for every pixel, and then looking for matches.
-   muImgs = zeros(numberOfNodes, blurredImageSize(1), blurredImageSize(2));
+   muImgs = zeros(numberOfNodes, imageSize(1), imageSize(2));
    smallImageSize = min(smallImageSize, imageSize(1));
    smallMuImgs = zeros(numberOfNodes, smallImageSize, smallImageSize);
    newDistanceMatrix = zeros(numel(vocabLevel), 'single');
@@ -150,7 +107,7 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
    parfor vocabNodeItr = 1:numberOfNodes
         [muImg, ~, ~] = obtainPoE(level1Experts{vocabNodeItr}, [], [], imageSize, visFilters, []);
         muImg = uint8(round(255*(double(muImg) / double(max(max(muImg))))));
-        blurredMuImg = uint8(imfilter(muImg(minX:maxX, minY:maxY, :), H, 'replicate'));
+        blurredMuImg = uint8(imfilter(muImg, H, 'replicate'));
         muImgs(vocabNodeItr,:,:) = blurredMuImg;
         
         % Save the image in a small array.
@@ -258,7 +215,6 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
          % Convert the distance matrix to vector form.
          newDistanceMatrixValid = newDistanceMatrix(largeSubIdx, largeSubIdx);
          newDistanceMatrixVect = squareform(newDistanceMatrixValid);
-         descriptors = descriptors(largeSubIdx, :);
          
          %% Finally, we implement the OR nodes here.
          % We apply agglomerative clustering on the generated distance matrix,
@@ -272,168 +228,10 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
          
          % Assign a fix value for the class count.
          if ~stopFlag
-             clusterCount = max(options.reconstruction.minNumberOfORNodes, round(nnz(largeSubIdx)/2));
-   %          clusterCount = max(options.reconstruction.minNumberOfORNodes, numberOfNodes);
-  %           clusterCount = min(numberOfNodes, numberOfORNodes);
+             clusterCount = min(numberOfNodes, max(options.reconstruction.minNumberOfORNodes, round(nnz(largeSubIdx)/2)));
          else
              clusterCount = numberOfNodes;
          end
-%          
-%          % A new way to find number of centers! 
-%          if numberOfNodes > 10
-%               diffArr = diff(diff(Z(:,3)));
-%               interval = round(size(diffArr,1)/10):size(diffArr,1);
-%               newPoint = find(diffArr(interval) > 0.03,1,'first');
-%               if ~isempty(newPoint)
-%                    clusterCount = newPoint + min(interval);
-%               end
-%          end
-%          
- %        If stop flag is not up, we find an optimal number of clusters.
-%          if ~stopFlag
-%               clusterStep = 10;
-%               maxNumberOfORNodes = options.reconstruction.maxNumberOfORNodes;
-%               sampleCounts = min([round(size(newDistanceMatrixValid,1)/10), round(size(newDistanceMatrixValid,1)/2)]):...
-%                    clusterStep:min([maxNumberOfORNodes, ((size(newDistanceMatrixValid,1))-round((size(newDistanceMatrixValid,1))/10))]);
-%               dunnVals = zeros(numel(sampleCounts),1);
-%               valIndices =  zeros(numel(sampleCounts),1);
-%               cutoffRatios =  zeros(numel(sampleCounts),1);
-%               cutoffRatios(1) = 1;
-%               C = mean(descriptors,1);
-% 
-%               parfor stepItr = 1:numel(sampleCounts)
-%                    curClusterCount = sampleCounts(stepItr);
-%       %             maxVal = max(orgMaxVal, Z(end-(clusterCount-2)))-0.00001;
-%      %              clusters = cluster(Z, 'Cutoff', maxVal, 'Criterion', 'distance');
-%                    clusters = cluster(Z, curClusterCount);
-% 
-%                    %% Dunn's index.
-%                    dunnVals(stepItr) = dunns(max(clusters), double(newDistanceMatrixValid), clusters);
-% 
-%                    %% Davies-Boulin index.
-%                    % Calculate the index.
-%                    % First, we calculate the cluster centers.
-%                    centers = zeros(curClusterCount, size(descriptors,2));
-%                    for centerItr = 1:curClusterCount
-%                         centers(centerItr,:) = mean(descriptors(clusters == centerItr,:),1);
-%                    end
-% 
-%                    % Within-cluster sum of squares.
-%                    tempMatrix = zeros(size(centers,2), size(centers,2));
-%      %              SSWTemp = 0;
-%                    for centerItr = 1:curClusterCount
-%                         idx = clusters == centerItr;
-%                         vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
-%      %                   SSWCluster = sum(sum(vectDiff.^2));
-%      %                   SSWTemp = SSWTemp + SSWCluster;
-%                         vals = vectDiff' * vectDiff;
-%                         tempMatrix = vals + tempMatrix;
-%                    end
-%                    SSW = trace(tempMatrix);
-% 
-%                    % Between-cluster sum of squares.
-%                    tempMatrix = zeros(curClusterCount,size(centers,2));
-%                    for centerItr = 1:curClusterCount
-%                         tempMatrix(centerItr,:) = nnz(clusters == centerItr) * (centers(centerItr,:) - C);
-%                    end
-%                    SSB = tempMatrix' * tempMatrix;
-%                    SSB = trace(SSB);
-% 
-%                    % Total sum of squares.
-%                     vectDiff = descriptors - repmat(C, size(descriptors,1), 1);
-%                     SST = vectDiff' * vectDiff;
-%                     SST = trace(SST);
-%       %             SST = SSW + SSB;
-% 
-%                    % Intra-cluster distance.
-%                    tempMatrix = zeros(curClusterCount,1);
-%                    for centerItr = 1:curClusterCount
-%                         idx = clusters == centerItr;
-%                         vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
-%                         sums = sum(sum(vectDiff.^2));
-%                         tempMatrix(centerItr) = sqrt(sums);
-%                    end
-%                    CIntra = sum(tempMatrix);
-% 
-%                    % Inter-cluster distance.
-%                    CInter = (sum(sum(pdist(centers)))*2) / (curClusterCount^2);
-% 
-%                    % Final index
-%                    valIndices(stepItr) = abs(((SSW/SSB)*SST) - (CIntra/CInter) - (size(descriptors,1) - curClusterCount));
-% 
-%                    % Second, We obtain the average distance of cluster samples
-%                    % within every cluster to the center.
-%                    sigmas = zeros(curClusterCount, 1);
-%                    for centerItr = 1:curClusterCount
-%                         idx = clusters == centerItr;
-%                         vectDiff = descriptors(idx, :) - repmat(centers(centerItr,:), nnz(idx), 1);
-%                         sigmas(centerItr) = mean(sqrt(sum(vectDiff.^2,2)));
-%                    end
-%               end
-%               
-%               % Calculate cut off ratios.
-%               for stepItr = 2:numel(sampleCounts)
-%                    if valIndices(stepItr)>valIndices(stepItr-1)
-%                         cutoffRatios(stepItr) = valIndices(stepItr-1) / valIndices(stepItr);
-%                    else
-%                         cutoffRatios(stepItr) = valIndices(stepItr) / valIndices(stepItr-1);
-%                    end
-%               end
-% 
-%               % Show DB index.
-%               figure, plot(sampleCounts, cutoffRatios);
-%               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_ValidityIdx.png']);
-%               close all;
-% %               figure, plot(sampleCounts, DBVals);
-% %               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DBIdx_NoNorm.png']);
-% %               close all;
-%               figure, plot(sampleCounts, dunnVals);
-%               saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_DunnIndex.png']);
-%               stepSize = 5;
-%               if size(newDistanceMatrixValid,1) > 1
-%                    ZVals = Z(2:end,3) - Z(1:(end-1),3);
-%                    figure, plot(1:size(Z,1), Z(:,3));
-%                    saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_combinationCosts.png']);         
-%                    close all;
-%                    figure, plot(1:numel(ZVals), ZVals);
-%                    saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_addedCosts.png']);
-%                    close all;
-%                    idx = stepSize:stepSize:size(Z,1);
-%                    figure, plot(idx, Z(idx));
-%                    saveas(gcf, [options.debugFolder '/level' num2str(levelItr) '_combinationCosts_Steps.png']);
-%                    close all;
-%               end
-% 
-%               if numberOfNodes > options.reconstruction.minNumberOfORNodes
-%                    % Find an ideal cutoff ratio.
-%                    sampleVals = 0.3:0.025:0.8;
-%                    for sampleVal = sampleVals
-%                         val = find(cutoffRatios <= sampleVal, 1, 'first');
-%                         if ~isempty(val)
-%                              clusterCount = sampleCounts(val);
-%                              break;
-%                         else
-%                              continue;
-%                         end
-%                    end
-%                    % Haven't found a cutoff yet? Set to the fixed value.
-%                    if isempty(val)
-%                         if size(newDistanceMatrixValid,1) < numberOfORNodes
-%                              clusterCount = round(size(newDistanceMatrixValid,1) / 2);
-%                         else
-%                              clusterCount = numberOfORNodes;
-%                         end
-%                    end
-%               else
-%                    clusterCount = numberOfNodes;
-%               end
-%          else
-%               clusterCount = numberOfNodes;
-%          end
-%  
-%  %        Find optimal number of clusters.
-% %          [~, maxIdx] = max(dunnVals);
-% %          clusterCount = sampleCounts(maxIdx);
 
          display(['........ Obtained ' num2str(clusterCount) ' clusters! Finishing clustering.']);
          if nnz(largeSubIdx) > 1
@@ -445,8 +243,8 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
          % Finally, add single node subs.
          finalClusters = zeros(numberOfNodes, 1);
          finalClusters(largeSubIdx) = clusters;
-         finalClusters(~largeSubIdx) = ((clusterCount + 1):(clusterCount+numberOfSingleSubs))';
-         clusters = finalClusters;
+         finalClusters(~largeSubIdx) = (max(clusters) + 1) + (1:(numel(largeSubIdx) - nnz(largeSubIdx)))';
+         clusters = finalClusters; 
 
          % Visualize dendogram.
           try %#ok<TRYNC>

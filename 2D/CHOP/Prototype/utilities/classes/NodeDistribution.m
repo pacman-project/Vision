@@ -16,9 +16,6 @@ classdef NodeDistribution
                                                                  % One for every discrete combination.  
         childrenPosDistributionProbs@cell; % numberOfChildren x {N x N} array, where N is the size of the 
                                                                      % receptive field.
-        childrenLowResPosDistributions@gmdistribution; % Cell array of multi-modal gaussian distributions 
-                                                                 % modelling joint space of children positions. 
-                                                                 % One for every discrete combination.         
         minPosActivationLog@single; % Min position activation.
         childrenPosDistributionModes@uint8 % Vector that has as many elements as the number of rows in 
                                                                     % childrenLabelDistributions. Each element shows which mode of the

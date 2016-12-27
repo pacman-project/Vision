@@ -17,7 +17,8 @@ function [ ] = MarkCategoryLabels( datasetName )
     options = SetParameters(datasetName, 'train');
     % Read the vocabulary and the exported realizations. 
     load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
-    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'exportArr');
+    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx');
+    load([pwd '/output/' datasetName '/export.mat'], 'exportArr');
 %    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
 %    numberOfImages = numel(categoryArrIdx);
 %     

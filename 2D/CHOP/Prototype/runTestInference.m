@@ -29,7 +29,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     
    % Read all relevant structures.
    if exist([pwd  '/output/' datasetName '/vb.mat'], 'file')
-       load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'allModes', 'modeProbs', 'options', 'categoryNames');
+       load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'options', 'categoryNames');
        load([pwd '/output/' datasetName '/distributions.mat'], 'vocabularyDistributions');
        load([pwd '/output/' datasetName '/export.mat'], 'exportArr', 'trainingFileNames', 'activationArr');
    else
@@ -111,46 +111,11 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
              sep = '\';
         end
         
-        %% Finally, we modify edge info so we can match nodes faster.
-        for vocabLevelItr = 2:numel(vocabulary)
-             vocabLevel = vocabulary{vocabLevelItr};
-             
-             if isempty(vocabLevel)
-                  break;
-             end
-             
-             modes = allModes{vocabLevelItr-1};
-             [uniqueModes, IC, ~] = unique(modes(:,1:2), 'rows', 'R2012a');
-             IC = cat(1, IC, size(modes,1)+1);
-             for nodeItr = 1:numel(vocabLevel)
-                  vocabNode = vocabLevel(nodeItr);
-                  curAdjInfo = vocabNode.adjInfo;
-                  curChildren = vocabNode.children;
-                  for edgeItr = 1:size(curAdjInfo,1)
-                        relevantModeId = find(uniqueModes(:,1) == curChildren(1) & uniqueModes(:,2) == curChildren(1+edgeItr));
-                        subModeIds = modes(IC(relevantModeId):(IC(relevantModeId+1)-1), 3);
-                        subModeId = find(subModeIds == curAdjInfo(edgeItr,3));
-                        if ~isempty(subModeId)
-                             curAdjInfo(edgeItr,3) = subModeId;
-                        else
-                             display('Error in edge assignment!');
-                        end
-                  end
-                  vocabNode.adjInfo = curAdjInfo;
-                  vocabLevel(nodeItr) = vocabNode;
-             end
-             vocabulary{vocabLevelItr} = vocabLevel;
-        end
-        
-        %% Create mode indices for fast mode indexing.
-        
         % For some weird reason, Matlab workers cannot access variables
         % read from the file. They have to be used in the code. Here's my
         % workaround: 
         vocabulary = vocabulary; %#ok<ASGSL,NODEF>
         vocabularyDistributions = vocabularyDistributions; %#ok<ASGSL,NODEF>
-        allModes = allModes; %#ok<ASGSL,NODEF>
-        modeProbs = modeProbs; %#ok<ASGSL,NODEF>
         categoryNames = categoryNames; %#ok<ASGSL>
         
         %% Step 1.2: Run inference on each test image.
@@ -166,7 +131,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     %    for testImgItr = 1:5
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, allModes, modeProbs, categoryNames{categoryArrIdx(testImgItr)}, options);
+            [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, categoryNames{categoryArrIdx(testImgItr)}, options);
            
 %             imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
 %             if ~isempty(imageId)

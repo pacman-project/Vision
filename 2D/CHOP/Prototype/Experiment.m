@@ -19,6 +19,7 @@ function [] = Experiment(datasetName, fileType)
     diary([pwd '/logs/' datasetName '_log.txt']);
     addpath([pwd '/utilities']);
     runVocabularyLearning(datasetName, fileType, '.png');
+    runTrainingInference( datasetName, fileType );
     MarkCategoryLabels(datasetName);
     ClassifyTrainingImages(datasetName);
     runTestInference(datasetName, fileType);

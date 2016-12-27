@@ -15,8 +15,8 @@
 %> Ver 1.0 on 18.01.2016
 function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, prevPosition, levelItr, options)
     rfSize = getRFSize(options, levelItr);
-    halfRFSize = round(rfSize(1)/2);
-    realRFSize = halfRFSize * 2 + 1;
+    centerRF = floor(rfSize(1)/2) + 1;
+    realRFSize = rfSize(1);
     minLogProb = single(-20);
     minProb = single(exp(-20));
 
@@ -49,8 +49,8 @@ function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivati
              end
              
              % Calculate position probabilities.
-             samples = (prevPosition(relevantChildren, :) - instancePositions) + halfRFSize + 1;
-             validIdx = samples > 0 & samples < realRFSize + 1;
+             samples = (prevPosition(relevantChildren, :) - instancePositions) + centerRF;
+             validIdx = samples > 0 & samples <= realRFSize;
              validIdx = validIdx(:,1) & validIdx(:,2);
              pointProbs = ones(size(samples,1),1, 'single') * minProb;
              samplesIdx = samples(validIdx,1) + (samples(validIdx,2)-1)*realRFSize;
@@ -71,7 +71,7 @@ function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivati
         avgActivations(avgActivations < minLogProb) = minLogProb;
         
         % Calculate minimum possible probabilities.
-        minPosLog = max(minLogProb, mean(minPosProbs));
+        minPosLog = max(minLogProb, min(mean(childrenPosActivations, 2)));
         if size(childrenPosActivations,1) < 3
              minLog = mean([min(mean(prevChildrenActivations,2)), minPosLog]);
         else

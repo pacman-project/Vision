@@ -17,7 +17,7 @@ function [options, nodeCoverages, imageCoverages] = markCategoryLevel(graphLevel
    end
 
    % If conditions are met, move on.
-   if nnz(imageCoverages(remainingImages) >= options.categoryLevelCoverage) == nnz(imageCoverages) || levelItr == options.categoryLevel
+   if nnz(imageCoverages(remainingImages) >= options.categoryLevelCoverage) == nnz(imageCoverages) || levelItr == options.categoryLevel || levelItr == options.maxLevels
         options.stopFlag = true;
    end
 end

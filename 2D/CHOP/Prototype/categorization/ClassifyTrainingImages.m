@@ -14,7 +14,8 @@ function [confMat] = ClassifyTrainingImages( datasetName )
 %    options = SetParameters(datasetName, 'train');
     % Read the vocabulary and the exported realizations. 
     load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'options');
-    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'exportArr', 'activationArr');
+    load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx');
+    load([pwd '/output/' datasetName '/export.mat'], 'exportArr', 'activationArr');
 
 %     load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
 %     numberOfImages = numel(categoryArrIdx);
@@ -55,6 +56,9 @@ function [confMat] = ClassifyTrainingImages( datasetName )
          
          % Obtain contributing subs.
          [contributingSubs, IC, ~] = unique(relevantRealizations(:,1), 'stable');
+%          if numel(contributingSubs) > 5
+%               contributingSubs = contributingSubs(1:5);
+%          end
          contributingSubActivations = relevantActivations(IC);
          combinedArr = cat(1, vocabulary{maxLevel}(contributingSubs).categoryArr);
          if size(combinedArr,1) > 1

@@ -25,9 +25,13 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
     printTrainRealizations = options.vis.printTrainRealizations;
     filter1 = options.filters{1};
     filtBandCount = size(filter1,3);
-    
-    pixelSize = getRFSize(options, levelItr+1) / options.receptiveFieldSize;
-    pixelSize = pixelSize(1);
+    if strcmp(options.filterType, 'gabor')
+        stride = options.gabor.stride;
+    else
+        stride = options.auto.stride;
+    end
+   poolFactor = numel(setdiff(2:(levelItr-1), options.noPoolingLayers));
+   pixelSize = stride * round(options.poolDim ^ poolFactor);
     
     %% Depending on the reconstruction type, we read masks to put on correct positions in images.
     if strcmp(reconstructionType, 'true')
@@ -73,7 +77,6 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
     
     %% Go over the list of images and run reconstruction.
     parfor fileItr = 1:numel(fileList)
-        nodeOffset = numel(find(imageIds<fileItr));
         relevantNodeIds = imageNodeIds{fileItr};
         
         %% Learn the size of the original image, and allocate space for new mask.
@@ -118,7 +121,6 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
         nodeLabelIds = cat(1, nodes.labelId);
         nodeRealLabelIds = cat(1, nodes.realLabelId);
         nodeLeafNodes = {nodes.leafNodes};
-        nodeAdjInfo = {nodes.adjInfo};
         
         % Learn if this image is a background image.
         isBackground = ~nodes(1).sign;
@@ -298,36 +300,7 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
                 nodeImg((nodePrecisePositions(nodeItr, 1) - centerSize):(nodePrecisePositions(nodeItr, 1) + centerSize), ...
                     (nodePrecisePositions(nodeItr, 2) - centerSize):(nodePrecisePositions(nodeItr, 2) + centerSize)) = nodeLabelIds(nodeItr);
             end
-            
-             allEdges = cat(1, nodes.adjInfo);
-             if ~isempty(allEdges)
-                [~, IA, ~] = unique(sort(allEdges(:,1:2),2), 'stable', 'rows');
-                validEdges = zeros(size(allEdges,1),1) > 0;
-                validEdges(IA) = 1;
-             else
-                validEdges = [];
-             end
              
-             
-            edgeOffset = 0;
-            for nodeItr = 1:numel(nodes)
-                edges = nodeAdjInfo{nodeItr};
-                if ~isempty(edges)
-                    edges = [edges(:,1:2) - nodeOffset, edges(:,3)];
-                    
-                    % Remove double edges.
-                    if ~isempty(edges)
-                        for edgeItr = 1:size(edges,1)
-                           if validEdges(edgeOffset + edgeItr)
-                               edgeIdx = drawline(nodePrecisePositions(edges(edgeItr,1), :), nodePrecisePositions(edges(edgeItr,2), :), sizeOfImage);
-                               edgeImg(edgeIdx) = edges(edgeItr,3);
-                           end
-                        end
-                        edgeOffset = edgeOffset + size(edges,1);
-                    end
-                end
-            end
-            
             centerSize = 1;
             for nodeItr = 1:numel(nodes)
                 edgeImg((nodePrecisePositions(nodeItr, 1) - centerSize):(nodePrecisePositions(nodeItr, 1) + centerSize), ...

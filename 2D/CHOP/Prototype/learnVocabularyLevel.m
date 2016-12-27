@@ -77,12 +77,17 @@
     prevRealLabelIds = [graphLevel.realLabelId]';
     prevActivations = [graphLevel.activation]';
    
+    %% Changing our learning architecture! 
+    tic;
+    [vocabLevel, graphLevel, vocabLevelDistributions] = discoverJointSubs(graphLevel, level1Coords, categoryArrIdx, options, levelItr-1);
+    toc;
+    
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
-   [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, level1Coords,...
-       options, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy); %#ok<*ASGLU,*NODEF>
-   if usejava('jvm')
-     java.lang.System.gc();
-   end
+%   [vocabLevel, graphLevel, isSupervisedSelectionRunning, previousAccuracy] = discoverSubs(vocabLevel, graphLevel, level1Coords,...
+%       options, levelItr-1, supervisedSelectionFlag, isSupervisedSelectionRunning, previousAccuracy); %#ok<*ASGLU,*NODEF>
+%   if usejava('jvm')
+%     java.lang.System.gc();
+%   end
 
    % Open/close matlabpool to save memory.
 %   matlabpool close;
@@ -93,14 +98,14 @@
       % Write previous level's appearances to the output folder.
       vocabulary = vocabulary(1:(levelItr-1),:);
       vocabularyDistributions = vocabularyDistributions(1:(levelItr-1),:);
-      allModes = allModes(1:(levelItr-1), :);
+%      allModes = allModes(1:(levelItr-1), :);
       distanceMatrices = distanceMatrices(1:(levelItr-1),:);
-      modeProbs = modeProbs(1:(levelItr-1),:);
+%      modeProbs = modeProbs(1:(levelItr-1),:);
       return; 
    end
 
    %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
-   graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, firstLevelPrecisePositions, graphLevel, levelItr, options);
+   graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, graphLevel, levelItr, options);
    if usejava('jvm')
      java.lang.System.gc();
    end
@@ -117,7 +122,7 @@
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
    display('........ Learning sub-part label and position distributions.');
-   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, graphLevel, prevRealLabelIds, double(previousLevelPrecisePositions), single(previousLevelPositions), levelItr, options);
+   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, vocabLevelDistributions, graphLevel, prevRealLabelIds, double(previousLevelPrecisePositions), single(previousLevelPositions), levelItr, options);
    if usejava('jvm')
      java.lang.System.gc();
    end
@@ -130,7 +135,9 @@
    end
    
    %% Calculate some limits for the parts, as a form of inhibition.
-   [vocabLevel, graphLevel, validNodeArr] = calculateActivationLimits(vocabLevel, graphLevel, size(level1Coords,1));
+ %  if ~supervisedSelectionFlag && ~isSupervisedSelectionRunning
+  %       [vocabLevel, graphLevel, validNodeArr] = calculateActivationLimits(vocabLevel, graphLevel, size(level1Coords,1));
+  % end
 
    %% Remove low-coverage nodes when we're at category layer.
 %     if options.stopFlag
@@ -171,7 +178,7 @@
    % reduction in resolution for higher layers, therefore non-growing
    % receptive fields.
    display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
-   graphLevel = applyPooling(graphLevel, options.poolFlag);
+   graphLevel = applyPooling(graphLevel, options.poolFlag, options.labeledPooling);
    display(['........ After pooling, we have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
    if usejava('jvm')
      java.lang.System.gc();
@@ -211,33 +218,33 @@
    display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
 
    %% Step 2.5: Create the parent relationships between current level and previous level.
-   vocabulary = mergeIntoGraph(vocabulary, vocabLevel, levelItr);
+   vocabulary(levelItr) = {vocabLevel};
 
    %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
    % Extract the edges between new realizations to form the new object graphs.
-   if strcmp(options.edgeType, 'continuity')
-        tempOptions = options;
-        tempOptions.edgeType = 'centroid';
-        realGraphLevel = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, tempOptions, levelItr);
-        clear tempOptions;
-   end
-   [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, options, levelItr);
-   if ~strcmp(options.edgeType, 'continuity')
-        realGraphLevel = graphLevel;
-   end
+%    if strcmp(options.edgeType, 'continuity')
+%         tempOptions = options;
+%         tempOptions.edgeType = 'centroid';
+%         realGraphLevel = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, tempOptions, levelItr);
+%         clear tempOptions;
+%    end
+%    [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, options, levelItr);
+%    if ~strcmp(options.edgeType, 'continuity')
+%         realGraphLevel = graphLevel;
+%    end
    
    if usejava('jvm')
      java.lang.System.gc();
    end
-   %% Here, we bring back statistical learning with mean/variance.
-   [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
-   graphLevel = assignEdgeLabels(realGraphLevel, modes, modeProbArr, options.edgeCoords, levelItr, options.debugFolder);
-   clear realGraphLevel;
-   allModes{levelItr} = modes;
-   modeProbs{levelItr} = modeProbArr;
-   if usejava('jvm')
-     java.lang.System.gc();
-   end
+%    %% Here, we bring back statistical learning with mean/variance.
+%    [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
+%    graphLevel = assignEdgeLabels(realGraphLevel, modes, modeProbArr, options.edgeCoords, levelItr, options.debugFolder);
+%    clear realGraphLevel;
+%    allModes{levelItr} = modes;
+%    modeProbs{levelItr} = modeProbArr;
+%    if usejava('jvm')
+%      java.lang.System.gc();
+%    end
 
    %% Print distance matrices.
    if ~isempty(newDistanceMatrix)
@@ -275,7 +282,7 @@
    %% Visualize images and vocabulary.
    if ~isempty(vocabLevel) && options.debug
      display('........ Visualizing previous levels...');
-     [allNodeInstances, representativeNodes] =visualizeLevel( vocabLevel, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
+     [allNodeInstances, representativeNodes] = visualizeLevel( vocabLevel, graphLevel, firstLevelActivations, leafNodes, leafNodeCoords, levelItr, numel(vocabulary{1}), numel(vocabulary{levelItr-1}), options);
      display('........ Visualizing realizations on images...');
      if ~isempty(vocabLevel)
  %         matlabpool close;
@@ -305,28 +312,18 @@
    % Open/close matlabpool to save memory.
 %   matlabpool close;
 %   matlabpool('open', options.numberOfThreads);
-
-   %% Step 2.6: If no new edges found, kill program.
-   newEdgesAvailable = ~isempty(cat(1, graphLevel.adjInfo));
-   if ~newEdgesAvailable
-       vocabulary = vocabulary(1:(levelItr),:);
-       vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
-       allModes = allModes(1:(levelItr), :);
-       distanceMatrices = distanceMatrices(1:(levelItr),:);
-       modeProbs = modeProbs(1:(levelItr),:);
-   end
    
    % clearing all, and then returning back to computation.
    scriptName = [options.currentFolder '/' options.datasetName '.sh'];
    restartFlag = options.restartFlag;
    
-   % Save workspace for later operation.
-   disp(['Saving layer ' num2str(levelItr) ' workspace.']);
-   saveWorkspace();
-   
    %% If we've reached max number of layers, don't keep going forward.
    if levelItr == options.maxLevels || options.stopFlag
        return;
+   else
+        % Save workspace for later operation.
+        disp(['Saving layer ' num2str(levelItr) ' workspace.']);
+        saveWorkspace();
    end
    
    % Restart program.

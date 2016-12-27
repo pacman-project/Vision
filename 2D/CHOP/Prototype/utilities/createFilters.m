@@ -20,7 +20,7 @@ function [ filters, filterImages ] = createFilters( options )
        mkdir([filterFolder options.filterType]); 
     end
     
-    if strcmp(options.filterType, 'gabor')
+    if strcmp(options.filterType, 'gabor') || strcmp(options.filterType, 'realGabor')
         %% Create reference filter.
         refGaborFilt = gabor_fn(options.gabor.sigma, options.gabor.theta, ...
             options.gabor.lambda, ...
