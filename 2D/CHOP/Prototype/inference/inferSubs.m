@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 05.02.2014
-function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, nodes, nodeActivations, options)
+function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, nodes, nodeActivations, options)
     % Read data into helper data structures.
     missingPartLog = log(0.00001);
     maxShareability = options.maxShareability;
@@ -25,9 +25,11 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
     maxPosProb = 0.1;
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
     maxSize = options.subdue.maxSize;
-    load([pwd '/filters/optimizationFilters.mat'], 'visFilters');
-    outputImgFolder  = [options.currentFolder '/output/' options.datasetName '/reconstruction/test/' fileName];
-    filterIds = round(((180/numel(options.filters)) * (0:(numel(options.filters)-1))) / (180/size(visFilters,3)))' + 1;
+    if options.testDebug
+         load([pwd '/filters/optimizationFilters.mat'], 'visFilters');
+         outputImgFolder  = [options.currentFolder '/output/' options.datasetName '/reconstruction/test/' fileName];
+         filterIds = round(((180/numel(options.filters)) * (0:(numel(options.filters)-1))) / (180/size(visFilters,3)))' + 1;
+    end
 
     exportArr = [];
     if isempty(nodes) || isempty(vocabulary)
@@ -60,13 +62,9 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
     
     %% Start discovery process.
     for vocabLevelItr = 2:min(numel(vocabulary), 10)    
+         descriptions = double(uniqueVocabularyChildren{vocabLevelItr});
          prevLabelCounts = max(unique(prevVocabORLabels));
-             % Learn minimum size.
-          if vocabLevelItr > 4
-               minSize = 1;
-          else
-               minSize = 2;
-          end
+         multiplyVect = (double(prevLabelCounts+1).^((size(descriptions,2)-1):-1:0))';
          
          rfSize = getRFSize(options, vocabLevelItr);
          halfRealRFSize = floor(rfSize(1)/2) + 1;
@@ -76,7 +74,9 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
          % Obtain edge novelty threshold.
          edgeNoveltyThr = max(options.minEdgeNoveltyThr, options.edgeNoveltyThr - options.edgeNoveltyThrRate * max(0, (vocabLevelItr-3)));
          edgeShareabilityThr = 1 - edgeNoveltyThr;
-         allowedSharedLeafNodes = cellfun(@(x) numel(x), leafNodes) * edgeShareabilityThr;
+         if edgeShareabilityThr < 1
+               allowedSharedLeafNodes = cellfun(@(x) numel(x), leafNodes) * edgeShareabilityThr;
+         end
      
         % Calculate pool factor.
         poolFactor = nnz(~ismembc(2:vocabLevelItr, options.noPoolingLayers));
@@ -84,11 +84,9 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
         %% Match subs from vocabLevel to their instance in graphLevel.
         % Obtain relevant data structures for the level.
         vocabLevel = vocabulary{vocabLevelItr};
-        vocabLevelChildren = {vocabLevel.children};
-        vocabLevelChildrenCounts = cellfun(@(x) numel(x), vocabLevelChildren);
-        maxCount = max(vocabLevelChildrenCounts);
-        vocabLevelChildren = cellfun(@(x) [x zeros(1, maxCount-numel(x), 'int32')], vocabLevelChildren, 'UniformOutput', false);
-        vocabLevelChildren = cat(1, vocabLevelChildren{:});
+        vocabLevelChildren = vocabularyChildren{vocabLevelItr};
+        maxCount = size(vocabLevelChildren,2);
+        
         vocabLevelDistributions = vocabularyDistributions{vocabLevelItr};
         if isempty(vocabLevel)
              break;
@@ -107,11 +105,16 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
         
         % Calculate pairwise distances.
         if size(nodes,1) == 1
-             distances = Inf;
+             distances = false;
         else
              distances = squareform(pdist(single(nodes(:,2:3)), 'chebychev'));
+             [X, Y]= meshgrid(1:size(nodes,1), 1:size(nodes,1));
+             X = nodeORLabels(X);
+             Y = nodeORLabels(Y);
+             invalidEdges = X > Y;
              distances(1:(size(distances,1)+1):size(distances,1)^2) = Inf;
              distances = distances > 0 & distances <= rfRadius;
+             distances(invalidEdges) = 0;
         end
         
         %% Apply leaf shareability filter and find single subs.
@@ -140,14 +143,24 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                    loneNodeArr(nodeItr) = true;
                    continue;
               else
-                   adjMatrix(nodeItr, adjacentNodes) = 1;
+                   adjMatrix(adjacentNodes, nodeItr) = 1;
               end
         end
         
         %% Find all node combinations.
         prevCliques = int32((1:size(nodes,1))');
+        prevCliqueLabels = double(nodeORLabels(prevCliques));
+        if size(prevCliques,1) == 1
+             prevCliqueLabels = prevCliqueLabels';
+        end
+        
         allCliques = [];
         for sizeItr = 2:maxCount
+               relevantDescriptions = descriptions(:, 1:sizeItr);
+               relevantMultiplyVect = multiplyVect(((end+1)-sizeItr):end);
+               relevantDescriptions = fastsortedunique((relevantDescriptions) * relevantMultiplyVect);
+               prevCliqueLabels = prevCliqueLabels * relevantMultiplyVect(1:(end-1));
+               
                nodeCount = size(adjMatrix,1);
                dummyLabels = (1:nodeCount)';
 
@@ -159,129 +172,143 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
                for newCliqueItr = 1:size(prevCliques,1)
                     relevantRow = prevCliques(newCliqueItr, :);
                     newAdjNodes = int32(dummyLabels(all(adjMatrix(:, relevantRow), 2)));
-                    newCliques{newCliqueItr} = cat(2, relevantRow(ones(size(newAdjNodes,1),1), :), newAdjNodes);
+                    
+                    % Check to make sure only promising cliques are
+                    % expanded.
+                    newAdjNodes = newAdjNodes(ismembc(prevCliqueLabels(newCliqueItr) + double(nodeORLabels(newAdjNodes)), relevantDescriptions));
+                    
+                    % Save cliques.
+                    if ~isempty(newAdjNodes)
+                         newCliques{newCliqueItr} = cat(2, relevantRow(ones(size(newAdjNodes,1),1), :), newAdjNodes);
+                    end
                end
 
                % Pad and save new cliques.
                newCliques = cat(1, newCliques{:});
-               prevCliques = newCliques;
-               newCliques = cat(2, newCliques, zeros(size(newCliques,1), maxSize - sizeItr, 1, 'int32'));
-               if sizeItr >= minSize
-                    allCliques = cat(1, allCliques, newCliques);
-               end
-               if isempty(prevCliques)
+               
+               if isempty(newCliques)
                     break;
                end
+               
+               prevCliques = newCliques;
+               prevCliqueLabels = double(nodeORLabels(prevCliques));
+               if size(prevCliques,1) == 1
+                    prevCliqueLabels = prevCliqueLabels';
+               end
+               newCliques = cat(2, newCliques, zeros(size(newCliques,1), maxSize - sizeItr, 1, 'int32'));
+               allCliques = cat(1, allCliques, newCliques);
         end
 %         
         %% Put statistics in cell arrays for faster reference.
          posArr = {vocabLevelDistributions.childrenPosDistributionProbs};
          minPosLogProbs = cat(1, vocabLevelDistributions.minPosActivationLog);
          minLogProbs = cat(1, vocabLevel.minActivationLog);
-         childrenCounts = {vocabLevel.children};
-         childrenCounts = cellfun(@(x) numel(x), childrenCounts);
+         childrenCounts = sum(vocabLevelChildren>0,2);
          
         %% Starting inference from layer 2. 
-         labeledCliques = allCliques;
-         labeledCliques(labeledCliques > 0) = nodeORLabels(labeledCliques(labeledCliques > 0));
-         labeledCliques = labeledCliques(:, 1:maxCount);
-         
-         % Eliminate some cliques.
-         multiplyVect = (double(prevLabelCounts).^(0:(size(labeledCliques,2)-1)))';
-         labeledCliques = double(labeledCliques) * multiplyVect;
-         vocabLevelChildren = double(vocabLevelChildren) * multiplyVect;
-         
-         for vocabItr = 1:numel(vocabLevel)
-               % Find cliques.
-               instanceCombinations = allCliques(labeledCliques == vocabLevelChildren(vocabItr), 1:childrenCounts(vocabItr));
-               
-               % Single node elimination.
-%                if numel(vocabNodeChildren) == 1
-%                     validInstances = loneNodeArr & validInstances;
-%                end
+         if ~isempty(allCliques)
+              labeledCliques = allCliques;
+              labeledCliques(labeledCliques > 0) = nodeORLabels(labeledCliques(labeledCliques > 0));
+              labeledCliques = labeledCliques(:, 1:maxCount);
+
+              % Eliminate some cliques.
+              labeledCliques = double(labeledCliques) * multiplyVect;
+              vocabLevelChildren = double(vocabLevelChildren) * multiplyVect;
+
+              for vocabItr = 1:numel(vocabLevel)
+                    % Find cliques.
+                    instanceCombinations = allCliques(labeledCliques == vocabLevelChildren(vocabItr), 1:childrenCounts(vocabItr));
+
+                    % Single node elimination.
+     %                if numel(vocabNodeChildren) == 1
+     %                     validInstances = loneNodeArr & validInstances;
+     %                end
 
 
-               % If no centers have matched, continue.
-               if isempty(instanceCombinations)
-                 continue;
-               end
-               
-               numberOfCombinations = size(instanceCombinations,1);
-               numberOfChildren = size(instanceCombinations,2);
-               
-               if numberOfCombinations == 0
-                    continue;
-               end
-               
-              %% Check leaf node shareability, and save leaf nodes for every instance.
-              instanceLeafNodes = cell(numberOfCombinations, 1);
-              for instanceItr = 1:numberOfCombinations
-                   tempCombinations = instanceCombinations(instanceItr,:);
-                   tempArr = sort(cat(1, leafNodes{tempCombinations(~isinf(tempCombinations))}));
-                   tempLeafNodes = fastsortedunique(tempArr);
-                   instanceLeafNodes{instanceItr} = tempLeafNodes;
+                    % If no centers have matched, continue.
+                    if isempty(instanceCombinations)
+                      continue;
+                    end
+
+                    numberOfCombinations = size(instanceCombinations,1);
+                    numberOfChildren = size(instanceCombinations,2);
+
+                    if numberOfCombinations == 0
+                         continue;
+                    end
+
+                   %% Check leaf node shareability, and save leaf nodes for every instance.
+                   instanceLeafNodes = cell(numberOfCombinations, 1);
+                   if edgeShareabilityThr < 1
+                        for instanceItr = 1:numberOfCombinations
+                             tempCombinations = instanceCombinations(instanceItr,:);
+                             tempArr = sort(cat(1, leafNodes{tempCombinations(~isinf(tempCombinations))}));
+                             tempLeafNodes = fastsortedunique(tempArr);
+                             instanceLeafNodes{instanceItr} = tempLeafNodes;
+                        end
+                   end
+
+                   %% Combinations are discovered. Now, we calculate an activation value for every combination.
+                   % First, we have to pick relevant distributions for each node. We
+                   % need combined relative positions first.
+                   % Calculate instance positions.
+                   instancePrecisePositions = zeros(numberOfCombinations,2, 'single');
+                   for instanceItr = 1:numberOfCombinations
+                       positions = precisePositions(instanceCombinations(instanceItr, :)',:);
+                       instancePrecisePositions(instanceItr,:) = round((min(positions) + max(positions))/2);
+                   end
+
+                  %% Calculate activations!
+                  childrenProbs = posArr{vocabItr};
+                  childrenPosActivations = zeros(size(instanceCombinations), 'single');
+                  for childItr = 1:size(instanceCombinations,2)
+                       relevantChildren = instanceCombinations(:, childItr);
+                       relevantProbs = childrenProbs{childItr};
+
+                       % Calculate position probabilities.
+                       samples = (precisePositions(relevantChildren, :) - instancePrecisePositions) + halfRealRFSize;
+                       validIdx = samples > 0 & samples < realRFSize + 1;
+                       validIdx = validIdx(:,1) & validIdx(:,2);
+                       pointProbs = zeros(size(samples,1),1, 'single');
+                       samplesIdx = samples(validIdx,1) + (samples(validIdx,2)-1)*realRFSize;
+                       pointProbs(validIdx) = full(relevantProbs(samplesIdx));
+                       childrenPosActivations(:, childItr) = log(pointProbs);
+                  end
+                  instancePosActivations = sum(childrenPosActivations,2) / numberOfChildren;
+
+                  % Take previous activations into account as well.
+                  prevChildrenActivations = nodeActivations(instanceCombinations);
+                  if ~isequal(size(prevChildrenActivations), size(instanceCombinations))
+                      prevChildrenActivations = prevChildrenActivations';
+                  end
+                  if vocabLevelItr > 2
+                        instanceActivations = sum([prevChildrenActivations, childrenPosActivations], 2) / (numberOfChildren * 2);
+                  else
+                        instanceActivations = sum(childrenPosActivations,2) / numberOfChildren;
+                  end
+
+                  % Find valid activations by filtering.
+                  validCombinations = instancePosActivations >= minPosLogProbs(vocabItr) & instanceActivations >= minLogProbs(vocabItr);
+
+                   %% Filter the data structures by eliminating invalid (low probability) combinations.
+                  instanceActivations = instanceActivations(validCombinations,:);
+                  instancePrecisePositions = instancePrecisePositions(validCombinations,:);
+                  instanceLeafNodes = instanceLeafNodes(validCombinations,:);
+
+                  %% Create new nodes.
+                  newNodes = [ones(nnz(validCombinations), 1, 'int32') * vocabItr, int32(instancePrecisePositions)];
+
+                  %% Finally, write everything to the relevant arrays.
+                  layerNodes{vocabItr} = newNodes;
+                  layerActivations{vocabItr} = instanceActivations;
+                  layerLeafNodes{vocabItr}  = instanceLeafNodes;
+                  layerPrecisePositions{vocabItr} = instancePrecisePositions;
+                  if childrenCounts(vocabItr) == 1
+                        layerChildren{vocabItr} = instanceCombinations(validCombinations,:);
+                  else
+                        layerCombinations{vocabItr} = instanceCombinations(validCombinations,:);
+                  end
               end
-              
-              %% Combinations are discovered. Now, we calculate an activation value for every combination.
-              % First, we have to pick relevant distributions for each node. We
-              % need combined relative positions first.
-              % Calculate instance positions.
-              instancePrecisePositions = zeros(numberOfCombinations,2, 'single');
-              for instanceItr = 1:numberOfCombinations
-                  positions = precisePositions(instanceCombinations(instanceItr, :)',:);
-                  instancePrecisePositions(instanceItr,:) = round((min(positions) + max(positions))/2);
-              end
-             
-             %% Calculate activations!
-             childrenProbs = posArr{vocabItr};
-             childrenPosActivations = zeros(size(instanceCombinations), 'single');
-             for childItr = 1:size(instanceCombinations,2)
-                  relevantChildren = instanceCombinations(:, childItr);
-                  relevantProbs = childrenProbs{childItr};
-
-                  % Calculate position probabilities.
-                  samples = (precisePositions(relevantChildren, :) - instancePrecisePositions) + halfRealRFSize;
-                  validIdx = samples > 0 & samples < realRFSize + 1;
-                  validIdx = validIdx(:,1) & validIdx(:,2);
-                  pointProbs = zeros(size(samples,1),1, 'single');
-                  samplesIdx = samples(validIdx,1) + (samples(validIdx,2)-1)*realRFSize;
-                  pointProbs(validIdx) = full(relevantProbs(samplesIdx));
-                  childrenPosActivations(:, childItr) = log(pointProbs);
-             end
-             instancePosActivations = sum(childrenPosActivations,2) / numberOfChildren;
-             
-             % Take previous activations into account as well.
-             prevChildrenActivations = nodeActivations(instanceCombinations);
-             if ~isequal(size(prevChildrenActivations), size(instanceCombinations))
-                 prevChildrenActivations = prevChildrenActivations';
-             end
-             if vocabLevelItr > 2
-                   instanceActivations = sum([prevChildrenActivations, childrenPosActivations], 2) / (numberOfChildren * 2);
-             else
-                   instanceActivations = sum(childrenPosActivations,2) / numberOfChildren;
-             end
-             
-             % Find valid activations by filtering.
-             validCombinations = instancePosActivations >= minPosLogProbs(vocabItr) & instanceActivations >= minLogProbs(vocabItr);
-             
-              %% Filter the data structures by eliminating invalid (low probability) combinations.
-             instanceActivations = instanceActivations(validCombinations,:);
-             instancePrecisePositions = instancePrecisePositions(validCombinations,:);
-             instanceLeafNodes = instanceLeafNodes(validCombinations,:);
-             
-             %% Create new nodes.
-             newNodes = [ones(nnz(validCombinations), 1, 'int32') * vocabItr, int32(instancePrecisePositions)];
-
-             %% Finally, write everything to the relevant arrays.
-             layerNodes{vocabItr} = newNodes;
-             layerActivations{vocabItr} = instanceActivations;
-             layerLeafNodes{vocabItr}  = instanceLeafNodes;
-             layerPrecisePositions{vocabItr} = instancePrecisePositions;
-             if childrenCounts(vocabItr) == 1
-                   layerChildren{vocabItr} = instanceCombinations(validCombinations,:);
-             else
-                   layerCombinations{vocabItr} = instanceCombinations(validCombinations,:);
-             end
          end
          
          %% Processing of a layer is finished. We have to move on to the next layer here.

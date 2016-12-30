@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, categoryName, options)
+function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, categoryLabel, categoryName, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -24,20 +24,20 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
     if max(size(img)) > options.maxImageDim
        img = imresize(img, options.maxImageDim/max(size(img)), 'bilinear'); 
     end
-    imwrite(img, [options.processedFolder '/' categoryName '_' fileName '.png']);
+%    imwrite(img, [options.processedFolder '/' categoryName '_' fileName '.png']);
     imgSize = size(img);
     if numel(imgSize) > 2
         imgSize = imgSize(1:2); %#ok<NASGU>
     end
 
-    %% Form the first level nodes.
-    if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
-         w = warning ('off','all');
-         load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr');
-         warning(w);
-    end
+%     %% Form the first level nodes.
+%     if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
+%          w = warning ('off','all');
+%          load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr');
+%          warning(w);
+%     end
     
-    if ~exist('exportAr', 'var')
+%    if ~exist('exportArr', 'var')
          [ nodes, ~, nodeActivations, ~, ~, ~ ] = getNodes( img, [], options );
          if isempty(nodes)
              return;
@@ -52,10 +52,10 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
          % Save smoothed image.
          % Assign nodes their image ids.
          nodes = int32(cell2mat(nodes));
-         [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
-    else
-         load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr');
-    end
+         [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
+%     else
+%          load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr');
+%     end
     maxLevel = max(exportArr(:,4));
     
 %     %% Project stuff from top layer.    % Create data structures required for optimization.
@@ -98,7 +98,6 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
     if nnz(combinedArr == maxVal) > 1
          predictedCategory = datasample(find(combinedArr == maxVal), 1);
     end
-    load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat']);
     
     % Check top 1-5 accuracies.
     [~, categoryOrder] = sort(combinedArr, 'descend');
@@ -106,9 +105,5 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
     top5Correct = ismember(categoryLabel, categoryOrder(1:5));
     
     %% Print realizations in the desired format for inte2D/3D integration.
-    if exist([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'file')
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', 'predictedCategory', '-append');
-    else
-        save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize');
-    end
+    save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', 'predictedCategory', 'categoryLabel');
 end

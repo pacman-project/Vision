@@ -7,7 +7,7 @@ function [ ] = baselineClassification(datasetName)
     datasetTestFolder = [options.currentFolder '/output/' datasetName '/test/inference/'];
     load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
     load([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
-    load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr');
+    load([options.currentFolder '/output/' datasetName '/trainingInference.mat'], 'exportArr');
     testFileNames = fuf([datasetTestFolder '*.mat'], 1, 'detail');
     
     %% Step 1.1: Extract a set of features from the input images.
@@ -191,17 +191,4 @@ function [ ] = baselineClassification(datasetName)
             save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'accuracy', 'confMat', '-append');
         end
     end
-end
-
-function [labels] = knnclassify(trainFeatures, trainLabels, testFeatures, k, distance)
-    [IDX, ~] = knnsearch(trainFeatures, testFeatures, 'K', k, 'Distance', distance);
-    IDX = trainLabels(IDX);
-    featureDim = size(IDX,2);
-    for itr = 1:size(IDX,1)
-       ordering = randperm(featureDim);
-       IDX(itr,:) = IDX(itr, ordering);
-       [vals, ~, IC] = unique(IDX(itr,:), 'stable');
-       IDX(itr,1) = vals(mode(IC));
-    end
-    labels = IDX(:,1);
 end

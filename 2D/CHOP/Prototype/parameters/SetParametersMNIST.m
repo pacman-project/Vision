@@ -25,7 +25,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.poolDim = 2; % The pooling window size. OVERRIDING SetParameters.m.
     options.labeledPooling = false; % If true, we use labels in pooling, otherwise we don't.
-    options.labeledPoolingTest = false; % Same thing, just in testing.
+    options.labeledPoolingTest = true; % Same thing, just in testing.
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
@@ -277,8 +277,8 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 2000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
-    options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
+    options.subdue.beam = 1000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = true;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

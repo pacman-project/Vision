@@ -97,11 +97,6 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
             if ~isempty(categoryLabel)
                 categoryArrIdx(fileItr) = categoryLabel;
             end
-            if ~exist([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'file')
-                 save([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'categoryLabel');
-            else
-                 save([options.testInferenceFolder '/' categoryNames{categoryLabel} '_' fileName '_test.mat'], 'categoryLabel', '-append');
-            end
         end
         
         % Get separation. 
@@ -109,6 +104,19 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
              sep = '/';
         else
              sep = '\';
+        end
+        
+        %% For fast processing, we put vocabulary children in arrays.
+        vocabularyChildren = cell(numel(vocabulary), 1);
+        uniqueVocabularyChildren = cell(numel(vocabulary), 1);
+        for levelItr = 1:numel(vocabulary)
+             vocabLevelChildren = {vocabulary{levelItr}.children};
+             maxCount = max(cellfun(@(x) numel(x), vocabLevelChildren));
+             vocabLevelChildren = cellfun(@(x) [x, zeros(1, maxCount - numel(x))], vocabLevelChildren, 'UniformOutput', false);
+             vocabLevelChildren = cat(1, vocabLevelChildren{:});
+             vocabularyChildren{levelItr} = vocabLevelChildren;
+             vocabLevelChildren = unique(vocabLevelChildren, 'rows');
+             uniqueVocabularyChildren{levelItr} = vocabLevelChildren;
         end
         
         % For some weird reason, Matlab workers cannot access variables
@@ -131,7 +139,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     %    for testImgItr = 1:5
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, categoryNames{categoryArrIdx(testImgItr)}, options);
+            [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, categoryArrIdx(testImgItr), categoryNames{categoryArrIdx(testImgItr)}, options);
            
 %             imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
 %             if ~isempty(imageId)
