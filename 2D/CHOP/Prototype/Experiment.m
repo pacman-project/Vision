@@ -20,9 +20,11 @@ function [] = Experiment(datasetName, fileType)
     addpath([pwd '/utilities']);
     runVocabularyLearning(datasetName, fileType, '.png');
     MarkCategoryLabels(datasetName);
-    ClassifyTrainingImages(datasetName);
     runTrainingInference( datasetName, fileType );
+    MarkCategoryLabels(datasetName);
+    ClassifyTrainingImages(datasetName);
     runTestInference(datasetName, fileType);
+    baselineClassification(datasetName);
     
     % Run node analysis.
     try

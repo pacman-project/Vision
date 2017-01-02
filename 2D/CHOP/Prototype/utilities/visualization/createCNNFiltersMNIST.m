@@ -1,8 +1,7 @@
-function [ output_args ] = createCNNFiltersMNIST(  )
+function [  ] = createCNNFiltersMNIST(  )
      datasetName = 'MNIST';
      load([pwd '/output/' datasetName '/distributions.mat'], 'vocabularyDistributions');     
      load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary');
-     rfSize = 5;
      levelRFSizes = [5,5,4];
      filterItr = 1;
      f = 0.01;
@@ -24,38 +23,16 @@ function [ output_args ] = createCNNFiltersMNIST(  )
                combinedPosProbs = vocabLevelDistributions(vocabNodeItr).childrenPosDistributionProbs;
                combinedPosProbs = cellfun(@(x) full(x), combinedPosProbs, 'UniformOutput', false);
                combinedPosProbs = cat(3, combinedPosProbs{:});
-               if filterItr == 1
-                    combinedPosProbs = combinedPosProbs(2:(end-1), 2:(end-1), :);
-               else
-                    combinedPosProbs = combinedPosProbs(1:(end-1), 1:(end-1), :);
-               end
             
                %% Downsample combined probabilities.
                n = 2^(filterItr-1);
-               k = rfSize;
+               k = levelRFSizes(filterItr);
                B = kron(speye(k), ones(1,n));
-               downsampledPosProbs = zeros(rfSize, rfSize, numel(children));
+               downsampledPosProbs = zeros(levelRFSizes(filterItr), levelRFSizes(filterItr), numel(children));
                for childItr = 1:numel(children)
                     assignedVals = combinedPosProbs(:,:,childItr);
                     assignedVals = B*assignedVals*B';
                     downsampledPosProbs(:,:,childItr) = assignedVals;
-               end
-               
-               % If RF is smaller, we move on and eliminate a row and a
-               % column.
-               if levelRFSizes(filterItr) < rfSize
-                    allSums = sum(downsampledPosProbs,3);
-                    columnSums = sum(allSums, 1);
-                    elimColumn = rfSize;
-                    if columnSums(1) < columnSums(end)
-                         elimColumn = 1;
-                    end
-                    rowSums = sum(allSums, 2);
-                    elimRow = rfSize;
-                    if rowSums(1) < rowSums(end)
-                         elimRow = 1;
-                    end
-                    downsampledPosProbs = downsampledPosProbs(setdiff(1:rfSize, elimRow), setdiff(1:rfSize, elimColumn), :);
                end
                
                %% Finally, assign values.

@@ -1,10 +1,15 @@
 function [selectedParts, reconstructiveParts, discriminativeParts] = selectJointParts(newCliques, newMetaData, leafNodes, level1Coords, categoryArrIdx, options)
      % Program variables set here.
      discriminativeParts = [];
+     reconstructiveParts = [];
      coverageThr = 0.95;
+     reconMaxSubs = 50000;
+     discrMaxSubs = 20000;
      numberOfSubs = double(max(newMetaData(:,1)));
      numberOfImages = double(numel(categoryArrIdx));
      numberOfSelectedParts = options.numberOfSelectedSubs;
+     reconstructivePartSelection = options.reconstructivePartSelection;
+     discriminativePartSelection = options.discriminativePartSelection;
      
      %% Create the structures for future processing.
      uniqueMetaData = unique(newMetaData(:,1:2), 'rows');
@@ -17,109 +22,122 @@ function [selectedParts, reconstructiveParts, discriminativeParts] = selectJoint
           d{itr} = sparse(dummyArr);
      end
      d = cat(2, d{:});
+     doubleD = double(d);
      
-     %% Select parts based on coverage.
-     % Calculate remaining nodes per image.
+     %% Calculate part statistics for both reconstruction and discrimination.
      remainingNodes = newCliques(newCliques>0);
      remainingNodes = fastsortedunique(sort(remainingNodes(:)));
      remainingLeafNodes = fastsortedunique(sort(cat(2, leafNodes{remainingNodes})));
-     imageNodeCounts = hist(level1Coords(remainingLeafNodes,1), 1:numberOfImages);
-     minCoverages = imageNodeCounts * coverageThr;
-     
-     % First, save support of parts.
-     coveredNodes = cell(numberOfSubs,1);
-     valArr = zeros(numberOfSubs, 1);
-     [~, idx] = unique(newMetaData(:,1), 'R2012a');
-     idx = cat(1, idx, size(newMetaData,1)+1);
-     parfor partItr = 1:numberOfSubs
-          dummyArr = zeros(1, size(level1Coords,1))>0;
-          children = newCliques(idx(partItr):(idx(partItr+1)-1),:);
-          children = children(children > 0);
-          children = children(:);
-          dummyArr(cat(2, leafNodes{children})) = 1;
-          nodes = find(dummyArr);
-          valArr(partItr) = numel(nodes);
-          coveredNodes{partItr} = nodes;
-     end
-       
-     % Start selecting.
-     validNodes = ones(max(remainingLeafNodes),1) > 0;
-     [~, reconstructiveParts] = max(valArr);
-     valArr(reconstructiveParts) = 0;
-     validNodes(coveredNodes{reconstructiveParts}) = 0;
-     if options.reconstructivePartSelection
-          while numel(reconstructiveParts) < numberOfSelectedParts
-               % Update valid nodes if some images are covered.
-               newImageNodeCounts = hist(level1Coords(~validNodes,1), 1:numberOfImages);
-               coveredImages = newImageNodeCounts >= minCoverages & minCoverages > 0;
-               validNodes(ismembc(level1Coords(:,1), int32(find(coveredImages)))) = 0;
+     if options.reconstructivePartSelection     
+          imageNodeCounts = hist(level1Coords(remainingLeafNodes,1), 1:numberOfImages);
+          minCoverages = imageNodeCounts * coverageThr;
 
-               % Remove ineligible subs.
-               invalidSubs = ~full(sum(d(~coveredImages, :),1)) > 0;
-               valArr(invalidSubs) = 0;
-
-               % Go through the list of parts.
-               [sortedValArr, sortIdx] = sort(valArr, 'descend');
-               eligibleSubs = find(sortedValArr > 0);
-               maxVal = 0;
-               maxPart = 0;
-               for partItr = 1:numel(eligibleSubs)
-                    % If we have no hope of getting a better part, close this
-                    % loop.
-                    if maxVal > sortedValArr(partItr)
-                         break;
-                    end
-
-                    % Calculate value and save if necessary.
-                    tempArr = coveredNodes{sortIdx(partItr)};
-                    tempArr = tempArr(validNodes(tempArr));
-                    coveredNodes{sortIdx(partItr)} = tempArr;
-                    newVal = numel(tempArr);
-                    valArr(sortIdx(partItr)) = newVal;
-
-                    % Save the part, it's our champion!
-                    if newVal > maxVal
-                         maxValidNodes = validNodes;
-                         maxValidNodes(tempArr) = 0;
-                         maxPart = sortIdx(partItr);
-                         maxVal = newVal;
-                    end
-               end
-
-               % If we haven't found a new part, stop processing.
-               if ~maxVal
-                    break;
-               else
-                    reconstructiveParts = cat(1, reconstructiveParts, maxPart);
-                    validNodes = maxValidNodes;
-               end
+          % First, save support of parts.
+          coveredNodes = cell(numberOfSubs,1);
+          valArr = zeros(numberOfSubs, 1);
+          [~, idx] = unique(newMetaData(:,1), 'R2012a');
+          idx = cat(1, idx, size(newMetaData,1)+1);
+          parfor partItr = 1:numberOfSubs
+               dummyArr = zeros(1, size(level1Coords,1))>0;
+               children = newCliques(idx(partItr):(idx(partItr+1)-1),:);
+               children = children(children > 0);
+               children = children(:);
+               dummyArr(cat(2, leafNodes{children})) = 1;
+               nodes = find(dummyArr);
+               valArr(partItr) = numel(nodes);
+               coveredNodes{partItr} = nodes;
           end
-          reconstructiveParts = sort(reconstructiveParts);
-     else
-          reconstructiveParts = [];
-     end
-     
-     if options.discriminativePartSelection
-          %% Start Discriminative selection.
-          d = double(d);
-          nd = size(d,2);
 
+          % Eliminate subs with small values.
+          if numberOfSubs > reconMaxSubs
+               sortedValArr = sort(valArr, 'descend');
+               valThr = sortedValArr(reconMaxSubs);
+               valArr(valArr < valThr) = 0;
+          end
+     end
+     if options.discriminativePartSelection
+          nd = size(doubleD,2);
           t1=cputime;
           t = zeros(nd, 1);
           parfor i=1:nd, 
-             t(i) = mutualinfo(full(d(:,i)), categoryArrIdx);
+             t(i) = mutualinfo(full(doubleD(:,i)), categoryArrIdx);
           end; 
           fprintf('calculate the marginal dmi costs %5.1fs.\n', cputime-t1);
+          [~, idxs] = sort(-t); 
+     end
+       
+     %% Start selecting.
+     if reconstructivePartSelection && discriminativePartSelection
+          partFlags = rem((1:numberOfSelectedParts)',2) > 0;
+     elseif reconstructivePartSelection
+          partFlags = ones(numberOfSelectedParts, 1) > 0;
+     elseif discriminativePartSelection
+          partFlags = zeros(numberOfSelectedParts, 1) > 0;
+     end
+     
+     validNodes = ones(max(remainingLeafNodes),1) > 0;
+     if partFlags(1)
+          [~, selectedParts] = max(valArr);
+     else
+          selectedParts = idxs(1);
+     end
+     valArr(selectedParts) = 0;
+     if reconstructivePartSelection
+          validNodes(coveredNodes{selectedParts}) = 0;
+     end
+     
+     while numel(selectedParts) < numberOfSelectedParts
+          % Update valid nodes if some images are covered.
+          newImageNodeCounts = hist(level1Coords(~validNodes,1), 1:numberOfImages);
+          coveredImages = newImageNodeCounts >= minCoverages & minCoverages > 0;
+          validNodes(ismembc(level1Coords(:,1), int32(find(coveredImages)))) = 0;
 
-          [~, idxs] = sort(-t);
+          % Remove ineligible subs.
+          invalidSubs = ~full(sum(d(~coveredImages, :),1)) > 0;
+          valArr(invalidSubs) = 0;
 
-          fea = zeros(min(numberOfSelectedParts, nd),1);
+          % Go through the list of parts.
+          [sortedValArr, sortIdx] = sort(valArr, 'descend');
+          eligibleSubs = find(sortedValArr > 0);
+          maxVal = 0;
+          maxPart = 0;
+          for partItr = 1:numel(eligibleSubs)
+               % If we have no hope of getting a better part, close this
+               % loop.
+               if maxVal > sortedValArr(partItr)
+                    break;
+               end
 
+               % Calculate value and save if necessary.
+               tempArr = coveredNodes{sortIdx(partItr)};
+               tempArr = tempArr(validNodes(tempArr));
+               coveredNodes{sortIdx(partItr)} = tempArr;
+               newVal = numel(tempArr);
+               valArr(sortIdx(partItr)) = newVal;
+
+               % Save the part, it's our champion!
+               if newVal > maxVal
+                    maxValidNodes = validNodes;
+                    maxValidNodes(tempArr) = 0;
+                    maxPart = sortIdx(partItr);
+                    maxVal = newVal;
+               end
+          end
+
+          % If we haven't found a new part, stop processing.
+          if ~maxVal
+               break;
+          else
+               reconstructiveParts = cat(1, reconstructiveParts, maxPart);
+               validNodes = maxValidNodes;
+          end
+     end
+     reconstructiveParts = sort(reconstructiveParts);
+     
+     if options.discriminativePartSelection
+          %% Start Discriminative selection.
           if numberOfSelectedParts < nd
-              fea(1) = idxs(1);
-
-              KMAX = min(20000,nd); %500 %20000
-
+              KMAX = min(discrMaxSubs,nd); %500 %20000
               if KMAX <= numberOfSelectedParts
                   fea = idxs((1:numberOfSelectedParts));
                   return;
@@ -142,9 +160,9 @@ function [selectedParts, reconstructiveParts, discriminativeParts] = selectJoint
                  temp_array = zeros(ncand, 1);
 
                  % We calculate mutual information for promising subs.
-                 comparedFeature = full(d(:,fea(curlastfea)));
+                 comparedFeature = full(doubleD(:,fea(curlastfea)));
                  parfor i=1:ncand,
-                      temp_array(i) = getmultimi(comparedFeature, full(d(:,idxleft(i))));
+                      temp_array(i) = getmultimi(comparedFeature, full(doubleD(:,idxleft(i))));
                  end
                  mi_array(idxleft, curlastfea) = temp_array;
                  c_mi = sum(mi_array(idxleft, 1:(k-1)), 2) / (k-1);
