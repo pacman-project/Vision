@@ -36,6 +36,11 @@ function [] = runAnalysis(datasetName, experimentStr)
     try
          copyfile([pwd '/workspaces/' datasetName], [expFolder '/workspaces']);
     end
+    
+    try
+         mkdir([expFolder '/models']);
+         copyfile([pwd '/models/' datasetName '*.mat'], [expFolder '/models']);
+    end
          
     try
          copyfile([pwd '/logs/' datasetName '.txt'], [expFolder '/' datasetName '.txt']);

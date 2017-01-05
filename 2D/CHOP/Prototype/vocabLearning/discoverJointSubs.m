@@ -36,13 +36,13 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      
      realRFSize = getRFSize(options, levelItr+1);
      realRFSize = realRFSize(1);
-     if levelItr > 3
-          minSize = 1;
-     else
-          minSize = 2;
-     end
+%      if levelItr > 3
+%           minSize = 1;
+%      else
+%           minSize = 2;
+%      end
+     minSize = 2;
      maxClusters = 10;
-     rfCenter = floor(realRFSize/2) + 1;
      
      newFolder = [options.debugFolder '/level' num2str(levelItr+1) '/candidateParts'];
      if ~exist(newFolder, 'dir')
@@ -97,7 +97,6 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
 %     for partItr = 1:100
           %% Create cliques and their joint position space.
           [jointPositions, savedCliques, uniqueSubParts, numberOfSubParts] = getCliques(candidateParts, allCliques, firstInstances, prevLevelPositions, allInstancePositions, realRFSize, partItr);
-          
           %% Calculate joint statistics. 
           [partClusters, refinedClusterSamples, refinedCliques, refinedClusters, refinedInstancePositions, shownSamples, shownClusters, clusterDistributions, numberOfClusters] = learnJointStats(jointPositions, instancePositions, savedCliques, realRFSize, maxClusters);
           newCliques{partItr} = refinedCliques;
@@ -130,10 +129,21 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      newMetaData = cat(2, newLabels, newImageIds, newCategoryLabels);
      clear newLabels newImageIds newCategoryLabels;
      
+     %% Pool new instance positions.
+    if strcmp(options.filterType, 'gabor')
+         stride = options.gabor.stride;
+    else
+         stride = options.auto.stride;
+    end
+    poolDim = options.poolDim;
+    % Calculate pool factor.
+    poolFactor = nnz(~ismembc(2:levelItr, options.noPoolingLayers));
+    pooledInstancePositions = calculatePooledPositions(newInstancePositions, poolFactor, poolDim, stride);
+     
      %% Before the selection process, we eliminate parts which have low coverage. 
      % They are removed from the part selection process.
      display('Removing low coverage parts...');
-     [newCliques, newInstancePositions, newMetaData, newChildrenArr, newPartDistributions] = removeLowCoverageParts(newCliques, newInstancePositions, newMetaData, newChildrenArr, newPartDistributions, prevLevel, leafNodes, level1Coords, nodeCoverageThr, rfCenter-1);
+     [newCliques, newInstancePositions, newMetaData, newChildrenArr, newPartDistributions] = removeLowCoverageParts(newCliques, newInstancePositions, pooledInstancePositions, newMetaData, newChildrenArr, newPartDistributions, prevLevel, leafNodes, level1Coords, nodeCoverageThr, rfSize);
      
      %% Candidate parts are discovered. Now, we perform part selection process.
      str = 'Part selection is being performed. Part selection modes:';
@@ -159,6 +169,7 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      assignedVocabLabels = num2cell(int32((1:numberOfParts)'));
      childrenLabels = newChildrenArr(selectedParts,:);
      newPartDistributions = newPartDistributions(selectedParts, :);
+     newPosMus = cellfun(@(x) x.mu, newPartDistributions, 'UniformOutput', false);
      childrenLabels = mat2cell(childrenLabels, ones(numberOfParts,1), size(childrenLabels,2));
      childrenLabels = cellfun(@(x) x(x>0), childrenLabels, 'UniformOutput', false);
      
@@ -187,6 +198,7 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      [newVocabLevel.children] = deal(childrenLabels{:});
      
      [newVocabLevelDistributions.childrenPosDistributions] = deal(newPartDistributions{:});
+     [newVocabLevelDistributions.childrenPosMu] = deal(newPosMus{:});
      
      warning(w);
 end

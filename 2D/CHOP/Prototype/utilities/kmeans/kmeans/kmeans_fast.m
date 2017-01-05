@@ -16,11 +16,13 @@ elseif numel(init)==n
     label = init;
 end
 last = 0;
-while any(label ~= last)
+prevLast = 0;
+while any(label ~= last) && ~isequal(prevLast, label)
     [u,~,label(:)] = unique(label);   % remove empty clusters
     k = numel(u);
     E = sparse(1:n,label,1,n,k,n);  % transform label into indicator matrix
     m = X*(E*spdiags(1./sum(E,1)',0,k,k));    % compute centers 
+    prevLast = last;
     last = label;
     [val,label] = max(bsxfun(@minus,m'*X,dot(m,m,1)'/2),[],1); % assign labels
 end

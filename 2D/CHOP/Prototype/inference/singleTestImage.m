@@ -19,6 +19,7 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
+    levelLimit = 10;
     [~, fileName, ~] = fileparts(testFileName);
     % resize image if necessary.
     if max(size(img)) > options.maxImageDim
@@ -56,7 +57,7 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
 %     else
 %          load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr');
 %     end
-    maxLevel = max(exportArr(:,4));
+    maxLevel = min(levelLimit, max(exportArr(:,4)));
     
 %     %% Project stuff from top layer.    % Create data structures required for optimization.
 %     if ~exist([pwd '/filters/optimizationFilters.mat'], 'file')

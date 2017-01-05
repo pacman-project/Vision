@@ -14,13 +14,10 @@ classdef NodeDistribution
         childrenPosDistributions@gmdistribution; % Cell array of multi-modal gaussian distributions 
                                                                  % modelling joint space of children positions. 
                                                                  % One for every discrete combination.  
+        childrenPosMu@single; % Mu of the distributions, for fast access.
         childrenPosDistributionProbs@cell; % numberOfChildren x {N x N} array, where N is the size of the 
                                                                      % receptive field.
         minPosActivationLog@single; % Min position activation.
-        childrenPosDistributionModes@uint8 % Vector that has as many elements as the number of rows in 
-                                                                    % childrenLabelDistributions. Each element shows which mode of the
-                                                                    % distribution in childrenPosDistributions is used for
-                                                                    % reconstructing each label combination.
         modalExperts@int32; % Imagined modal reconstruction in terms of layer 1 nodes.
                                             % Used for fast processing.
     end
@@ -77,14 +74,7 @@ classdef NodeDistribution
                   invalidCols = isinf(jointPos);
                   validCols = ~invalidCols;
                   if nnz(validCols) < numel(validCols)
-                       if nnz(validCols) == 0
-                            assignedMode = obj.childrenPosDistributionModes(assignedRow);
-                       elseif nnz(validCols) ~= numel(validCols)
-                            % Finally, calculate the final position.
-                            shortMuArr = muArr(:, validCols);
-                            [~, assignedMode] = pdist2(shortMuArr, jointPos(:, validCols), 'euclidean', 'Smallest', 1);
-                       end
-                       instanceJointPos(instanceItr, invalidCols) = round(muArr(assignedMode, invalidCols));
+                       instanceJointPos(instanceItr, invalidCols) = round(muArr(:, invalidCols));
                   end
              end
          end

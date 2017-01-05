@@ -21,6 +21,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.numberOfGaborFilters = 4; % Number of Gabor filters at level 1.
     options.matlabRestartImageCount = 100000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
+    options.saveWorkspaceImageCount = 100000;
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.poolDim = 2; % The pooling window size. OVERRIDING SetParameters.m.
@@ -136,7 +137,6 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.minContinuityCoverage = 0.94; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
     options.missingNodeThr = 0; % Successful parts should cover this much data at least in their RF.
-    options.categoryLevelMissingNodeThr = 0; %In category level, missing node threshold is treated differently.
     options.edgeChangeLevel = -1; % Going to be updated in the code later.
     options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
@@ -212,7 +212,8 @@ function [ options ] = SetParametersMNIST( datasetName, options )
 %    options.reconstruction.numberOfReconstructiveSubs = 20000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
-   options.reconstruction.numberOfReconstructiveSubs = [20 50 500]; % The maximum      
+%   options.reconstruction.numberOfReconstructiveSubs = [30 100 1000]; % The maximum    
+   options.reconstruction.numberOfReconstructiveSubs = [100 500 2000]; % The maximum      
 %    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
@@ -228,7 +229,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                    % nodes is less than this value, we don't need compression.
                                    
      % Part selection flags!
-     options.discriminativePartSelection = true;
+     options.discriminativePartSelection = false;
      options.reconstructivePartSelection = true;
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========
@@ -277,7 +278,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 10000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
+    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
     options.subdue.beam = 1000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = true;   % If true, overlaps between a substructure's 
                                      % instances are considered in the

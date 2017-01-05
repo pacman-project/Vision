@@ -36,7 +36,6 @@ function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNode
 
     % Allocate space for fast data structures for current layer.
     newImageIds = cell(numberOfNodes,1);
-    newPrecisePositions = newImageIds;
     newPositions = newImageIds;
     newLeafNodes = newImageIds;
 
@@ -46,14 +45,6 @@ function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNode
         nodeLeafNodes = cat(2, previousLevelLeafNodes{nodeChildren});
         nodeLeafNodes = fastsortedunique(sort(nodeLeafNodes));
 
-        % Calculate both positions. For precise position, we obtain the
-        % mean of the bounding box that is spanned by the leaf nodes.
-  %      childrenPos = firstLevelPrecisePositions(nodeChildren, :);
-  %      precisePosition = round((min(childrenPos,[], 1) + max(childrenPos, [], 1)) / 2);
-  
-        % We calculate new position based on leaf nodes.
-%        precisePosition = round(mean(firstLevelPrecisePositions(nodeLeafNodes,:), 1));
-  
         % Assign positions.
         precisePosition = nodePositions(newNodeItr, :);
         newPositions{newNodeItr} = int32(calculatePooledPositions(precisePosition, poolFactor, poolDim, stride));

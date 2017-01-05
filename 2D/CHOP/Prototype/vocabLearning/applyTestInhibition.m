@@ -67,7 +67,7 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
     end
     
     %% Go over each node and check neighboring nodes for novelty introduced. Eliminate weak ones.
-    parfor imageId = 1:numberOfImages
+    for imageId = 1:numberOfImages
         sortIdx = imageSortIdx{imageId};
         orgImageGraphLevel = imageGraphLevels{imageId};
         imageGraphLevel = orgImageGraphLevel(sortIdx);
@@ -97,9 +97,10 @@ function [graphLevel] = applyTestInhibition(graphLevel, options)
           % Find distances relative to the center node, and then obtain
           % leaf node supports.
           adjacentNodes = imagePreservedNodes & ... 
-                distances(:, nodeItr) <= radiusRF & ...
-                nodeIds == nodeIds(nodeItr);
-     %         distances(:, nodeItr) <= radiusRF;
+               distances(:, nodeItr) <= radiusRF;
+     %           distances(:, nodeItr) <= radiusRF & ...
+     %           nodeIds == nodeIds(nodeItr);
+     %         
  
           adjacentNodes(1:nodeItr) = 0;
               

@@ -22,17 +22,28 @@ if n < 2
 end
 
 C(1,:) = mean(data);
+prevnC = 0;
 
-while nC <= maxk,
+while nC <= maxk
     %2
     incr_C = 0;
     [~, clusterStarts] = min(pdist2(C, data), [], 1);
     [L, ~, model] = kmeans_fast(data', clusterStarts);
     L = L';
     C = model.means';
+    nC = size(C,1);
+    if nC <= prevnC
+         break;
+    end
+    prevnC = nC;
+    validC = ones(nC,1) > 0;
     for i = 1:nC,
         %4
         subdata = data(L==i,:);
+        if isempty(subdata)
+             validC(i) = 0;
+             continue;
+        end
         [t new_C] = look_gaussian(subdata, alpha, C(i,:), check_func);
         if (t ~= 1)
             %5
@@ -42,6 +53,10 @@ while nC <= maxk,
         end;
     end;
     if (incr_C == 0), break; end;
+    C1 = C(1:nC,:);
+    C1 = C1(validC, :);
+    C2 = C((nC+1):end,:);
+    C = cat(1, C1, C2);
     %disp(incr_C);
     nC = size(C, 1);
 end;

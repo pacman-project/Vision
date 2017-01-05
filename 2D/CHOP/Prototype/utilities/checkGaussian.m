@@ -1,5 +1,5 @@
 function result = checkGaussian(x, ~)
-    numberOfBins = 8;
+    numberOfBins = 10;
     x = (x - mean(x));
     buffZone = 1/(2*numberOfBins);
     histCenters = (-1/2+buffZone):2*buffZone:(1/2-buffZone);

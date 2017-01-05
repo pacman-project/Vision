@@ -38,50 +38,54 @@ function [] = visualizeCroppedImgs( currentLevel, representativeNodes, levelId, 
 
     % Read cropped images.
     nodeImgs = cell(numberOfNodes,1);
-    parfor nodeItr = 1:numberOfVocabLevelNodes %#ok<PFUIX>
+    for nodeItr = 1:numberOfVocabLevelNodes %#ok<PFUIX>
         instanceImgs = cell(instancePerNode-1, 1);
         randomColor = rand(1,3);
         randomColor = randomColor / max(randomColor);
         for instItr = 1:(instancePerNode-1)
-            filePath = [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png'];
-            if exist([croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png'], 'file')
-                img = imread(filePath);
-                if levelId>1 && exist([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/' num2str(nodeItr) '_var_' num2str(instItr+1) '.png'], 'file')
+           filePath = [croppedDir '/' num2str(nodeItr) '_' num2str(instItr) '.png'];
+           try
+               img = imread(filePath);
+           catch
+                continue;
+           end
+           if levelId>1
+               try
                     falseColorImg = imread([currentFolder '/debug/' datasetName '/level' num2str(levelId) '/reconstruction/' num2str(nodeItr) '_var_' num2str(instItr+1) '.png']);
-                    if size(img,3) > size(falseColorImg,3)
-                         falseColorImg = repmat(falseColorImg, [1,1,3]);
-                    end
-                    for bandItr = 1:size(falseColorImg,3)
-                         falseColorImg(:,:,bandItr) = uint8(round(double(falseColorImg(:,:,bandItr)) * randomColor(bandItr)));
-                    end
-                    falseColorImg = falseColorImg(2:(end-1), 2:(end-1), :);
-                    while size(img,1) <= size(falseColorImg,1)
-                         falseColorImg = falseColorImg(2:(end-1), :, :);
-                    end
-                    while size(img,2) <= size(falseColorImg,2)
-                         falseColorImg = falseColorImg(:, 2:(end-1), :);
-                    end
-                    
-                    % Finally, put them together.
-                    midPoint = round([size(img,1), size(img,2)] / 2);
-                    lowHalf = midPoint - round(([size(falseColorImg,1), size(falseColorImg,2)]-1) / 2);
-                    highHalf = midPoint + ([size(falseColorImg,1), size(falseColorImg,2)] - (1 + round(([size(falseColorImg,1), size(falseColorImg,2)]-1) / 2)));
-                    img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :) = round(double(orgImgWeight * double(img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :))) + (1-orgImgWeight) * double(falseColorImg));
-                    
-                    % Stretch the histogram.
-                    img = uint8(round(double(img) * ( 255 / double(max(max(max(img)))))));
-                end
-                
-                % Change size of img if it's too big.
-                if size(img, 1) > maxImgSize
-                    img = imresize(img, [maxImgSize, maxImgSize]);
-                end
-                
-                % Save img.
-                instanceImgs(instItr) = {img};
-            else
-                break;
-            end
+               catch
+                    continue;
+               end
+               if size(img,3) > size(falseColorImg,3)
+                    falseColorImg = repmat(falseColorImg, [1,1,3]);
+               end
+               for bandItr = 1:size(falseColorImg,3)
+                    falseColorImg(:,:,bandItr) = uint8(round(double(falseColorImg(:,:,bandItr)) * randomColor(bandItr)));
+               end
+               falseColorImg = falseColorImg(2:(end-1), 2:(end-1), :);
+               while size(img,1) <= size(falseColorImg,1)
+                    falseColorImg = falseColorImg(2:(end-1), :, :);
+               end
+               while size(img,2) <= size(falseColorImg,2)
+                    falseColorImg = falseColorImg(:, 2:(end-1), :);
+               end
+
+               % Finally, put them together.
+               midPoint = round([size(img,1), size(img,2)] / 2);
+               lowHalf = midPoint - round(([size(falseColorImg,1), size(falseColorImg,2)]-1) / 2);
+               highHalf = midPoint + ([size(falseColorImg,1), size(falseColorImg,2)] - (1 + round(([size(falseColorImg,1), size(falseColorImg,2)]-1) / 2)));
+               img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :) = round(double(orgImgWeight * double(img(lowHalf(1):highHalf(1), lowHalf(2):highHalf(2), :))) + (1-orgImgWeight) * double(falseColorImg));
+
+               % Stretch the histogram.
+               img = uint8(round(double(img) * ( 255 / double(max(max(max(img)))))));
+           end
+
+           % Change size of img if it's too big.
+           if size(img, 1) > maxImgSize
+               img = imresize(img, [maxImgSize, maxImgSize]);
+           end
+
+           % Save img.
+           instanceImgs(instItr) = {img};
         end
         instanceImgs = instanceImgs(cellfun(@(x) ~isempty(x), instanceImgs));
         nodeImgs(nodeItr) = {instanceImgs};

@@ -34,7 +34,7 @@ function [jointPositions, savedCliques, uniqueSubParts, numberOfSubParts] = getC
 
             % Select a subset of the data to cluster.
             if size(allRelevantChildren,1) > maxPointsToCluster 
-                 selectedRows = datasample(1:size(allRelevantChildren,1), maxPointsToCluster);
+                 selectedRows = datasample(1:size(allRelevantChildren,1), maxPointsToCluster, 'Replace', false);
             else
                  selectedRows = 1:size(allRelevantChildren,1);
             end

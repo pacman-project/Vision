@@ -127,8 +127,11 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     datasetName = options.datasetName;
     
     % Save workspace into a file.
-    disp('Saving layer 1 workspace.');
-    saveWorkspace();
+    if numel(fileList) >= options.saveWorkspaceImageCount
+         disp('Saving layer 1 workspace.');
+         saveWorkspace();
+    end
+    
     if options.restartFlag
          
          % Reduce memory consumption by writing all stuff to files,

@@ -110,6 +110,9 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
         vocabularyChildren = cell(numel(vocabulary), 1);
         uniqueVocabularyChildren = cell(numel(vocabulary), 1);
         for levelItr = 1:numel(vocabulary)
+             if isempty(vocabulary{levelItr})
+                  break;
+             end
              vocabLevelChildren = {vocabulary{levelItr}.children};
              maxCount = max(cellfun(@(x) numel(x), vocabLevelChildren));
              vocabLevelChildren = cellfun(@(x) [x, zeros(1, maxCount - numel(x))], vocabLevelChildren, 'UniformOutput', false);

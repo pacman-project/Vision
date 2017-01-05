@@ -12,22 +12,27 @@
 %>
 %> Updates
 %> Ver 1.0 on 26.08.2014
-function [ options ] = SetParametersGWP_5k( datasetName, options )
+function [ options ] = SetParametersGWP_2k( datasetName, options )
 
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
     options.testImages = 1;      % If 1, the test images are processed.
-    options.numberOfGaborFilters = 8; % Number of Gabor filters at level 1.
+    options.numberOfGaborFilters = 6; % Number of Gabor filters at level 1.
     options.matlabRestartImageCount = 100000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
+    options.saveWorkspaceImageCount = 10000;
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
+    options.poolDim = 2; % The pooling window size. OVERRIDING SetParameters.m.
+    options.labeledPooling = true; % If true, we use labels in pooling, otherwise we don't.
+    options.labeledPoolingTest = true; % Same thing, just in testing.
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
                                   % Random patches are clustered to obtain
                                   % a number of unsupervised features.
+    options.realGaborFlag = false;  % Real gabor filters are used for feature extraction!
     options.gaborFilterThr = 0.1; % Min response threshold for convolved features, 
                                   % taken as the percentage of max response 
                                   % in each image.
@@ -36,7 +41,7 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
                                    % responses. ~80 for natural images 
                                    % (depends on many factors though, including 
                                    % size of the filter).
-    options.gaborFilterSize = 13;       % Size of a gabor filter. Please note 
+    options.gaborFilterSize = 11;       % Size of a gabor filter. Please note 
                                         % that the size also depends on the 
                                         % filter parameters, so consider them 
                                         % all when you change this!
@@ -78,7 +83,7 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
                                        % used to eliminate uniform
                                        % features, assigned as this percentage 
                                        % of the max std dev in filters.
-    options.distType = 'context'; % Either 'modal', 'hog' or 'hu', or 'sift'.
+    options.distType = 'sift'; % Either 'modal', 'hog' or 'hu', or 'sift', 'context'.
     if strcmp(options.filterType, 'gabor')
          options.stride = options.gabor.stride;
     else
@@ -99,40 +104,26 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
                                        % and relations are examined.
 
     %% ========== CRUCIAL METHOD PARAMETERS (COMPLEXITY, RELATIONS) ==========
-    options.noveltyThr = 0;           % The novelty threshold used in the 
+    options.noveltyThr = 0.5;           % The novelty threshold used in the 
                                         % inhibition process. At least this 
                                         % percent of a neighboring node's leaf 
                                         % nodes should be new so that it is 
                                         % not inhibited by another higher-
                                         % valued one.
-    options.edgeNoveltyThr = 0.8;       % The novelty threshold used in the 
+    options.edgeNoveltyThr = 0;       % The novelty threshold used in the 
                                         % edge generation. At least this 
                                         % percent of a neighbor node's leaf 
                                         % nodes should be new so that they 
                                         % are linked in the object graph.
-    options.maxShareability = 0.2;       % If more than this percent of a nodes' 
+    options.maxShareability = 1;       % If more than this percent of a nodes' 
                                              % leaf nodes are shared, this node is discarded.
-    options.minEdgeNoveltyThr = 0.0;    % Minimum edge novelty threshold.
+    options.minEdgeNoveltyThr = 0.8;    % Minimum edge novelty threshold.
     options.edgeNoveltyThrRate = 0.0;   % The edge novelty threshold 
                                        % is supposed to reduce each level by 
                                        % this amount.
-    options.edgeType = 'continuity';     % If 'centroid', downsampling is
-                                       % applied at each layer, and edges
-                                       % link spatially adjacent (within
-                                       % its neighborhood) nodes.
-                                       % If 'continuity', linking depends
-                                       % on another condition: Leaf node
-                                       % sets of two nodes should be linked
-                                       % by at least one edge in the first
-                                       % level graph. This option can be
-                                       % used in the first few layers in
-                                       % order to ensure continuity (e.g.
-                                       % smooth boundaries/surfaces) in upper 
-                                       % layers. 
     options.minContinuityCoverage = 0.94; % If data coverage drops below this,
                                          % we switch to 'centroid' nodes.
-    options.missingNodeThr = 0; % Each node should cover this percentage of the nodes in its RF.
-    options.categoryLevelMissingNodeThr = 0; %In category level, missing node threshold is treated differently.
+    options.missingNodeThr = 0; % Successful parts should cover this much data at least in their RF.
     options.edgeChangeLevel = -1; % Going to be updated in the code later.
     options.maxEdgeChangeLevel = 10; % If this is the layer we're working on, we switch to centroid edges.
     options.reconstructionType = 'leaf'; % 'true': Replacing leaf nodes with 
@@ -147,13 +138,16 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
     if strcmp(options.filterType, 'auto')
         options.receptiveFieldSize = 5; % DEFAULT 5
     else
-        options.receptiveFieldSize = 13;
+        options.receptiveFieldSize = 7;
     end                                  % Size (one side) of the receptive field at
                                          % first level. Please note that in
                                          % each level of the hierarchy, the
                                          % receptive field size grows by 
                                          % 1/scaling.
                                          
+    options.receptiveFieldSizes = [5 5 5 5 5 5 5 5 5 5]; % Varying RF sizes can be implemented by giving 
+    % here. One value for every layer, starting with 1.
+                                                                 
     options.smallReceptiveFieldSize = 9; % Small receptive field size that is used in some levels.
     options.circularRF = true; % If true, the RF is treated circularly. Otherwise it's square.
     options.maxNodeDegree = 20;        % (N) closest N nodes are linked for 
@@ -202,9 +196,11 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
                % Hint: A good number is the number of poses per object.
 
     %% ========== RECONSTRUCTION PARAMETERS ==========
-    options.reconstruction.numberOfReconstructiveSubs = 20000; % The maximum 
+%    options.reconstruction.numberOfReconstructiveSubs = 20000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
+%   options.reconstruction.numberOfReconstructiveSubs = [30 100 1000]; % The maximum    
+   options.reconstruction.numberOfReconstructiveSubs = [20000 20000 20000 20000 20000 20000 20000 20000 20000]; % The maximum      
 %    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
@@ -216,8 +212,12 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
     % minNumberOfOrNodes-maxNumberOfOrNodes. If cannot be found,
     % numberOfORNodes (set above) is used.
     
-    options.reconstruction.minNumberOfORNodes = 50; % If the number of 
+    options.reconstruction.minNumberOfORNodes = 100; % If the number of 
                                    % nodes is less than this value, we don't need compression.
+                                   
+     % Part selection flags!
+     options.discriminativePartSelection = false;
+     options.reconstructivePartSelection = true;
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========
     options.nodeSimilarityAllowed = false; % If true, node similarities are 
@@ -264,9 +264,9 @@ function [ options ] = SetParametersGWP_5k( datasetName, options )
                                             % (e.g. 3600 secs) for large
                                             % datasets.
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
-    options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
-    options.subdue.nsubs = 30000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
-    options.subdue.beam = 4000;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.maxSize = 4; % Maximum number of nodes in a composition.
+    options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
+    options.subdue.beam = 1000;   % Beam length in SUBDUE' search mechanism.
     options.subdue.overlap = true;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

@@ -46,11 +46,11 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
         vocabLevelDistributions = vocabularyDistributions{levelItr};
         prevLevelDistributions = vocabularyDistributions{levelItr-1};
         newNodes = cell(size(nodes,1),1);
+        muArr = {vocabLevelDistributions.childrenPosMu};
         
         % If previous layer already has modal experts defined, we don't
         % need to proceed.
         stopFlag = ~isempty(prevLevelDistributions(1).modalExperts) && strcmp(samplingMethod, 'modal') && levelItr == topLevel;
-        
         for nodeItr = 1:size(nodes,1)
             vocabNodeDistributions = vocabLevelDistributions(nodes(nodeItr,1));
             newNodeSet = zeros((size(vocabNodeDistributions.childrenLabelDistributions,2)-1), 4, 'single');
@@ -87,13 +87,12 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
             % TODO: We are planning to replace this with a smarter
             % search mechanism.
             posDistributions = vocabNodeDistributions.childrenPosDistributions;
-            posDistributionModes = vocabNodeDistributions.childrenPosDistributionModes;
- 
-            if ~isempty(posDistributions.mu)
+            curMu = muArr{nodes(nodeItr,1)};
+            
+            if ~isempty(curMu)
                  % Sample from the distribution.
                  if strcmp(samplingMethod, 'modal')
-                     assignedDist = posDistributionModes(assignedRow);
-                     posVect = posDistributions.mu(assignedDist,:);
+                     posVect = curMu;
                  else
                      posVect = random(posDistributions, 1);
                  end

@@ -19,10 +19,13 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
     % Read data into helper data structures.
     missingPartLog = log(0.00001);
     maxShareability = options.maxShareability;
+    noveltyThr = 1 - options.noveltyThr;
+    missingThr = options.missingNodeThr;
     missingPartAllowed = false;
     poolFlag = true;
     labeledPooling = options.labeledPoolingTest;
     maxPosProb = 0.1;
+    inhibitionRadius = 2;
     halfMatrixSize = (options.receptiveFieldSize+1)/2;
     maxSize = options.subdue.maxSize;
     if options.testDebug
@@ -354,6 +357,43 @@ function [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocab
          leafNodes = leafNodes(validIdx, :);
          precisePositions = precisePositions(validIdx, :);
          nodes(:,2:3) = calculatePooledPositions(precisePositions, poolFactor, poolDim, stride );
+         
+         %% Apply inhibition here.
+          % First, we sort nodes based on activations
+          [~, sortIdx] = sort(nodeActivations, 'descend');
+          sortedNodes = nodes(sortIdx,:);
+          sortedLeafNodes = leafNodes(sortIdx);
+          maxSharedLeafNodes = cellfun(@(x) numel(x) * noveltyThr , sortedLeafNodes, 'UniformOutput', false);
+          validNodes = ones(size(sortedNodes,1),1) > 0;
+         if size(nodes,1) > 1
+            distances = squareform(pdist(single(sortedNodes(:,2:3))));
+        else
+            distances = 0;
+        end
+        
+        for nodeItr = 1:(size(sortedNodes,1)-1)
+          % If nobody has erased this node before, it has a right to be in the final graph.
+          if validNodes(nodeItr) == 0
+              continue;
+          end
+          
+          % Find distances relative to the seed node, and then obtain
+          % leaf node supports.
+          adjacentNodes = validNodes & ... 
+               distances(:, nodeItr) <= inhibitionRadius;
+          adjacentNodes(1:nodeItr) = 0;
+              
+          % Go over each adjacent node, and apply inhibition if their leaf nodes are 
+          % shared too much, under current novelty threshold.
+          selfLeafNodes = sortedLeafNodes{nodeItr};
+          validNodes(adjacentNodes) = cellfun(@(x,y) sum(ismembc(x, selfLeafNodes)) <= y, ...
+              sortedLeafNodes(adjacentNodes), maxSharedLeafNodes(adjacentNodes));
+        end
+        validIdx = sort(sortIdx(validNodes));
+        nodes = nodes(validIdx, :);
+        leafNodes = leafNodes(validIdx);
+        precisePositions = precisePositions(validIdx, :);
+        nodeActivations = nodeActivations(validIdx);
          
          %% For debugging purposes, we visualize the nodes.
          if options.testDebug

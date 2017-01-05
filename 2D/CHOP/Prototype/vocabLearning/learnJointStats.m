@@ -8,7 +8,7 @@ function [partClusters, refinedClusterSamples, refinedCliques, refinedClusters, 
        partClusters = 1;
   else
        % Select a number of rows and cluster them, not all data.
-       selectedRows = datasample(1:size(jointPositions,1), maxPointsToCluster);
+       selectedRows = datasample(1:size(jointPositions,1), min(size(jointPositions,1), maxPointsToCluster), 'Replace', false);
        selectedPositions = jointPositions(selectedRows, :);
        [selectedClusters, ~] = gmeans(double(selectedPositions*(1/((realRFSize-1) * sqrt(size(selectedPositions,2))))), maxClusters, 0.05, @checkGaussian);
        selectedCenters = zeros(max(selectedClusters), size(selectedPositions,2), 'single');

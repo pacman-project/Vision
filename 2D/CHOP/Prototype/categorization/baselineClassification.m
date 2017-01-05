@@ -1,6 +1,6 @@
 function [ ] = baselineClassification(datasetName)
     %BASELINEFEATUREEXTRACTION Summary of this function goes here
-    poolSizes = [1];
+    poolSizes = [2];
     
     %   Detailed explanation goes here
     options = SetParameters(datasetName, true);
@@ -33,7 +33,7 @@ function [ ] = baselineClassification(datasetName)
         for levelItr = 1:numel(vocabulary)
             vocabLevel = vocabulary{levelItr};
             levelArr = imgArr(imgArr(:,4) == levelItr,:);
-            for poolSizeItr = poolSizes
+            for poolSizeItr = 1:numel(poolSizes)
                 poolSize = poolSizes(poolSizeItr);
                 stepSizes = ceil(imgSize/poolSize);
                 
@@ -61,6 +61,9 @@ function [ ] = baselineClassification(datasetName)
                 if nnz(imgFeatures) > 0
                     imgFeatures = normr(imgFeatures);
                 end
+                
+                % We apply PCA if needed.
+                
                 allFeatures{fileItr, levelItr, poolSizeItr} = imgFeatures;
             end
         end
@@ -76,16 +79,28 @@ function [ ] = baselineClassification(datasetName)
             trainFeatures = relevantFeatures(validRows, :);
 
             bestcv = 0;
-            bestc = -1;
-            for log2c = [1/64, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
-                cmd = ['-v 5 -t 0 -c ', num2str(log2c),' -q '];
-                cv = svmtrain(trainLabels, trainFeatures, cmd);
-                if (cv >= bestcv),
-                    bestcv = cv; bestc = log2c;
-                end
-                fprintf('%g %g (best c=%g, rate=%g)\n', log2c, cv, bestc, bestcv);
+            for log2c = -1:2:3,
+                 for log2g = -4:2:1,
+                   cmd = ['-v 5 -c ', num2str(2^log2c), ' -g ', num2str(2^log2g) ' -q'];
+                   cv = svmtrain(trainLabels, trainFeatures, cmd);
+                   if (cv >= bestcv),
+                     bestcv = cv; bestc = 2^log2c; bestg = 2^log2g;
+                   end
+                   fprintf('%g %g %g (best c=%g, g=%g, rate=%g)\n', log2c, log2g, cv, bestc, bestg, bestcv);
+                 end
             end
-            cmd = ['-t 0 -c ', num2str(bestc), ' -q '];
+            cmd = ['-c ', num2str(2^log2c), ' -g ', num2str(2^log2g) ' -q'];
+%             bestcv = 0;
+%             bestc = -1;
+%             for log2c = [1/64, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
+%                 cmd = ['-v 5 -t 0 -c ', num2str(log2c),' -q '];
+%                 cv = svmtrain(trainLabels, trainFeatures, cmd);
+%                 if (cv >= bestcv),
+%                     bestcv = cv; bestc = log2c;
+%                 end
+%                 fprintf('%g %g (best c=%g, rate=%g)\n', log2c, cv, bestc, bestcv);
+%             end
+%             cmd = ['-t 0 -c ', num2str(bestc), ' -q '];
             learnedModel = svmtrain(trainLabels, trainFeatures, cmd);
             save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel');
         end
@@ -103,7 +118,7 @@ function [ ] = baselineClassification(datasetName)
         for levelItr = 1:numel(vocabulary)
             vocabLevel = vocabulary{levelItr};
             levelArr = exportArr(exportArr(:,4) == levelItr,:);
-            for poolSizeItr = poolSizes
+            for poolSizeItr = 1:numel(poolSizes)
                 poolSize = poolSizes(poolSizeItr);
                 stepSizes = ceil(imgSize/poolSize);
                 

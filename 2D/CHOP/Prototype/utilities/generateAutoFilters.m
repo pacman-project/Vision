@@ -67,7 +67,7 @@ function [ ] = generateAutoFilters( datasetName, fileType )
             %% Get a pre-defined number of random centers from this image.
             validXInterval = (lowOffset+1):(size(img,1)-highOffset);
             validYInterval = (lowOffset+1):(size(img,2)-highOffset);
-            centers = [datasample(validXInterval, samplesPerImg)', datasample(validYInterval, samplesPerImg)']; 
+            centers = [datasample(validXInterval, samplesPerImg, 'Replace', false)', datasample(validYInterval, samplesPerImg, 'Replace', false)']; 
             invalidSampleCount = 0;
             for sampleItr = 1:samplesPerImg
                 sample = img((centers(sampleItr,1)-lowOffset):(centers(sampleItr,1)+highOffset), ...

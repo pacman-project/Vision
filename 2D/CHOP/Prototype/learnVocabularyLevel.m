@@ -25,7 +25,7 @@
    % Reduce memory consumption by writing all stuff to files,
    % clearing all, and then returning back to computation.
    addpath(genpath([pwd '/utilities']));
-  if exist([pwd '/Workspace.mat'], 'file')
+  if ~exist('graphLevel', 'var')
        disp('Loading workspace from the previous layer.');
        loadWorkspace();
   end
@@ -76,10 +76,22 @@
     previousLevelPositions = cat(1, graphLevel.position);
     prevRealLabelIds = [graphLevel.realLabelId]';
     prevActivations = [graphLevel.activation]';
+    
+    % Pool layer 1 coords.
+    % Learn stride.
+    if strcmp(options.filterType, 'gabor')
+         stride = options.gabor.stride;
+    else
+         stride = options.auto.stride;
+    end
+    poolDim = options.poolDim;
+    % Calculate pool factor.
+    poolFactor = nnz(~ismembc(2:(levelItr-1), options.noPoolingLayers));
+    pooledLevel1Coords = calculatePooledPositions(level1Coords(:, 2:3), poolFactor, poolDim, stride);
    
     %% Changing our learning architecture! 
     tic;
-    [vocabLevel, graphLevel, vocabLevelDistributions] = discoverJointSubs(graphLevel, level1Coords, categoryArrIdx, options, levelItr-1);
+    [vocabLevel, graphLevel, vocabLevelDistributions] = discoverJointSubs(graphLevel, cat(2, level1Coords, pooledLevel1Coords), categoryArrIdx, options, levelItr-1);
     toc;
     
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
@@ -98,9 +110,7 @@
       % Write previous level's appearances to the output folder.
       vocabulary = vocabulary(1:(levelItr-1),:);
       vocabularyDistributions = vocabularyDistributions(1:(levelItr-1),:);
-%      allModes = allModes(1:(levelItr-1), :);
       distanceMatrices = distanceMatrices(1:(levelItr-1),:);
-%      modeProbs = modeProbs(1:(levelItr-1),:);
       return; 
    end
 
@@ -134,22 +144,6 @@
      java.lang.System.gc();
    end
    
-   %% Calculate some limits for the parts, as a form of inhibition.
- %  if ~supervisedSelectionFlag && ~isSupervisedSelectionRunning
-  %       [vocabLevel, graphLevel, validNodeArr] = calculateActivationLimits(vocabLevel, graphLevel, size(level1Coords,1));
-  % end
-
-   %% Remove low-coverage nodes when we're at category layer.
-%     if options.stopFlag
-%         imageIds = imageIds(validNodeArr);
-%         nodeCoverages = nodeCoverages(validNodeArr);
-%         graphLevel = graphLevel(nodeCoverages >= min(options.categoryLevelCoverage * mean(imageCoverages(imageIds)), imageCoverages(imageIds)'));
-%    end
-%    
-   % Open/close matlabpool to save memory.
-%   matlabpool close;
-%   matlabpool('open', options.numberOfThreads);
-
    %% Post-process graphLevel, vocabularyLevel to remove non-existent parts from vocabLevel.
    % In addition, we re-assign the node ids in graphLevel.
   display('........ Calculating distance matrix among the vocabulary nodes (in parallel)..');
@@ -206,13 +200,6 @@
    display('........ Estimating post-inhibition statistics..');
    [avgShareability, avgCoverage] = saveStats(vocabLevel, graphLevel, leafNodeCoords, maxCoverageVals, numberOfImages, options, 'postInhibition', levelItr);
 
-   %% Experimenting. After some point, we need to convert to centroid-based edge creation, no matter what.
-   if avgCoverage < options.minContinuityCoverage && options.edgeChangeLevel == -1 && ~strcmp(options.edgeType, 'centroid') || levelItr == options.maxEdgeChangeLevel
-       options.edgeType = 'centroid';
-       display('........ Switching to -centroid- type edges!');
-       options.edgeChangeLevel = levelItr;
-   end
-
    % display debugging info.
    display(['........ Remaining: ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
    display(['........ Average Coverage: ' num2str(avgCoverage) ', average shareability of compositions: ' num2str(avgShareability) ' percent.']); 
@@ -220,32 +207,10 @@
    %% Step 2.5: Create the parent relationships between current level and previous level.
    vocabulary(levelItr) = {vocabLevel};
 
-   %% Step 2.6: Create object graphs G_(l+1) for the next level, l+1.
-   % Extract the edges between new realizations to form the new object graphs.
-%    if strcmp(options.edgeType, 'continuity')
-%         tempOptions = options;
-%         tempOptions.edgeType = 'centroid';
-%         realGraphLevel = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, tempOptions, levelItr);
-%         clear tempOptions;
-%    end
-%    [graphLevel] = extractEdges(graphLevel, firstLevelAdjNodes, level1Coords, options, levelItr);
-%    if ~strcmp(options.edgeType, 'continuity')
-%         realGraphLevel = graphLevel;
-%    end
-   
    if usejava('jvm')
      java.lang.System.gc();
    end
-%    %% Here, we bring back statistical learning with mean/variance.
-%    [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, levelItr, options.currentFolder, ~options.fastStatLearning && options.debug);
-%    graphLevel = assignEdgeLabels(realGraphLevel, modes, modeProbArr, options.edgeCoords, levelItr, options.debugFolder);
-%    clear realGraphLevel;
-%    allModes{levelItr} = modes;
-%    modeProbs{levelItr} = modeProbArr;
-%    if usejava('jvm')
-%      java.lang.System.gc();
-%    end
-
+   
    %% Print distance matrices.
    if ~isempty(newDistanceMatrix)
       imwrite(eucDistanceMatrix, [options.currentFolder '/debug/' options.datasetName '/level' num2str(levelItr) '_dist.png']);
@@ -259,9 +224,7 @@
    if levelItr == options.maxLevels || options.stopFlag
        vocabulary = vocabulary(1:(levelItr),:);
        vocabularyDistributions = vocabularyDistributions(1:(levelItr),:);
-       allModes = allModes(1:(levelItr), :);
        distanceMatrices = distanceMatrices(1:(levelItr),:);
-       modeProbs = modeProbs(1:(levelItr),:);
    end
    
    %% We're exporting output here. This helps us to perform 
@@ -276,7 +239,7 @@
    clear activationArr precisePositions;
 
    % Print everything to files.
-   save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'allModes', 'distanceMatrices', 'modeProbs', 'options', '-append');
+   save([options.currentFolder '/output/' options.datasetName '/vb.mat'], 'vocabulary', 'distanceMatrices', 'options', '-append');
    save([options.currentFolder '/output/' options.datasetName '/distributions.mat'], 'vocabularyDistributions', 'options', '-v7');
    
    %% Visualize images and vocabulary.
@@ -320,7 +283,7 @@
    %% If we've reached max number of layers, don't keep going forward.
    if levelItr == options.maxLevels || options.stopFlag
        return;
-   else
+   elseif numel(fileList) >= options.saveWorkspaceImageCount
         % Save workspace for later operation.
         disp(['Saving layer ' num2str(levelItr) ' workspace.']);
         saveWorkspace();

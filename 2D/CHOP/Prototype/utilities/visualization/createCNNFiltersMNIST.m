@@ -3,6 +3,7 @@ function [  ] = createCNNFiltersMNIST(  )
      load([pwd '/output/' datasetName '/distributions.mat'], 'vocabularyDistributions');     
      load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary');
      levelRFSizes = [5,5,4];
+     nodeSizes = [4 20 50 500];
      filterItr = 1;
      f = 0.01;
      chopFilters = cell(numel(vocabularyDistributions) - 1,1);
@@ -13,8 +14,8 @@ function [  ] = createCNNFiltersMNIST(  )
           vocabLevel = vocabulary{vocabLevelItr};
           vocabLevelDistributions = vocabularyDistributions{vocabLevelItr};
           
-          randCNNFilters = randn(levelRFSizes(filterItr), levelRFSizes(filterItr), numel(vocabularyDistributions{filterItr}), numel(vocabLevelDistributions), 'single');
-          cnnFilters = zeros(levelRFSizes(filterItr), levelRFSizes(filterItr), numel(vocabularyDistributions{filterItr}), numel(vocabLevelDistributions), 'single');
+          randCNNFilters = randn(levelRFSizes(filterItr), levelRFSizes(filterItr), nodeSizes(vocabLevelItr-1), nodeSizes(vocabLevelItr), 'single');
+          cnnFilters = zeros(levelRFSizes(filterItr), levelRFSizes(filterItr), nodeSizes(vocabLevelItr-1), nodeSizes(vocabLevelItr), 'single');
           
           %% Go through the nodes and convert them to CNN filters.
           for vocabNodeItr = 1:numel(vocabLevelDistributions)
@@ -39,7 +40,7 @@ function [  ] = createCNNFiltersMNIST(  )
                for childItr = 1:numel(children)
                     assignedVals = downsampledPosProbs(:,:,childItr);
                     assignedVals = assignedVals * 5;
-                    assignedVals = rot90(assignedVals,2);
+        %            assignedVals = rot90(assignedVals,2);
                     realChildren = find(prevVocabLevelLabels == children(childItr));   
                     
                     for realChildItr = 1:numel(realChildren)

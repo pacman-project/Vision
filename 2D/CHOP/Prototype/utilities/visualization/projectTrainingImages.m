@@ -62,6 +62,9 @@ function [ ] = projectTrainingImages( fileList, vocabularyDistributions, exportA
              experts(:,1) = filterIds(experts(:,1));
        end
        
+       % Get unique experts.
+       experts = unique(experts, 'rows');
+       
        % Visualize the experts.
        [refModalImg, ~, ~] = obtainPoE(experts, [], [], options.imageSize, visFilters, []);
        

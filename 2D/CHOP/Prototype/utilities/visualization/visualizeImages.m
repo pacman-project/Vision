@@ -76,7 +76,7 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
     end
     
     %% Go over the list of images and run reconstruction.
-    parfor fileItr = 1:numel(fileList)
+    for fileItr = 1:numel(fileList)
         relevantNodeIds = imageNodeIds{fileItr};
         
         %% Learn the size of the original image, and allocate space for new mask.
@@ -189,7 +189,7 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
                      maxY = (position(2)+otherHalfSize(2));
                  end
                  writtenMask = double(nodeMask);
-                 writtenMaskMap = double(mean(writtenMask,3) > 0);
+                 writtenMaskMap=double(sum(writtenMask,3)/ size(writtenMask,3));
                  reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)),:) = ... 
                      reconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
@@ -205,7 +205,7 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
                  reconstructedPatch = labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2)));
                  
-                 avgNodeMask = mean(nodeMask,3);
+                 avgNodeMask=sum(nodeMask,3)/size(nodeMask,3);
                  reconstructedPatch(avgNodeMask > 10) = nodeLabelIds(nodeItr);
                  labeledReconstructedMask((position(1)-halfSize(1)):(position(1)+otherHalfSize(1)), ...
                      (position(2)-halfSize(2)):(position(2)+otherHalfSize(2))) = reconstructedPatch;
@@ -265,8 +265,9 @@ function [ ] = visualizeImages( fileList, graphLevel, representativeNodes, allNo
         % Normalize and obtain final reconstructed image.
         for bandItr = 1:size(reconstructedMask,3)
              relevantImg = reconstructedMask(:,:,bandItr);
-             relevantImg(reconstructedMaskCounts > 0) = relevantImg(reconstructedMaskCounts > 0) ./ ...
-                 reconstructedMaskCounts(reconstructedMaskCounts > 0);
+             idx = reconstructedMaskCounts > 0;
+             relevantImg(idx) = relevantImg(idx) ./ ...
+                 reconstructedMaskCounts(idx);
              reconstructedMask(:,:,bandItr) = relevantImg;
         end
         reconstructedMask = uint8(round(reconstructedMask));

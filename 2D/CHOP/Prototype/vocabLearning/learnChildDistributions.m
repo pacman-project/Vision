@@ -77,7 +77,6 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
         % the generative model.  For every combination, we learn a continuous label distribution.
         % Allocate space for discrete combinations, and their position distributions. 
         childrenLabelDistributions = zeros(size(combs,1), size(combs,2) + 1, 'single');
-        childrenPosDistributionModes = ones(size(combs,1), 1, 'uint8');
         if numel(IA)>1
              weights = hist(IC, 1:numel(IA))';
              weights = weights / sum(weights);
@@ -110,7 +109,11 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              % early filtering.
              curMu = mu(:,((childItr-1)*2+1):(childItr*2));
              curSigma = Sigma(((childItr-1)*2+1):(childItr*2),((childItr-1)*2+1):(childItr*2));
-             combPDFVals = mvnpdf(combs, curMu, curSigma);
+             try
+                  combPDFVals = mvnpdf(combs, curMu, curSigma);
+             catch
+                  combPDFVals = mvnpdf(combs, curMu, nearestSPD(curSigma));
+             end
              pdfMat = zeros(realRFSize, realRFSize, 'double');
              pdfMat(combs(:,1)+centerRF + (combs(:,2)+centerRF-1)*realRFSize) = combPDFVals;
              
@@ -170,7 +173,6 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
         %% Assign distributions.
         nodeDistributionLevel(vocabItr).childrenLabelDistributions = childrenLabelDistributions;
         nodeDistributionLevel(vocabItr).childrenPosDistributionProbs = childrenProbs;
-        nodeDistributionLevel(vocabItr).childrenPosDistributionModes = childrenPosDistributionModes;
         
         % Re-open warnings.
         warning(w);
