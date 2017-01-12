@@ -29,14 +29,11 @@
 %> Update on 23.02.2015 Added comments, performance boost.
 %> Update on 25.02.2015 Added support for single node subs.
 function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = postProcessParts(vocabLevel, graphLevel, vocabularyDistributions, levelItr, options)
-    edgeCoords = options.edgeCoords;
     distType = options.distType;
     stopFlag = options.stopFlag;
     smallImageSize = 50;
-    
     % Get filter size.
     filterSize = size(options.filters{1});
-    halfFilterSize = floor(filterSize(1)/2);
     
     %% As a case study, we replace gabors with 1D gaussian filters    
     visFilters = options.filters;
@@ -73,9 +70,6 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
    imageSize = getRFSize(options, levelItr);
    imageSize = imageSize + filterSize - 1;
    imageCenter = floor(imageSize(1)/2)+1;
-   
-   % For now, we make the image bigger.
-%   imageSize = round(imageSize * 1.5);
    
    %% First, for efficiency, we obtain pixel-level predictions for every part.
    level1Experts = cell(numberOfNodes, 1);
@@ -228,7 +222,8 @@ function [vocabLevel, vocabularyDistributions, graphLevel, newDistanceMatrix] = 
          
          % Assign a fix value for the class count.
          if ~stopFlag
-             clusterCount = min(numberOfNodes, max(options.reconstruction.minNumberOfORNodes, round(nnz(largeSubIdx)/2)));
+             clusterCount = min(numberOfNodes, max(options.reconstruction.minNumberOfORNodes, round(nnz(largeSubIdx)/options.partCountDenom)));
+%             clusterCount = numberOfNodes;
          else
              clusterCount = numberOfNodes;
          end

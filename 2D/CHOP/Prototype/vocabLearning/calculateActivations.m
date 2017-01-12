@@ -14,9 +14,8 @@
 %> Updates
 %> Ver 1.0 on 18.01.2016
 function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, prevPosition, levelItr, options)
-    rfSize = getRFSize(options, levelItr);
-    centerRF = floor(rfSize(1)/2) + 1;
-    realRFSize = rfSize(1);
+    rfSize = options.receptiveFieldSizes(levelItr-1);
+    centerRF = floor(rfSize/2)+1;
     minLogProb = single(-20);
     minProb = single(exp(-20));
 
@@ -24,7 +23,7 @@ function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivati
     newActivations = zeros(numel(graphLevel), 1, 'single');
     graphLabels = [graphLevel.labelId];
     graphLevelChildren = {graphLevel.children};
-    graphLevelPrecisePositions = cat(1, graphLevel.precisePosition);
+    graphLevelPositions = single(cat(1, graphLevel.position));
     newActivationArr = cell(numel(vocabLevel),1);
     idxArr = cell(numel(vocabLevel),1);
     
@@ -32,7 +31,7 @@ function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivati
         %% First, we start by calculating position likelihood.
         idx = graphLabels == vocabLevelItr;
         instanceChildren = cat(1, graphLevelChildren{idx});
-        instancePositions = graphLevelPrecisePositions(idx, :);
+        instancePositions = graphLevelPositions(idx, :);
         childrenProbs = vocabLevelDistributions(vocabLevelItr).childrenPosDistributionProbs;
         childrenPosActivations = zeros(size(instanceChildren), 'single');
         
@@ -50,10 +49,10 @@ function [ vocabLevel, vocabLevelDistributions, graphLevel ] = calculateActivati
              
              % Calculate position probabilities.
              samples = (prevPosition(relevantChildren, :) - instancePositions) + centerRF;
-             validIdx = samples > 0 & samples <= realRFSize;
+             validIdx = samples > 0 & samples <= rfSize;
              validIdx = validIdx(:,1) & validIdx(:,2);
              pointProbs = ones(size(samples,1),1, 'single') * minProb;
-             samplesIdx = samples(validIdx,1) + (samples(validIdx,2)-1)*realRFSize;
+             samplesIdx = samples(validIdx,1) + (samples(validIdx,2)-1)*rfSize;
              pointProbs(validIdx) = full(relevantProbs(samplesIdx));
              childrenPosActivations(:, instanceItr) = log(pointProbs);
         end

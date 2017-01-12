@@ -98,7 +98,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     previousAccuracy = 0; %#ok<*NASGU>
     
     %% Obtain coords.
-    level1Coords = [cat(1, graphLevel.imageId), int32(cat(1, graphLevel.precisePosition))];
+    level1Coords = [cat(1, graphLevel.imageId), int32(cat(1, graphLevel.precisePosition)), cat(1, graphLevel.position)];
     firstLevelPrecisePositions = cat(1, graphLevel.precisePosition);
     
     %% If we have passed the limit for number of images, we go into a different mode 
@@ -115,7 +115,7 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     %% Export first level realizations.
     levelItr = 1;
     disp('Exporting first level realizations.');
-    [preExportArr, preActivationArr] = exportRealizations(graphLevel, levelItr); %#ok<ASGLU>
+    [preExportArr, preActivationArr, prePooledPositions] = exportRealizations(graphLevel, levelItr); %#ok<ASGLU>
       
     %% ========== Step 2: Infer new parts by discovering frequent subs in data. ==========
     edgeChangeLevel = -1;
@@ -125,6 +125,14 @@ function [] = learnVocabulary( vocabLevel, vocabLevelDistributions, graphLevel, 
     % when most objects are covered.
     options.stopFlag = false;
     datasetName = options.datasetName;
+    
+    % Learn stride.
+    if strcmp(options.filterType, 'gabor')
+         stride = options.gabor.stride;
+    else
+         stride = options.auto.stride;
+    end
+    poolDim = options.poolDim;
     
     % Save workspace into a file.
     if numel(fileList) >= options.saveWorkspaceImageCount

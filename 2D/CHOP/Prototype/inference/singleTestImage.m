@@ -15,7 +15,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 19.12.2013
-function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, categoryLabel, categoryName, options)
+function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileName, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, vocabularyCenters, vocabularySigmas, categoryLabel, categoryName, options)
     %% Get the first level nodes.
     % First, downsample the image if it is too big.
     img = imread(testFileName);
@@ -53,7 +53,7 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
          % Save smoothed image.
          % Assign nodes their image ids.
          nodes = int32(cell2mat(nodes));
-         [exportArr, activationArr] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
+         [exportArr, activationArr, pooledPositions] = inferSubs(fileName, img, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, vocabularyCenters, vocabularySigmas, nodes, nodeActivations, options); %#ok<ASGLU,NASGU>
 %     else
 %          load([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr');
 %     end
@@ -106,5 +106,5 @@ function [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTe
     top5Correct = ismember(categoryLabel, categoryOrder(1:5));
     
     %% Print realizations in the desired format for inte2D/3D integration.
-    save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'imgSize', 'predictedCategory', 'categoryLabel');
+    save([options.testInferenceFolder '/' categoryName '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'pooledPositions', 'imgSize', 'predictedCategory', 'categoryLabel');
 end

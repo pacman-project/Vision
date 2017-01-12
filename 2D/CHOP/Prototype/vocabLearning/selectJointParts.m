@@ -95,6 +95,7 @@ function [selectedParts, reconstructiveParts, discriminativeParts] = selectJoint
                end
           end
           reconstructiveParts = sort(reconstructiveParts);
+          numberOfSelectedParts = numel(reconstructiveParts);
      else
           reconstructiveParts = [];
      end

@@ -33,16 +33,19 @@ function [] = runTrainingInference( datasetName, ext )
      %  Obtain categoryArrIdx and exportArr from the data.
      allExportArr = cell(numberOfImages,1);
      allActivationArr = cell(numberOfImages,1);
+     allPooledPositions = cell(numberOfImages,1);
     for imageItr = 1:numberOfImages
          [~, fileName, ~] = fileparts(trainingFileNames{imageItr});
-         load([testInferenceFolder '/' categoryNames{categoryArrIdx(imageItr)} '_' fileName '_test.mat'], 'exportArr', 'activationArr');
+         load([testInferenceFolder '/' categoryNames{categoryArrIdx(imageItr)} '_' fileName '_test.mat'], 'exportArr', 'activationArr', 'pooledPositions');
          exportArr(:,5) = imageItr;
          allExportArr{imageItr} = exportArr;
+         allPooledPositions{imageItr} = pooledPositions;
          allActivationArr{imageItr} = activationArr;
     end
     exportArr = cat(1, allExportArr{:});
     activationArr = cat(1, allActivationArr{:});
-    save([pwd '/output/' datasetName '/trainingInference.mat'], 'exportArr', 'activationArr');
+    pooledPositions = cat(1, allPooledPositions{:});
+    save([pwd '/output/' datasetName '/trainingInference.mat'], 'exportArr', 'activationArr', 'pooledPositions');
     
      % Move output to training folders.
      trainingInferenceFolder = [pwd '/output/' datasetName '/training'];

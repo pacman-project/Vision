@@ -35,11 +35,6 @@ function [ nodes, subChildrenExperts, subChildren, orNodeChoices, orNodeChoiceCo
     %% First, we recursively backproject the nodes. 
     startNodeOffset = 0;
     while levelItr > 1.001
-        % Get receptive field size.
-        rfSize = getRFSize(options, levelItr);
-        centerRF = floor(rfSize(1)/2)+1;
-         
-        % 
         if levelItr < minOptimizationLayer
              samplingMethod = 'modal';
         end

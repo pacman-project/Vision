@@ -19,27 +19,12 @@ function [ updatedGraphLevel ] = applyPooling( graphLevel, poolFlag, labeledPool
      coords = cat(1, graphLevel.position);
      activations = cat(1, graphLevel.activation);
      
-     % First, put the children into their allocated spaces.
-%     children = {graphLevel.children};
-%     maxSize = max(cellfun(@(x) size(x,2), children));
-%      vocabRealizationsChildren = cellfun(@(x) ...
-%         cat(2, x, zeros(size(x,1), maxSize - size(x,2), 'int32')), ...
-%         children, 'UniformOutput', false);
-%     vocabRealizationsChildren = cat(1, vocabRealizationsChildren{:});
-     
      % Get unique nodes for each label, image, coord triplet.
      if labeledPooling
           combinedArr = double([imageIds, labelIds, coords]);
      else
           combinedArr = double([imageIds, coords]);
      end
-     
-%      % First, we order the nodes by labelIds and coords.
-%      arrayToSort = [combinedArr, double(vocabRealizationsChildren)];
-%      [~, sortIdx] = sortrows(arrayToSort);
-%      graphLevel = graphLevel(sortIdx);
-%      combinedArr = combinedArr(sortIdx, :);
-%      activations = activations(sortIdx,:);
      
      % Sort combinedArr so that it is sorted by decreasing activations.
      [~, idx] = sort(activations, 'descend');

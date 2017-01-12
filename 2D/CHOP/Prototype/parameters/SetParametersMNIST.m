@@ -25,8 +25,9 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.poolDim = 2; % The pooling window size. OVERRIDING SetParameters.m.
-    options.labeledPooling = false; % If true, we use labels in pooling, otherwise we don't.
+    options.labeledPooling = true; % If true, we use labels in pooling, otherwise we don't.
     options.labeledPoolingTest = true; % Same thing, just in testing.
+    options.noPoolingLayers = [];
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.
                                   % If 'auto': Autodetected features.
@@ -158,7 +159,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                          % receptive field size grows by 
                                          % 1/scaling.
                                          
-    options.receptiveFieldSizes = [5 5 4]; % Varying RF sizes can be implemented by giving 
+    options.receptiveFieldSizes = [5 5 5]; % Varying RF sizes can be implemented by giving 
     % here. One value for every layer, starting with 1.
                                                                  
     options.smallReceptiveFieldSize = 9; % Small receptive field size that is used in some levels.
@@ -213,7 +214,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                            % number of reconstructive parts
                                            % that can be selected.
 %   options.reconstruction.numberOfReconstructiveSubs = [30 100 1000]; % The maximum    
-   options.reconstruction.numberOfReconstructiveSubs = [100 500 2000]; % The maximum      
+   options.reconstruction.numberOfReconstructiveSubs = [20 50 500]; % The maximum      
 %    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
@@ -229,8 +230,9 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                    % nodes is less than this value, we don't need compression.
                                    
      % Part selection flags!
-     options.discriminativePartSelection = false;
+     options.discriminativePartSelection = true;
      options.reconstructivePartSelection = true;
+     options.partCountDenom = 1; % Number of bins for OR nodes equals number of parts divided by this number.
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========
     options.nodeSimilarityAllowed = false; % If true, node similarities are 

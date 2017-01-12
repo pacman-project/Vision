@@ -25,7 +25,7 @@
    % Reduce memory consumption by writing all stuff to files,
    % clearing all, and then returning back to computation.
    addpath(genpath([pwd '/utilities']));
-  if ~exist('graphLevel', 'var')
+  if exist('Workspace.mat', 'file')
        disp('Loading workspace from the previous layer.');
        loadWorkspace();
   end
@@ -77,21 +77,9 @@
     prevRealLabelIds = [graphLevel.realLabelId]';
     prevActivations = [graphLevel.activation]';
     
-    % Pool layer 1 coords.
-    % Learn stride.
-    if strcmp(options.filterType, 'gabor')
-         stride = options.gabor.stride;
-    else
-         stride = options.auto.stride;
-    end
-    poolDim = options.poolDim;
-    % Calculate pool factor.
-    poolFactor = nnz(~ismembc(2:(levelItr-1), options.noPoolingLayers));
-    pooledLevel1Coords = calculatePooledPositions(level1Coords(:, 2:3), poolFactor, poolDim, stride);
-   
     %% Changing our learning architecture! 
     tic;
-    [vocabLevel, graphLevel, vocabLevelDistributions] = discoverJointSubs(graphLevel, cat(2, level1Coords, pooledLevel1Coords), categoryArrIdx, options, levelItr-1);
+    [vocabLevel, graphLevel, vocabLevelDistributions] = discoverJointSubs(graphLevel, level1Coords, categoryArrIdx, options, levelItr-1);
     toc;
     
    %% Step 2.1: Run knowledge discovery to learn frequent compositions.
@@ -115,7 +103,7 @@
    end
 
    %% Assign realizations R of next graph level (l+1), and fill in their bookkeeping info.
-   graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, graphLevel, levelItr, options);
+   graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, previousLevelPrecisePositions, graphLevel);
    if usejava('jvm')
      java.lang.System.gc();
    end
@@ -132,14 +120,15 @@
 
    %% In order to do proper visualization, we learn precise positionings of children for every vocabulary node.
    display('........ Learning sub-part label and position distributions.');
-   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, vocabLevelDistributions, graphLevel, prevRealLabelIds, double(previousLevelPrecisePositions), single(previousLevelPositions), levelItr, options);
+   [vocabLevel, vocabLevelDistributions] = learnChildDistributions(vocabLevel, vocabLevelDistributions, graphLevel, prevRealLabelIds, single(previousLevelPositions), previousLevelPrecisePositions, levelItr, options);
+
    if usejava('jvm')
      java.lang.System.gc();
    end
 
    %% Calculate activations for every part realization.
    display('........ Calculating activations..');
-   [vocabLevel, vocabLevelDistributions, graphLevel] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, double(previousLevelPrecisePositions), levelItr, options);
+   [vocabLevel, vocabLevelDistributions, graphLevel] = calculateActivations(vocabLevel, vocabLevelDistributions, graphLevel, prevActivations, single(previousLevelPositions), levelItr, options);
    if usejava('jvm')
      java.lang.System.gc();
    end
@@ -171,6 +160,16 @@
    % and apply max pooling. Please note that turning this off also means no
    % reduction in resolution for higher layers, therefore non-growing
    % receptive fields.
+   if ~ismember(levelItr, options.noPoolingLayers)
+        positions = cat(1, graphLevel.position);
+        positions = poolPositions(positions, options.poolDim);
+        newPositions = cell(numel(graphLevel),1);
+        for itr = 1:numel(graphLevel)
+             newPositions{itr} = positions(itr, :);
+        end
+        [graphLevel.position] = deal(newPositions{:});
+        level1Coords(:, 4:5) = poolPositions(level1Coords(:, 4:5), options.poolDim);
+   end
    display(['........ Applying pooling on ' num2str(numel(graphLevel)) ' realizations belonging to ' num2str(max([vocabLevel.label])) ' compositions.']);
    graphLevel = applyPooling(graphLevel, options.poolFlag, options.labeledPooling);
    display(['........ After pooling, we have ' num2str(numel(graphLevel)) ' realizations of ' num2str(numel(unique([graphLevel.labelId]))) ' compositions.']);
@@ -230,12 +229,14 @@
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
    display('Writing output to files.');
-   [exportArr, activationArr] = exportRealizations(graphLevel, levelItr);
+   [exportArr, activationArr, pooledPositions] = exportRealizations(graphLevel, levelItr);
    exportArr = cat(1, preExportArr, exportArr);
    preExportArr = exportArr;
+   pooledPositions = cat(1, prePooledPositions, pooledPositions);
+   prePooledPositions = pooledPositions;
    activationArr = cat(1, preActivationArr, activationArr);
    preActivationArr = activationArr;
-   save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'activationArr', '-append'); 
+   save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'pooledPositions', 'activationArr', '-append'); 
    clear activationArr precisePositions;
 
    % Print everything to files.

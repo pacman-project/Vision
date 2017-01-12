@@ -23,7 +23,7 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      %% Create input representation.
      display('Discovering new parts in parallel..');
      prevLevel = cat(2, cat(1, graphLevel.labelId), cat(1, graphLevel.position), cat(1, graphLevel.imageId));
-     prevLevelPositions = cat(1, graphLevel.precisePosition);
+     prevLevelPositions = single(cat(1, graphLevel.position));
      leafNodes = {graphLevel.leafNodes};
      rfSize = options.receptiveFieldSizes(levelItr);
      nodeCoverageThr = options.missingNodeThr;
@@ -33,14 +33,6 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      selectionOptions.supervisedWeight = 0;
      selectionOptions.reconstructivePartSelection = options.reconstructivePartSelection;
      selectionOptions.discriminativePartSelection = options.discriminativePartSelection;
-     
-     realRFSize = getRFSize(options, levelItr+1);
-     realRFSize = realRFSize(1);
-%      if levelItr > 3
-%           minSize = 1;
-%      else
-%           minSize = 2;
-%      end
      minSize = 2;
      maxClusters = 10;
      
@@ -88,26 +80,28 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      newLabels = cell(size(candidateParts,1),1);
      newInstancePositions = cell(size(candidateParts,1),1);
      newPartDistributions = cell(size(candidateParts,1),1);
+     newPartThresholds = cell(size(candidateParts, 1),1);
      newChildrenArr = cell(size(candidateParts,1),1);
  
      display(['Discovering new parts by learning multi-modal distributions... We have ' num2str(size(candidateParts,1)) ' different types of cliques.']);
      parfor partItr = 1:size(candidateParts,1)
+%     for partItr = 1:200
           w2 = warning('off', 'all');
           instancePositions = allInstancePositions(firstInstances(partItr):(firstInstances(partItr+1)-1),:);
-%     for partItr = 1:100
           %% Create cliques and their joint position space.
-          [jointPositions, savedCliques, uniqueSubParts, numberOfSubParts] = getCliques(candidateParts, allCliques, firstInstances, prevLevelPositions, allInstancePositions, realRFSize, partItr);
+          [jointPositions, savedCliques, uniqueSubParts, numberOfSubParts] = getCliques(candidateParts, allCliques, firstInstances, prevLevelPositions, allInstancePositions, rfSize, partItr);
           %% Calculate joint statistics. 
-          [partClusters, refinedClusterSamples, refinedCliques, refinedClusters, refinedInstancePositions, shownSamples, shownClusters, clusterDistributions, numberOfClusters] = learnJointStats(jointPositions, instancePositions, savedCliques, realRFSize, maxClusters);
+          [refinedClusterSamples, refinedCliques, refinedClusters, refinedInstancePositions, shownSamples, shownClusters, clusterDistributions, clusterThresholds, numberOfClusters, partClusters] = learnJointStats(jointPositions, instancePositions, savedCliques, rfSize, maxClusters);
           newCliques{partItr} = refinedCliques;
           newLabels{partItr} = int32(refinedClusters);
           newInstancePositions{partItr} = refinedInstancePositions;
           newPartDistributions{partItr} = clusterDistributions;
+          newPartThresholds{partItr} = clusterThresholds;
           
           %% Visualize parts.
-%          visualizeJointParts(shownSamples, shownClusters, refinedClusterSamples, refinedClusters, jointPositions, partClusters, numberOfSubParts, partItr, realRFSize, numberOfClusters, uniqueSubParts, newFolder);
+%          visualizeJointParts(shownSamples, shownClusters, refinedClusterSamples, refinedClusters, jointPositions, partClusters, numberOfSubParts, partItr, rfSize, numberOfClusters, uniqueSubParts, newFolder);
           children = candidateParts(partItr,:);
-          newChildrenArr{partItr} = repmat(children, numel(unique(partClusters)),1);
+          newChildrenArr{partItr} = repmat(children, numel(unique(refinedClusters)),1);
           warning(w2);
      end
      
@@ -115,7 +109,7 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      offset = 0;
      for partItr = 1:size(candidateParts,1)
           newLabels{partItr} = newLabels{partItr} + offset;
-          offset = offset + numel(unique(newLabels{partItr}));
+          offset = offset + numel(fastsortedunique(sort(newLabels{partItr})));
      end
      
      % Save all info and proceed to selection.
@@ -123,27 +117,19 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      newLabels = cat(1, newLabels{:});
      newInstancePositions = cat(1, newInstancePositions{:});
      newPartDistributions = cat(1, newPartDistributions{:});
+     newPartThresholds = cat(1, newPartThresholds{:});
      newChildrenArr = cat(1, newChildrenArr{:});
      newImageIds = prevLevel(newCliques(:, end),4);
      newCategoryLabels = categoryArrIdx(newImageIds);
      newMetaData = cat(2, newLabels, newImageIds, newCategoryLabels);
      clear newLabels newImageIds newCategoryLabels;
      
-     %% Pool new instance positions.
-    if strcmp(options.filterType, 'gabor')
-         stride = options.gabor.stride;
-    else
-         stride = options.auto.stride;
-    end
-    poolDim = options.poolDim;
-    % Calculate pool factor.
-    poolFactor = nnz(~ismembc(2:levelItr, options.noPoolingLayers));
-    pooledInstancePositions = calculatePooledPositions(newInstancePositions, poolFactor, poolDim, stride);
-     
      %% Before the selection process, we eliminate parts which have low coverage. 
      % They are removed from the part selection process.
-     display('Removing low coverage parts...');
-     [newCliques, newInstancePositions, newMetaData, newChildrenArr, newPartDistributions] = removeLowCoverageParts(newCliques, newInstancePositions, pooledInstancePositions, newMetaData, newChildrenArr, newPartDistributions, prevLevel, leafNodes, level1Coords, nodeCoverageThr, rfSize);
+     if nodeCoverageThr > 0
+          display('Removing low coverage parts...');
+          [newCliques, newInstancePositions, newMetaData, newChildrenArr, newPartDistributions, newPartThresholds] = removeLowCoverageParts(newCliques, newInstancePositions, newMetaData, newChildrenArr, newPartDistributions, newPartThresholds, prevLevel, leafNodes, level1Coords, nodeCoverageThr, rfSize);
+     end
      
      %% Candidate parts are discovered. Now, we perform part selection process.
      str = 'Part selection is being performed. Part selection modes:';
@@ -169,7 +155,8 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      assignedVocabLabels = num2cell(int32((1:numberOfParts)'));
      childrenLabels = newChildrenArr(selectedParts,:);
      newPartDistributions = newPartDistributions(selectedParts, :);
-     newPosMus = cellfun(@(x) x.mu, newPartDistributions, 'UniformOutput', false);
+     newPartThresholds = newPartThresholds(selectedParts, :);
+     newPartThresholds = num2cell(newPartThresholds);
      childrenLabels = mat2cell(childrenLabels, ones(numberOfParts,1), size(childrenLabels,2));
      childrenLabels = cellfun(@(x) x(x>0), childrenLabels, 'UniformOutput', false);
      
@@ -185,12 +172,12 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
           tmp = newCliques(itr, :);
           tmp = tmp(tmp>0);
           childrenArr{itr} = tmp;
-          positionArr{itr} = round(newInstancePositions(itr, :));
+          positionArr{itr} = int32(newInstancePositions(itr, :));
      end
      [newGraphLevel.children] = deal(childrenArr{:});
      [newGraphLevel.labelId] = deal(assignedLabels{:});
      [newGraphLevel.realLabelId] = deal(assignedLabels{:});
-     [newGraphLevel.precisePosition] = deal(positionArr{:});
+     [newGraphLevel.position] = deal(positionArr{:});
      [newGraphLevel.sign] = deal(1);
      [newGraphLevel.activation] = deal(single(1));
      
@@ -198,7 +185,7 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      [newVocabLevel.children] = deal(childrenLabels{:});
      
      [newVocabLevelDistributions.childrenPosDistributions] = deal(newPartDistributions{:});
-     [newVocabLevelDistributions.childrenPosMu] = deal(newPosMus{:});
+     [newVocabLevelDistributions.distanceThr] = deal(newPartThresholds{:});
      
      warning(w);
 end

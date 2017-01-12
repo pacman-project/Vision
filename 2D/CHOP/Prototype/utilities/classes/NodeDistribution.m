@@ -13,7 +13,8 @@ classdef NodeDistribution
                                                                  % and their probabilities.
         childrenPosDistributions@gmdistribution; % Cell array of multi-modal gaussian distributions 
                                                                  % modelling joint space of children positions. 
-                                                                 % One for every discrete combination.  
+                                                                 % One for every discrete combination.
+        distanceThr@double; % Distance from the cluster center for a part realization to be considered.
         childrenPosMu@single; % Mu of the distributions, for fast access.
         childrenPosDistributionProbs@cell; % numberOfChildren x {N x N} array, where N is the size of the 
                                                                      % receptive field.
@@ -23,60 +24,60 @@ classdef NodeDistribution
     end
     
     methods
-         function [partialLabels, instanceJointPos] = predictMissingInfo(obj, partialLabels, partialChildren, precisePositions)
-             numberOfInstances=  size(partialLabels,1);
-             numberOfChildren = size(partialLabels,2);
-             muArr = obj.childrenPosDistributions.mu;
-             instanceJointPos = zeros(numberOfInstances, (numberOfChildren-1)*2, 'single');
-             
-             % Go over instances and 
-             for instanceItr = 1:numberOfInstances
-                  relevantLabels = partialLabels(instanceItr,:);
-                  centerCoords = precisePositions(partialChildren(instanceItr,1),:);
-                  
-                  % Obtain closest label combination.
-                  validCols = [~isinf(relevantLabels), true];
-                  invalidChildCols = ~validCols(1:end-1);
-                  reducedChildrenLabelDistributions = obj.childrenLabelDistributions(:, validCols);
-                  [~, idx] = ismember(relevantLabels(validCols(1:end-1)), reducedChildrenLabelDistributions(:,1:end-1), 'rows');
-                  
-                  % Based on the partial data, let's pick up the label
-                  % combinations.
-                  if isempty(idx) || idx == 0
-                       probs = obj.childrenLabelDistributions(:, end);
-                       [~, assignedRow] = max(probs);
-                  elseif numel(idx) > 1
-                       assignedRow = idx;
-                  else
-                       probs = obj.childrenLabelDistributions(idx, end);
-                       [~, idx2] = max(probs);
-                       assignedRow = idx(idx2);
-                  end
-                  
-                  % Complete missing node labels here.
-                  partialLabels(instanceItr, invalidChildCols) = obj.childrenLabelDistributions(assignedRow, ~validCols);
-                  
-                  % Now, we find closest locations for the nodes.
-                  jointPos = zeros(1, numberOfChildren * 2);
-                  secChildren = partialChildren(instanceItr, :);
-                  for childItr = 1:numel(secChildren)
-                       % Missing children will be Inf!
-                       if isinf(secChildren(childItr))
-                            jointPos(:, (childItr-1)*2+1:(childItr)*2) = Inf;
-                       else
-                            jointPos(:, (childItr-1)*2+1:(childItr)*2) = precisePositions(secChildren(childItr), :) - centerCoords;
-                       end
-                  end
-                  instanceJointPos(instanceItr, :) = jointPos;
-                  
-                  % We have calculated joint position. Now, we'll obtain
-                  % closest mode.
-                  invalidCols = isinf(jointPos);
-                  validCols = ~invalidCols;
-                  if nnz(validCols) < numel(validCols)
-                       instanceJointPos(instanceItr, invalidCols) = round(muArr(:, invalidCols));
-                  end
-             end
-         end
+%          function [partialLabels, instanceJointPos] = predictMissingInfo(obj, partialLabels, partialChildren, precisePositions)
+%              numberOfInstances=  size(partialLabels,1);
+%              numberOfChildren = size(partialLabels,2);
+%              muArr = obj.childrenPosDistributions.mu;
+%              instanceJointPos = zeros(numberOfInstances, (numberOfChildren-1)*2, 'single');
+%              
+%              % Go over instances and 
+%              for instanceItr = 1:numberOfInstances
+%                   relevantLabels = partialLabels(instanceItr,:);
+%                   centerCoords = precisePositions(partialChildren(instanceItr,1),:);
+%                   
+%                   % Obtain closest label combination.
+%                   validCols = [~isinf(relevantLabels), true];
+%                   invalidChildCols = ~validCols(1:end-1);
+%                   reducedChildrenLabelDistributions = obj.childrenLabelDistributions(:, validCols);
+%                   [~, idx] = ismember(relevantLabels(validCols(1:end-1)), reducedChildrenLabelDistributions(:,1:end-1), 'rows');
+%                   
+%                   % Based on the partial data, let's pick up the label
+%                   % combinations.
+%                   if isempty(idx) || idx == 0
+%                        probs = obj.childrenLabelDistributions(:, end);
+%                        [~, assignedRow] = max(probs);
+%                   elseif numel(idx) > 1
+%                        assignedRow = idx;
+%                   else
+%                        probs = obj.childrenLabelDistributions(idx, end);
+%                        [~, idx2] = max(probs);
+%                        assignedRow = idx(idx2);
+%                   end
+%                   
+%                   % Complete missing node labels here.
+%                   partialLabels(instanceItr, invalidChildCols) = obj.childrenLabelDistributions(assignedRow, ~validCols);
+%                   
+%                   % Now, we find closest locations for the nodes.
+%                   jointPos = zeros(1, numberOfChildren * 2);
+%                   secChildren = partialChildren(instanceItr, :);
+%                   for childItr = 1:numel(secChildren)
+%                        % Missing children will be Inf!
+%                        if isinf(secChildren(childItr))
+%                             jointPos(:, (childItr-1)*2+1:(childItr)*2) = Inf;
+%                        else
+%                             jointPos(:, (childItr-1)*2+1:(childItr)*2) = precisePositions(secChildren(childItr), :) - centerCoords;
+%                        end
+%                   end
+%                   instanceJointPos(instanceItr, :) = jointPos;
+%                   
+%                   % We have calculated joint position. Now, we'll obtain
+%                   % closest mode.
+%                   invalidCols = isinf(jointPos);
+%                   validCols = ~invalidCols;
+%                   if nnz(validCols) < numel(validCols)
+%                        instanceJointPos(instanceItr, invalidCols) = round(muArr(:, invalidCols));
+%                   end
+%              end
+%          end
     end
 end

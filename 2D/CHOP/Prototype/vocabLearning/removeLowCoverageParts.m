@@ -1,4 +1,4 @@
-function [allCliques, allInstancePositions, newMetaData, newChildrenArr, newPartDistributions] = removeLowCoverageParts(allCliques, allInstancePositions, pooledInstancePositions, newMetaData, newChildrenArr, newPartDistributions, prevLevel, leafNodes, level1Coords, nodeCoverageThr, rfSize)
+function [allCliques, allInstancePositions, newMetaData, newChildrenArr, newPartDistributions, newPartThresholds] = removeLowCoverageParts(allCliques, allInstancePositions, newMetaData, newChildrenArr, newPartDistributions, newPartThresholds, prevLevel, leafNodes, level1Coords, nodeCoverageThr, rfSize)
      % Program variables.
      rfCenter = floor(rfSize / 2) + 1;
      lowHalf = 1 - rfCenter;
@@ -18,7 +18,7 @@ function [allCliques, allInstancePositions, newMetaData, newChildrenArr, newPart
      
      for itr = 1:numel(leafNodes);
           tmp = leafNodes{itr};
-          tmp = tmp - imageOffsets(level1Coords(tmp(1)));
+          tmp = tmp - imageOffsets(level1Coords(tmp(1),1));
           leafNodes{itr} = tmp;
      end
      
@@ -60,7 +60,7 @@ function [allCliques, allInstancePositions, newMetaData, newChildrenArr, newPart
      
      % Sort image ids and positions for faster access and parallelization.
      [sortedImageIds, sortedIdx] = sort(imageIds);
-     sortedPooledPositions = pooledInstancePositions(sortedIdx,:);
+     sortedPooledPositions = allInstancePositions(sortedIdx,:);
      [~, firstInstances, ~] = unique(sortedImageIds, 'R2012a');
      firstInstances = cat(1, firstInstances, size(sortedImageIds,1)+1);
      
@@ -105,6 +105,7 @@ function [allCliques, allInstancePositions, newMetaData, newChildrenArr, newPart
      allInstancePositions = allInstancePositions(validInstances, :);
      newChildrenArr = newChildrenArr(validParts, :);
      newPartDistributions = newPartDistributions(validParts, :);
+     newPartThresholds = newPartThresholds(validParts, :);
      [~, ~, newMetaData(:,1)] = unique(newMetaData(:,1));
 end
 

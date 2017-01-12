@@ -14,17 +14,15 @@
 %>
 %> Updates
 %> Ver 1.0 on 07.07.2015
-function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLevel, nodeDistributionLevel, graphLevel, prevRealLabelIds, prevPrecisePositions, prevPositions, levelItr, options)
+function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLevel, nodeDistributionLevel, graphLevel, prevRealLabelIds, prevPositions, prevPrecisePositions, levelItr, options)
     numberOfNodes = numel(vocabLevel);
     labelIds = [graphLevel.realLabelId];
-    posDim = size(prevPrecisePositions,2);
-    tempSize = getRFSize(options, levelItr);
-    realRFSize = tempSize(1);
-    centerRF = floor(tempSize(1)/2)+1;
+    posDim = size(prevPositions,2);
     lowRFSize = options.receptiveFieldSizes(levelItr-1);
+    centerRF = floor(lowRFSize/2)+1;
+    
     minProb = exp(-20);
     distributions = {nodeDistributionLevel.childrenPosDistributions};
-    
     colormap('hot');
 
     %% Distribution parameters.
@@ -45,13 +43,15 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
         % Get data. 
         % TODO: Consider mapping here!
         instances = vocabInstances{vocabItr};
-        instancePositions = cat(1, instances.precisePosition);
+        instancePositions = single(cat(1, instances.position));
+        instancePrecisePositions = cat(1, instances.precisePosition);
         instanceChildren = cat(1, instances.children);
         instanceChildrenCombinedLabels = double(prevRealLabelIds(instanceChildren));
         if size(instanceChildren,1) == 1 && size(instanceChildren,2) > 1
              instanceChildrenCombinedLabels = instanceChildrenCombinedLabels';
         end
         instanceChildrenCombinedPos = zeros(size(instanceChildren,1), size(instanceChildren,2) * posDim);
+        instanceChildrenPrecisePos = zeros(size(instanceChildren,1), size(instanceChildren,2) * posDim, 'single');
         
         % Find real-valued combinations. We learn a discrete distribution
         % of label combinations by simply counting the number of times each
@@ -66,11 +66,16 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              
              % If we're working with peripheral sub-parts, we calculate
              % position distributions as well.
-             samples = prevPrecisePositions(relevantChildren, :) - instancePositions;
+             samples = prevPositions(relevantChildren, :) - instancePositions;
+             preciseSamples = prevPrecisePositions(relevantChildren, :) - instancePrecisePositions;
 
              % Save samples (positions and labels).
              instanceChildrenCombinedPos(:, ((instanceItr-1)*posDim+1):((instanceItr)*posDim)) = samples;
+             instanceChildrenPrecisePos(:, ((instanceItr-1)*posDim+1):((instanceItr)*posDim)) = preciseSamples;
         end
+        
+        % Save the mu for reconstruction.
+        nodeDistributionLevel(vocabItr).childrenPosMu = round(sum(instanceChildrenPrecisePos, 1) / size(instanceChildrenPrecisePos,1));
         
         %% Finally, we learn a joint distibution of children for every combination of real id labels. 
         % This step is crucial in having the right distributions for
@@ -91,12 +96,12 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
         % probabilities for each sub-location.
         % Start by creating real-sized receptive fields.
         childrenProbs = cell(size(instanceChildren,2),1);
-        childImgs = zeros(realRFSize, size(instanceChildren,2) * realRFSize, 3, 'uint8');
+        childImgs = zeros(lowRFSize, size(instanceChildren,2) * lowRFSize, 3, 'uint8');
         
         % Next, we enumerate all possible (Really!) points.
-        oneSideVals = (-(centerRF-1)):1:(realRFSize - centerRF);
+        oneSideVals = (-(centerRF-1)):1:(lowRFSize - centerRF);
         minRF = (-(centerRF-1));
-        maxRF = (realRFSize - centerRF);
+        maxRF = (lowRFSize - centerRF);
         combs = allcomb(oneSideVals, oneSideVals);
         
         % We calculate pdf values. For locations with significiant pdf
@@ -114,24 +119,24 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              catch
                   combPDFVals = mvnpdf(combs, curMu, nearestSPD(curSigma));
              end
-             pdfMat = zeros(realRFSize, realRFSize, 'double');
-             pdfMat(combs(:,1)+centerRF + (combs(:,2)+centerRF-1)*realRFSize) = combPDFVals;
+             pdfMat = zeros(lowRFSize, lowRFSize, 'double');
+             pdfMat(combs(:,1)+centerRF + (combs(:,2)+centerRF-1)*lowRFSize) = combPDFVals;
              
              % Determine the value of minimum pdf to check.
              relevantPos = unique(instanceChildrenCombinedPos(:,((childItr-1)*2 + 1):(childItr * 2)), 'rows');
              relevantPos = relevantPos(relevantPos(:,1) >= minRF & relevantPos(:,1) <= maxRF & ...
                   relevantPos(:,2) >= minRF & relevantPos(:,2) <= maxRF, :);
-             relevantInd = sub2ind([realRFSize, realRFSize], relevantPos(:,1) + centerRF, relevantPos(:,2) + centerRF);
-             sampleImg = zeros(realRFSize) > 0;
+             relevantInd = sub2ind([lowRFSize, lowRFSize], relevantPos(:,1) + centerRF, relevantPos(:,2) + centerRF);
+             sampleImg = zeros(lowRFSize) > 0;
              sampleImg(relevantInd) = 1;
-             dummyArr = sparse(realRFSize,realRFSize);
+             dummyArr = sparse(lowRFSize,lowRFSize);
              
-             % Based on the number of instances, we add a buffer zone in
-             % probability distribution to add flexibility.
-             if levelItr > 2
-                  bufferWidth = max(1, round(realRFSize /( 2*(lowRFSize * sqrt(size(relevantPos,1))))));
-                  sampleImg = imdilate(sampleImg, strel('disk', bufferWidth));
-             end
+%              % Based on the number of instances, we add a buffer zone in
+%              % probability distribution to add flexibility.
+%              if levelItr > 2
+%                   bufferWidth = max(1, round(lowRFSize /( 2*(lowRFSize * sqrt(size(relevantPos,1))))));
+%                   sampleImg = imdilate(sampleImg, strel('disk', bufferWidth));
+%              end
              
              % Finally, we calculate a convex hull and fill it in.
              sampleImg = bwconvhull(sampleImg);
@@ -156,17 +161,11 @@ function [vocabLevel, nodeDistributionLevel] = learnChildDistributions(vocabLeve
              % Create a visualization.
              maxVal = max(max(dummyArr));
              dummyArr = dummyArr / maxVal;
-             dummyArr([1, end], :) = 1;
-             dummyArr(:, [1, end]) = 1;
- %            relevantPos = relevantPos + centerRF;
- %            ind = sub2ind([realRFSize, realRFSize], relevantPos(:,1), relevantPos(:,2));
- %            dummyArr(ind) = 1;
+%              dummyArr([1, end], :) = 1;
+%              dummyArr(:, [1, end]) = 1;
              dummyArr(dummyArr>0) = max(1/255, dummyArr(dummyArr>0));
              img = label2rgb(uint8(255 * dummyArr), 'jet', 'k');
-             childImgs(:, ((childItr-1)*realRFSize+1):childItr*realRFSize, :) = img;
-        end
-        if realRFSize < 100
-              childImgs = imresize(childImgs, 2);
+             childImgs(:, ((childItr-1)*lowRFSize+1):childItr*lowRFSize, :) = img;
         end
         imwrite(childImgs, [debugFolder '/part' num2str(vocabItr) '.png']);
         

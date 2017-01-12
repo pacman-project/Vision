@@ -1,37 +1,52 @@
 function [ ] = baselineClassification(datasetName)
     %BASELINEFEATUREEXTRACTION Summary of this function goes here
-    poolSizes = [2];
+    poolSizes = [1 2];
     
     %   Detailed explanation goes here
     options = SetParameters(datasetName, true);
     datasetTestFolder = [options.currentFolder '/output/' datasetName '/test/inference/'];
-    load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames');
+    load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'options');
     load([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
-    load([options.currentFolder '/output/' datasetName '/trainingInference.mat'], 'exportArr');
+    if exist([options.currentFolder '/output/' datasetName '/trainingInference.mat'], 'file')
+         load([options.currentFolder '/output/' datasetName '/trainingInference.mat'], 'exportArr', 'pooledPositions');
+    else
+         load([options.currentFolder '/output/' datasetName '/export.mat'], 'exportArr', 'pooledPositions');
+         [~, sortIdx] = sort(exportArr(:,5));
+         exportArr = exportArr(sortIdx, :);
+         pooledPositions = pooledPositions(sortIdx, :);
+    end
     testFileNames = fuf([datasetTestFolder '*.mat'], 1, 'detail');
+    
+    % Set up image dimensions.
+    imageSizes = cell(numel(vocabulary), 1);
+    if strcmp(options.filterType, 'gabor')
+         stride = options.gabor.stride;
+    else
+         stride = options.auto.stride;
+    end
+    denom = stride;
+    for itr = 1:numel(vocabulary)
+         imageSizes(itr) = {ceil(options.imageSize / denom)};
+         if ~ismember(itr, options.noPoolingLayers)
+              denom = round(denom * options.poolDim);
+         end
+    end
     
     %% Step 1.1: Extract a set of features from the input images.
     display('..... Level 1 Feature Extraction started. This may take a while.');
     allFeatures = cell(numel(categoryArrIdx), numel(vocabulary), numel(poolSizes));
-    maxLevels = 1;
+    maxLevels = numel(vocabulary);
+    [~, firstInstances, ~] = unique(exportArr(:, 5), 'R2012a');
+    firstInstances = cat(1, firstInstances, size(exportArr,1) + 1);
+    exportArr(:, 2:3) = pooledPositions;
+    
     for fileItr = 1:numel(categoryArrIdx)
-        
         % Get the size of the image.
-        imgArr = exportArr(exportArr(:,5) == fileItr, :);
-        if max(exportArr(:,4)) > maxLevels
-           maxLevels = max(exportArr(:,4)); 
-        end
-%         
-        % Get the size of the image.
-        img = imread(trainingFileNames{fileItr});
-        imgSize = size(img);
-        if numel(imgSize) > 2
-            imgSize = imgSize(1:2);
-        end
-%         imgArr = exportArr(exportArr(:,5) == fileItr, :);
-        
+        imgArr = exportArr(firstInstances(fileItr):(firstInstances(fileItr+1)-1), :);
+      
         for levelItr = 1:numel(vocabulary)
             vocabLevel = vocabulary{levelItr};
+            imgSize = imageSizes{levelItr};
             levelArr = imgArr(imgArr(:,4) == levelItr,:);
             for poolSizeItr = 1:numel(poolSizes)
                 poolSize = poolSizes(poolSizeItr);
@@ -42,67 +57,28 @@ function [ ] = baselineClassification(datasetName)
                 for poolItr1 = 1:poolSize
                     for poolItr2 = 1:poolSize
 
-                        minX = (poolItr1-1) * stepSizes(1);
-                        minY = (poolItr2-1) * stepSizes(2);
-                        maxX = min((imgSize(1)+1), (poolItr1 * stepSizes(1)));
-                        maxY = min((imgSize(2)+1), (poolItr2 * stepSizes(2)));
+                        minX = (poolItr1-1) * stepSizes(1) + 1;
+                        minY = (poolItr2-1) * stepSizes(2) + 1;
+                        maxX = min((imgSize(1)+1), (1 + poolItr1 * stepSizes(1)));
+                        maxY = min((imgSize(2)+1), (1 + poolItr2 * stepSizes(2)));
 
                         % Get the features that belong to this bin.
                         poolArr = levelArr(levelArr(:,2) >= minX & levelArr(:,2) < maxX & ...
                                     levelArr(:,3) >= minY & levelArr(:,3) < maxY, 1);
-                        startOffset = (poolItr1-1) * poolSize * numel(vocabLevel) + (poolItr2-1) * numel(vocabLevel);
-                        for featureItr = 1:size(poolArr,1)
-                            imgFeatures(startOffset + poolArr(featureItr)) = imgFeatures(poolArr(featureItr)) + 1;
-                        end
+                        newFeatures = full( sparse( 1, double(poolArr), 1, 1, numel(vocabLevel) ) );
+                        startOffset = (poolItr1-1) * poolSize * numel(vocabLevel) + (poolItr2-1) * numel(vocabLevel)+1;
+                        imgFeatures(startOffset:(startOffset+(numel(vocabLevel)-1))) = newFeatures;
                     end
                 end
                 
                 % Normalize feature vector.
                 if nnz(imgFeatures) > 0
-                    imgFeatures = normr(imgFeatures);
+                    imgFeatures = imgFeatures / sum(imgFeatures);
                 end
                 
                 % We apply PCA if needed.
-                
                 allFeatures{fileItr, levelItr, poolSizeItr} = imgFeatures;
             end
-        end
-    end
-    
-    %% Here, we will run training using the features learned.
-    % A separate model is learned for every pooling & vocabulary level pair.
-    for levelItr = 1:maxLevels
-        for poolSizeItr = 1:numel(poolSizes)
-            relevantFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
-            validRows = sum(relevantFeatures,2) > 0;
-            trainLabels = categoryArrIdx(validRows, :);
-            trainFeatures = relevantFeatures(validRows, :);
-
-            bestcv = 0;
-            for log2c = -1:2:3,
-                 for log2g = -4:2:1,
-                   cmd = ['-v 5 -c ', num2str(2^log2c), ' -g ', num2str(2^log2g) ' -q'];
-                   cv = svmtrain(trainLabels, trainFeatures, cmd);
-                   if (cv >= bestcv),
-                     bestcv = cv; bestc = 2^log2c; bestg = 2^log2g;
-                   end
-                   fprintf('%g %g %g (best c=%g, g=%g, rate=%g)\n', log2c, log2g, cv, bestc, bestg, bestcv);
-                 end
-            end
-            cmd = ['-c ', num2str(2^log2c), ' -g ', num2str(2^log2g) ' -q'];
-%             bestcv = 0;
-%             bestc = -1;
-%             for log2c = [1/64, 1/32, 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32, 64, 128]
-%                 cmd = ['-v 5 -t 0 -c ', num2str(log2c),' -q '];
-%                 cv = svmtrain(trainLabels, trainFeatures, cmd);
-%                 if (cv >= bestcv),
-%                     bestcv = cv; bestc = log2c;
-%                 end
-%                 fprintf('%g %g (best c=%g, rate=%g)\n', log2c, cv, bestc, bestcv);
-%             end
-%             cmd = ['-t 0 -c ', num2str(bestc), ' -q '];
-            learnedModel = svmtrain(trainLabels, trainFeatures, cmd);
-            save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel');
         end
     end
     
@@ -112,11 +88,13 @@ function [ ] = baselineClassification(datasetName)
     for fileItr = 1:numel(testFileNames)
         
         % Get the size of the image.
-        load(testFileNames{fileItr}, 'imgSize', 'exportArr', 'categoryLabel');
+        load(testFileNames{fileItr}, 'imgSize', 'exportArr', 'categoryLabel', 'pooledPositions');
+        exportArr(:, 2:3) = pooledPositions;
         testLabels(fileItr) = categoryLabel;
         
         for levelItr = 1:numel(vocabulary)
             vocabLevel = vocabulary{levelItr};
+            imgSize = imageSizes{levelItr};
             levelArr = exportArr(exportArr(:,4) == levelItr,:);
             for poolSizeItr = 1:numel(poolSizes)
                 poolSize = poolSizes(poolSizeItr);
@@ -127,27 +105,68 @@ function [ ] = baselineClassification(datasetName)
                 for poolItr1 = 1:poolSize
                     for poolItr2 = 1:poolSize
 
-                        minX = (poolItr1-1) * stepSizes(1);
-                        minY = (poolItr2-1) * stepSizes(2);
-                        maxX = min((imgSize(1)+1), (poolItr1 * stepSizes(1)));
-                        maxY = min((imgSize(2)+1), (poolItr2 * stepSizes(2)));
+                        minX = (poolItr1-1) * stepSizes(1) + 1;
+                        minY = (poolItr2-1) * stepSizes(2) + 1;
+                        maxX = min((imgSize(1)+1), (1 + poolItr1 * stepSizes(1)));
+                        maxY = min((imgSize(2)+1), (1 + poolItr2 * stepSizes(2)));
 
                         % Get the features that belong to this bin.
                         poolArr = levelArr(levelArr(:,2) >= minX & levelArr(:,2) < maxX & ...
                                     levelArr(:,3) >= minY & levelArr(:,3) < maxY, 1);
-                        startOffset = (poolItr1-1) * poolSize * numel(vocabLevel) + (poolItr2-1) * numel(vocabLevel);
-                        for featureItr = 1:size(poolArr,1)
-                            imgFeatures(startOffset + poolArr(featureItr)) = imgFeatures(poolArr(featureItr)) + 1;
-                        end
+                        newFeatures = full( sparse( 1, double(poolArr), 1, 1, numel(vocabLevel) ) );
+                        startOffset = (poolItr1-1) * poolSize * numel(vocabLevel) + (poolItr2-1) * numel(vocabLevel)+1;
+                        imgFeatures(startOffset:(startOffset+(numel(vocabLevel)-1))) = newFeatures;
                     end
                 end
                 
                 % Normalize feature vector.
                 if nnz(imgFeatures) > 0
-                    imgFeatures = normr(imgFeatures);
+                    imgFeatures = imgFeatures / sum(imgFeatures);
                 end
                 testFeatures{fileItr, levelItr, poolSizeItr} = imgFeatures;
             end
+        end
+    end
+    
+    
+    %% Here, we will run training using the features learned.
+    % A separate model is learned for every pooling & vocabulary level pair.
+    for levelItr = 1:maxLevels
+        for poolSizeItr = 1:numel(poolSizes)
+%              if exist([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'file')
+%                   continue;
+%              end
+            relevantFeatures = [];
+            for itr = 1:levelItr
+                 relevantFeatures = cat(2, relevantFeatures, cat(1, allFeatures{:, itr, poolSizeItr}));
+            end
+ %           relevantFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
+            validRows = sum(relevantFeatures,2) > 0;
+            trainLabels = categoryArrIdx(validRows, :);
+            trainFeatures = relevantFeatures(validRows, :);
+            
+            %% Apply PCA
+            colMeans = sum(trainFeatures,1) / size(trainFeatures, 1);
+            [coeff, trainFeatures, latent] = princomp(trainFeatures);
+            numberOfFeatures = nnz(latent >= 0.002*max(latent));
+            trainFeatures = trainFeatures(:, 1:numberOfFeatures);
+            
+%             %% Grid-search for best parameters.
+%             cVals = -1:2:3;
+%             gVals = -4:2:0;
+%             combs = allcomb(cVals, gVals);
+%             cvVals = zeros(size(combs,1),1);
+%             parfor itr = 1:size(combs,1)
+%                 cmd = ['-v 4 -c ', num2str(2^combs(itr,1)), ' -g ', num2str(2^combs(itr,2)) ' -q'];
+%                 cv = svmtrain(trainLabels, trainFeatures, cmd);
+%                 fprintf('%g %g %g\n', combs(itr,1), combs(itr,2), cv);
+%                 cvVals(itr) = cv;
+%             end
+%             [~, maxVal] = max(cvVals);
+%             cmd = ['-c ', num2str(2^combs(maxVal,1)), ' -g ', num2str(2^combs(maxVal,2)) ' -q'];
+            cmd = ['-c ', num2str(2^3), ' -g ', num2str(2^0) ' -q'];
+            learnedModel = svmtrain(trainLabels, trainFeatures, cmd);
+            save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel', 'coeff', 'colMeans');
         end
     end
     
@@ -155,9 +174,21 @@ function [ ] = baselineClassification(datasetName)
     for poolSizeItr = 1:numel(poolSizes)
         existingPredLabels = -1 * ones(numel(categoryArrIdx),1);
         for levelItr = 1:maxLevels
-            curFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
+             
+             
+            curFeatures = [];
+            for itr = 1:levelItr
+                 curFeatures = cat(2, curFeatures, cat(1, allFeatures{:, itr, poolSizeItr}));
+            end
+%            curFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
             validRows = sum(curFeatures,2) > 0;
-            load([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel');
+            load([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel', 'coeff', 'colMeans');
+            
+            % Apply PCA coefficients.
+            curFeatures = curFeatures - repmat(colMeans, size(curFeatures, 1), 1);
+            curFeatures = curFeatures * coeff;
+            curFeatures = curFeatures(:, 1:size(learnedModel.SVs,2));
+            
             cmd = '-q';
             [predLabels,~, ~] = svmpredict(categoryArrIdx, curFeatures, learnedModel, cmd);
             predLabels(~validRows) = -1;
@@ -167,12 +198,8 @@ function [ ] = baselineClassification(datasetName)
             predLabels(predLabels == -1) = existingPredLabels(predLabels==-1);
             
             % Estimate performance, and find confusion matrix.
-            classAcc = zeros(numel(unique(categoryArrIdx)),1);
-            for catItr = 1:numel(unique(categoryArrIdx))
-                classAcc(catItr) = nnz(predLabels == categoryArrIdx & categoryArrIdx == catItr) / nnz(categoryArrIdx == catItr);
-            end
-            trainAccuracy = mean(classAcc);
             trainConfMat = confusionmat(categoryArrIdx, predLabels);
+            trainAccuracy = sum(trainConfMat(eye(size(trainConfMat,1)) > 0)) / sum(sum(trainConfMat));
             
             % Mark invalid rows. 
             save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'trainAccuracy', 'trainConfMat', '-append');
@@ -183,10 +210,22 @@ function [ ] = baselineClassification(datasetName)
     for poolSizeItr = 1:numel(poolSizes)
         existingPredLabels = -1 * ones(numel(testFileNames),1);
         for levelItr = 1:maxLevels
-            curFeatures = cat(1, testFeatures{:, levelItr, poolSizeItr});
+             
+           curFeatures = [];
+            for itr = 1:levelItr
+                 curFeatures = cat(2, curFeatures, cat(1, testFeatures{:, itr, poolSizeItr}));
+            end
+             
+ %           curFeatures = cat(1, testFeatures{:, levelItr, poolSizeItr});
             validRows = sum(curFeatures,2) > 0;
-            load([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel');
+            load([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel', 'coeff', 'colMeans');
             cmd = '-q';
+            
+            % Apply pca coeff.
+            curFeatures = curFeatures - repmat(colMeans, size(curFeatures, 1), 1);
+            curFeatures = curFeatures * coeff;
+            curFeatures = curFeatures(:, 1:size(learnedModel.SVs,2));
+            
             [predLabels,~, ~] = svmpredict(testLabels, curFeatures, learnedModel, cmd);
             predLabels(~validRows) = -1;
             
@@ -195,15 +234,12 @@ function [ ] = baselineClassification(datasetName)
             predLabels(predLabels == -1) = existingPredLabels(predLabels==-1);
             
             % Estimate performance, and find confusion matrix.
-            classAcc = zeros(numel(unique(testLabels)),1);
-            for catItr = 1:numel(unique(testLabels))
-                classAcc(catItr) = nnz(predLabels == testLabels & testLabels == catItr) / nnz(testLabels == catItr);
-            end
-            accuracy = mean(classAcc);
             confMat = confusionmat(testLabels, predLabels);
+            accuracy = sum(confMat(eye(size(confMat,1)) > 0)) / sum(sum(confMat));
             
             % Mark invalid rows. 
             save([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'accuracy', 'confMat', '-append');
         end
     end
 end
+

@@ -122,6 +122,24 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
              uniqueVocabularyChildren{levelItr} = vocabLevelChildren;
         end
         
+        %% Faster processing 2: Obtain cluster info from the vocabulary distributions.
+        vocabularyCenters = cell(numel(vocabulary), 1);
+        vocabularySigmas = cell(numel(vocabulary), 1);
+        for levelItr = 2:numel(vocabulary)
+             if isempty(vocabulary{levelItr})
+                  break;
+             end
+             vocabLevelDistributions = vocabularyDistributions{levelItr};
+             tempArr = cell(numel(vocabLevelDistributions),1);
+             tempArr2 = tempArr;
+             for itr = 1:numel(tempArr)
+                  tempArr(itr) = {vocabLevelDistributions(itr).childrenPosDistributions.mu};
+                  tempArr2(itr) = {vocabLevelDistributions(itr).childrenPosDistributions.Sigma};
+             end
+             vocabularyCenters{levelItr} = tempArr;
+             vocabularySigmas{levelItr} = tempArr2;
+        end
+        
         % For some weird reason, Matlab workers cannot access variables
         % read from the file. They have to be used in the code. Here's my
         % workaround: 
@@ -142,7 +160,7 @@ function [ totalInferenceTime ] = runTestInference( datasetName, ext )
     %    for testImgItr = 1:5
             [~, testFileName, ~] = fileparts(testFileNames{testImgItr});
             display(['Processing ' testFileName '...']);
-            [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, categoryArrIdx(testImgItr), categoryNames{categoryArrIdx(testImgItr)}, options);
+            [categoryLabel, predictedCategory, top3Correct, top5Correct] = singleTestImage(testFileNames{testImgItr}, vocabulary, vocabularyDistributions, uniqueVocabularyChildren, vocabularyChildren, vocabularyCenters, vocabularySigmas, categoryArrIdx(testImgItr), categoryNames{categoryArrIdx(testImgItr)}, options);
            
 %             imageId = find(cellfun(@(x) ~isempty(x), strfind(trainingFileNames, [sep testFileName ext])));
 %             if ~isempty(imageId)

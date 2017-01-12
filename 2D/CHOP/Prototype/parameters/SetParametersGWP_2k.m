@@ -25,7 +25,7 @@ function [ options ] = SetParametersGWP_2k( datasetName, options )
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.poolDim = 2; % The pooling window size. OVERRIDING SetParameters.m.
-    options.labeledPooling = true; % If true, we use labels in pooling, otherwise we don't.
+    options.labeledPooling = false; % If true, we use labels in pooling, otherwise we don't.
     options.labeledPoolingTest = true; % Same thing, just in testing.
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
                                   % as feature detectors.

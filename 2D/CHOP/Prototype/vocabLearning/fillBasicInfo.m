@@ -16,20 +16,8 @@
 %>
 %> Updates
 %> Ver 1.0 on 04.02.2014
-function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, graphLevel, levelItr, options)
+function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNodes, previousLevelPrecisePositions, graphLevel)
     numberOfNodes = numel(graphLevel);
-    nodePositions = cat(1, graphLevel.precisePosition);
-    
-    % Learn stride.
-    if strcmp(options.filterType, 'gabor')
-         stride = options.gabor.stride;
-    else
-         stride = options.auto.stride;
-    end
-    poolDim = options.poolDim;
-    
-    % Calculate pool factor.
-    poolFactor = nnz(~ismembc(2:levelItr, options.noPoolingLayers));
     clear options;
     
     childrenArr = {graphLevel.children};
@@ -46,14 +34,14 @@ function graphLevel = fillBasicInfo(previousLevelImageIds, previousLevelLeafNode
         nodeLeafNodes = fastsortedunique(sort(nodeLeafNodes));
 
         % Assign positions.
-        precisePosition = nodePositions(newNodeItr, :);
-        newPositions{newNodeItr} = int32(calculatePooledPositions(precisePosition, poolFactor, poolDim, stride));
+        childPositions = previousLevelPrecisePositions(nodeChildren, :);
+        newPositions{newNodeItr} = round((min(childPositions) + max(childPositions))/2);
         newLeafNodes{newNodeItr} = nodeLeafNodes;
     end
 
     % Finally, assign everything to the new structure.
     [graphLevel.imageId] = deal(newImageIds{:});
-    [graphLevel.position] = deal(newPositions{:});
+    [graphLevel.precisePosition] = deal(newPositions{:});
     [graphLevel.leafNodes] = deal(newLeafNodes{:});
     
     % Rearrange graph level so it is sorted by image id.

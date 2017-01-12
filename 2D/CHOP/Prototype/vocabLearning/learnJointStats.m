@@ -1,16 +1,16 @@
-function [partClusters, refinedClusterSamples, refinedCliques, refinedClusters, refinedInstancePositions, shownSamples, shownClusters, clusterDistributions, numberOfClusters] = learnJointStats(jointPositions, instancePositions, savedCliques, realRFSize, maxClusters) 
+function [refinedClusterSamples, refinedCliques, refinedClusters, refinedInstancePositions, shownSamples, shownClusters, clusterDistributions, clusterThresholds, numberOfClusters, partClusters] = learnJointStats(jointPositions, instancePositions, savedCliques, rfSize, maxClusters) 
   % We will experiment with different algorithms here, 
   % from completely unsupervised to supervised.
-  dummyStd = 0.001;
+  dummyStd = 0.0001;
   stdThr = 2.576;
-  maxPointsToCluster = 100;
+  maxPointsToCluster = 500;
   if size(jointPositions,1) == 1
        partClusters = 1;
   else
        % Select a number of rows and cluster them, not all data.
        selectedRows = datasample(1:size(jointPositions,1), min(size(jointPositions,1), maxPointsToCluster), 'Replace', false);
        selectedPositions = jointPositions(selectedRows, :);
-       [selectedClusters, ~] = gmeans(double(selectedPositions*(1/((realRFSize-1) * sqrt(size(selectedPositions,2))))), maxClusters, 0.05, @checkGaussian);
+       [selectedClusters, ~] = gmeans(double(selectedPositions*(1/((rfSize-1) * sqrt(size(selectedPositions,2))))), maxClusters, 0.05, @checkGaussian);
        selectedCenters = zeros(max(selectedClusters), size(selectedPositions,2), 'single');
        for clusterItr = 1:max(selectedClusters)
             idx = selectedClusters == clusterItr;
@@ -25,11 +25,13 @@ function [partClusters, refinedClusterSamples, refinedCliques, refinedClusters, 
   numberOfClusters  = numel(unique(partClusters));
   clusterCenters = zeros(numberOfClusters, size(jointPositions,2), 'single');
   clusterDistributions = cell(numberOfClusters,1);
+  clusterThresholds = cell(numberOfClusters,1);
   refinedClusterSamples = cell(numberOfClusters,1);
   refinedInstancePositions = cell(numberOfClusters,1);
   refinedClusters = cell(numberOfClusters,1);
   refinedCliques = cell(numberOfClusters,1);
   eliminatedSamples = cell(numberOfClusters,1);
+  validIdx = ones(numberOfClusters,1) > 0;
   for clusterItr = 1:numberOfClusters
       idx = partClusters == clusterItr;
       clusterSamples = jointPositions(idx,:);
@@ -39,24 +41,32 @@ function [partClusters, refinedClusterSamples, refinedCliques, refinedClusters, 
 
       % We eliminate nodes that are far away from the cluster centers
       % in every cluster.
-      covMat = calculateCov(clusterSamples, dummyStd);
+      covMat = calculateCov(double(clusterSamples), dummyStd);
       distances = pdist2(clusterCenters(clusterItr,:), clusterSamples, 'mahalanobis', covMat);
+      distances(isnan(distances)) = 0;
+      thresh = max(min(distances)+0.0001, stdThr+0.0001); % 98 pct confidence interval
+      validInstances = distances < thresh;
+      
+      if nnz(validInstances) == 0
+           validIdx(clusterItr) = 0;
+           continue;
+      end
 
       % Filter out unlikely instances and save the data.
-      thresh = max(min(distances)+0.0001, stdThr); % 98 pct confidence interval
-      validInstances = distances <= thresh;
       refinedClusterSamples{clusterItr} = clusterSamples(validInstances,:);
       refinedCliques{clusterItr} = clusterCliques(validInstances, :);
       refinedInstancePositions{clusterItr} = clusterPositions(validInstances,:);
-      newCovMat = calculateCov(clusterSamples(validInstances,:), dummyStd);
       eliminatedSamples{clusterItr} = clusterSamples(~validInstances, :);
       refinedClusters{clusterItr} = ones(nnz(validInstances),1) * clusterItr;
 
       % Save covariance matrix.
-      clusterDistributions{clusterItr} = gmdistribution(clusterCenters(clusterItr,:), newCovMat);
+      clusterDistributions{clusterItr} = gmdistribution(clusterCenters(clusterItr,:), covMat);
+      clusterThresholds{clusterItr} = double(thresh);
   end
+  clusterDistributions = clusterDistributions(validIdx);
   refinedClusterSamples = cat(1, refinedClusterSamples{:});
   refinedCliques = cat(1, refinedCliques{:});
+  clusterThresholds = cat(1, clusterThresholds{:});
   refinedInstancePositions = cat(1, refinedInstancePositions{:});
   refinedClusters = cat(1, refinedClusters{:});
   eliminatedSamples = cat(1, eliminatedSamples{:});

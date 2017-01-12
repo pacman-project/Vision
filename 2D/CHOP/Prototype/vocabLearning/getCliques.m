@@ -1,9 +1,9 @@
-function [jointPositions, savedCliques, uniqueSubParts, numberOfSubParts] = getCliques(candidateParts, allCliques, firstInstances, prevLevelPositions, allInstancePositions, realRFSize, partItr)
+function [jointPositions, savedCliques, uniqueSubParts, numberOfSubParts] = getCliques(candidateParts, allCliques, firstInstances, prevLevelPositions, allInstancePositions, rfSize, partItr)
   validSubPartCount = nnz(candidateParts(partItr,:));
   relevantCliques = allCliques(firstInstances(partItr):(firstInstances(partItr+1)-1),:);
   instancePositions = allInstancePositions(firstInstances(partItr):(firstInstances(partItr+1)-1),:);
   relevantCliques = relevantCliques(:, (end + (1 - validSubPartCount)):end);
-  maxPointsToCluster = 50;
+  maxPointsToCluster = 200;
 
   %% Learn feature maps here. Statistical maps are generated from instances.
   % The feature map has as many layers as the number of individual
@@ -62,7 +62,7 @@ function [jointPositions, savedCliques, uniqueSubParts, numberOfSubParts] = getC
             if size(clusteredPositions,1) == 1
                  clusters = 1;
             else
-                 [clusters, ~] = gmeans(double(clusteredPositions*(1/((realRFSize-1) * sqrt(size(clusteredPositions,2))))), nnz(subParts == uniqueSubParts(mapItr)), 0.05, @checkGaussian);
+                 [clusters, ~] = gmeans(double(clusteredPositions*(1/((rfSize-1) * sqrt(size(clusteredPositions,2))))), nnz(subParts == uniqueSubParts(mapItr)), 0.05, @checkGaussian);
             end
             
 %                    clusters = mec(clusteredPositions*(2/realRFSize), 'c', numberOfSubParts, 'kmeans_i', 5, 'kernel', 1, 'mec_maxiter', 20, 'width', 3);

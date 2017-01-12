@@ -3,7 +3,7 @@ function [] = visualizeJointParts( shownSamples, shownClusters, refinedClusterSa
   colors = {[1 0 0], [0 1 0], [0 0 1], [0 0 0], [1 0 1], [0 1 1], [0 0.5 1], [1 1 0], [0 1 0.5], [0.5 0 1], [1 0.5 0], [0.5 1 0]};
   pointSymbols = {'o', '*', 'x', '+', 's', 'd', 'v', 'p', '>', '<', '^', '.'};
 %% Apply PCA to the vectors (for visualization).
-  [~, jointPCA, latent] = princomp(shownSamples); %#ok<PRINCOMP>
+  [~, jointPCA, latent] = princomp(double(shownSamples)); %#ok<PRINCOMP>
   if latent(3) < 0.01
       jointPCA = jointPCA(:,1:2);
   else
