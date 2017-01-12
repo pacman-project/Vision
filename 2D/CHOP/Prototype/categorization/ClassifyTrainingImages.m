@@ -15,7 +15,11 @@ function [confMat] = ClassifyTrainingImages( datasetName )
     % Read the vocabulary and the exported realizations. 
     load([pwd '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'options');
     load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx');
-    load([pwd '/output/' datasetName '/export.mat'], 'exportArr', 'activationArr');
+    if exist([pwd '/output/' datasetName '/trainingInference.mat'], 'file')
+         load([pwd '/output/' datasetName '/trainingInference.mat'], 'exportArr', 'activationArr');
+    else
+         load([pwd '/output/' datasetName '/export.mat'], 'exportArr', 'activationArr');
+    end
 
 %     load([pwd '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
 %     numberOfImages = numel(categoryArrIdx);
