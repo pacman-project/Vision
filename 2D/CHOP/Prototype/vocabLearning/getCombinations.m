@@ -27,7 +27,8 @@ function [allCliques, labeledCliques] = getCombinations(prevLevel, rfSize, minSi
           
           % Calculate pairwise distances.
           distances = squareform(pdist(nodePositions, 'chebychev'));
-          distances(triu(distances)>0) = 0;
+          tempArr = ones(size(distances))>0;
+          distances(triu(tempArr) > 0) = inf;
 %          adjMatrix = distances <= (rfSize-1) & distances > 0;
           adjMatrix = distances <= (rfSize-1);
           adjMatrix(1:(size(nodes,1)+1):size(nodes,1)^2) = 0;

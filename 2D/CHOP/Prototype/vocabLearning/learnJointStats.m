@@ -32,6 +32,7 @@ function [refinedClusterSamples, refinedCliques, refinedClusters, refinedInstanc
   refinedCliques = cell(numberOfClusters,1);
   eliminatedSamples = cell(numberOfClusters,1);
   validIdx = ones(numberOfClusters,1) > 0;
+  savedClusterCount = 1;
   for clusterItr = 1:numberOfClusters
       idx = partClusters == clusterItr;
       clusterSamples = jointPositions(idx,:);
@@ -44,7 +45,7 @@ function [refinedClusterSamples, refinedCliques, refinedClusters, refinedInstanc
       covMat = calculateCov(double(clusterSamples), dummyStd);
       distances = pdist2(clusterCenters(clusterItr,:), clusterSamples, 'mahalanobis', covMat);
       distances(isnan(distances)) = 0;
-      thresh = max(min(distances)+0.0001, stdThr+0.0001); % 98 pct confidence interval
+      thresh = max(min(3*stdThr+0.0001, min(distances)+0.0001), stdThr+0.0001); % 98 pct confidence interval
       validInstances = distances < thresh;
       
       if nnz(validInstances) == 0
@@ -57,11 +58,14 @@ function [refinedClusterSamples, refinedCliques, refinedClusters, refinedInstanc
       refinedCliques{clusterItr} = clusterCliques(validInstances, :);
       refinedInstancePositions{clusterItr} = clusterPositions(validInstances,:);
       eliminatedSamples{clusterItr} = clusterSamples(~validInstances, :);
-      refinedClusters{clusterItr} = ones(nnz(validInstances),1) * clusterItr;
+      refinedClusters{clusterItr} = ones(nnz(validInstances),1) * savedClusterCount;
 
       % Save covariance matrix.
       clusterDistributions{clusterItr} = gmdistribution(clusterCenters(clusterItr,:), covMat);
       clusterThresholds{clusterItr} = double(thresh);
+      
+      % Save cluster count.
+      savedClusterCount = savedClusterCount + 1;
   end
   clusterDistributions = clusterDistributions(validIdx);
   refinedClusterSamples = cat(1, refinedClusterSamples{:});

@@ -21,7 +21,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.numberOfGaborFilters = 4; % Number of Gabor filters at level 1.
     options.matlabRestartImageCount = 100000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
-    options.saveWorkspaceImageCount = 100000;
+    options.saveWorkspaceImageCount = 1000;
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.poolDim = 2; % The pooling window size. OVERRIDING SetParameters.m.
