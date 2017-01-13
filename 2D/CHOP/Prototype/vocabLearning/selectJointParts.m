@@ -5,6 +5,7 @@ function [selectedParts, reconstructiveParts, discriminativeParts] = selectJoint
      numberOfSubs = double(max(newMetaData(:,1)));
      numberOfImages = double(numel(categoryArrIdx));
      numberOfSelectedParts = options.numberOfSelectedSubs;
+     leafNodeCover = options.leafNodeCover;
      
      %% Create the structures for future processing.
      uniqueMetaData = unique(newMetaData(:,1:2), 'rows');
@@ -22,8 +23,16 @@ function [selectedParts, reconstructiveParts, discriminativeParts] = selectJoint
      % Calculate remaining nodes per image.
      remainingNodes = newCliques(newCliques>0);
      remainingNodes = fastsortedunique(sort(remainingNodes(:)));
-     remainingLeafNodes = fastsortedunique(sort(cat(2, leafNodes{remainingNodes})));
-     imageNodeCounts = hist(level1Coords(remainingLeafNodes,1), 1:numberOfImages);
+     imageIds = level1Coords(:, 1);
+     % Specify if we'll cover previous layer or first layer.
+     if ~leafNodeCover
+          imageIds = cellfun(@(x) imageIds(x(1)), leafNodes); 
+          remainingLeafNodes = remainingNodes;
+     else
+          remainingLeafNodes = fastsortedunique(sort(cat(2, leafNodes{remainingNodes})));
+     end
+     
+     imageNodeCounts = hist(imageIds(remainingLeafNodes), 1:numberOfImages);
      minCoverages = imageNodeCounts * coverageThr;
      
      % First, save support of parts.
@@ -32,11 +41,15 @@ function [selectedParts, reconstructiveParts, discriminativeParts] = selectJoint
      [~, idx] = unique(newMetaData(:,1), 'R2012a');
      idx = cat(1, idx, size(newMetaData,1)+1);
      parfor partItr = 1:numberOfSubs
-          dummyArr = zeros(1, size(level1Coords,1))>0;
+          dummyArr = zeros(1, size(imageIds,1))>0;
           children = newCliques(idx(partItr):(idx(partItr+1)-1),:);
           children = children(children > 0);
           children = children(:);
-          dummyArr(cat(2, leafNodes{children})) = 1;
+          if leafNodeCover
+               dummyArr(cat(2, leafNodes{children})) = 1;
+          else
+               dummyArr(children) = 1;
+          end
           nodes = find(dummyArr);
           valArr(partItr) = numel(nodes);
           coveredNodes{partItr} = nodes;
@@ -50,9 +63,9 @@ function [selectedParts, reconstructiveParts, discriminativeParts] = selectJoint
      if options.reconstructivePartSelection
           while numel(reconstructiveParts) < numberOfSelectedParts
                % Update valid nodes if some images are covered.
-               newImageNodeCounts = hist(level1Coords(~validNodes,1), 1:numberOfImages);
+               newImageNodeCounts = hist(imageIds(~validNodes), 1:numberOfImages);
                coveredImages = newImageNodeCounts >= minCoverages & minCoverages > 0;
-               validNodes(ismembc(level1Coords(:,1), int32(find(coveredImages)))) = 0;
+               validNodes(ismembc(imageIds(:), int32(find(coveredImages)))) = 0;
 
                % Remove ineligible subs.
                invalidSubs = ~full(sum(d(~coveredImages, :),1)) > 0;

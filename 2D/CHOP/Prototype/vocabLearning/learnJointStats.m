@@ -75,7 +75,11 @@ function [refinedClusterSamples, refinedCliques, refinedClusters, refinedInstanc
   refinedClusters = cat(1, refinedClusters{:});
   eliminatedSamples = cat(1, eliminatedSamples{:});
   shownSamples = cat(1, refinedClusterSamples, eliminatedSamples);
-  shownClusters = cat(1, refinedClusters, ones(size(eliminatedSamples,1),1) * (max(refinedClusters) + 1));
+  if ~isempty(shownSamples)
+       shownClusters = cat(1, refinedClusters, ones(size(eliminatedSamples,1),1) * (max(refinedClusters) + 1));
+  else
+       shownClusters = [];
+  end
 end
 
 function covMat = calculateCov(samples, dummyStd)

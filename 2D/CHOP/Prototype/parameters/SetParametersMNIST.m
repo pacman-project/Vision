@@ -1,4 +1,4 @@
-    %> Name: SetParametersCommon
+%> Name: SetParametersCommon
 %>
 %> Description: Common parameters for CHOP. This file is called when the
 %> dataset we are working on does not have its own parameter set.
@@ -21,11 +21,11 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.numberOfGaborFilters = 4; % Number of Gabor filters at level 1.
     options.matlabRestartImageCount = 100000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
-    options.saveWorkspaceImageCount = 1000;
+    options.saveWorkspaceImageCount = 100000;
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.poolDim = 2; % The pooling window size. OVERRIDING SetParameters.m.
-    options.labeledPooling = true; % If true, we use labels in pooling, otherwise we don't.
+    options.labeledPooling = false; % If true, we use labels in pooling, otherwise we don't.
     options.labeledPoolingTest = true; % Same thing, just in testing.
     options.noPoolingLayers = [];
     options.filterType = 'gabor'; % If 'gabor': Steerable Gabor filters used 
@@ -208,6 +208,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                % for each category. Category nodes will be formed by
                % grouping top level parts.
                % Hint: A good number is the number of poses per object.
+     options.singleLayerFlag = false; % If true, only single layer is used in classification (top-most).
 
     %% ========== RECONSTRUCTION PARAMETERS ==========
 %    options.reconstruction.numberOfReconstructiveSubs = 20000; % The maximum 
@@ -232,7 +233,8 @@ function [ options ] = SetParametersMNIST( datasetName, options )
      % Part selection flags!
      options.discriminativePartSelection = true;
      options.reconstructivePartSelection = true;
-     options.partCountDenom = 1; % Number of bins for OR nodes equals number of parts divided by this number.
+     options.leafNodeCover = true; % If true, leaf nodes are covered, otherwise previous level is covered.
+     options.partCountDenom = 0.7; % Number of bins for OR nodes equals number of parts divided by this number.
                                            
     %% ========== GRAPH MATCHING PARAMETERS ==========
     options.nodeSimilarityAllowed = false; % If true, node similarities are 
@@ -281,7 +283,8 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.subdue.minSize = 1; % Minimum number of nodes in a composition.
     options.subdue.maxSize = min(4, (options.maxNodeDegree + 1)); % Maximum number of nodes in a composition.
     options.subdue.nsubs = 5000;  % Maximum number of nodes allowed in a level. Subs of size 1, 2, ..., n each can contribute in this number.
-    options.subdue.beam = 1000;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.beam = 500;   % Beam length in SUBDUE' search mechanism.
+    options.subdue.beamReductionRate = 2;   % Rate beam gets smaller across higher sizes.
     options.subdue.overlap = true;   % If true, overlaps between a substructure's 
                                      % instances are considered in the
                                      % evaluation of the sub. Otherwise,

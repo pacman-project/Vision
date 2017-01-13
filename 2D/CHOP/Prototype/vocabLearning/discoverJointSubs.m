@@ -33,6 +33,7 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      selectionOptions.supervisedWeight = 0;
      selectionOptions.reconstructivePartSelection = options.reconstructivePartSelection;
      selectionOptions.discriminativePartSelection = options.discriminativePartSelection;
+     selectionOptions.leafNodeCover = options.leafNodeCover;
      minSize = 2;
      maxClusters = 10;
      
@@ -44,10 +45,11 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      
      %% Obtain all cliques from the data (may be missing some parts if there are too many combinations)
      display(['Obtaining cliques by beam search from ' num2str(numel(unique(prevLevel(:,1)))) ' parts and ' num2str(size(prevLevel,1)) ' instances...']);
-     [allCliques, labeledCliques] = getCombinations(prevLevel, rfSize, minSize, options.subdue.maxSize, options.subdue.beam, options.subdue.nsubs);
+     [allCliques, labeledCliques] = getCombinations(prevLevel, rfSize, minSize, options.subdue.maxSize, options.subdue.beam, options.subdue.beamReductionRate, options.subdue.nsubs);
 
      % Obtain candidate parts.
      [candidateParts, firstInstances, idx] = unique(labeledCliques, 'rows', 'R2012a');
+     clear labeledCliques;
      firstInstances = cat(1, firstInstances, numel(idx)+1);
      
      %% Calculate instance positions!
@@ -109,7 +111,10 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      offset = 0;
      for partItr = 1:size(candidateParts,1)
           newLabels{partItr} = newLabels{partItr} + offset;
-          offset = offset + numel(fastsortedunique(sort(newLabels{partItr})));
+          tempArr = newLabels{partItr};
+          if ~isempty(tempArr)
+               offset = offset + numel(fastsortedunique(sort(newLabels{partItr})));
+          end
      end
      
      % Save all info and proceed to selection.

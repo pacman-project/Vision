@@ -10,7 +10,7 @@
 %>
 %> Updates
 %> Ver 1.0 on 24.11.2016
-function [allCliques, labeledCliques] = getCombinations(prevLevel, rfSize, minSize, maxSize, beam, nsubs)
+function [allCliques, labeledCliques] = getCombinations(prevLevel, rfSize, minSize, maxSize, beam, beamReductionRate, nsubs)
      imageIds = prevLevel(:,end);
      prevLevelPartCount = max(prevLevel(:,1)) + 1;
      [uniqueImageIds, uniqueImageIdx] = unique(imageIds, 'R2012a');
@@ -86,7 +86,11 @@ function [allCliques, labeledCliques] = getCombinations(prevLevel, rfSize, minSi
                % Pad and save new cliques.
                newCliques = cat(1, newCliques{:});
                prevCliques = newCliques;
-               prevCliquesArr{imageItr} = prevCliques;
+               if sizeItr < maxSize
+                    prevCliquesArr{imageItr} = prevCliques;
+               else
+                    prevCliquesArr{imageItr} = [];
+               end
                newCliques = cat(2, newCliques, zeros(size(newCliques,1), maxSize - sizeItr, 1, 'int32'));
                if isempty(prevCliques)
                     continue;
@@ -107,21 +111,30 @@ function [allCliques, labeledCliques] = getCombinations(prevLevel, rfSize, minSi
           labeledCliques = imageCliques;
           labeledCliques(imageCliques>0) = prevLevel(imageCliques(imageCliques>0),1);
           labeledCliques = sort(labeledCliques,2);
+          tempArr = double(labeledCliques(:, end));
           dummyArr = double(prevLevelPartCount).^((size(labeledCliques,2):-1:1) - 1);
-          dummyArr = dummyArr(ones(size(labeledCliques,1),1),:);
-          [~, ~, uniqueIdx] = unique(sum(dummyArr.*double(labeledCliques), 2));
+          for itr = (1+size(labeledCliques,2)-sizeItr):(size(labeledCliques,2)-1)
+               tempArr = dummyArr(itr) * double(labeledCliques(:, itr)) + tempArr;
+          end
+          [~, ~, uniqueIdx] = unique(tempArr);
+          clear labeledCliques tempArr;
           
           % Count how many times each combination has been encountered.
           cliqueCounts = hist(uniqueIdx, 1:max(uniqueIdx));
           sortedCliqueCounts = sort(cliqueCounts, 'descend');
           
           % Eliminate based on beam counts.
-          if numel(sortedCliqueCounts) > beam
-               beamThr = sortedCliqueCounts(beam);
-               partsToExtend = (cliqueCounts >= beamThr)';
-               cliquesToExtend = partsToExtend(uniqueIdx);
-               idxArr = mat2cell(cliquesToExtend, imageCliqueCounts, 1);
-               prevCliquesArr = cellfun(@(x,y) x(y, :), prevCliquesArr, idxArr, 'UniformOutput', false);
+          if sizeItr < maxSize
+               if numel(sortedCliqueCounts) > (beam / (beamReductionRate^(sizeItr-2)))
+                    beamThr = sortedCliqueCounts(beam);
+                    partsToExtend = (cliqueCounts >= beamThr)';
+                    cliquesToExtend = partsToExtend(uniqueIdx);
+                    idxArr = mat2cell(cliquesToExtend, imageCliqueCounts, 1);
+                    prevCliquesArr = cellfun(@(x,y) x(y, :), prevCliquesArr, idxArr, 'UniformOutput', false);
+                    clear idxArr;
+               end
+          else
+               clear cliquesToExtend prevCliquesArr;
           end
           
           % Eliminate based on nsubs.
@@ -134,24 +147,29 @@ function [allCliques, labeledCliques] = getCombinations(prevLevel, rfSize, minSi
           
           % Save output.
           allCliques = cat(1, allCliques, imageCliques);
+          clear  imageCliques uniqueIdx;
      end
      
      %% Create candidate parts.
      labeledCliques = allCliques;
      labeledCliques(allCliques>0) = prevLevel(allCliques(allCliques>0),1);
      [labeledCliques, sortIdx] = sort(labeledCliques,2);
+     sortIdx = uint32(sortIdx);
      sortIdx = sortIdx';
      sortIdx = sortIdx(:);
-     addedVals = size(labeledCliques,2) * (floor(0:1/size(labeledCliques,2):(size(labeledCliques,1)-1/size(labeledCliques,2))))';
-     sortIdx = sortIdx + addedVals;
+     sortIdx = sortIdx + size(labeledCliques,2) * uint32(floor(0:1/size(labeledCliques,2):(size(labeledCliques,1)-1/size(labeledCliques,2))))';
      allCliques = allCliques';
      allCliques(:) = allCliques(sortIdx);
      allCliques = allCliques';
+     clear sortIdx;
      
      % Sort rows according to the parts.
      dummyArr = double(prevLevelPartCount).^((size(labeledCliques,2):-1:1) - 1);
-     dummyArr = dummyArr(ones(size(labeledCliques,1),1),:);
-     [~, sortIdx] = sort(sum(dummyArr.*double(labeledCliques), 2));
-     labeledCliques = labeledCliques(sortIdx, :);
+     tempArr = double(labeledCliques(:, end));
+     for itr = 1:(size(labeledCliques,2)-1)
+          tempArr = dummyArr(itr) * double(labeledCliques(:, itr)) + tempArr;
+     end
+     [~, sortIdx] = sort(tempArr);
      allCliques = allCliques(sortIdx,:);
+     labeledCliques = labeledCliques(sortIdx, :);
 end

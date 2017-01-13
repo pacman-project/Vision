@@ -7,6 +7,7 @@ function [ ] = baselineClassification(datasetName)
     datasetTestFolder = [options.currentFolder '/output/' datasetName '/test/inference/'];
     load([options.currentFolder '/output/' datasetName '/vb.mat'], 'vocabulary', 'categoryNames', 'options');
     load([options.currentFolder '/output/' datasetName '/export.mat'], 'categoryArrIdx', 'trainingFileNames');
+    singleLayerFlag = options.singleLayerFlag;
     if exist([options.currentFolder '/output/' datasetName '/trainingInference.mat'], 'file')
          load([options.currentFolder '/output/' datasetName '/trainingInference.mat'], 'exportArr', 'pooledPositions');
     else
@@ -136,11 +137,14 @@ function [ ] = baselineClassification(datasetName)
 %              if exist([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'file')
 %                   continue;
 %              end
-            relevantFeatures = [];
-            for itr = 1:levelItr
-                 relevantFeatures = cat(2, relevantFeatures, cat(1, allFeatures{:, itr, poolSizeItr}));
+            if ~singleLayerFlag
+                 relevantFeatures = [];
+                 for itr = 1:levelItr
+                      relevantFeatures = cat(2, relevantFeatures, cat(1, allFeatures{:, itr, poolSizeItr}));
+                 end
+            else
+                 relevantFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
             end
- %           relevantFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
             validRows = sum(relevantFeatures,2) > 0;
             trainLabels = categoryArrIdx(validRows, :);
             trainFeatures = relevantFeatures(validRows, :);
@@ -175,12 +179,14 @@ function [ ] = baselineClassification(datasetName)
         existingPredLabels = -1 * ones(numel(categoryArrIdx),1);
         for levelItr = 1:maxLevels
              
-             
-            curFeatures = [];
-            for itr = 1:levelItr
-                 curFeatures = cat(2, curFeatures, cat(1, allFeatures{:, itr, poolSizeItr}));
-            end
-%            curFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
+             if ~singleLayerFlag
+                 curFeatures = [];
+                 for itr = 1:levelItr
+                      curFeatures = cat(2, curFeatures, cat(1, allFeatures{:, itr, poolSizeItr}));
+                 end
+             else
+                   curFeatures = cat(1, allFeatures{:, levelItr, poolSizeItr});
+             end
             validRows = sum(curFeatures,2) > 0;
             load([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel', 'coeff', 'colMeans');
             
@@ -211,12 +217,16 @@ function [ ] = baselineClassification(datasetName)
         existingPredLabels = -1 * ones(numel(testFileNames),1);
         for levelItr = 1:maxLevels
              
-           curFeatures = [];
-            for itr = 1:levelItr
-                 curFeatures = cat(2, curFeatures, cat(1, testFeatures{:, itr, poolSizeItr}));
-            end
+           if ~singleLayerFlag
+                curFeatures = [];
+                 for itr = 1:levelItr
+                      curFeatures = cat(2, curFeatures, cat(1, testFeatures{:, itr, poolSizeItr}));
+                 end
+           else
+                curFeatures = cat(1, testFeatures{:, levelItr, poolSizeItr});
+           end
              
- %           curFeatures = cat(1, testFeatures{:, levelItr, poolSizeItr});
+%            
             validRows = sum(curFeatures,2) > 0;
             load([pwd '/models/' datasetName '_level' num2str(levelItr) '_pool' num2str(poolSizes(poolSizeItr)) '.mat'], 'learnedModel', 'coeff', 'colMeans');
             cmd = '-q';
