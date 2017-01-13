@@ -215,7 +215,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                            % number of reconstructive parts
                                            % that can be selected.
 %   options.reconstruction.numberOfReconstructiveSubs = [30 100 1000]; % The maximum    
-   options.reconstruction.numberOfReconstructiveSubs = [20 50 500]; % The maximum      
+   options.reconstruction.numberOfReconstructiveSubs = [40 100 1000]; % The maximum      
 %    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
