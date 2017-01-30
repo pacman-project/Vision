@@ -2,15 +2,19 @@ function [refinedClusterSamples, refinedCliques, refinedClusters, refinedInstanc
   % We will experiment with different algorithms here, 
   % from completely unsupervised to supervised.
   dummyStd = 0.0001;
-  stdThr = 2.576;
-  maxPointsToCluster = 500;
+  stdThr = 2.5;
+  maxPointsToCluster = 100000;
+  
+%  thr = 0.1 * sqrt((size(jointPositions,2)/2));
+  thr = 0.15;
+  
   if size(jointPositions,1) == 1
        partClusters = 1;
   else
        % Select a number of rows and cluster them, not all data.
        selectedRows = datasample(1:size(jointPositions,1), min(size(jointPositions,1), maxPointsToCluster), 'Replace', false);
        selectedPositions = jointPositions(selectedRows, :);
-       [selectedClusters, ~] = gmeans(double(selectedPositions*(1/((rfSize-1) * sqrt(size(selectedPositions,2))))), maxClusters, 0.05, @checkGaussian);
+       [selectedClusters, ~] = gmeans(double(selectedPositions*(1/((rfSize-1) * sqrt(size(jointPositions,2))))), maxClusters, thr, @checkGaussian);
        selectedCenters = zeros(max(selectedClusters), size(selectedPositions,2), 'single');
        for clusterItr = 1:max(selectedClusters)
             idx = selectedClusters == clusterItr;

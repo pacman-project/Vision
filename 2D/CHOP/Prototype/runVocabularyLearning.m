@@ -119,12 +119,19 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
                 imwrite(gtImg, [processedGTFolder '/' fileName '.png']);
             end
         end
+        
+        % Calculate image size.
+        [~, fileName, ~] = fileparts(trainingFileNames{1});
+        img = imread([processedFolder '/' fileName '.png']);
+        imageSize = size(img);
+        options.imageSize = imageSize(1:2);
 
         %% Step 1.1: Extract a set of features from the input images.
         display('..... Level 1 Node Extraction started. This may take a while.');
         allNodes = cell(size(trainingFileNames,1),1);
         allNodeActivations = cell(size(trainingFileNames,1),1);
         smoothedFolder = options.smoothedFolder;
+        allResponses = zeros(size(trainingFileNames,1), options.imageSize(1), options.imageSize(2), numel(options.filters), 'single');
         
         % If the images have been processed earlier, no need for us to do
         % this again.
@@ -138,6 +145,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
     %            edgeImg = edge(img, 'canny', [0.05 0.1], 1);
                 % Get the Level 1 features.
                 [nodes, smoothedImg, nodeActivations, smoothActivationImg, responseImgs, edgeImg] = getNodes(img, gtFileNames{fileItr}, options);
+                allResponses(fileItr, :, :, :) = responseImgs;
 
                 % Generate an imperfect backprojection from obtained peaks.
     %             level1Nodes = cell2mat(nodes);
@@ -168,15 +176,9 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
             if ~exist([options.currentFolder '/outputNodes/' options.datasetName], 'dir')
                 mkdir([options.currentFolder '/outputNodes/' options.datasetName]);
             end
-            save([options.currentFolder '/outputNodes/' options.datasetName '/nodes.mat'], 'allNodes', 'allNodeActivations', '-v7');
+            save([options.currentFolder '/outputNodes/' options.datasetName '/nodes.mat'], 'allNodes', 'allNodeActivations', 'allResponses', '-v7');
         end
         
-        % Calculate image size.
-        [~, fileName, ~] = fileparts(trainingFileNames{1});
-        img = imread([processedFolder '/' fileName '.png']);
-        imageSize = size(img);
-        options.imageSize = imageSize(1:2);
-
         % Reorder images based on their node count. This helps in
         % efficient parallelization. 
         nodeCounts = cellfun(@(x) size(x,1), allNodes);
@@ -266,18 +268,6 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         options.edgeLogRange = edgeLogRange;
         clear edgeIdMatrix edgeDistanceMatrix edgeCoords edgeLogMin edgeLogRange;
         
-        %% Step 2.1: Get first-level object graph edges.
-%         if strcmp(options.edgeType, 'continuity')
-%              tempOptions = options;
-%              tempOptions.edgeType = 'centroid';
-%              realGraphLevel = extractEdges(graphLevel, [], [], tempOptions, 1);
-%              clear tempOptions;
-%         end
-%         [graphLevel] = extractEdges(graphLevel, [], [], options, 1);
-%         if ~strcmp(options.edgeType, 'continuity')
-%              realGraphLevel = graphLevel;
-%         end
-        
         %% Here, we bring back statistical learning with mean/variance.
 %        [modes, modeProbArr] = learnModes(graphLevel, options.edgeCoords, options.edgeIdMatrix, options.datasetName, 1, options.currentFolder, ~options.fastStatLearning && options.debug);
 %        graphLevel = assignEdgeLabels(realGraphLevel, modes, modeProbArr, options.edgeCoords, 1, options.debugFolder);
@@ -289,7 +279,7 @@ function [] = runVocabularyLearning( datasetName, imageExtension, gtImageExtensi
         save([options.currentFolder '/output/' datasetName '/vb.mat'], 'trainingFileNames', 'categoryNames', '-v7');
         
         %% Learn vocabulary!
-        learnVocabulary(vocabLevel, vocabLevelDistributions, graphLevel, leafNodes, leafNodeCoords, options, trainingFileNames);
+        learnVocabulary(vocabLevel, vocabLevelDistributions, graphLevel, leafNodes, leafNodeCoords, allResponses, options, trainingFileNames);
         
         % Stop counting time.
         tr_stop_time=toc(tr_s_time); %#ok<NASGU>

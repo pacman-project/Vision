@@ -13,7 +13,6 @@
 %> Updates
 %> Ver 1.0 on 26.08.2014
 function [ options ] = SetParametersMNIST( datasetName, options )
-
     %% ========== DATASET - RELATED PARAMETERS ==========
     options.datasetName = datasetName;
     options.learnVocabulary = 1; % If 1, new vocabulary is learned. 
@@ -21,7 +20,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
     options.numberOfGaborFilters = 4; % Number of Gabor filters at level 1.
     options.matlabRestartImageCount = 100000; % If we have more than this number 
     % of images, matlab restarting is performed after every layer.
-    options.saveWorkspaceImageCount = 100000;
+    options.saveWorkspaceImageCount = 1000;
     
         %% ========== LOW - LEVEL FILTER PARAMETERS ==========
     options.poolDim = 2; % The pooling window size. OVERRIDING SetParameters.m.
@@ -208,14 +207,14 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                % for each category. Category nodes will be formed by
                % grouping top level parts.
                % Hint: A good number is the number of poses per object.
-     options.singleLayerFlag = false; % If true, only single layer is used in classification (top-most).
+     options.singleLayerFlag = true; % If true, only single layer is used in classification (top-most).
 
     %% ========== RECONSTRUCTION PARAMETERS ==========
 %    options.reconstruction.numberOfReconstructiveSubs = 20000; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
 %   options.reconstruction.numberOfReconstructiveSubs = [30 100 1000]; % The maximum    
-   options.reconstruction.numberOfReconstructiveSubs = [40 100 1000]; % The maximum      
+   options.reconstruction.numberOfReconstructiveSubs = [20 50 500]; % The maximum      
 %    options.reconstruction.numberOfORNodes = [100 120 250 500 750 1000 1000 1000 1000 1000 1000 1000 1000 1000]; % The maximum 
                                            % number of reconstructive parts
                                            % that can be selected.
@@ -231,7 +230,7 @@ function [ options ] = SetParametersMNIST( datasetName, options )
                                    % nodes is less than this value, we don't need compression.
                                    
      % Part selection flags!
-     options.discriminativePartSelection = true;
+     options.discriminativePartSelection = false;
      options.reconstructivePartSelection = true;
      options.leafNodeCover = true; % If true, leaf nodes are covered, otherwise previous level is covered.
      options.partCountDenom = 0.7; % Number of bins for OR nodes equals number of parts divided by this number.

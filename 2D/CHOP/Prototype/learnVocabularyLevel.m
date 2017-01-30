@@ -229,14 +229,17 @@
    %% We're exporting output here. This helps us to perform 
    % Export realizations into easily-readable arrays.
    display('Writing output to files.');
-   [exportArr, activationArr, pooledPositions] = exportRealizations(graphLevel, levelItr);
+   [exportArr, activationArr, pooledPositions, allLeafNodes] = exportRealizations(graphLevel, levelItr);
    exportArr = cat(1, preExportArr, exportArr);
    preExportArr = exportArr;
+   allLeafNodes = cat(1, preLeafNodes, allLeafNodes);
+   preLeafNodes = allLeafNodes;
    pooledPositions = cat(1, prePooledPositions, pooledPositions);
    prePooledPositions = pooledPositions;
    activationArr = cat(1, preActivationArr, activationArr);
    preActivationArr = activationArr;
    save([options.currentFolder '/output/' options.datasetName '/export.mat'], 'exportArr', 'pooledPositions', 'activationArr', '-append'); 
+   save([options.currentFolder '/output/' options.datasetName '/leafNodes.mat'], 'leafNodes');
    clear activationArr precisePositions;
 
    % Print everything to files.

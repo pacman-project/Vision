@@ -419,6 +419,8 @@ function [ nodes, activationImg, nodeActivations, smoothActivationImg, returnedR
     idx = sub2ind(size(activationImg), realCoords(:,1), realCoords(:,2));
     activationImg(idx) = nodeActivations;
     nodeActivations = log(nodeActivations);
+    returnedResponseImgs(returnedResponseImgs < 0) = 0;
+    returnedResponseImgs = single(returnedResponseImgs);
 end
 
 function patches = normalizeData(patches)

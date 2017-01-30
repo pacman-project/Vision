@@ -98,12 +98,14 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
           newLabels{partItr} = int32(refinedClusters);
           newInstancePositions{partItr} = refinedInstancePositions;
           newPartDistributions{partItr} = clusterDistributions;
-          newPartThresholds{partItr} = clusterThresholds;
-          
-          %% Visualize parts.
-%          visualizeJointParts(shownSamples, shownClusters, refinedClusterSamples, refinedClusters, jointPositions, partClusters, numberOfSubParts, partItr, rfSize, numberOfClusters, uniqueSubParts, newFolder);
+          newPartThresholds{partItr} = clusterThresholds;          
           children = candidateParts(partItr,:);
           newChildrenArr{partItr} = repmat(children, numel(unique(refinedClusters)),1);
+          
+          %% Visualize parts.
+          try
+               visualizeJointParts(shownSamples, shownClusters, refinedClusterSamples, refinedClusters, jointPositions, partClusters, numberOfSubParts, partItr, rfSize, numberOfClusters, uniqueSubParts, newFolder);
+          end
           warning(w2);
      end
      
@@ -128,6 +130,7 @@ function [newVocabLevel, newGraphLevel, newVocabLevelDistributions] = discoverJo
      newCategoryLabels = categoryArrIdx(newImageIds);
      newMetaData = cat(2, newLabels, newImageIds, newCategoryLabels);
      clear newLabels newImageIds newCategoryLabels;
+     display(['Found ' num2str(max(newMetaData(:,1))) ' parts in total with ' num2str(size(newMetaData, 1)) ' instances. That makes ' num2str(double(max(newMetaData(:,1)))/(size(candidateParts,1))) ' modes per clique.']);
      
      %% Before the selection process, we eliminate parts which have low coverage. 
      % They are removed from the part selection process.

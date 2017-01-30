@@ -62,7 +62,8 @@ function [jointPositions, savedCliques, uniqueSubParts, numberOfSubParts] = getC
             if size(clusteredPositions,1) == 1
                  clusters = 1;
             else
-                 [clusters, ~] = gmeans(double(clusteredPositions*(1/((rfSize-1) * sqrt(size(clusteredPositions,2))))), nnz(subParts == uniqueSubParts(mapItr)), 0.05, @checkGaussian);
+                 thr = 0.15;
+                 [clusters, ~] = gmeans(double(clusteredPositions*(1/((rfSize-1) * sqrt(size(clusteredPositions,2))))), nnz(subParts == uniqueSubParts(mapItr)), thr, @checkGaussian);
             end
             
 %                    clusters = mec(clusteredPositions*(2/realRFSize), 'c', numberOfSubParts, 'kmeans_i', 5, 'kernel', 1, 'mec_maxiter', 20, 'width', 3);
